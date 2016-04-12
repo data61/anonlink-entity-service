@@ -1,0 +1,5 @@
+flask==0.10.1
+requests==2.9.1
+gunicorn==19.3.0
+psycopg2
+-e git+https://github.inside.nicta.com.au/magic/AnonymousLinking.git#egg=anonlink
