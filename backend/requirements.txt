@@ -1,4 +1,5 @@
 flask==0.10.1
+flask-restful
 requests==2.9.1
 gunicorn==19.3.0
 psycopg2
