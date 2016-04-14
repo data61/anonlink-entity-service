@@ -1,25 +1,44 @@
 from bitarray import bitarray
+import base64
 
 
-def deserialize(binary_data):
-    return bitarray(binary_data)
+def bytes_to_list(python_object):
+    if isinstance(python_object, bytes):
+        return list(python_object)
+    raise TypeError(repr(python_object) + ' is not serializable as a list')
 
 
-def deserialize_filters(filters):
-    res = []
-    for i, f in enumerate(filters):
-        ba = deserialize(f)
-        res.append( (ba, i, ba.count()))
-
-    return res
+def list_to_bytes(python_object):
+    if isinstance(python_object, list):
+        return bytes(python_object)
+    raise TypeError(repr(python_object) + ' is not valid bytes')
 
 
-def serialize(ba):
-    return ''.join(str(int(i)) for i in ba)
+def deserialize_bitarray(bytes_data):
+    ba = bitarray()
+    data_as_bytes = base64.decodebytes(bytes_data.encode())
+    ba.frombytes(data_as_bytes)
+    return ba
+
+
+def serialize_bitarray(ba):
+    """ Serialize a bitarray (bloomfilter)
+
+    """
+    return base64.encodebytes(ba.tobytes()).decode('utf8')
 
 
 
 def serialize_filters(filters):
     return [
-        serialize(f[0]) for f in filters
+        serialize_bitarray(f[0]) for f in filters
     ]
+
+
+def deserialize_filters(filters):
+    res = []
+    for i, f in enumerate(filters):
+        ba = deserialize_bitarray(f)
+        res.append( (ba, i, ba.count()))
+
+    return res

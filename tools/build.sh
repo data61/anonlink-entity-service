@@ -3,3 +3,5 @@ cd backend
 docker build -t n1analytics/entity-app .
 cd ../frontend
 docker build -t n1analytics/entity-nginx .
+cd ..
+docker pull postgres

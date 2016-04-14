@@ -1,5 +1,4 @@
-# Python 2.7 because, like, Stephen. :-P
-FROM python:2.7
+FROM python:3.4
 
 MAINTAINER "Brian Thorne <brian@thorne.link>"
 EXPOSE 8000
