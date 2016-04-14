@@ -1,24 +1,24 @@
 version: '2'
 services:
 
-  db:
-    image: postgres
-    environment:
-      - POSTGRES_PASSWORD=mysecretpassword
+#  db:
+#    image: postgres
+#    environment:
+#      - POSTGRES_PASSWORD=mysecretpassword
 
   backend:
     image: n1analytics/entity-app
+    volumes:
+      - ./logging:/var/log
     environment:
       - DEBUG=true
-    depends_on:
-      - db
+#    depends_on:
+#      - db
 
   nginx:
     image: n1analytics/entity-nginx
     ports:
       - 8851:80
-    volumes:
-      - ./frontend/static:/usr/share/nginx/html:ro
     depends_on:
       - backend
 
