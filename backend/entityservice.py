@@ -81,6 +81,18 @@ def abort_if_invalid_dataprovider_token(update_token):
         abort(403, message="Invalid update token")
 
 
+def abort_if_invalid_results_token(resource_id, results_token):
+    app.logger.debug("checking authorization token to fetch results data")
+    resource_exists = query_db("""
+        select count(*) from mappings
+        WHERE
+          resource_id = %s AND
+          access_token = %s
+        """, [resource_id, results_token], one=True)['count']
+    if not resource_exists:
+        abort(403, message="Invalid access token")
+
+
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
 
@@ -109,7 +121,8 @@ class MappingList(Resource):
         marshaled_mappings = []
 
         app.logger.debug("Getting list of all mappings")
-        for mapping in query_db('select (resource_id, ready) from mappings'):
+        for mapping in query_db('select resource_id, ready from mappings'):
+            #app.logger.debug(mapping)
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
@@ -120,7 +133,11 @@ class MappingList(Resource):
 
         By default the mapping will be between two entities.
         """
-        data = request.json
+        data = request.get_json()
+
+        if data is None or 'schema' not in data:
+            abort(400, message="Schema information required")
+
 
         # TODO Parse input and check for validity
         resource_id = generate_code()
@@ -138,10 +155,10 @@ class MappingList(Resource):
                 INSERT INTO mappings
                 (resource_id, access_token, ready, schema, notes, parties)
                 VALUES
-                (%s, %s, false, '{}', null, %s)
+                (%s, %s, false, %s, null, %s)
                 RETURNING id;
                 """,
-                [resource_id, mapping.result_token, 2]
+                [resource_id, mapping.result_token, Json(data['schema']), 2]
             )
 
             resource_id = cur.fetchone()[0]
@@ -165,24 +182,25 @@ class MappingList(Resource):
         return mapping
 
 
-
 class Mapping(Resource):
 
 
-    #@marshal_with(mapping_resource_fields)
     def get(self, resource_id):
+        data = request.get_json()
+
+        if data is None or 'token' not in data:
+            abort(401, message="Authentication token required")
+
         # Check the resource exists
         abort_if_mapping_doesnt_exist(resource_id)
 
-        mapping = query_db("""
-            SELECT * from mappings
-            WHERE resource_id = %s""",
+        mapping = query_db("SELECT * from mappings WHERE resource_id = %s",
             [resource_id], one=True)
 
         app.logger.info("Checking for results")
 
         # Check the caller has a valid token if we are including results
-        #assert args['auth'] == mapping.result_token, 'Invalid results token'
+        abort_if_invalid_results_token(resource_id, data['token'])
 
         # Check that the mapping is ready
         if not mapping['ready']:
@@ -192,14 +210,33 @@ class Mapping(Resource):
         return mapping['mapping']
 
 
-    def delete(self, resource_id):
-        abort_if_mapping_doesnt_exist(resource_id)
-
-        # Check the caller has valid token
-
-        del mappings[resource_id]
-        return '', 204
-
+    # def delete(self, resource_id):
+    #     """
+    #     ### `/api/v1/mapping/<mapping-id>` (DELETE)
+    #
+    #     #### Parameters
+    #
+    #     - `token` as provided when creating the mapping.
+    #
+    #     #### Returns
+    #
+    #     - **204** If resource was deleted
+    #     - **401** If auth token missing
+    #     - **403** If the token is not valid
+    #     """
+    #     data = request.get_json()
+    #     if 'token' not in data:
+    #         abort(401, message="Authentication token required")
+    #
+    #     abort_if_mapping_doesnt_exist(resource_id)
+    #
+    #     # Check the caller has a valid token if we are deleting data
+    #     abort_if_invalid_results_token(resource_id, data['token'])
+    #
+    #     app.logger.info("Deleting a mapping")
+    #     # TODO delete from database, or mark as deleted...
+    #
+    #     return '', 204
 
     def put(self, resource_id):
         """
@@ -235,7 +272,20 @@ class Mapping(Resource):
             app.logger.info("Ready to match some entities")
             calculate_mapping(mapping)
 
-        return {'status': 'Updated'}, 201
+        return {'message': 'Updated'}, 201
+
+
+class Status(Resource):
+
+    def get(self):
+        """Displays the latest mapping statistics"""
+
+        # We ensure we can connect to the database during the status check
+        number_of_mappings = query_db('''
+            select COUNT(*) from mappings
+            ''', one=True)['count']
+
+        return {'status': 'ok', 'number_mappings': number_of_mappings}
 
 
 def get_filter(dp_id):
@@ -268,8 +318,6 @@ def calculate_mapping(mapping):
 
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
-
-    result = json.dumps(mapping)
 
     app.logger.info("Mapping calculated!")
 
@@ -329,6 +377,7 @@ def add_mapping_data(dp_id, clks):
 
 api.add_resource(MappingList, '/mappings', endpoint='mapping-list')
 api.add_resource(Mapping, '/mappings/<resource_id>', endpoint='mapping')
+api.add_resource(Status, '/status', endpoint='status')
 
 
 def connect_db():
@@ -337,11 +386,18 @@ def connect_db():
     pw = app.config['DATABASE_PASSWORD']
     db = app.config['DATABASE']
 
+    # We nest the try/except blocks to allow one re-attempt with defaults
     try:
-        conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
-    except psycopg2.OperationalError:
-        app.logger.warning("warning connecting to default postgres db")
-        conn = psycopg2.connect(database='postgres', user=user, password=pw, host=host)
+        try:
+            conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
+        except psycopg2.OperationalError:
+            app.logger.warning("warning connecting to default postgres db")
+            conn = psycopg2.connect(database='postgres', user=user, password=pw, host=host)
+
+    except psycopg2.Error:
+        app.logger.warning("Can't connect to database")
+        return abort(503, message="Issue connecting to database")
+
     return conn
 
 
@@ -379,19 +435,8 @@ def teardown_request(exception):
         g.db.close()
 
 
-@app.route('/status')
-def status():
-    return 'Ok'
 
-@app.route('/stats')
-def stats():
-    """Displays the latest mapping statistics"""
 
-    number_of_mappings = query_db('''
-        select COUNT(*) from mappings
-        ''', one=True)['count']
-
-    return json.dumps({'number_mappings': number_of_mappings})
 
 
 @app.route('/version')

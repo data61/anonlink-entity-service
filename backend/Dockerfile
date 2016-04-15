@@ -14,5 +14,6 @@ ADD . /var/www
 CMD gunicorn entityservice:app \
     -w 4 \
     -b 0.0.0.0:8000 \
+    --timeout 300 \
     --log-level info \
     --access-logfile /var/log/gunicorn-access.log
