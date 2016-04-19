@@ -46,9 +46,12 @@ app.logger.setLevel(logging.DEBUG)
 api = Api(app)
 
 
-
-# TODO remove this object
 class MappingDao(object):
+    """
+    A python object for a newly created mapping.
+
+    Exists before insertion into the database.
+    """
     def __init__(self, resource_id, parties=2):
         app.logger.info("Creating mapping")
         self.parties = parties
@@ -101,8 +104,7 @@ def generate_code(length=24):
 new_mapping_fields = {
     'resource_id': fields.String,
     'result_token': fields.String,
-    'update_tokens': fields.List(fields.String),
-    'ready': fields.Boolean,
+    'update_tokens': fields.List(fields.String)
 }
 
 
@@ -122,7 +124,6 @@ class MappingList(Resource):
 
         app.logger.debug("Getting list of all mappings")
         for mapping in query_db('select resource_id, ready from mappings'):
-            #app.logger.debug(mapping)
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
@@ -137,6 +138,9 @@ class MappingList(Resource):
 
         if data is None or 'schema' not in data:
             abort(400, message="Schema information required")
+
+        if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping'}:
+            abort(400, message='result-type must be either "permutation" or "mapping"')
 
 
         # TODO Parse input and check for validity
@@ -153,12 +157,12 @@ class MappingList(Resource):
 
             cur.execute("""
                 INSERT INTO mappings
-                (resource_id, access_token, ready, schema, notes, parties)
+                (resource_id, access_token, ready, schema, notes, parties, result_type)
                 VALUES
-                (%s, %s, false, %s, null, %s)
+                (%s, %s, false, %s, null, %s, %s)
                 RETURNING id;
                 """,
-                [resource_id, mapping.result_token, Json(data['schema']), 2]
+                [resource_id, mapping.result_token, Json(data['schema']), 2, data['result_type']]
             )
 
             resource_id = cur.fetchone()[0]
@@ -174,7 +178,7 @@ class MappingList(Resource):
                     """,
                     [resource_id, auth_token]
                 )
-            app.logger.debug("Added dataproviders")
+            app.logger.debug("Added data providers")
 
             app.logger.debug("Committing transaction")
             conn.commit()
@@ -183,7 +187,6 @@ class MappingList(Resource):
 
 
 class Mapping(Resource):
-
 
     def get(self, resource_id):
         data = request.get_json()
@@ -206,37 +209,11 @@ class Mapping(Resource):
         if not mapping['ready']:
             return {'message': "Mapping isn't ready. Data added from all parties?"}, 503
 
-        # TODO - Get from cache, or calculate the mapping
-        return mapping['mapping']
-
-
-    # def delete(self, resource_id):
-    #     """
-    #     ### `/api/v1/mapping/<mapping-id>` (DELETE)
-    #
-    #     #### Parameters
-    #
-    #     - `token` as provided when creating the mapping.
-    #
-    #     #### Returns
-    #
-    #     - **204** If resource was deleted
-    #     - **401** If auth token missing
-    #     - **403** If the token is not valid
-    #     """
-    #     data = request.get_json()
-    #     if 'token' not in data:
-    #         abort(401, message="Authentication token required")
-    #
-    #     abort_if_mapping_doesnt_exist(resource_id)
-    #
-    #     # Check the caller has a valid token if we are deleting data
-    #     abort_if_invalid_results_token(resource_id, data['token'])
-    #
-    #     app.logger.info("Deleting a mapping")
-    #     # TODO delete from database, or mark as deleted...
-    #
-    #     return '', 204
+        if mapping['result_type'] == 'mapping':
+            app.logger.info("Returning a mapping result")
+            return mapping['mapping']
+        else:
+            app.logger.warning("TODO - implement other result types!")
 
     def put(self, resource_id):
         """
@@ -433,10 +410,6 @@ def before_request():
 def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
-
-
-
-
 
 
 @app.route('/version')

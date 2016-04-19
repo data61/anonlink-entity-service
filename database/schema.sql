@@ -1,6 +1,8 @@
 
 DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata;
 
+CREATE TYPE MAPPINGRESULT AS ENUM ('mapping', 'permutation');
+
 CREATE TABLE mappings (
   -- Just the table index
   id           SERIAL PRIMARY KEY,
@@ -21,7 +23,9 @@ CREATE TABLE mappings (
 
   notes        TEXT,
 
-  parties      SMALLINT DEFAULT 2
+  parties      SMALLINT DEFAULT 2,
+
+  result_type  MAPPINGRESULT NOT NULL
 );
 
 CREATE TABLE dataproviders (

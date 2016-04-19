@@ -17,3 +17,4 @@ CMD gunicorn entityservice:app \
     --timeout 300 \
     --log-level info \
     --access-logfile /var/log/gunicorn-access.log
+
