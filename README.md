@@ -25,3 +25,10 @@ With docker you should be able to use the same container to test:
         -e ENTITY_SERVICE_URL=http://<IPADDRESS>:8851 \
         -e ENTITY_SERVICE_TEST_SIZE=1000 \
         n1analytics/entity-app python test_service.py
+
+# Data generation
+
+    docker run -it \
+        -v place-to-put-generated-data:/var/www/data \
+        -e ENTITY_SERVICE_TEST_SIZE=10000 \
+        n1analytics/entity-app python generate_test_data.py

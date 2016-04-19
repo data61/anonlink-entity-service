@@ -1,3 +1,4 @@
+import os
 import json
 from base64 import b64encode, b64decode
 
@@ -8,17 +9,25 @@ from anonlink import randomnames, entitymatch
 
 from serialization import *
 
+"""
+The URL to test can be overridden with the environment variable
+ENTITY_SERVICE_URL
+
 # When running behind ngnix
 url = "http://localhost:8851/api/v1"
 
 # When running directly
-#url = "http://localhost:8851"
+url = "http://localhost:8851"
+"""
+url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
+
+
 
 def simpletest(dataset_size=1000):
     """
     Uses the NameList data and schema
     """
-    print("Connecting to server.")
+    print("Connecting to server '{}'".format(url))
     status = requests.get(url + '/status')
     print("Server status:")
     assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
@@ -49,12 +58,14 @@ def simpletest(dataset_size=1000):
         {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
         {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
     ]
-    new_map_response = requests.post(url + '/mappings', json={'schema': schema}).json()
+    new_map_response = requests.post(url + '/mappings', json={
+        'schema': schema,
+        'result_type': 'mapping'
+    }).json()
     print(new_map_response)
 
     id = new_map_response['resource_id']
     print("New mapping request created with id: ", id)
-    assert new_map_response['ready'] == False
 
     print("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id), json={'token': 'invalid'})
@@ -102,72 +113,8 @@ def simpletest(dataset_size=1000):
     print(mapping_result)
 
 
-def create_test_data(entities, crossover=0.8, save_raw=True):
-    """
-    Uses the NameList data and schema and creates
-    local files for raw data and clk data:
-
-    - e1_NUM_raw.csv
-    - e1_NUM.json
-    - e2_NUM_raw.csv
-    - e2_NUM.json
-
-    :param bool save_raw: Set to False to skip saving raw files
-    """
-    print("Generating random test data for {} individuals".format(entities))
-
-    from timeit import default_timer as timer
-
-    t0 = timer()
-
-    nl = randomnames.NameList(entities * 2)
-    s1, s2 = nl.generate_subsets(entities, crossover)
-    t1 = timer()
-    print("generated data in {:.3f} s".format(t1-t0))
-
-    def save_subset_data(s, f):
-        print(",".join(nl.schema), file=f)
-        for entity in s:
-            print(",".join(map(str, entity)), file=f)
-
-    def save_filter_data(filters, f):
-        print("Serializing filters")
-        serialized_filters = serialize_filters(filters)
-
-        json.dump(serialized_filters, f)
-
-
-    keys = ('something', 'secret')
-
-    if save_raw:
-        with open("data/e1_{}_raw.csv".format(entities), "w") as f:
-            save_subset_data(s1, f)
-
-        with open("data/e2_{}_raw.csv".format(entities), "w") as f:
-            save_subset_data(s2, f)
-    t2 = timer()
-    print("Saved raw data in {:.3f} s".format(t2-t1))
-    print("Locally hashing identity data to create bloom filters")
-
-    # Save serialized filters
-    with open("data/e1_{}.json".format(entities), 'w') as f1:
-        save_filter_data(entitymatch.calculate_bloom_filters(s1, nl.schema, keys), f1)
-
-    with open("data/e2_{}.json".format(entities), 'w') as f2:
-        save_filter_data(entitymatch.calculate_bloom_filters(s2, nl.schema, keys), f2)
-
-    t3 = timer()
-    print("Hashed and serialized data in {:.3f} s".format(t3-t2))
-
 
 if __name__ == "__main__":
 
-    #create_test_data(1000000)
-
-    # simpletest(200)
-    #
-    # simpletest(500)
-    #
-    simpletest(10000)
-    #
-    # simpletest(100000)
+    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "1000"))
+    simpletest(size)
