@@ -17,3 +17,11 @@ During development you can run just the database container with the following:
 
     docker-compose -f tools/docker-compose.yml run db
 
+# Testing
+
+With docker you should be able to use the same container to test:
+
+    docker run -it \
+        -e ENTITY_SERVICE_URL=http://<IPADDRESS>:8851 \
+        -e ENTITY_SERVICE_TEST_SIZE=1000 \
+        n1analytics/entity-app python test_service.py
