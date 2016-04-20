@@ -100,15 +100,24 @@ def simpletest(dataset_size=1000):
 
     assert resp2.status_code == 201
 
-    print("Waiting some arbitrary amount of time...")
+    print("Going to sleep to give the server some processing time...")
     time.sleep(3)
 
-    print("Retrieving mapping")
-    # TODO add auth token for this call?
-    response = requests.get(url + '/mappings/{}'.format(id), json={'token': new_map_response['result_token']})
+    def retrieve_result():
+        print("Retrieving mapping")
+        response = requests.get(url + '/mappings/{}'.format(id), json={'token': new_map_response['result_token']})
+        print(response.status_code)
+        return response
 
-    print(response.status_code)
+    response = retrieve_result()
+    while not response.status_code == 200:
+        snooze = 10*dataset_size/10000
+        print("Sleeping for another {} seconds".format(snooze))
+        time.sleep(snooze)
+        response = retrieve_result()
+
     assert response.status_code == 200
+
     mapping_result = response.json()
     print(mapping_result)
 
@@ -116,5 +125,5 @@ def simpletest(dataset_size=1000):
 
 if __name__ == "__main__":
 
-    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "1000"))
+    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "10000"))
     simpletest(size)
