@@ -16,7 +16,7 @@ services:
 
   # The application server
   backend:
-    image: n1analytics/entity-app
+    image: quay.io/n1analytics/entity-app
     volumes:
       - ../logging:/var/log
     environment:
@@ -29,19 +29,17 @@ services:
 
   # A celery worker
   worker:
-    image: n1analytics/entity-app
+    image: quay.io/n1analytics/entity-app
     depends_on:
       - redis
       - db
-    entrypoint: celery -A async_worker worker --loglevel=debug --beat
+    entrypoint: celery -A async_worker worker --loglevel=debug --beat --concurrency=10 -n entity-worker
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - LOGFILE=/var/log/entity-service-worker.log
-
-
+      - LOGFILE=/var/log/entity-service-worker-A.log
 
   nginx:
-    image: n1analytics/entity-nginx
+    image: quay.io/n1analytics/entity-nginx
     ports:
       - 8851:80
     depends_on:

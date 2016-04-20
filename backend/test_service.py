@@ -111,7 +111,7 @@ def simpletest(dataset_size=1000):
 
     response = retrieve_result()
     while not response.status_code == 200:
-        snooze = 10*dataset_size/10000
+        snooze = 30*dataset_size/10000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result()
@@ -122,8 +122,9 @@ def simpletest(dataset_size=1000):
     print(mapping_result)
 
 
-
 if __name__ == "__main__":
+    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))
+    repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "10"))
 
-    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "10000"))
-    simpletest(size)
+    for i in range(repeats):
+        simpletest(size)

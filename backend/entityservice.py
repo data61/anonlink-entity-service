@@ -201,13 +201,18 @@ class Mapping(Resource):
 
         # Check that the mapping is ready
         if not mapping['ready']:
-            return {'message': "Mapping isn't ready. Data added from all parties?"}, 503
+            # return compute time elapsed here
+            time_elapsed = query_db(get_db(),
+                                    "SELECT (now() - time_added) as elapsed from mappings WHERE resource_id = %s",
+                                    [resource_id], one=True)['elapsed']
+            app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
+            return {'message': "Mapping isn't ready.", "elapsed": time_elapsed.total_seconds()}, 503
 
-        if mapping['result_type'] == 'mapping':
-            app.logger.info("Returning a mapping result")
-            return mapping['mapping']
+        if mapping['result_type'] in {'mapping', 'permutation'}:
+            app.logger.info("Result being returned")
+            return mapping['result']
         else:
-            app.logger.warning("TODO - implement other result types!")
+            app.logger.warning("Unimplemented result type")
 
     def put(self, resource_id):
         """

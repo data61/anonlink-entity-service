@@ -70,7 +70,9 @@ def calculate_mapping(resource_id):
         logger.debug("Saving the blooming data")
         cur.execute("""
             UPDATE mappings SET
-            mapping = (%s), ready = TRUE
+              result = (%s),
+              ready = TRUE,
+              time_completed = now()
             """,
             [psycopg2.extras.Json(mapping)])
 
