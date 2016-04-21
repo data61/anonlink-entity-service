@@ -2,11 +2,11 @@ version: '2'
 services:
 
   db:
-    image: postgres
+    image: postgres:9.4
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
-      - ../database:/docker-entrypoint-initdb.d:ro
+      - ../../dockerBootstrap/etc/entity/db:/docker-entrypoint-initdb.d:ro
       - ./dbdata:/var/lib/postgresql/data
     ports:
       - 5432:5432
@@ -25,6 +25,7 @@ services:
       - LOGFILE=/var/log/entity-service-app.log
     depends_on:
       - db
+      - redis
       - worker
 
   # A celery worker
