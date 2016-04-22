@@ -4,4 +4,3 @@ docker build -t quay.io/n1analytics/entity-app .
 cd ../frontend
 docker build -t quay.io/n1analytics/entity-nginx .
 cd ..
-docker pull postgres
