@@ -42,21 +42,32 @@ With docker you should be able to use the same container to test the service:
         -e ENTITY_SERVICE_URL=http://<ENTITY-SERVER-IPADDRESS>:8851/api/v1 \
         -e ENTITY_SERVICE_TEST_SIZE=1000 \
         -e ENTITY_SERVICE_TEST_REPEATS=10 \
-        --net=tools_db \
+        --net=tools_default \
         quay.io/n1analytics/entity-app python test_service.py
 
 Note the `--net` parameter is only required if connecting to a service running locally
-with docker compose. In this instance the <ENTITY_SERVER_IPADDRESS> is usually the
-host's IP address on the docker bridge network.
+with docker compose. If `tools_default` is not recognized, use `docker network ls` to see the available docker networks. One of them should have a name looking like `tools_default` or `tools_db`.
+In this instance the <ENTITY_SERVER_IPADDRESS> is usually the host's IP address on the docker bridge network. When running,locally, do not use `0.0.0.0`. There are two solutions: 
+
+- find the name of the `entity-nginx` engine with `docker ps` in the columns `names`, which you can use as url: ` -e ENTITY_SERVICE_URL=http://<name_container>/api/v1`. 
+- use the local IP of the container provided by:
+```
+docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container_id>
+```
+ and the port linked to `0.0.0.0 8851` provided by:
+```
+docker inspect --format='{{.NetworkSettings.Ports}}' <container_id>
+```
+The port should be `80`. Then use the previous command with `-e ENTITY_SERVICE_URL=http://<IP_container>:<port_container>/api/v1`
 
 # Data generation
 
     docker run -it \
-        -v place-to-put-generated-data:/var/www/data \
+        -v <place-to-put-generated-data>:/var/www/data \
         -e ENTITY_SERVICE_TEST_SIZE=10000 \
-        n1analytics/entity-app python generate_test_data.py
+        quay.io/n1analytics/entity-app python generate_test_data.py
 
-
+Note: the folder in which the generated data will be stored need to be existing.
 
 ## Development Tips
 
