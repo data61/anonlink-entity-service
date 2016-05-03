@@ -8,7 +8,7 @@ from psycopg2.extras import Json
 
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
-
+from phe import paillier
 import anonlink
 from database import connect_db, query_db
 from serialization import deserialize_filters
@@ -89,6 +89,23 @@ def abort_if_invalid_results_token(resource_id, results_token):
         abort(403, message="Invalid access token")
 
 
+def abort_if_invalid_receipt_token(resource_id, receipt_token):
+    app.logger.debug("checking authorization token to fetch mask data")
+    query_result = query_db(get_db(), """
+        select dp from dataproviders, bloomingdata, mappings
+        WHERE
+          bloomingdata.dp = dataproviders.id AND
+          dataproviders.mapping = mappings.id AND
+          mappings.resource_id = %s AND
+          bloomingdata.token = %s
+        """, [resource_id, receipt_token], one=True)
+
+    if query_result is None:
+        abort(403, message="Invalid access token")
+
+    return query_result['dp']
+
+
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
 
@@ -125,7 +142,10 @@ class MappingList(Resource):
     def post(self):
         """Create a new mapping
 
-        By default the mapping will be between two entities.
+        By default the mapping will be between two organisations.
+
+        There are two types, a "mapping" and a "permutation". The second
+        requires a paillier public key to be passed in.
         """
         data = request.get_json()
 
@@ -135,6 +155,8 @@ class MappingList(Resource):
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping'}:
             abort(400, message='result-type must be either "permutation" or "mapping"')
 
+        if data['result_type'] == 'permutation' and 'public_key' not in data:
+            abort(400, message='Paillier public key required when result_type="permutation"')
 
         # TODO Parse input and check for validity
         resource_id = generate_code()
@@ -168,9 +190,23 @@ class MappingList(Resource):
                     (mapping, token)
                     VALUES
                     (%s, %s)
+                    RETURNING id
                     """,
                     [resource_id, auth_token]
                 )
+                dp_id = cur.fetchone()[0]
+                app.logger.info("Added dataprovider with id = {}".format(dp_id))
+
+                # if data['result_type'] == 'permutation':
+                #     app.logger.debug("Creating placeholder masks for permutation")
+                #     cur.execute("""
+                #         INSERT INTO maskdata
+                #         (dp, raw)
+                #         VALUES
+                #         (%s, %s)
+                #         """,
+                #         [dp_id, Json("")]
+
             app.logger.debug("Added data providers")
 
             app.logger.debug("Committing transaction")
@@ -182,6 +218,10 @@ class MappingList(Resource):
 class Mapping(Resource):
 
     def get(self, resource_id):
+        """
+        This endpoint reveals the results of the calculation.
+        What you're allowed to know depends on who you are.
+        """
         data = request.get_json()
 
         if data is None or 'token' not in data:
@@ -193,11 +233,15 @@ class Mapping(Resource):
         mapping = query_db(get_db(), "SELECT * from mappings WHERE resource_id = %s",
             [resource_id], one=True)
 
+        app.logger.info("Checking credentials")
+
+        if mapping['result_type'] == 'mapping':
+            # Check the caller has a valid results token if we are including results
+            abort_if_invalid_results_token(resource_id, data['token'])
+        elif mapping['result_type'] == 'permutation':
+            dp_id = abort_if_invalid_receipt_token(resource_id, data['token'])
+
         app.logger.info("Checking for results")
-
-        # Check the caller has a valid token if we are including results
-        abort_if_invalid_results_token(resource_id, data['token'])
-
         # Check that the mapping is ready
         if not mapping['ready']:
             # return compute time elapsed here
@@ -207,9 +251,12 @@ class Mapping(Resource):
             app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
             return {'message': "Mapping isn't ready.", "elapsed": time_elapsed.total_seconds()}, 503
 
-        if mapping['result_type'] in {'mapping', 'permutation'}:
-            app.logger.info("Result being returned")
+        if mapping['result_type'] == 'mapping':
+            app.logger.info("Mapping result being returned")
             return mapping['result']
+        elif mapping['result_type'] == 'permutation':
+            app.logger.info("Permutation result being returned")
+            raise NotImplementedError()
         else:
             app.logger.warning("Unimplemented result type")
 
@@ -238,19 +285,15 @@ class Mapping(Resource):
         dp_id = query_db(get_db(), 'select id from dataproviders WHERE token = %s', [data['token']], one=True)['id']
 
         app.logger.info("Adding data to: {}".format(dp_id))
-        add_mapping_data(dp_id, data['clks'])
+        receipt_token = add_mapping_data(dp_id, data['clks'])
 
-        # TODO consider queuing work with celery or sqs
         # Now work out if all parties have added their data
-
         if check_mapping(mapping):
             app.logger.info("Ready to match some entities")
-            res = calculate_mapping.delay(resource_id)
-
+            calculate_mapping.delay(resource_id)
             app.logger.info("Matching job scheduled with celery worker")
 
-            return {'message': "Updated. Calculating"}, 201
-        return {'message': 'Updated'}, 201
+        return {'message': 'Updated', 'receipt-token': receipt_token}, 201
 
 
 class Status(Resource):
@@ -264,8 +307,6 @@ class Status(Resource):
             ''', one=True)['count']
 
         return {'status': 'ok', 'number_mappings': number_of_mappings}
-
-
 
 
 def check_mapping(mapping):
@@ -285,19 +326,20 @@ def check_mapping(mapping):
 
 
 def add_mapping_data(dp_id, clks):
+    # TODO add some checks for the clks data
 
-    # TODO check data format...
+    receipt_token = generate_code()
 
     conn = get_db()
     with conn.cursor() as cur:
         app.logger.debug("Adding blooming data")
         cur.execute("""
             INSERT INTO bloomingdata
-            (dp, raw)
+            (dp, token, raw)
             VALUES
-            (%s, %s)
+            (%s, %s, %s)
             """,
-            [dp_id, Json(clks)])
+            [dp_id, receipt_token, Json(clks)])
 
         cur.execute("""
             UPDATE dataproviders
@@ -306,6 +348,7 @@ def add_mapping_data(dp_id, clks):
             """, [dp_id])
 
     conn.commit()
+    return receipt_token
 
 
 api.add_resource(MappingList, '/mappings', endpoint='mapping-list')
