@@ -50,7 +50,8 @@ with docker compose. If `tools_default` is not recognized, use `docker network l
 see the available docker networks and find which network was created by docker-compose.
 
 The `<ENTITY-SERVER-HOST>` is either the hostname or the host's IP address on the
-docker network. When running locally, **do not use `0.0.0.0`**, there are two solutions:
+docker network. When running locally with docker compose, **do not use `0.0.0.0`**,
+there are two solutions:
 
 - find the name of the `entity-nginx` container with `docker ps` (in the column `names`)
 - use the local IP of the container with
@@ -75,6 +76,7 @@ you change the database schema:
     docker-compose -f tools/docker-compose.yml rm
     rm -fr ./tools/dbdata
 
-During development you can run just the database container with the following:
+During development you can run the redis and database containers with docker-compose,
+and directly run the celery and flask applications.
 
 

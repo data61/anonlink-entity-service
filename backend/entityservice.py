@@ -27,7 +27,6 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(consoleFormat)
 app = Flask(__name__)
 
-
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object('settings.Config')
 
@@ -65,7 +64,7 @@ class MappingDao(object):
 
 
 def abort_if_mapping_doesnt_exist(resource_id):
-    resource_exists = query_db(get_db(), 'select count(*) from mappings WHERE resource_id = %s', [resource_id], one=True)
+    resource_exists = query_db(get_db(), 'select count(*) from mappings WHERE resource_id = %s', [resource_id], one=True)['count'] == 1
     if not resource_exists:
         app.logger.warning("Request to PUT data with invalid auth token")
         abort(404, message="Mapping {} doesn't exist".format(resource_id))
@@ -73,7 +72,7 @@ def abort_if_mapping_doesnt_exist(resource_id):
 
 def abort_if_invalid_dataprovider_token(update_token):
     app.logger.debug("checking authorization token to update data")
-    resource_exists = query_db(get_db(), 'select count(*) from dataproviders WHERE token = %s', [update_token], one=True)
+    resource_exists = query_db(get_db(), 'select count(*) from dataproviders WHERE token = %s', [update_token], one=True)['count'] == 1
     if not resource_exists:
         abort(403, message="Invalid update token")
 
@@ -85,7 +84,7 @@ def abort_if_invalid_results_token(resource_id, results_token):
         WHERE
           resource_id = %s AND
           access_token = %s
-        """, [resource_id, results_token], one=True)['count']
+        """, [resource_id, results_token], one=True)['count'] == 1
     if not resource_exists:
         abort(403, message="Invalid access token")
 
