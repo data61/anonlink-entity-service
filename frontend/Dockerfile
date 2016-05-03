@@ -10,4 +10,4 @@ COPY ./static /usr/share/nginx/html
 # Copy the nginx configuration
 COPY ./nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 80
+EXPOSE 8851

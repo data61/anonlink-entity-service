@@ -39,26 +39,24 @@ The service should be running on port `8851`.
 With docker you should be able to use the same container to test the service:
 
     docker run -it \
-        -e ENTITY_SERVICE_URL=http://<ENTITY-SERVER-IPADDRESS>:8851/api/v1 \
+        -e ENTITY_SERVICE_URL=http://<ENTITY-SERVER-HOST>:8851/api/v1 \
         -e ENTITY_SERVICE_TEST_SIZE=1000 \
         -e ENTITY_SERVICE_TEST_REPEATS=10 \
         --net=tools_default \
         quay.io/n1analytics/entity-app python test_service.py
 
 Note the `--net` parameter is only required if connecting to a service running locally
-with docker compose. If `tools_default` is not recognized, use `docker network ls` to see the available docker networks. One of them should have a name looking like `tools_default` or `tools_db`.
-In this instance the <ENTITY_SERVER_IPADDRESS> is usually the host's IP address on the docker bridge network. When running,locally, do not use `0.0.0.0`. There are two solutions: 
+with docker compose. If `tools_default` is not recognized, use `docker network ls` to
+see the available docker networks and find which network was created by docker-compose.
 
-- find the name of the `entity-nginx` engine with `docker ps` in the columns `names`, which you can use as url: ` -e ENTITY_SERVICE_URL=http://<name_container>/api/v1`. 
-- use the local IP of the container provided by:
-```
-docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container_id>
-```
- and the port linked to `0.0.0.0 8851` provided by:
-```
-docker inspect --format='{{.NetworkSettings.Ports}}' <container_id>
-```
-The port should be `80`. Then use the previous command with `-e ENTITY_SERVICE_URL=http://<IP_container>:<port_container>/api/v1`
+The `<ENTITY-SERVER-HOST>` is either the hostname or the host's IP address on the
+docker network. When running locally, **do not use `0.0.0.0`**, there are two solutions:
+
+- find the name of the `entity-nginx` container with `docker ps` (in the column `names`)
+- use the local IP of the container with
+  `docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' <container-id>`
+
+Then use the previous command with `-e ENTITY_SERVICE_URL=http://<container-ip-or-name>:8851/api/v1`
 
 # Data generation
 
