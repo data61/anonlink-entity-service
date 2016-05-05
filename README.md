@@ -1,5 +1,8 @@
 # N1 Entity Matching Microservice
 
+
+[![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
+
 ### Dependencies
 
 [Docker](http://docs.docker.com/installation/) and [docker-compose](http://docs.docker.com/compose/)

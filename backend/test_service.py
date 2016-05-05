@@ -152,7 +152,7 @@ def mapping_test(dataset_size=1000):
 
     assert response.status_code == 200
 
-    mapping_result = response.json()
+    mapping_result = response.json()["mapping"]
     print(mapping_result)
 
 
@@ -295,8 +295,8 @@ if __name__ == "__main__":
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "3"))
 
     server_status_test()
-    mapping_test(size)
+    #mapping_test(size)
     permutation_test(size)
 
-    for i in range(repeats):
-        mapping_test(size)
+    # for i in range(repeats):
+    #     mapping_test(size)

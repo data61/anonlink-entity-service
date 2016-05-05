@@ -44,11 +44,11 @@ def connect_db():
 
 def check_mapping_ready(db, resource_id):
     """See if the given mapping has indicated it is ready.
-    Returns the boolean and the mappings database id
+    Returns the boolean, the mappings database id, and the result type
     """
     logger.info("Selecting mapping resource")
     res = query_db(db, """
-        SELECT id, ready
+        SELECT id, ready, result_type
         FROM mappings
         WHERE
           resource_id = %s
@@ -57,7 +57,7 @@ def check_mapping_ready(db, resource_id):
 
     logger.info("Database mapping with id={} is ready: {}".format(res['id'], is_ready))
 
-    return is_ready, res['id']
+    return is_ready, res['id'], res['result_type']
 
 
 def get_filter(db, dp_id):

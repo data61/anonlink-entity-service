@@ -4,7 +4,7 @@ import logging
 import binascii
 
 import psycopg2
-from psycopg2.extras import Json
+import psycopg2.extras
 
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
@@ -17,13 +17,15 @@ from async_worker import calculate_mapping
 # Logging config
 LOGFILE = os.environ.get("LOGFILE", 'entity-service-application.log')
 fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
-consoleFormat = logging.Formatter('%(asctime) %(name)-12s: %(levelname)-8s %(message)s', datefmt="%m-%d %H:%M")
+consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
+                                  datefmt="%H:%M:%S")
 
 # Logging setup
 fileHandler = logging.FileHandler(LOGFILE)
-fileHandler.setLevel(logging.DEBUG)
+fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(fileFormat)
 consoleHandler = logging.StreamHandler()
+consoleHandler.setLevel(logging.DEBUG)
 consoleHandler.setFormatter(consoleFormat)
 app = Flask(__name__)
 
@@ -31,9 +33,10 @@ app = Flask(__name__)
 app.config.from_object('settings.Config')
 
 # Add loggers to app
+del app.logger.handlers[:]
+app.logger.propagate = False
 app.logger.addHandler(fileHandler)
 app.logger.addHandler(consoleHandler)
-app.logger.setLevel(logging.DEBUG)
 
 # Create our flask_restful api
 api = Api(app)
@@ -170,6 +173,8 @@ class MappingList(Resource):
             app.logger.debug("Starting database transaction")
             app.logger.debug("Adding mapping")
 
+            # TODO insert public key if required
+
             cur.execute("""
                 INSERT INTO mappings
                 (resource_id, access_token, ready, schema, notes, parties, result_type)
@@ -177,7 +182,8 @@ class MappingList(Resource):
                 (%s, %s, false, %s, null, %s, %s)
                 RETURNING id;
                 """,
-                [resource_id, mapping.result_token, Json(data['schema']), 2, data['result_type']]
+                [resource_id, mapping.result_token,
+                 psycopg2.extras.Json(data['schema']), 2, data['result_type']]
             )
 
             resource_id = cur.fetchone()[0]
@@ -196,16 +202,6 @@ class MappingList(Resource):
                 )
                 dp_id = cur.fetchone()[0]
                 app.logger.info("Added dataprovider with id = {}".format(dp_id))
-
-                # if data['result_type'] == 'permutation':
-                #     app.logger.debug("Creating placeholder masks for permutation")
-                #     cur.execute("""
-                #         INSERT INTO maskdata
-                #         (dp, raw)
-                #         VALUES
-                #         (%s, %s)
-                #         """,
-                #         [dp_id, Json("")]
 
             app.logger.debug("Added data providers")
 
@@ -253,10 +249,19 @@ class Mapping(Resource):
 
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
-            return mapping['result']
+            return {"mapping": mapping['result']}
         elif mapping['result_type'] == 'permutation':
             app.logger.info("Permutation result being returned")
-            raise NotImplementedError()
+
+            result = json.loads(mapping['result'])
+            perm = query_db(
+                get_db(),
+                "SELECT raw from permutationdata WHERE dp = %s",
+                [dp_id], one=True)['raw']
+
+            result['permutation'] = perm
+            return result
+
         else:
             app.logger.warning("Unimplemented result type")
 
@@ -339,7 +344,8 @@ def add_mapping_data(dp_id, clks):
             VALUES
             (%s, %s, %s)
             """,
-            [dp_id, receipt_token, Json(clks)])
+            [dp_id, receipt_token,
+             psycopg2.extras.Json(clks)])
 
         cur.execute("""
             UPDATE dataproviders
