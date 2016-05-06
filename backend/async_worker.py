@@ -78,60 +78,68 @@ def calculate_mapping(resource_id):
             Pack all the entities that match in the **same** random locations in both permutations.
             Then fill in all the gaps!
 
-            I'll do it with dictionaries first, then we could convert to lists if we want.
+            Dictionaries first, then converted to lists.
             """
+            smaller_dataset_size = min(len(filters1), len(filters2))
+            number_in_common = len(mapping)
             a_permutation = {}  # Should be length of filters1
             b_permutation = {}  # length of filters2
-            mask = {}
 
-            logger.warn("Permutations for mapped entities not properly random yet")
-            for mapping_index, a_index in enumerate(mapping):
+            # By default mark all rows as NOT included in the mask
+            mask = {i: False for i in range(smaller_dataset_size)}
+
+            # start with all the possible indexes
+            remaining_new_indexes = set(range(smaller_dataset_size))
+
+            logger.info("Randomly assigning indexes for {} matched entities".format(number_in_common))
+            for mapping_number, a_index in enumerate(mapping):
                 b_index = mapping[a_index]
 
-                # For now lets just pack the mappings tightly - not randomly
+                # Choose the index in the new mapping (randomly)
+                mapping_index = random.choice(tuple(remaining_new_indexes))
+                remaining_new_indexes.remove(mapping_index)
+
                 a_permutation[a_index] = mapping_index
                 b_permutation[b_index] = mapping_index
 
                 # Mark the row included in the mask
                 mask[mapping_index] = True
 
-            number_in_common = len(mapping)
 
-            logger.info("Adding permutation for non matched entities")
+            logger.info("Randomly adding all non matched entities")
 
-            all_a_indexes = set(range(len(filters1)))
-            all_b_indexes = set(range(len(filters2)))
+            # Note the a and b datasets are different sizes
+            # At this point, both have all used the remaining_new_indexes
+            remaining_a_indexes = remaining_new_indexes.symmetric_difference(set(range(len(filters1))))
+            remaining_b_indexes = remaining_new_indexes.symmetric_difference(set(range(len(filters2))))
 
-            mapped_a_indexes = set(list(mapping.keys()))
-            mapped_b_indexes = set(list(mapping.values()))
 
-            remaining_a_indexes = mapped_a_indexes.symmetric_difference(all_a_indexes)
-            remaining_b_indexes = mapped_b_indexes.symmetric_difference(all_b_indexes)
+            # TODO maybe we can just shuffle all the remaining indicies?
+            random.shuffle
+            while len(remaining_a_indexes) > 0:
+                # choose a row swap at random here
+                tmp1 = random.choice(tuple(remaining_a_indexes))
+                tmp2 = random.choice(tuple(remaining_a_indexes))
 
-            smaller_dataset_size = min(len(filters1), len(filters2))
+                a_permutation[tmp1] = tmp2
 
-            for mapping_index in range(number_in_common, smaller_dataset_size):
-                # choose a row at random here (have to convert to tuple for indexing)
-                tmpa = random.choice(tuple(remaining_a_indexes))
-                tmpb = random.choice(tuple(remaining_b_indexes))
+                # Remove the picked element
+                remaining_a_indexes.remove(tmp1)
 
-                # Add this new mapping
-                a_permutation[tmpa] = mapping_index
-                b_permutation[tmpb] = mapping_index
+            while len(remaining_b_indexes) > 0:
+                # choose a row swap at random here
+                tmp1 = random.choice(tuple(remaining_b_indexes))
+                tmp2 = random.choice(tuple(remaining_b_indexes))
 
-                # Mark the row as NOT included in the mask
-                mask[mapping_index] = False
+                b_permutation[tmp1] = tmp2
 
-                # Remove the picked elements
-                remaining_a_indexes.remove(tmpa)
-                remaining_b_indexes.remove(tmpb)
+                # Remove the picked element
+                remaining_b_indexes.remove(tmp1)
 
             logger.info("Completed new permutations for each party")
 
             for i, permutation in enumerate([a_permutation, b_permutation]):
-
                 perm_list = convert_mapping_to_list(permutation)
-
                 logger.debug("Saving permutations")
                 cur.execute("""
                     INSERT INTO permutationdata
