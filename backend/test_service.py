@@ -275,6 +275,7 @@ def permutation_test(dataset_size=500):
         response = retrieve_result(id, r1['receipt-token'])
 
     assert response.status_code == 200
+    mapping_result_a = response.json()
 
     print("Retrieving results as organisation 2")
     response = retrieve_result(id, r2['receipt-token'])
@@ -285,18 +286,29 @@ def permutation_test(dataset_size=500):
         response = retrieve_result(id, r2['receipt-token'])
 
     assert response.status_code == 200
+    mapping_result_b = response.json()
 
-    mapping_result = response.json()
-    print(mapping_result)
+    # Now we will print a few sample matches...
+
+    mask = mapping_result_a['mask']
+
+    for original_a_index, element in enumerate(s1):
+        if original_a_index < 10:
+            new_index = mapping_result_a['permutation'][original_a_index]
+            print(original_a_index, " -> ", new_index, element, mask[new_index])
+
+    for original_b_index, element in enumerate(s2):
+        if original_b_index < 10:
+            new_index = mapping_result_b['permutation'][original_b_index]
+            print(original_b_index, " -> ", new_index, element, mask[new_index])
 
 
 if __name__ == "__main__":
     size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))
-    repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "3"))
+    repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
 
     server_status_test()
-    #mapping_test(size)
-    permutation_test(size)
 
-    # for i in range(repeats):
-    #     mapping_test(size)
+    for i in range(repeats):
+        mapping_test(size)
+        permutation_test(size)

@@ -23,6 +23,8 @@ logger.info("Setting up celery...")
 
 def convert_mapping_to_list(permutation):
     """Convert the permutation from a dict mapping into a list"""
+    l = len(permutation)
+
     perm_list = []
     for j in range(len(permutation)):
         perm_list.append(permutation[j])
@@ -108,33 +110,44 @@ def calculate_mapping(resource_id):
 
             logger.info("Randomly adding all non matched entities")
 
-            # Note the a and b datasets are different sizes
-            # At this point, both have all used the remaining_new_indexes
-            remaining_a_indexes = remaining_new_indexes.symmetric_difference(set(range(len(filters1))))
-            remaining_b_indexes = remaining_new_indexes.symmetric_difference(set(range(len(filters2))))
+            # Note the a and b datasets could be of different size.
+            # At this point, both still have to use the remaining_new_indexes, and any
+            # indexes that go over the number_in_common
+            remaining_a_values = list(set(range(smaller_dataset_size, len(filters1))).union(remaining_new_indexes))
+            remaining_b_values = list(set(range(smaller_dataset_size, len(filters2))).union(remaining_new_indexes))
+
+            # DEBUG ONLY
+            a_values = set(a_permutation.values())
+            for i in remaining_a_values:
+                assert i not in a_values
 
 
-            # TODO maybe we can just shuffle all the remaining indicies?
-            random.shuffle
-            while len(remaining_a_indexes) > 0:
-                # choose a row swap at random here
-                tmp1 = random.choice(tuple(remaining_a_indexes))
-                tmp2 = random.choice(tuple(remaining_a_indexes))
+            # Shuffle the remaining indices on each
+            random.shuffle(remaining_a_values)
+            random.shuffle(remaining_b_values)
 
-                a_permutation[tmp1] = tmp2
+            # For every element in a's permutation
+            for a_index in range(len(filters1)):
+                # Check if it is not already present
+                if a_index not in a_permutation:
+                    # This index isn't yet mapped
 
-                # Remove the picked element
-                remaining_a_indexes.remove(tmp1)
+                    # choose and remove a random index from the extended list of those that remain
+                    # note this "could" be the same row (a NOP 1-1 permutation)
+                    mapping_index = remaining_a_values.pop()
 
-            while len(remaining_b_indexes) > 0:
-                # choose a row swap at random here
-                tmp1 = random.choice(tuple(remaining_b_indexes))
-                tmp2 = random.choice(tuple(remaining_b_indexes))
+                    a_permutation[a_index] = mapping_index
 
-                b_permutation[tmp1] = tmp2
+            # For every eventual element in a's permutation
+            for b_index in range(len(filters2)):
+                # Check if it is not already present
+                if b_index not in b_permutation:
+                    # This index isn't yet mapped
 
-                # Remove the picked element
-                remaining_b_indexes.remove(tmp1)
+                    # choose and remove a random index from the extended list of those that remain
+                    # note this "could" be the same row (a NOP 1-1 permutation)
+                    mapping_index = remaining_b_values.pop()
+                    b_permutation[b_index] = mapping_index
 
             logger.info("Completed new permutations for each party")
 
