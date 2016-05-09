@@ -290,18 +290,16 @@ def permutation_test(dataset_size=500):
 
     # Now we will print a few sample matches...
 
-    mask = mapping_result_a['mask']
-
     for original_a_index, element in enumerate(s1):
         new_index = mapping_result_a['permutation'][original_a_index]
         if new_index < 10:
-            print(original_a_index, " -> ", new_index, element, mask[new_index])
+            print(original_a_index, " -> ", new_index, element)
 
     print("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation'][original_b_index]
         if new_index < 10:
-            print(original_b_index, " -> ", new_index, element, mask[new_index])
+            print(original_b_index, " -> ", new_index, element)
 
 
 if __name__ == "__main__":
