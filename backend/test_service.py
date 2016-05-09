@@ -293,13 +293,14 @@ def permutation_test(dataset_size=500):
     mask = mapping_result_a['mask']
 
     for original_a_index, element in enumerate(s1):
-        if original_a_index < 10:
-            new_index = mapping_result_a['permutation'][original_a_index]
+        new_index = mapping_result_a['permutation'][original_a_index]
+        if new_index < 10:
             print(original_a_index, " -> ", new_index, element, mask[new_index])
 
+    print("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        if original_b_index < 10:
-            new_index = mapping_result_b['permutation'][original_b_index]
+        new_index = mapping_result_b['permutation'][original_b_index]
+        if new_index < 10:
             print(original_b_index, " -> ", new_index, element, mask[new_index])
 
 
