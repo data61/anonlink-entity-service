@@ -11,6 +11,7 @@ from serialization import deserialize_filters
 from database import *
 from settings import Config as config
 
+from phe import paillier
 import anonlink
 
 celery = Celery('tasks', broker=config.BROKER_URL, backend=config.CELERY_RESULT_BACKEND)
@@ -163,7 +164,20 @@ def calculate_mapping(resource_id):
                     [dp_ids[i], psycopg2.extras.Json(perm_list)]
                 )
 
-            logger.info("Saving mask data")
+            logger.info("Encrypting mask data")
+
+            res = query_db(db, """
+                SELECT public_key
+                FROM mappings
+                WHERE
+                  resource_id = %s
+                """, [resource_id], one=True)
+            pk = res['public_key']
+            public_key = paillier.PaillierPublicKey(g=int(pk['g']), n=int(pk['n']))
+            encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key)
+
+            logger.info("Saving permutation data to db")
+
             cur.execute("""
                 UPDATE mappings SET
                 result = (%s),
@@ -172,10 +186,16 @@ def calculate_mapping(resource_id):
                 """,
                 [psycopg2.extras.Json(json.dumps({
                     "rows": smaller_dataset_size,
-                    "mask": convert_mapping_to_list(mask)
+                    "mask": encrypted_mask
                 }))])
 
     db.commit()
     logger.info("Mapping saved")
 
     return 'Done'
+
+
+def encrypt_vector(values, public_key):
+    return [
+        str(public_key.encrypt(int(x)).ciphertext())
+        for x in values]

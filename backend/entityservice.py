@@ -174,17 +174,34 @@ class MappingList(Resource):
             app.logger.debug("Adding mapping")
 
             # TODO insert public key if required
+            if data['result_type'] == 'permutation':
+                cur.execute("""
+                    INSERT INTO mappings
+                    (resource_id, access_token, ready, schema, notes, parties, result_type, public_key)
+                    VALUES
+                    (%s, %s, false, %s, null, %s, %s, %s)
+                    RETURNING id;
+                    """,
+                    [
+                        resource_id, mapping.result_token,
+                        psycopg2.extras.Json(data['schema']),
+                        2,
+                        data['result_type'],
+                        psycopg2.extras.Json(data['public_key'])
+                     ]
+                    )
 
-            cur.execute("""
-                INSERT INTO mappings
-                (resource_id, access_token, ready, schema, notes, parties, result_type)
-                VALUES
-                (%s, %s, false, %s, null, %s, %s)
-                RETURNING id;
-                """,
-                [resource_id, mapping.result_token,
-                 psycopg2.extras.Json(data['schema']), 2, data['result_type']]
-            )
+            else:
+                cur.execute("""
+                    INSERT INTO mappings
+                    (resource_id, access_token, ready, schema, notes, parties, result_type)
+                    VALUES
+                    (%s, %s, false, %s, null, %s, %s)
+                    RETURNING id;
+                    """,
+                    [resource_id, mapping.result_token,
+                     psycopg2.extras.Json(data['schema']), 2, data['result_type']]
+                )
 
             resource_id = cur.fetchone()[0]
             app.logger.debug("New resource id: {}".format(resource_id))
