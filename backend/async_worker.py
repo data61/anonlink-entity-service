@@ -173,6 +173,9 @@ def calculate_mapping(resource_id):
                   resource_id = %s
                 """, [resource_id], one=True)
             pk = res['public_key']
+            # Note this next section takes the majority of the time. One way to speed it up
+            # would be to compute a pool of encrypted random booleans and then just take from
+            # this pool...
             public_key = paillier.PaillierPublicKey(g=int(pk['g']), n=int(pk['n']))
             encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key)
 
