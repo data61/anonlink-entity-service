@@ -77,9 +77,19 @@ You might need to destroy the docker volumes used to store the postgres database
 you change the database schema:
 
     docker-compose -f tools/docker-compose.yml rm
-    rm -fr ./tools/dbdata
+    sudo rm -fr ./tools/dbdata
 
 During development you can run the redis and database containers with docker-compose,
-and directly run the celery and flask applications.
+and directly run the celery and flask applications with Python.
 
 
+    docker-compose -f tools/docker-compose.yml run db
+
+    docker-compose -f tools/docker-compose.yml run redis
+
+
+# Name generation
+
+    http://<SERVER>:8851/danger/generate-names?n=10&p=0.5
+
+Where n is the number of entities you want and p is the overlap proportion.

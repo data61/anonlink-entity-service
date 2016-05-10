@@ -2,16 +2,12 @@ import json
 import os
 import logging
 import binascii
-
-import psycopg2
-import psycopg2.extras
-
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
-from phe import paillier
+
 import anonlink
-from database import connect_db, query_db
-from serialization import deserialize_filters
+import database as db
+# from serialization import deserialize_filters
 from async_worker import calculate_mapping
 
 # Logging config
@@ -67,7 +63,7 @@ class MappingDao(object):
 
 
 def abort_if_mapping_doesnt_exist(resource_id):
-    resource_exists = query_db(get_db(), 'select count(*) from mappings WHERE resource_id = %s', [resource_id], one=True)['count'] == 1
+    resource_exists = db.check_mapping_exists(get_db(), resource_id)
     if not resource_exists:
         app.logger.warning("Request to PUT data with invalid auth token")
         abort(404, message="Mapping {} doesn't exist".format(resource_id))
@@ -75,38 +71,24 @@ def abort_if_mapping_doesnt_exist(resource_id):
 
 def abort_if_invalid_dataprovider_token(update_token):
     app.logger.debug("checking authorization token to update data")
-    resource_exists = query_db(get_db(), 'select count(*) from dataproviders WHERE token = %s', [update_token], one=True)['count'] == 1
+    resource_exists = db.check_update_auth(get_db(), update_token)
     if not resource_exists:
         abort(403, message="Invalid update token")
 
 
 def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
-    resource_exists = query_db(get_db(), """
-        select count(*) from mappings
-        WHERE
-          resource_id = %s AND
-          access_token = %s
-        """, [resource_id, results_token], one=True)['count'] == 1
-    if not resource_exists:
+    valid_access = db.check_mapping_auth(get_db(), resource_id, results_token)
+    if not valid_access:
         abort(403, message="Invalid access token")
 
 
 def abort_if_invalid_receipt_token(resource_id, receipt_token):
     app.logger.debug("checking authorization token to fetch mask data")
-    query_result = query_db(get_db(), """
-        select dp from dataproviders, bloomingdata, mappings
-        WHERE
-          bloomingdata.dp = dataproviders.id AND
-          dataproviders.mapping = mappings.id AND
-          mappings.resource_id = %s AND
-          bloomingdata.token = %s
-        """, [resource_id, receipt_token], one=True)
-
-    if query_result is None:
+    dp_id = db.select_dataprovider_id(get_db(), resource_id, receipt_token)
+    if dp_id is None:
         abort(403, message="Invalid access token")
-
-    return query_result['dp']
+    return dp_id
 
 
 def generate_code(length=24):
@@ -136,7 +118,7 @@ class MappingList(Resource):
         marshaled_mappings = []
 
         app.logger.debug("Getting list of all mappings")
-        for mapping in query_db(get_db(), 'select resource_id, ready from mappings'):
+        for mapping in db.query_db(get_db(), 'select resource_id, ready from mappings'):
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
@@ -147,8 +129,11 @@ class MappingList(Resource):
 
         By default the mapping will be between two organisations.
 
-        There are two types, a "mapping" and a "permutation". The second
-        requires a paillier public key to be passed in.
+        There are two types, a "mapping" and a "permutation".
+
+        The permutation type requires a paillier public key to be
+        passed in. It takes significantly longer as it has to encrypt
+        a mask vector.
         """
         data = request.get_json()
 
@@ -162,8 +147,8 @@ class MappingList(Resource):
             abort(400, message='Paillier public key required when result_type="permutation"')
 
         # TODO Parse input and check for validity
-        resource_id = generate_code()
-        mapping = MappingDao(resource_id)
+        mapping_resource = generate_code()
+        mapping = MappingDao(mapping_resource)
 
         # Persist the new mapping
         app.logger.info("Adding new mapping to database")
@@ -173,51 +158,17 @@ class MappingList(Resource):
             app.logger.debug("Starting database transaction")
             app.logger.debug("Adding mapping")
 
-            # TODO insert public key if required
+            # Insert public key
             if data['result_type'] == 'permutation':
-                cur.execute("""
-                    INSERT INTO mappings
-                    (resource_id, access_token, ready, schema, notes, parties, result_type, public_key)
-                    VALUES
-                    (%s, %s, false, %s, null, %s, %s, %s)
-                    RETURNING id;
-                    """,
-                    [
-                        resource_id, mapping.result_token,
-                        psycopg2.extras.Json(data['schema']),
-                        2,
-                        data['result_type'],
-                        psycopg2.extras.Json(data['public_key'])
-                     ]
-                    )
-
+                mapping_db_id = db.insert_permutation(cur, data, mapping, mapping_resource)
             else:
-                cur.execute("""
-                    INSERT INTO mappings
-                    (resource_id, access_token, ready, schema, notes, parties, result_type)
-                    VALUES
-                    (%s, %s, false, %s, null, %s, %s)
-                    RETURNING id;
-                    """,
-                    [resource_id, mapping.result_token,
-                     psycopg2.extras.Json(data['schema']), 2, data['result_type']]
-                )
+                mapping_db_id = db.insert_mapping(cur, data, mapping, mapping_resource)
 
-            resource_id = cur.fetchone()[0]
-            app.logger.debug("New resource id: {}".format(resource_id))
+            app.logger.debug("New resource id: {}".format(mapping_db_id))
             app.logger.debug("Creating new data provider entries")
 
             for auth_token in mapping.update_tokens:
-                cur.execute("""
-                    INSERT INTO dataproviders
-                    (mapping, token)
-                    VALUES
-                    (%s, %s)
-                    RETURNING id
-                    """,
-                    [resource_id, auth_token]
-                )
-                dp_id = cur.fetchone()[0]
+                dp_id = db.insert_dataprovider(cur, auth_token, mapping_db_id)
                 app.logger.info("Added dataprovider with id = {}".format(dp_id))
 
             app.logger.debug("Added data providers")
@@ -243,8 +194,7 @@ class Mapping(Resource):
         # Check the resource exists
         abort_if_mapping_doesnt_exist(resource_id)
 
-        mapping = query_db(get_db(), "SELECT * from mappings WHERE resource_id = %s",
-            [resource_id], one=True)
+        mapping = db.get_mapping(get_db(), resource_id)
 
         app.logger.info("Checking credentials")
 
@@ -258,9 +208,7 @@ class Mapping(Resource):
         # Check that the mapping is ready
         if not mapping['ready']:
             # return compute time elapsed here
-            time_elapsed = query_db(get_db(),
-                                    "SELECT (now() - time_added) as elapsed from mappings WHERE resource_id = %s",
-                                    [resource_id], one=True)['elapsed']
+            time_elapsed = db.get_mapping_time(get_db(), resource_id)
             app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
             return {'message': "Mapping isn't ready.", "elapsed": time_elapsed.total_seconds()}, 503
 
@@ -269,16 +217,10 @@ class Mapping(Resource):
             return {"mapping": mapping['result']}
         elif mapping['result_type'] == 'permutation':
             app.logger.info("Permutation result being returned")
-
             result = json.loads(mapping['result'])
-            perm = query_db(
-                get_db(),
-                "SELECT raw from permutationdata WHERE dp = %s",
-                [dp_id], one=True)['raw']
-
+            perm = db.get_permutation_result(get_db(), dp_id)
             result['permutation'] = perm
             return result
-
         else:
             app.logger.warning("Unimplemented result type")
 
@@ -294,17 +236,13 @@ class Mapping(Resource):
         if 'clks' not in data:
             abort(400, message="Missing information")
 
-        mapping = query_db(get_db(), """
-            SELECT * from mappings
-            WHERE resource_id = %s
-        """,
-           [resource_id], one=True)
+        mapping = db.get_mapping(get_db(), resource_id)
         app.logger.info("Request to add data to mapping")
 
         # Check the caller has valid token
         abort_if_invalid_dataprovider_token(data['token'])
 
-        dp_id = query_db(get_db(), 'select id from dataproviders WHERE token = %s', [data['token']], one=True)['id']
+        dp_id = db.get_dataprovider_id(get_db(), data['token'])
 
         app.logger.info("Adding data to: {}".format(dp_id))
         receipt_token = add_mapping_data(dp_id, data['clks'])
@@ -324,7 +262,7 @@ class Status(Resource):
         """Displays the latest mapping statistics"""
 
         # We ensure we can connect to the database during the status check
-        number_of_mappings = query_db(get_db(), '''
+        number_of_mappings = db.query_db(get_db(), '''
             select COUNT(*) from mappings
             ''', one=True)['count']
 
@@ -335,15 +273,8 @@ def check_mapping(mapping):
     """ See if the given mapping has had all parties contribute data.
     """
     app.logger.info("Counting contributing parties")
-    parties_contributed = query_db(get_db(), """
-        SELECT COUNT(*)
-        FROM dataproviders
-        WHERE
-          mapping = %s AND uploaded = TRUE
-        """, [mapping['id']], one=True)['count']
-
+    parties_contributed = db.get_number_parties_uploaded(get_db(), mapping['id'])
     app.logger.info("{} parties have contributed blooming data so far".format(parties_contributed))
-
     return parties_contributed == mapping['parties']
 
 
@@ -351,26 +282,7 @@ def add_mapping_data(dp_id, clks):
     # TODO add some checks for the clks data
 
     receipt_token = generate_code()
-
-    conn = get_db()
-    with conn.cursor() as cur:
-        app.logger.debug("Adding blooming data")
-        cur.execute("""
-            INSERT INTO bloomingdata
-            (dp, token, raw)
-            VALUES
-            (%s, %s, %s)
-            """,
-            [dp_id, receipt_token,
-             psycopg2.extras.Json(clks)])
-
-        cur.execute("""
-            UPDATE dataproviders
-            SET uploaded = TRUE
-            WHERE id = %s
-            """, [dp_id])
-
-    conn.commit()
+    db.insert_raw_filter_data(get_db(), clks, dp_id, receipt_token)
     return receipt_token
 
 
@@ -379,21 +291,19 @@ api.add_resource(Mapping, '/mappings/<resource_id>', endpoint='mapping')
 api.add_resource(Status, '/status', endpoint='status')
 
 
-
-
 def get_db():
     """Opens a new database connection if there is none yet for the
     current application context.
     """
-    db = getattr(g, '_db', None)
-    if db is None:
-        db = g._db = connect_db()
-    return db
+    conn = getattr(g, '_db', None)
+    if conn is None:
+        conn = g._db = db.connect_db()
+    return conn
 
 
 @app.before_request
 def before_request():
-    g.db = connect_db()
+    g.db = db.connect_db()
 
 
 @app.teardown_request
@@ -409,7 +319,6 @@ def version():
 
 @app.route('/danger/test')
 def test():
-
     samples = 200
     nl = anonlink.randomnames.NameList(samples * 2)
     s1, s2 = nl.generate_subsets(samples, 0.75)
@@ -419,6 +328,16 @@ def test():
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
     return json.dumps(mapping)
+
+
+@app.route('/danger/generate-names')
+def generate_name_data():
+    data = request.args
+    samples = int(data.get("n", "200"))
+    proportion = float(data.get("p", "0.75"))
+    nl = anonlink.randomnames.NameList(samples * 2)
+    s1, s2 = nl.generate_subsets(samples, proportion)
+    return json.dumps({"A": s1, "B": s2})
 
 
 if __name__ == '__main__':
