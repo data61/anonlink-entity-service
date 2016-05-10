@@ -196,30 +196,14 @@ def calculate_mapping(resource_id):
 
 
 def encrypt_vector(values, public_key):
+    """
+    Encrypt an array of booleans.
+
+    Note exponent will always be 0
+
+    :return list of encrypted ciphertext strings
+    """
     return [
         str(public_key.encrypt(int(x)).ciphertext())
         for x in values]
 
-
-def encrypt_vector_fast(values, public_key):
-    """
-
-    TODO review...
-    """
-    from itertools import zip_longest
-    def grouper(iterable, n, fillvalue=None):
-        "Collect data into fixed-length chunks or blocks"
-        # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
-        args = [iter(iterable)] * n
-        return zip_longest(*args, fillvalue=fillvalue)
-
-    res = []
-    for group in grouper(values, 1000):
-        v = eval('0b' + ''.join(['1' if v else '0' for v in group]))
-        res.append(str(public_key.encrypt(int(v)).ciphertext()))
-
-    return res
-
-    return [
-        str(public_key.encrypt(int(x)).ciphertext())
-        for x in values]
