@@ -236,7 +236,7 @@ class Mapping(Resource):
             result = json.loads(mapping['result'])
             perm = db.get_permutation_result(get_db(), dp_id)
             result['permutation'] = perm
-            return result
+            return {'permutation': result}
         else:
             app.logger.warning("Unimplemented result type")
 

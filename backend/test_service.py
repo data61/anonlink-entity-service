@@ -283,7 +283,7 @@ def permutation_test(dataset_size=500):
     print("Retrieving results as organisation 2")
     response = retrieve_result(id, r2['receipt-token'])
     while not response.status_code == 200:
-        snooze = 30*dataset_size/10000
+        snooze = 3*dataset_size/1000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r2['receipt-token'])
@@ -294,15 +294,26 @@ def permutation_test(dataset_size=500):
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation'][original_a_index]
+        new_index = mapping_result_a['permutation']['permutation'][original_a_index]
         if new_index < 10:
             print(original_a_index, " -> ", new_index, element)
 
     print("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation'][original_b_index]
+        new_index = mapping_result_b['permutation']['permutation'][original_b_index]
         if new_index < 10:
             print(original_b_index, " -> ", new_index, element, mapping_result_b['mask'])
+
+
+def timing_test(outfile=None):
+   results = {}
+   for size in [20000, 100000]:
+        start = time.time()
+        permutation_test(size)
+        elapsed = time.time() - start
+
+        results[size] = elapsed
+        print("Permutation test with {} entities complete after {:.3f} seconds".format(size, elapsed), file=outfile)
 
 
 if __name__ == "__main__":
@@ -311,6 +322,15 @@ if __name__ == "__main__":
 
     server_status_test()
 
-    for i in range(repeats):
-        mapping_test(size)
-        permutation_test(size)
+    with open("timing-results.txt", "at") as f:
+        timing_test(f)
+
+    # for i in range(repeats):
+    #     start = time.time()
+    #     mapping_test(size)
+    #     print("Mapping test complete after {:.3f} seconds".format(time.time() - start))
+    #
+    # for i in range(repeats):
+    #     start = time.time()
+    #     permutation_test(size)
+    #     print("Permutation test with {} entities complete after {:.3f} seconds".format(size, time.time() - start))
