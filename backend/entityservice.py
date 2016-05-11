@@ -5,6 +5,7 @@ import binascii
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 
+from phe import paillier
 import anonlink
 import database as db
 # from serialization import deserialize_filters
@@ -91,6 +92,14 @@ def abort_if_invalid_receipt_token(resource_id, receipt_token):
     return dp_id
 
 
+def check_public_key(pk):
+    """
+    Check we can unmarshal the public key, and that it has sufficient length.
+    """
+    publickey = paillier.PaillierPublicKey(g=int(pk['g']), n=int(pk['n']))
+    return publickey.max_int > 2**1024
+
+
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
 
@@ -106,19 +115,22 @@ new_mapping_fields = {
 class MappingList(Resource):
 
     """
-    The individual mapping schema in a list
+    A list of all mappings allong with their status.
     """
 
     def get(self):
         mapping_resource_fields = {
             'resource_id': fields.String,
             'ready': fields.Boolean,
+            'time_added': fields.DateTime(dt_format='iso8601'),
+            'time_completed': fields.DateTime(dt_format='iso8601')
         }
 
         marshaled_mappings = []
 
         app.logger.debug("Getting list of all mappings")
-        for mapping in db.query_db(get_db(), 'select resource_id, ready from mappings'):
+        for mapping in db.query_db(get_db(),
+                                   'select resource_id, ready, time_added, time_completed from mappings'):
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
@@ -144,6 +156,10 @@ class MappingList(Resource):
             abort(400, message='result-type must be either "permutation" or "mapping"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
+            abort(400, message='Paillier public key required when result_type="permutation"')
+
+
+        if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
             abort(400, message='Paillier public key required when result_type="permutation"')
 
         # TODO Parse input and check for validity

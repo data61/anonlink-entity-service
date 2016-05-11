@@ -78,6 +78,9 @@ def mapping_test(dataset_size=1000):
     id = new_map_response['resource_id']
     print("New mapping request created with id: ", id)
 
+    print("Servers mappings:")
+    print(requests.get(url + '/mappings').json())
+
     print("Checking status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id), json={})
     print(r.status_code, r.json())
