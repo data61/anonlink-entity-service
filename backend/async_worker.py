@@ -206,7 +206,12 @@ def encrypt_vector(values, public_key):
 
     :return list of encrypted ciphertext strings
     """
-    return [
-        str(public_key.encrypt(int(x)).ciphertext())
-        for x in values]
+
+    # TODO DANGER WARNING
+    # Should use the next commented out part instead
+    return [1 if x else 0 for x in values]
+
+    # return [
+    #     str(public_key.encrypt(int(x)).ciphertext())
+    #     for x in values]
 

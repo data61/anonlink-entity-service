@@ -302,7 +302,7 @@ def permutation_test(dataset_size=500):
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation'][original_b_index]
         if new_index < 10:
-            print(original_b_index, " -> ", new_index, element)
+            print(original_b_index, " -> ", new_index, element, mapping_result_b['mask'])
 
 
 if __name__ == "__main__":
