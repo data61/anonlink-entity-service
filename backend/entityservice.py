@@ -103,7 +103,7 @@ def check_public_key(pk):
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
 
-
+Showing results for python reque
 
 new_mapping_fields = {
     'resource_id': fields.String,
@@ -201,10 +201,10 @@ class Mapping(Resource):
         """
         This endpoint reveals the results of the calculation.
         What you're allowed to know depends on who you are.
-        """
-        data = request.get_json()
+        """        
+        headers = request.headers
 
-        if data is None or 'token' not in data:
+        if headers is None or 'token' not in headers:
             abort(401, message="Authentication token required")
 
         # Check the resource exists
@@ -216,9 +216,9 @@ class Mapping(Resource):
 
         if mapping['result_type'] == 'mapping':
             # Check the caller has a valid results token if we are including results
-            abort_if_invalid_results_token(resource_id, data['token'])
+            abort_if_invalid_results_token(resource_id, headers.get('token'))
         elif mapping['result_type'] == 'permutation':
-            dp_id = abort_if_invalid_receipt_token(resource_id, data['token'])
+            dp_id = abort_if_invalid_receipt_token(resource_id, headers.get('token'))
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
