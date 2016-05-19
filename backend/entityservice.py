@@ -103,8 +103,6 @@ def check_public_key(pk):
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
 
-Showing results for python reque
-
 new_mapping_fields = {
     'resource_id': fields.String,
     'result_token': fields.String,

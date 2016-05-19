@@ -21,7 +21,7 @@ url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
 def retrieve_result(mapping_id, token):
     print("Retrieving mapping")
     response = requests.get(url + '/mappings/{}'.format(mapping_id),
-                            json={'token': token})
+                            headers={'token': token})
     print(response.status_code, response.json())
     return response
 
