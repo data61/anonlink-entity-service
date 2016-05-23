@@ -76,7 +76,7 @@ Note: the folder in which the generated data will be stored need to be existing.
 You might need to destroy the docker volumes used to store the postgres database if
 you change the database schema:
 
-    docker-compose -f tools/docker-compose.yml rm
+    docker-compose -f tools/docker-compose.yml rm -v
     sudo rm -fr ./tools/dbdata
 
 During development you can run the redis and database containers with docker-compose,

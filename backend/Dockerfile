@@ -1,4 +1,4 @@
-FROM python:3.4
+FROM python:3.5
 
 MAINTAINER "Brian Thorne <brian@thorne.link>"
 EXPOSE 8000

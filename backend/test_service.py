@@ -82,26 +82,26 @@ def mapping_test(dataset_size=1000):
     print(requests.get(url + '/mappings').json())
 
     print("Checking status without authentication token")
-    r = requests.get(url + '/mappings/{}'.format(id), json={})
+    r = requests.get(url + '/mappings/{}'.format(id))
     print(r.status_code, r.json())
     assert r.status_code == 401
 
     print("Checking status with invalid token")
-    r = requests.get(url + '/mappings/{}'.format(id), json={'token': 'invalid'})
+    r = requests.get(url + '/mappings/{}'.format(id), headers={'token': 'invalid'})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
     print("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
-        json={'token': new_map_response['result_token']})
+        headers={'token': new_map_response['result_token']})
     print(response.status_code)
     assert response.status_code == 404
 
     print("Checking status with valid token (before adding data)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
-        json={'token': new_map_response['result_token']})
+        headers={'token': new_map_response['result_token']})
     print(r.status_code, r.json())
     assert r.status_code == 503
 
@@ -203,26 +203,26 @@ def permutation_test(dataset_size=500):
     print("New mapping request created with id: ", id)
 
     print("Checking status without authentication token")
-    r = requests.get(url + '/mappings/{}'.format(id), json={})
+    r = requests.get(url + '/mappings/{}'.format(id))
     print(r.status_code, r.json())
     assert r.status_code == 401
 
     print("Checking status with invalid token")
-    r = requests.get(url + '/mappings/{}'.format(id), json={'token': 'invalid'})
+    r = requests.get(url + '/mappings/{}'.format(id), headers={'token': 'invalid'})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
     print("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
-        json={'token': new_map_response['result_token']})
+        headers={'token': new_map_response['result_token']})
     print(response.status_code)
     assert response.status_code == 404
 
     print("Checking status with valid results token (not receipt token as required)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
-        json={'token': new_map_response['result_token']})
+        headers={'token': new_map_response['result_token']})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
@@ -302,7 +302,7 @@ def permutation_test(dataset_size=500):
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation']['permutation'][original_b_index]
         if new_index < 10:
-            print(original_b_index, " -> ", new_index, element, mapping_result_b['mask'])
+            print(original_b_index, " -> ", new_index, element, mapping_result_b['permutation']['mask'])
 
 
 def timing_test(outfile=None):
@@ -322,15 +322,15 @@ if __name__ == "__main__":
 
     server_status_test()
 
-    with open("timing-results.txt", "at") as f:
-        timing_test(f)
+    # with open("timing-results.txt", "at") as f:
+    #     timing_test(f)
 
-    # for i in range(repeats):
-    #     start = time.time()
-    #     mapping_test(size)
-    #     print("Mapping test complete after {:.3f} seconds".format(time.time() - start))
-    #
-    # for i in range(repeats):
-    #     start = time.time()
-    #     permutation_test(size)
-    #     print("Permutation test with {} entities complete after {:.3f} seconds".format(size, time.time() - start))
+    for i in range(repeats):
+        start = time.time()
+        mapping_test(size)
+        print("Mapping test complete after {:.3f} seconds".format(time.time() - start))
+
+    for i in range(repeats):
+        start = time.time()
+        permutation_test(size)
+        print("Permutation test with {} entities complete after {:.3f} seconds".format(size, time.time() - start))
