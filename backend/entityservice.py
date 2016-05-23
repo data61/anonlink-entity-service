@@ -8,7 +8,7 @@ from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 from phe import paillier
 import anonlink
 import database as db
-# from serialization import deserialize_filters
+from serialization import load_public_key
 from async_worker import calculate_mapping
 
 # Logging config
@@ -92,11 +92,12 @@ def abort_if_invalid_receipt_token(resource_id, receipt_token):
     return dp_id
 
 
+
 def check_public_key(pk):
     """
     Check we can unmarshal the public key, and that it has sufficient length.
     """
-    publickey = paillier.PaillierPublicKey(g=int(pk['g']), n=int(pk['n']))
+    publickey = load_public_key(pk)
     return publickey.max_int > 2**1024
 
 
@@ -199,7 +200,7 @@ class Mapping(Resource):
         """
         This endpoint reveals the results of the calculation.
         What you're allowed to know depends on who you are.
-        """        
+        """
         headers = request.headers
 
         if headers is None or 'token' not in headers:

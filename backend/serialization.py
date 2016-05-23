@@ -1,6 +1,7 @@
 from bitarray import bitarray
 import base64
-
+import phe.util
+from phe import paillier
 
 def bytes_to_list(python_object):
     if isinstance(python_object, bytes):
@@ -42,3 +43,8 @@ def deserialize_filters(filters):
         res.append( (ba, i, ba.count()))
 
     return res
+
+
+def load_public_key(pk):
+    n = phe.util.base64_to_int(pk['n'])
+    return paillier.PaillierPublicKey(n+1, n)

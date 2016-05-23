@@ -7,7 +7,7 @@ from celery import Celery, Task
 from celery.utils.log import get_task_logger
 import psycopg2.extras
 
-from serialization import deserialize_filters
+from serialization import deserialize_filters, load_public_key
 from database import *
 from settings import Config as config
 
@@ -176,7 +176,7 @@ def calculate_mapping(resource_id):
             # Note this next section takes the majority of the time. One way to speed it up
             # would be to compute a pool of encrypted random booleans and then just take from
             # this pool...
-            public_key = paillier.PaillierPublicKey(g=int(pk['g']), n=int(pk['n']))
+            public_key = load_public_key(pk)
             encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key)
 
             logger.info("Saving permutation data to db")
