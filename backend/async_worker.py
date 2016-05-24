@@ -202,16 +202,16 @@ def encrypt_vector(values, public_key):
     """
     Encrypt an array of booleans.
 
-    Note exponent will always be 0
+    Note the exponent will always be 0
 
     :return list of encrypted ciphertext strings
     """
 
-    # TODO DANGER WARNING
-    # Should use the next commented out part instead
-    return [1 if x else 0 for x in values]
+    # Only use this for testing purposes!
+    # Should use the next section of code instead!
+    #return [1 if x else 0 for x in values]
 
-    # return [
-    #     str(public_key.encrypt(int(x)).ciphertext())
-    #     for x in values]
+    return [
+        str(public_key.encrypt(int(x)).ciphertext())
+        for x in values]
 
