@@ -92,7 +92,6 @@ def abort_if_invalid_receipt_token(resource_id, receipt_token):
     return dp_id
 
 
-
 def check_public_key(pk):
     """
     Check we can unmarshal the public key, and that it has sufficient length.

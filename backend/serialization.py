@@ -46,5 +46,11 @@ def deserialize_filters(filters):
 
 
 def load_public_key(pk):
+    MALFORMED_ERROR = "Malformed Public Key"
+    for attr in {'key_ops', 'kty', 'alg'}:
+        assert attr in pk, MALFORMED_ERROR
+    assert pk['kty'] == "DAJ", "Unsupported key type"
+    assert pk['alg'] == "PAI-GN1", "Unsupported algorithm type"
+    assert 'n' in pk, MALFORMED_ERROR
     n = phe.util.base64_to_int(pk['n'])
     return paillier.PaillierPublicKey(n+1, n)

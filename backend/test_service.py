@@ -2,7 +2,7 @@ import os
 import time
 import requests
 from anonlink import randomnames, entitymatch
-from phe import paillier
+from phe import paillier, util
 from serialization import *
 
 """
@@ -182,7 +182,13 @@ def permutation_test(dataset_size=500):
 
     print("Generating paillier keypair")
     pub, priv = paillier.generate_paillier_keypair()
-    public_key = {'g': pub.g, 'n': pub.n}
+    public_key = {
+        "n": util.int_to_base64(pub.n),
+        "key_ops": ["encrypt"],
+        "kty": "DAJ",
+        "alg": "PAI-GN1",
+        "kid": "entity-service generated key for testing"
+    }
 
     print('Creating a new mapping')
     # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
