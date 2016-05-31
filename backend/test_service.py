@@ -313,6 +313,12 @@ def permutation_test(dataset_size=500):
             # mapping_result_b['permutation']['mask']
             print(original_b_index, " -> ", new_index, element)
 
+    print("Decrypting mask used for first 10 entities...")
+    encrypted_mask = [paillier.EncryptedNumber(pub, int(m)) for m in mapping_result_b['permutation']['mask'][:10]]
+
+    decrypted_mask = [priv.decrypt(e) for e in encrypted_mask]
+    print(decrypted_mask)
+
 
 def timing_test(outfile=None):
    results = {}
