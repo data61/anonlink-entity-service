@@ -202,7 +202,7 @@ class Mapping(Resource):
         """
         headers = request.headers
 
-        if headers is None or 'token' not in headers:
+        if headers is None or 'Authorization' not in headers:
             abort(401, message="Authentication token required")
 
         # Check the resource exists
@@ -214,9 +214,9 @@ class Mapping(Resource):
 
         if mapping['result_type'] == 'mapping':
             # Check the caller has a valid results token if we are including results
-            abort_if_invalid_results_token(resource_id, headers.get('token'))
+            abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation':
-            dp_id = abort_if_invalid_receipt_token(resource_id, headers.get('token'))
+            dp_id = abort_if_invalid_receipt_token(resource_id, headers.get('Authorization'))
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
@@ -243,20 +243,23 @@ class Mapping(Resource):
         Update a mapping to provide data
         """
         abort_if_mapping_doesnt_exist(resource_id)
-        data = request.get_json()
-        if 'token' not in data:
+        headers = request.headers
+        if headers is None or 'Authorization' not in headers:
             abort(401, message="Authentication token required")
 
-        if 'clks' not in data:
+        token = headers['Authorization']
+        data = request.get_json()
+
+        if data is None or 'clks' not in data:
             abort(400, message="Missing information")
 
         mapping = db.get_mapping(get_db(), resource_id)
         app.logger.info("Request to add data to mapping")
 
         # Check the caller has valid token
-        abort_if_invalid_dataprovider_token(data['token'])
+        abort_if_invalid_dataprovider_token(token)
 
-        dp_id = db.get_dataprovider_id(get_db(), data['token'])
+        dp_id = db.get_dataprovider_id(get_db(), token)
 
         app.logger.info("Adding data to: {}".format(dp_id))
         receipt_token = add_mapping_data(dp_id, data['clks'])

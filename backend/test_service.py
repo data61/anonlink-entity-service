@@ -21,7 +21,7 @@ url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
 def retrieve_result(mapping_id, token):
     print("Retrieving mapping")
     response = requests.get(url + '/mappings/{}'.format(mapping_id),
-                            headers={'token': token})
+                            headers={'Authorization': token})
     print(response.status_code, response.json())
     return response
 
@@ -87,32 +87,34 @@ def mapping_test(dataset_size=1000):
     assert r.status_code == 401
 
     print("Checking status with invalid token")
-    r = requests.get(url + '/mappings/{}'.format(id), headers={'token': 'invalid'})
+    r = requests.get(url + '/mappings/{}'.format(id),
+                     headers={'Authorization': 'invalid'})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
     print("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
-        headers={'token': new_map_response['result_token']})
+        headers={'Authorization': new_map_response['result_token']})
     print(response.status_code)
     assert response.status_code == 404
 
     print("Checking status with valid token (before adding data)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
-        headers={'token': new_map_response['result_token']})
+        headers={'Authorization': new_map_response['result_token']})
     print(r.status_code, r.json())
     assert r.status_code == 503
 
     print("Adding first party's filter data")
 
     party1_data = {
-        'token': new_map_response['update_tokens'][0],
         'clks': party1_filters
     }
 
-    resp1 = requests.put(url + '/mappings/{}'.format(id), json=party1_data)
+    resp1 = requests.put(url + '/mappings/{}'.format(id),
+                         json=party1_data,
+                         headers={'Authorization': new_map_response['update_tokens'][0]})
     # status code should be 201 if a resource was created
     assert resp1.status_code == 201
 
@@ -127,19 +129,17 @@ def mapping_test(dataset_size=1000):
     assert 'token required' in resp.json()['message']
 
     print("Adding second party's data - without clk data")
-    party2_data = {'token': new_map_response['update_tokens'][1]}
     resp = requests.put(url + '/mappings/{}'.format(id),
-                         json=party2_data)
+                        json={},
+                        headers={'Authorization': new_map_response['update_tokens'][1]})
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
     print("Adding second party's data - properly this time")
-    party2_data = {
-        'token': new_map_response['update_tokens'][1],
-        'clks': party2_filters
-    }
+    party2_data = {'clks': party2_filters}
     resp2 = requests.put(url + '/mappings/{}'.format(id),
-                         json=party2_data)
+                         json=party2_data,
+                         headers={'Authorization': new_map_response['update_tokens'][1]})
 
     assert resp2.status_code == 201
 
@@ -214,32 +214,34 @@ def permutation_test(dataset_size=500):
     assert r.status_code == 401
 
     print("Checking status with invalid token")
-    r = requests.get(url + '/mappings/{}'.format(id), headers={'token': 'invalid'})
+    r = requests.get(url + '/mappings/{}'.format(id),
+                     headers={'Authorization': 'invalid'})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
     print("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
-        headers={'token': new_map_response['result_token']})
+        headers={'Authorization': new_map_response['result_token']})
     print(response.status_code)
     assert response.status_code == 404
 
     print("Checking status with valid results token (not receipt token as required)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
-        headers={'token': new_map_response['result_token']})
+        headers={'Authorization': new_map_response['result_token']})
     print(r.status_code, r.json())
     assert r.status_code == 403
 
     print("Adding first party's filter data")
 
     party1_data = {
-        'token': new_map_response['update_tokens'][0],
         'clks': party1_filters
     }
 
-    resp1 = requests.put(url + '/mappings/{}'.format(id), json=party1_data)
+    resp1 = requests.put(url + '/mappings/{}'.format(id),
+                         json=party1_data,
+                         headers={'Authorization': new_map_response['update_tokens'][0]})
     # status code should be 201 if a resource was created
     assert resp1.status_code == 201
 
@@ -254,19 +256,18 @@ def permutation_test(dataset_size=500):
     assert 'token required' in resp.json()['message']
 
     print("Adding second party's data - without clk data")
-    party2_data = {'token': new_map_response['update_tokens'][1]}
     resp = requests.put(url + '/mappings/{}'.format(id),
-                         json=party2_data)
+                        headers={'Authorization': new_map_response['update_tokens'][1]})
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
     print("Adding second party's data - properly this time")
     party2_data = {
-        'token': new_map_response['update_tokens'][1],
         'clks': party2_filters
     }
     resp2 = requests.put(url + '/mappings/{}'.format(id),
-                         json=party2_data)
+                         json=party2_data,
+                         headers={'Authorization': new_map_response['update_tokens'][1]})
 
     assert resp2.status_code == 201
     r2 = resp2.json()
@@ -308,7 +309,9 @@ def permutation_test(dataset_size=500):
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation']['permutation'][original_b_index]
         if new_index < 10:
-            print(original_b_index, " -> ", new_index, element, mapping_result_b['permutation']['mask'])
+            # Encrypted mask:
+            # mapping_result_b['permutation']['mask']
+            print(original_b_index, " -> ", new_index, element)
 
 
 def timing_test(outfile=None):
