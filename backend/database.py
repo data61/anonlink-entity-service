@@ -176,16 +176,17 @@ def insert_mapping(cur, data, mapping, resource_id):
 def insert_permutation(cur, data, mapping, resource_id):
     return insert_returning_id(cur, """
             INSERT INTO mappings
-            (resource_id, access_token, ready, schema, result_type, public_key)
+            (resource_id, access_token, ready, schema, result_type, public_key, paillier_context)
             VALUES
-            (%s, %s, false, %s, %s, %s)
+            (%s, %s, false, %s, %s, %s, %s)
             RETURNING id;
             """,
             [
                 resource_id, mapping.result_token,
                 psycopg2.extras.Json(data['schema']),
                 data['result_type'],
-                psycopg2.extras.Json(data['public_key'])
+                psycopg2.extras.Json(data['public_key']),
+                psycopg2.extras.Json(data['paillier_context'])
             ]
         )
 

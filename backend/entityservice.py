@@ -156,6 +156,8 @@ class MappingList(Resource):
         if data['result_type'] == 'permutation' and 'public_key' not in data:
             abort(400, message='Paillier public key required when result_type="permutation"')
 
+        if data['result_type'] == 'permutation' and 'paillier_context' not in data:
+            abort(400, message='Paillier context required when result_type="permutation"')
 
         if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
             abort(400, message='Paillier public key required when result_type="permutation"')

@@ -1,4 +1,5 @@
 import os
+import math
 import json
 import random
 from datetime import datetime, timedelta
@@ -167,17 +168,19 @@ def calculate_mapping(resource_id):
             logger.info("Encrypting mask data")
 
             res = query_db(db, """
-                SELECT public_key
+                SELECT public_key, paillier_context
                 FROM mappings
                 WHERE
                   resource_id = %s
                 """, [resource_id], one=True)
             pk = res['public_key']
+            base = res['paillier_context']['base']
+
             # Note this next section takes the majority of the time. One way to speed it up
             # would be to compute a pool of encrypted random booleans and then just take from
             # this pool...
             public_key = load_public_key(pk)
-            encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key)
+            encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key, base)
 
             logger.info("Saving permutation data to db")
 
@@ -198,7 +201,7 @@ def calculate_mapping(resource_id):
     return 'Done'
 
 
-def encrypt_vector(values, public_key):
+def encrypt_vector(values, public_key, base):
     """
     Encrypt an array of booleans.
 
@@ -211,7 +214,18 @@ def encrypt_vector(values, public_key):
     # Should use the next section of code instead!
     #return [1 if x else 0 for x in values]
 
-    return [
-        str(public_key.encrypt(int(x)).ciphertext())
-        for x in values]
+    # Using the default encoding Base:
+    # return [
+    #     str(public_key.encrypt(int(x)).ciphertext())
+    #     for x in values]
 
+
+    class EntityEncodedNumber(paillier.EncodedNumber):
+        BASE = base
+        LOG2_BASE = math.log(BASE, 2)
+
+    encoded_mask = [EntityEncodedNumber.encode(public_key, x) for x in values]
+
+    encrypted_mask = [public_key.encrypt(enc) for enc in encoded_mask]
+
+    return encrypted_mask

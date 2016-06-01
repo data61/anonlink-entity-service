@@ -201,7 +201,8 @@ def permutation_test(dataset_size=500):
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
         'result_type': 'permutation',
-        'public_key': public_key
+        'public_key': public_key,
+        'paillier_context': {'base': 2, 'encoded': True}
     }).json()
     print(new_map_response)
 
