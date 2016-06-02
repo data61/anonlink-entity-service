@@ -192,7 +192,8 @@ def calculate_mapping(resource_id):
                 """,
                 [psycopg2.extras.Json(json.dumps({
                     "rows": smaller_dataset_size,
-                    "mask": encrypted_mask
+                    "mask": encrypted_mask,
+                    "paillier_context": res['paillier_context']
                 }))])
 
     db.commit()
@@ -215,9 +216,9 @@ def encrypt_vector(values, public_key, base):
     #return [1 if x else 0 for x in values]
 
     # Using the default encoding Base:
-    # return [
-    #     str(public_key.encrypt(int(x)).ciphertext())
-    #     for x in values]
+    return [
+        str(public_key.encrypt(int(x)).ciphertext())
+        for x in values]
 
 
     class EntityEncodedNumber(paillier.EncodedNumber):
