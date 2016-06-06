@@ -10,9 +10,13 @@ services:
       - ./dbdata:/var/lib/postgresql/data
     ports:
       - 5432:5432
+    networks:
+      - entity_service_network
 
   redis:
     image: redis:3.2
+    networks:
+      - entity_service_network
 
   # The application server
   backend:
@@ -27,6 +31,8 @@ services:
       - db
       - redis
       - worker
+    networks:
+      - entity_service_network
 
   # A celery worker
   worker:
@@ -38,6 +44,8 @@ services:
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - LOGFILE=/var/log/entity-service-worker-A.log
+    networks:
+      - entity_service_network
 
   nginx:
     image: quay.io/n1analytics/entity-nginx
@@ -45,4 +53,18 @@ services:
       - 8851:80
     depends_on:
       - backend
+    networks:
+      n1_public_network:
+        aliases:
+          - entity-service
+      entity_service_network:
+        aliases:
+          - nginx
 
+networks:
+  entity_service_network:
+    driver: bridge
+  n1_public_network:
+    external: true
+    
+  

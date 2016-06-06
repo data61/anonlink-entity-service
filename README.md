@@ -45,7 +45,7 @@ With docker you should be able to use the same container to test the service:
         -e ENTITY_SERVICE_URL=http://<ENTITY-SERVER-HOST>:8851/api/v1 \
         -e ENTITY_SERVICE_TEST_SIZE=1000 \
         -e ENTITY_SERVICE_TEST_REPEATS=10 \
-        --net=tools_default \
+        --net=host \
         quay.io/n1analytics/entity-app python test_service.py
 
 Note the `--net` parameter is only required if connecting to a service running locally
