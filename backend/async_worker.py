@@ -4,7 +4,7 @@ import json
 import random
 from datetime import datetime, timedelta
 
-from celery import Celery, Task
+from celery import Celery, Task, chord
 from celery.utils.log import get_task_logger
 import psycopg2.extras
 
@@ -18,6 +18,7 @@ import anonlink
 celery = Celery('tasks', broker=config.BROKER_URL, backend=config.CELERY_RESULT_BACKEND)
 celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
+celery.conf.CELERY_RESULT_SERIALIZER = 'json'
 
 logger = get_task_logger(__name__)
 logger.info("Setting up celery...")
@@ -33,7 +34,13 @@ def convert_mapping_to_list(permutation):
     return perm_list
 
 
-@celery.task(ignore_result=True)
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i+n]
+
+
+@celery.task()
 def calculate_mapping(resource_id):
     logger.info("Checking we need to calculating mapping")
     logger.debug(resource_id)
@@ -63,7 +70,10 @@ def calculate_mapping(resource_id):
     logger.debug("Computing similarity")
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     logger.debug("Calculating optimal connections for entire network")
-    mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
+    # The method here makes a big difference in running time
+    mapping = anonlink.network_flow.map_entities(similarity,
+                                                 threshold=0.95,
+                                                 method='bipartite')
 
     with db.cursor() as cur:
         if result_type == "mapping":
@@ -118,11 +128,10 @@ def calculate_mapping(resource_id):
             remaining_a_values = list(set(range(smaller_dataset_size, len(filters1))).union(remaining_new_indexes))
             remaining_b_values = list(set(range(smaller_dataset_size, len(filters2))).union(remaining_new_indexes))
 
-            # DEBUG ONLY
+            # DEBUG ONLY TEST
             a_values = set(a_permutation.values())
             for i in remaining_a_values:
                 assert i not in a_values
-
 
             # Shuffle the remaining indices on each
             random.shuffle(remaining_a_values)
@@ -176,30 +185,51 @@ def calculate_mapping(resource_id):
             pk = res['public_key']
             base = res['paillier_context']['base']
 
-            # Note this next section takes the majority of the time. One way to speed it up
-            # would be to compute a pool of encrypted random booleans and then just take from
-            # this pool...
-            public_key = load_public_key(pk)
-            encrypted_mask = encrypt_vector(convert_mapping_to_list(mask), public_key, base)
+            # Subtasks will encrypt the mask in chunks
+            logger.info("Chunking mask")
+            encrypted_chunks = chunks(convert_mapping_to_list(mask), 1000)
+            # calling .apply_async will create a dedicated task so that the
+            # individual tasks are applied in a worker instead
+            encrypted_mask_future = chord(
+                (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+                persist_mask.s(dataset_size=smaller_dataset_size,
+                               paillier_context=res['paillier_context'])
+            ).apply_async()
 
-            logger.info("Saving permutation data to db")
-
-            cur.execute("""
-                UPDATE mappings SET
-                result = (%s),
-                ready = TRUE,
-                time_completed = now()
-                """,
-                [psycopg2.extras.Json(json.dumps({
-                    "rows": smaller_dataset_size,
-                    "mask": encrypted_mask,
-                    "paillier_context": res['paillier_context']
-                }))])
-
+    # Need to commit the changes we've made
     db.commit()
     logger.info("Mapping saved")
-
     return 'Done'
+
+
+
+
+@celery.task()
+def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context):
+    encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    logger.info("Saving encrypted permutation data to db")
+    db = connect_db()
+    with db.cursor() as cur:
+        cur.execute("""
+                    UPDATE mappings SET
+                    result = (%s),
+                    ready = TRUE,
+                    time_completed = now()
+                    """,
+                [psycopg2.extras.Json(json.dumps({
+                    "rows": dataset_size,
+                    "mask": encrypted_mask,
+                    "paillier_context": paillier_context
+                }))])
+    db.commit()
+    logger.info("Permutation saved (?)")
+
+
+@celery.task()
+def encrypt_mask(values, pk, base):
+    logger.info("Encrypting a mask chunk")
+    public_key = load_public_key(pk)
+    return encrypt_vector(values, public_key, base)
 
 
 def encrypt_vector(values, public_key, base):
