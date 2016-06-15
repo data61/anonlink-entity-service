@@ -12,7 +12,7 @@ class Config(object):
 
     DEBUG = os.environ.get("DEBUG", "false") == "true"
 
-    LOGFILE = os.environ.get("LOGFILE", 'entity-service.log')
+    LOGFILE = os.environ.get("LOGFILE", None)
 
     DATABASE_SERVER = os.environ.get('DATABASE_SERVER', 'db')
     DATABASE = os.environ.get('DATABASE', 'postgres')

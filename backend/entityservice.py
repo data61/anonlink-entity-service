@@ -11,20 +11,23 @@ import database as db
 from serialization import load_public_key
 from async_worker import calculate_mapping
 
+app = Flask(__name__)
+
 # Logging config
-LOGFILE = os.environ.get("LOGFILE", 'entity-service-application.log')
+LOGFILE = os.environ.get("LOGFILE", None)
 fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
 consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
                                   datefmt="%H:%M:%S")
 
 # Logging setup
-fileHandler = logging.FileHandler(LOGFILE)
-fileHandler.setLevel(logging.INFO)
-fileHandler.setFormatter(fileFormat)
+if LOGFILE is not None:
+    fileHandler = logging.FileHandler(LOGFILE)
+    fileHandler.setLevel(logging.INFO)
+    fileHandler.setFormatter(fileFormat)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
 consoleHandler.setFormatter(consoleFormat)
-app = Flask(__name__)
+
 
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object('settings.Config')
@@ -32,7 +35,8 @@ app.config.from_object('settings.Config')
 # Add loggers to app
 del app.logger.handlers[:]
 app.logger.propagate = False
-app.logger.addHandler(fileHandler)
+if LOGFILE is not None:
+    app.logger.addHandler(fileHandler)
 app.logger.addHandler(consoleHandler)
 
 # Create our flask_restful api

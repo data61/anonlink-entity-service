@@ -49,7 +49,7 @@ With docker you should be able to use the same container to test the service:
         quay.io/n1analytics/entity-app python test_service.py
 
 Note the `--net` parameter is only required if connecting to a service running locally
-with docker compose. If `tools_default` is not recognized, use `docker network ls` to
+with docker compose. If the network is not recognized, use `docker network ls` to
 see the available docker networks and find which network was created by docker-compose.
 
 The `<ENTITY-SERVER-HOST>` is either the hostname or the host's IP address on the

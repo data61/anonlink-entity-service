@@ -1,60 +1,63 @@
 version: '2'
 services:
 
-  db:
+  es_db:
     image: quay.io/n1analytics/entity-db-server
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
-      - psql:/var/lib/postgresql/data
+      - es_psql:/var/lib/postgresql/data
     networks:
-      - entity_service_network
+      es_network:
+        aliases:
+          - db
 
-  redis:
+  es_redis:
     image: redis:3.2
     networks:
-      - entity_service_network
+      es_network:
+        aliases:
+          - redis
 
-  # The application server
-  backend:
+  # The flask application server
+  es_backend:
     image: quay.io/n1analytics/entity-app
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
     depends_on:
-      - db
-      - redis
-      - worker
+      - es_db
+      - es_redis
+      - es_worker
     networks:
-      - entity_service_network
+      es_network:
+        aliases:
+          - backend
 
   # A celery worker
-  worker:
+  es_worker:
     image: quay.io/n1analytics/entity-app
     depends_on:
-      - redis
-      - db
+      - es_redis
+      - es_db
     entrypoint: celery -A async_worker worker --loglevel=debug --beat --concurrency=10 -n entity-worker
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
     networks:
-      - entity_service_network
+      es_network:
 
-  nginx:
+  es_nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
       - "8851:8851"
     depends_on:
-      - backend
+      - es_backend
     networks:
-      entity_service_network:
-        aliases:
-          - nginx
+      es_network:
 
 networks:
-  entity_service_network:
+  es_network:
     driver: bridge
 
 volumes:
-  psql:
-  
+  es_psql:
