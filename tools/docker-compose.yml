@@ -9,7 +9,7 @@ services:
       - ../../dockerBootstrap/etc/entity/db:/docker-entrypoint-initdb.d:ro
       - ./dbdata:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - "5432:5432"
     networks:
       - entity_service_network
 
@@ -18,15 +18,12 @@ services:
     networks:
       - entity_service_network
 
-  # The application server
+  # The flask application server
   backend:
     image: quay.io/n1analytics/entity-app
-    volumes:
-      - ../logging:/var/log
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - LOGFILE=/var/log/entity-service-app.log
     depends_on:
       - db
       - redis
@@ -43,28 +40,20 @@ services:
     entrypoint: celery -A async_worker worker --loglevel=debug --beat --concurrency=10 -n entity-worker
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - LOGFILE=/var/log/entity-service-worker-A.log
     networks:
       - entity_service_network
 
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - 8851:80
+      - "8851:8851"
     depends_on:
       - backend
     networks:
-      n1_public_network:
-        aliases:
-          - entity-service
-      entity_service_network:
-        aliases:
-          - nginx
+      - entity_service_network
+
+
 
 networks:
   entity_service_network:
     driver: bridge
-  n1_public_network:
-    external: true
-    
-  
