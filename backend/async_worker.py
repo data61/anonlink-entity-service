@@ -15,7 +15,10 @@ from settings import Config as config
 from phe import paillier
 import anonlink
 
-celery = Celery('tasks', broker=config.BROKER_URL, backend=config.CELERY_RESULT_BACKEND)
+celery = Celery('tasks',
+                broker=config.BROKER_URL,
+                backend=config.CELERY_RESULT_BACKEND
+                )
 celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
