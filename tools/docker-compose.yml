@@ -9,7 +9,7 @@ services:
       - ../../dockerBootstrap/etc/entity/db:/docker-entrypoint-initdb.d:ro
       - ./dbdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     networks:
       - entity_service_network
 
