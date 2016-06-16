@@ -248,13 +248,17 @@ class Mapping(Resource):
         """
         Update a mapping to provide data
         """
-        abort_if_mapping_doesnt_exist(resource_id)
+        # ensure we read the post data, even though we mightn't need it
+        # without this you get occasional nginx errors failed (104:
+        # Connection reset by peer) (See issue #195)
         headers = request.headers
+        data = request.get_json()
+        abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
             abort(401, message="Authentication token required")
 
         token = headers['Authorization']
-        data = request.get_json()
+
 
         if data is None or 'clks' not in data:
             abort(400, message="Missing information")
