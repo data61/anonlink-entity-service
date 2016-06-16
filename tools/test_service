@@ -1,0 +1,26 @@
+#!/bin/bash
+
+get_ip4() {
+  local ip=$(hostname -i 2> /dev/null)
+  if [ -z "$ip" ]; then
+    ip=$(docker-machine ip 2> /dev/null)
+    if [ -z "$ip" ]; then
+      ip="0.0.0.0"
+    fi
+  fi
+  echo $ip
+}
+
+docker run -it \
+        -e ENTITY_SERVICE_URL=http://$(get_ip4):8851/api/v1 \
+        -e ENTITY_SERVICE_TEST_SIZE=1000 \
+        -e ENTITY_SERVICE_TEST_REPEATS=10 \
+        quay.io/n1analytics/entity-app python test_service.py
+
+# Local Variables:
+# mode: sh
+# tab-width: 2
+# sh-basic-offset: 2
+# sh-indentation: 2
+# indent-tabs-mode: nil
+# End:
