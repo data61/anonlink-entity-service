@@ -1,0 +1,25 @@
+#!/bin/bash
+
+ETCD_KEY="/n1/services/entity/url"
+
+if [ -n "$ETCD_URL" ]; then
+  url="http://$PUBLIC_IP:$PUBLIC_PORT"
+  echo "[INFO]  Setting etcd key '$ETCD_KEY' to '$url'"
+  success=1
+  while [ $success != 0 ]; do
+    e_url=$ETCD_URL/v2/keys/$ETCD_KEY
+    curl -s -XPUT $e_url -d value="$url" -o /dev/null
+    success=$?
+    echo "[DEBUG] ... result $success - etcd_url: $e_url"
+    [[ $success != 0 ]] && sleep 5
+  done
+fi
+exec nginx -g "daemon off;"
+
+# Local Variables:
+# mode: sh
+# tab-width: 2
+# sh-basic-offset: 2
+# sh-indentation: 2
+# indent-tabs-mode: nil
+# End:

@@ -52,6 +52,10 @@ services:
       - "8851:8851"
     depends_on:
       - es_backend
+    environment:
+      ETCD_URL:
+      PUBLIC_PORT: 8851
+      PUBLIC_IP:
     networks:
       es_network:
 
