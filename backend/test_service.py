@@ -22,7 +22,8 @@ def retrieve_result(mapping_id, token):
     print("Retrieving mapping")
     response = requests.get(url + '/mappings/{}'.format(mapping_id),
                             headers={'Authorization': token})
-    print(response.status_code, response.json())
+    print(response.status_code)
+    #print(response.json())
     return response
 
 
@@ -126,6 +127,7 @@ def mapping_test(dataset_size=1000):
     party2_data = {'clks': party2_filters}
     resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
     assert resp.status_code == 401
+    print(resp.text)
     assert 'token required' in resp.json()['message']
 
     print("Adding second party's data - without clk data")
@@ -168,6 +170,9 @@ def permutation_test(dataset_size=500):
     print("Generating local address data")
     nl = randomnames.NameList(dataset_size * 2)
     s1, s2 = nl.generate_subsets(dataset_size, 0.8)
+
+
+    #s2 = s2[:10]
 
     print("Locally hashing identity data to create bloom filters")
     keys = ('something', 'secret')
@@ -280,7 +285,7 @@ def permutation_test(dataset_size=500):
     print("Retrieving results as organisation 1")
     response = retrieve_result(id, r1['receipt-token'])
     while not response.status_code == 200:
-        snooze = 30*dataset_size/10000
+        snooze = dataset_size/200
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r1['receipt-token'])
@@ -322,31 +327,43 @@ def permutation_test(dataset_size=500):
 
 
 def timing_test(outfile=None):
-   results = {}
-   for size in [20000, 100000]:
+    results = {}
+    for size in [
+            10, 100, 200, 500, 1000, 2000, 5000,
+            #10000, 20000
+            #50000,
+            #100000
+            ]:
         start = time.time()
         permutation_test(size)
         elapsed = time.time() - start
 
         results[size] = elapsed
-        print("Permutation test with {} entities complete after {:.3f} seconds".format(size, elapsed), file=outfile)
+        print(
+            "Permutation test with {} entities complete after {:.3f} seconds".format(size, elapsed),
+            file=outfile)
 
 
 if __name__ == "__main__":
     size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
+    do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
 
     server_status_test()
 
-    # with open("timing-results.txt", "at") as f:
-    #     timing_test(f)
+    if do_timing:
+        with open("timing-results.txt", "at") as f:
+            timing_test(f)
+    else:
+        for i in range(repeats):
+            mapping_start = time.time()
+            mapping_test(size)
+            mapping_end = time.time()
 
-    for i in range(repeats):
-        start = time.time()
-        mapping_test(size)
-        print("Mapping test complete after {:.3f} seconds".format(time.time() - start))
+        for i in range(repeats):
+            perm_start = time.time()
+            permutation_test(size)
+            perm_end = time.time()
 
-    for i in range(repeats):
-        start = time.time()
-        permutation_test(size)
-        print("Permutation test with {} entities complete after {:.3f} seconds".format(size, time.time() - start))
+        print("---> Mapping test complete after {:.3f} seconds".format(mapping_end - mapping_start))
+        print("---> Permutation test with {} entities complete after {:.3f} seconds".format(size, perm_end - perm_start))

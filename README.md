@@ -1,7 +1,10 @@
 # N1 Entity Matching Microservice
 
+[![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app)
 
-[![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
+[![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
+
+[![Postgres Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-db-server/status?token=35be0156-f6a5-4916-96a3-849aee10c6b2 "Postgres Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-db-server)
 
 ### Dependencies
 
@@ -17,13 +20,7 @@ images used by `docker-compose`.
 
 ## Start
 
-First start the database by itself.
-
-    docker-compose -f tools/docker-compose.yml run db
-
-This gives it a chance to create the tables and import any existing data.
-
-Then exit that (Ctrl-C) and run:
+Everything can be started at once with:
 
     docker-compose -f tools/docker-compose.yml up
 
@@ -39,14 +36,25 @@ The service should be running on port `8851`.
 
 # Testing
 
+A simple query with curl should tell you the status of the service:
+
+    curl localhost:8851/api/v1/status
+    {
+        "number_mappings": 0,
+        "status": "ok"
+    }
+
 With docker you should be able to use the same container to test the service:
 
     docker run -it \
         -e ENTITY_SERVICE_URL=http://<ENTITY-SERVER-HOST>:8851/api/v1 \
         -e ENTITY_SERVICE_TEST_SIZE=1000 \
-        -e ENTITY_SERVICE_TEST_REPEATS=10 \
+        -e ENTITY_SERVICE_TEST_REPEATS=1 \
         --net=host \
         quay.io/n1analytics/entity-app python test_service.py
+
+Alternatively set the environment variable `ENTITY_SERVICE_TIMING_TEST` to
+anything, and the test_service will carry out a benchmark.
 
 Note the `--net` parameter is only required if connecting to a service running locally
 with docker compose. If the network is not recognized, use `docker network ls` to
@@ -76,11 +84,11 @@ Note: the folder in which the generated data will be stored need to be existing.
 You might need to destroy the docker volumes used to store the postgres database if
 you change the database schema:
 
-    docker-compose -f tools/docker-compose.yml rm -v
-    sudo rm -fr ./tools/dbdata
+    docker-compose -f tools/docker-compose.yml rm -v --all
 
-During development you can run the redis and database containers with docker-compose,
-and directly run the celery and flask applications with Python.
+
+During development you can run the redis and database containers with
+docker-compose, and directly run the celery and flask applications with Python.
 
 
     docker-compose -f tools/docker-compose.yml run db
