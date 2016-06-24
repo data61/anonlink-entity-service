@@ -6,4 +6,5 @@ psycopg2==2.6.1
 celery==3.1.20
 redis==2.10.5
 phe==1.2.2
+pympler
 -e git+ssh://git@github.csiro.au/magic/AnonymousLinking.git#egg=anonlink

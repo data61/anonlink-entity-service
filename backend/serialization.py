@@ -40,7 +40,7 @@ def deserialize_filters(filters):
     res = []
     for i, f in enumerate(filters):
         ba = deserialize_bitarray(f)
-        res.append( (ba, i, ba.count()))
+        res.append((ba, i, ba.count()))
 
     return res
 

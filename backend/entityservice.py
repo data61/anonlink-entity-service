@@ -4,6 +4,7 @@ import logging
 import binascii
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
+from pympler import muppy, summary, tracker
 
 from phe import paillier
 import anonlink
@@ -355,6 +356,23 @@ def test():
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
     return json.dumps(mapping)
+
+
+
+@app.route('/danger/memory', methods=['GET'])
+def memory():
+    app.logger.warn("Analysing memory")
+    all_objects = muppy.get_objects()
+    sum1 = summary.summarize(all_objects)
+
+    for line in summary.format_(sum1):
+        app.logger.debug(line)
+
+    return json.dumps({
+        "Number of objects": len(all_objects),
+        "Total memory size": muppy.get_size(all_objects),
+        "Note": "A memory usage summary has been logged"
+    })
 
 
 @app.route('/danger/generate-names')
