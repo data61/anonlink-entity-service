@@ -24,6 +24,10 @@ class Config(object):
 
     ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
 
+    GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000'))
+
+    ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))
+
 
 class ProductionConfig(Config):
     DEBUG = False

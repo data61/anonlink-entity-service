@@ -70,13 +70,20 @@ def calculate_mapping(resource_id):
     filters1 = deserialize_filters(get_filter(db, dp_ids[0]))
     filters2 = deserialize_filters(get_filter(db, dp_ids[1]))
 
-    logger.debug("Computing similarity")
-    similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
-    logger.debug("Calculating optimal connections for entire network")
-    # The method here makes a big difference in running time
-    mapping = anonlink.network_flow.map_entities(similarity,
-                                                 threshold=0.95,
-                                                 method='bipartite')
+    logger.info("Computing similarity")
+    if max(len(filters1), len(filters2)) < config.GREEDY_SIZE:
+        logger.debug("Computing similarity using more accurate method")
+        similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
+        logger.debug("Calculating optimal connections for entire network")
+        # The method here makes a big difference in running time
+        mapping = anonlink.network_flow.map_entities(similarity,
+                                                     threshold=config.ENTITY_MATCH_THRESHOLD,
+                                                     method='bipartite')
+    else:
+        logger.debug("Computing similarity using greedy method")
+        mapping = anonlink.entitymatch.calculate_mapping_greedy(filters1, filters2, config.ENTITY_MATCH_THRESHOLD)
+
+    logger.info("Entity similarity computed")
 
     with db.cursor() as cur:
         if result_type == "mapping":
@@ -203,8 +210,6 @@ def calculate_mapping(resource_id):
     db.commit()
     logger.info("Mapping saved")
     return 'Done'
-
-
 
 
 @celery.task()
