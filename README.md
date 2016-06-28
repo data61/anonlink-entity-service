@@ -91,9 +91,9 @@ During development you can run the redis and database containers with
 docker-compose, and directly run the celery and flask applications with Python.
 
 
-    docker-compose -f tools/docker-compose.yml run db
+    docker-compose -f tools/docker-compose.yml run es_db
 
-    docker-compose -f tools/docker-compose.yml run redis
+    docker-compose -f tools/docker-compose.yml run es_redis
 
 
 # Name generation

@@ -160,6 +160,16 @@ def mapping_test(dataset_size=1000):
     mapping_result = response.json()["mapping"]
     print(mapping_result)
 
+    print("Delete the mapping + data")
+    response_delete = requests.delete(url + '/mappings/{}'.format(id),
+                            #headers={'Authorization': new_map_response['update_tokens'][1]}
+                            )
+
+    print(response_delete)
+
+    print("Servers mappings:")
+    print(requests.get(url + '/mappings').json())
+
 
 def permutation_test(dataset_size=500):
     """

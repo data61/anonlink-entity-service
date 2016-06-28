@@ -124,6 +124,41 @@ def get_mapping(db, resource_id):
         [resource_id], one=True)
 
 
+def delete_mapping(db, resource_id):
+    mapping_id = get_mapping(db, resource_id)['id']
+    with db.cursor() as cur:
+        logger.info("Begining db transaction to remove a mapping resource")
+        dps = query_db(db, """
+            SELECT id
+            FROM dataproviders
+            WHERE mapping = %s
+            """, [mapping_id])
+
+        for dp in dps:
+            cur.execute("""
+                DELETE FROM bloomingdata
+                WHERE dp = %s
+                """, [dp['id']])
+
+            cur.execute("""
+                DELETE FROM permutationdata
+                WHERE dp = %s
+                """, [dp['id']])
+
+        cur.execute("""
+            DELETE FROM dataproviders
+            WHERE mapping = %s
+            """, [mapping_id])
+
+        cur.execute("""
+            DELETE FROM mappings
+            WHERE resource_id = %s
+            """, [resource_id])
+
+    logger.info("Commiting removal of mapping resource")
+    db.commit()
+
+
 def get_mapping_time(db, resource_id):
     return query_db(db, """
         SELECT (now() - time_added) as elapsed

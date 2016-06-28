@@ -71,7 +71,7 @@ class MappingDao(object):
 def abort_if_mapping_doesnt_exist(resource_id):
     resource_exists = db.check_mapping_exists(get_db(), resource_id)
     if not resource_exists:
-        app.logger.warning("Request to PUT data with invalid auth token")
+        app.logger.warning("Requested resource with invalid identifier token")
         abort(404, message="Mapping {} doesn't exist".format(resource_id))
 
 
@@ -201,6 +201,13 @@ class MappingList(Resource):
 
 
 class Mapping(Resource):
+
+    def delete(self, resource_id):
+        # Check the resource exists
+        abort_if_mapping_doesnt_exist(resource_id)
+        app.logger.info("Deleting a mapping resource and all data")
+        db.delete_mapping(get_db(), resource_id)
+        return '', 204
 
     def get(self, resource_id):
         """
