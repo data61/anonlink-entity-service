@@ -190,7 +190,7 @@ def calculate_mapping(resource_id):
 
             # Subtasks will encrypt the mask in chunks
             logger.info("Chunking mask")
-            encrypted_chunks = chunks(convert_mapping_to_list(mask), 1000)
+            encrypted_chunks = chunks(convert_mapping_to_list(mask), config.ENCRYPTION_CHUNK_SIZE)
             # calling .apply_async will create a dedicated task so that the
             # individual tasks are applied in a worker instead
             encrypted_mask_future = chord(
@@ -249,17 +249,19 @@ def encrypt_vector(values, public_key, base):
     #return [1 if x else 0 for x in values]
 
     # Using the default encoding Base:
-    return [
-        str(public_key.encrypt(int(x)).ciphertext())
-        for x in values]
+    # return [
+    #     str(public_key.encrypt(int(x)).ciphertext())
+    #     for x in values]
 
 
     class EntityEncodedNumber(paillier.EncodedNumber):
         BASE = base
         LOG2_BASE = math.log(BASE, 2)
 
+    precision = 1e3
+
     encoded_mask = [EntityEncodedNumber.encode(public_key, x) for x in values]
 
-    encrypted_mask = [public_key.encrypt(enc) for enc in encoded_mask]
+    encrypted_mask = [public_key.encrypt(enc, precision).ciphertext() for enc in encoded_mask]
 
     return encrypted_mask

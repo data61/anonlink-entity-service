@@ -1,4 +1,5 @@
 import os
+import math
 import time
 import requests
 from anonlink import randomnames, entitymatch
@@ -33,6 +34,17 @@ def server_status_test():
     print("Server status:")
     assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
     print(status.json())
+
+
+def delete_mapping(id):
+    print("Delete the mapping + data")
+    response_delete = requests.delete(url + '/mappings/{}'.format(id),
+                                      # headers={'Authorization': new_map_response['update_tokens'][1]}
+                                      )
+    print(response_delete)
+    print("Servers mappings:")
+    mappings_response = requests.get(url + '/mappings').json()
+    assert not any(mapping['resource_id'] == id for mapping in mappings_response['mappings'])
 
 
 def mapping_test(dataset_size=1000):
@@ -160,18 +172,10 @@ def mapping_test(dataset_size=1000):
     mapping_result = response.json()["mapping"]
     print(mapping_result)
 
-    print("Delete the mapping + data")
-    response_delete = requests.delete(url + '/mappings/{}'.format(id),
-                            #headers={'Authorization': new_map_response['update_tokens'][1]}
-                            )
-
-    print(response_delete)
-
-    print("Servers mappings:")
-    print(requests.get(url + '/mappings').json())
+    delete_mapping(id)
 
 
-def permutation_test(dataset_size=500):
+def permutation_test(dataset_size=500, base=2):
     """
     Uses the NameList data and schema and a result_type of "permutation"
     """
@@ -217,7 +221,7 @@ def permutation_test(dataset_size=500):
         'schema': schema,
         'result_type': 'permutation',
         'public_key': public_key,
-        'paillier_context': {'base': 2, 'encoded': True}
+        'paillier_context': {'base': base, 'encoded': True}
     }).json()
     print(new_map_response)
 
@@ -314,6 +318,8 @@ def permutation_test(dataset_size=500):
     assert response.status_code == 200
     mapping_result_b = response.json()
 
+    delete_mapping(id)
+
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
@@ -330,9 +336,14 @@ def permutation_test(dataset_size=500):
             print(original_b_index, " -> ", new_index, element)
 
     print("Decrypting mask used for first 10 entities...")
+
+    class EntityEncodedNumber(paillier.EncodedNumber):
+        BASE = base
+        LOG2_BASE = math.log(BASE, 2)
+
     encrypted_mask = [paillier.EncryptedNumber(pub, int(m)) for m in mapping_result_b['permutation']['mask'][:10]]
 
-    decrypted_mask = [priv.decrypt(e) for e in encrypted_mask]
+    decrypted_mask = [priv.decrypt_encoded(e, Encoding=EntityEncodedNumber).decode() for e in encrypted_mask]
     print(decrypted_mask)
 
 
