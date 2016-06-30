@@ -175,27 +175,11 @@ def mapping_test(dataset_size=1000):
     delete_mapping(id)
 
 
-def permutation_test(dataset_size=500, base=2):
+def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     """
     Uses the NameList data and schema and a result_type of "permutation"
     """
-
-    print("Running e2e test with {} entites".format(dataset_size))
-    print("Generating local address data")
-    nl = randomnames.NameList(dataset_size * 2)
-    s1, s2 = nl.generate_subsets(dataset_size, 0.8)
-
-
-    #s2 = s2[:10]
-
-    print("Locally hashing identity data to create bloom filters")
-    keys = ('something', 'secret')
-    filters1 = entitymatch.calculate_bloom_filters(s1, nl.schema, keys)
-    filters2 = entitymatch.calculate_bloom_filters(s2, nl.schema, keys)
-
-    party1_filters = serialize_filters(filters1)
-    party2_filters = serialize_filters(filters2)
-
+    dataset_size = len(party1_filters)
     print("Servers mappings:")
     print(requests.get(url + '/mappings').json())
 
@@ -281,6 +265,7 @@ def permutation_test(dataset_size=500, base=2):
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
+    matching_start = time.time()
     print("Adding second party's data - properly this time")
     party2_data = {
         'clks': party2_filters
@@ -304,6 +289,7 @@ def permutation_test(dataset_size=500, base=2):
         time.sleep(snooze)
         response = retrieve_result(id, r1['receipt-token'])
 
+    matching_time = time.time() - matching_start
     assert response.status_code == 200
     mapping_result_a = response.json()
 
@@ -345,18 +331,49 @@ def permutation_test(dataset_size=500, base=2):
 
     decrypted_mask = [priv.decrypt_encoded(e, Encoding=EntityEncodedNumber).decode() for e in encrypted_mask]
     print(decrypted_mask)
+    print("Server took {:8.3f} seconds for matching".format(matching_time))
+
+
+def generate_test_data(dataset_size=1000):
+    print("Generating local address data")
+    nl = randomnames.NameList(dataset_size * 2)
+    s1, s2 = nl.generate_subsets(dataset_size, 0.8)
+
+    # s2 = s2[:10]
+
+    print("Locally hashing identity data to create bloom filters")
+    keys = ('something', 'secret')
+    filters1 = entitymatch.calculate_bloom_filters(s1, nl.schema, keys)
+    filters2 = entitymatch.calculate_bloom_filters(s2, nl.schema, keys)
+
+    party1_filters = serialize_filters(filters1)
+    party2_filters = serialize_filters(filters2)
+
+    return party1_filters, party2_filters, s1, s2
+
+
+def delete_all_mappings():
+    mappings = requests.get(url + '/mappings').json()['mappings']
+    for mapping in mappings:
+        delete_mapping(mapping['resource_id'])
 
 
 def timing_test(outfile=None):
+    test_sizes = [
+        10, 100, 200, 500, 1000, 2000, 5000,
+        # 10000, 20000
+        # 50000,
+        # 100000
+    ]
+
+    party1_filters, party2_filters, s1, s2 = generate_test_data(test_sizes[-1])
+
     results = {}
-    for size in [
-            10, 100, 200, 500, 1000, 2000, 5000,
-            #10000, 20000
-            #50000,
-            #100000
-            ]:
+    for size in test_sizes:
+        print("Running e2e test with {} entites".format(size))
+
         start = time.time()
-        permutation_test(size)
+        permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         elapsed = time.time() - start
 
         results[size] = elapsed
@@ -366,25 +383,36 @@ def timing_test(outfile=None):
 
 
 if __name__ == "__main__":
+
     size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
     do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
+    do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
 
     server_status_test()
 
     if do_timing:
         with open("timing-results.txt", "at") as f:
             timing_test(f)
+    elif do_delete_all:
+        delete_all_mappings()
     else:
+
+        party1_filters, party2_filters, s1, s2 = generate_test_data(size)
+
+        mapping_times = []
+        permutation_times = []
+
         for i in range(repeats):
             mapping_start = time.time()
             mapping_test(size)
-            mapping_end = time.time()
+            mapping_times.append(time.time() - mapping_start)
 
         for i in range(repeats):
             perm_start = time.time()
-            permutation_test(size)
-            perm_end = time.time()
+            permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+            permutation_times.append(time.time() - perm_start)
 
-        print("---> Mapping test complete after {:.3f} seconds".format(mapping_end - mapping_start))
-        print("---> Permutation test with {} entities complete after {:.3f} seconds".format(size, perm_end - perm_start))
+        print("---> Number of entities: {}".format(size))
+        print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
+        print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))

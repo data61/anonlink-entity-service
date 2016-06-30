@@ -66,10 +66,7 @@ def calculate_mapping(resource_id):
     logger.info("Data providers: {}".format(dp_ids))
     assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
-    result_future = chain(
-        compute_similarity.s(dp_ids),
-        save_and_permute.s(resource_id, dp_ids)
-    ).apply_async()
+    compute_similarity.delay(resource_id, dp_ids)
 
     logger.info("Entity similarity computation scheduled")
 
@@ -77,7 +74,7 @@ def calculate_mapping(resource_id):
 
 
 @celery.task()
-def compute_similarity(dp_ids):
+def compute_similarity(resource_id, dp_ids):
     """
     Returns a simple dict to avoid having to recalculate things in later tasks:
 
@@ -88,62 +85,69 @@ def compute_similarity(dp_ids):
     }
     """
 
-    logger.debug("Deserializing filters")
+    logger.debug("Pulling CLKs from db")
     db = connect_db()
-    filters1 = deserialize_filters(get_filter(db, dp_ids[0]))
-    filters2 = deserialize_filters(get_filter(db, dp_ids[1]))
 
-    lenf1 = len(filters1)
-    lenf2 = len(filters2)
+    serialized_filters1 = get_filter(db, dp_ids[0])
+    serialized_filters2 = get_filter(db, dp_ids[1])
+
+    lenf1 = len(serialized_filters1)
+    lenf2 = len(serialized_filters2)
 
     logger.info("Computing similarity")
     if max(lenf1, lenf2) < config.GREEDY_SIZE:
         logger.debug("Computing similarity using more accurate method")
+
+        logger.debug("Deserializing filters")
+        filters1 = deserialize_filters(serialized_filters1)
+        filters2 = deserialize_filters(serialized_filters2)
+
         similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
         logger.debug("Calculating optimal connections for entire network")
         # The method here makes a big difference in running time
         mapping = anonlink.network_flow.map_entities(similarity,
                                                      threshold=config.ENTITY_MATCH_THRESHOLD,
                                                      method='bipartite')
+        res = {
+            "mapping": mapping,
+            "lenf1": lenf1,
+            "lenf2": lenf2
+        }
+        save_and_permute.delay(res, resource_id, dp_ids)
+
     else:
         logger.debug("Computing similarity using greedy method")
 
         logger.debug("Chunking computation task")
         chunk_size = config.GREEDY_CHUNK_SIZE
-        filter1_chunks = chunks(filters1, chunk_size)
+        filter1_chunks = chunks(serialized_filters1, chunk_size)
 
         sparse_matrix = []
-        for chunk_number, chunk in enumerate(filter1_chunks):
-            chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
-                                                                             threshold=config.ENTITY_MATCH_THRESHOLD,
-                                                                             k=5)
 
-            # offset chunk's A index by chunk_size * chunk_number
-            offset = chunk_size * chunk_number
-            logger.debug("Offset by {}".format(offset))
-            for (ia, score, ib) in chunk_results:
-                sparse_matrix.append((ia + offset, score, ib))
+        # encrypted_mask_future = chord(
+        #     (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+        #     persist_mask.s(dataset_size=smaller_dataset_size,
+        #                    paillier_context=res['paillier_context'])
+        # ).apply_async()
 
-        logger.debug("Calculating the optimal mapping from similarity matrix")
-        mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+        mapping_future = chord(
+            (compute_filter_similarity.s(chunk, serialized_filters2, chunk_number) for chunk_number, chunk in enumerate(filter1_chunks)),
+            aggregate_filter_chunks.s(resource_id, dp_ids, lenf1, lenf2)
 
-    logger.info("Similarity matrix has been computed")
-    return {
-        "mapping": mapping,
-        "lenf1": lenf1,
-        "lenf2": lenf2
-    }
+        ).apply_async()
 
 
 @celery.task()
 def save_and_permute(similarity_result, resource_id, dp_ids):
     logger.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
-    logger.debug("Submitting job to save mapping")
-    save_mapping_data.apply_async((mapping,))
-
     db = connect_db()
     _, _, result_type = check_mapping_ready(db, resource_id)
+
+    if result_type == "mapping":
+        logger.debug("Submitting job to save mapping")
+        save_mapping_data.apply_async((mapping,))
+
     if result_type == "permutation":
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'], similarity_result['lenf2'], mapping, dp_ids))
@@ -301,31 +305,67 @@ def save_mapping_data(mapping):
 
 
 @celery.task()
-def compute_filter_similarity(filters1, filters2):
-    logger.info("Computing similarity for a chunk")
+def compute_filter_similarity(f1, f2, chunk_number):
+    logger.info("Computing similarity for a chunk of filters")
 
-    # TODO
+    logger.debug("Deserializing filters")
+    chunk = deserialize_filters(f1)
+    filters2 = deserialize_filters(f2)
+    logger.info("Calculating filter similarity")
+
+    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
+                                                                     threshold=config.ENTITY_MATCH_THRESHOLD,
+                                                                     k=5)
+
+    partial_sparse_result = []
+    # offset chunk's A index by chunk_size * chunk_number
+    chunk_size = len(chunk)
+    offset = chunk_size * chunk_number
+    logger.debug("Offset by {}".format(offset))
+    for (ia, score, ib) in chunk_results:
+        partial_sparse_result.append((ia + offset, score, ib))
+
+    return partial_sparse_result
 
 
+@celery.task()
+def aggregate_filter_chunks(sparse_result_groups, resource_id, dp_ids, lenf1, lenf2):
+    sparse_matrix = []
+
+    for partial_sparse_result in sparse_result_groups:
+        sparse_matrix.extend(partial_sparse_result)
+
+    logger.debug("Calculating the optimal mapping from similarity matrix")
+    mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+
+    logger.info("Entity mapping has been computed")
+
+    res = {
+        "mapping": mapping,
+        "lenf1": lenf1,
+        "lenf2": lenf2
+    }
+    save_and_permute.delay(res, resource_id, dp_ids)
 
 
 @celery.task()
 def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context):
     encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
-    logger.info("Saving encrypted permutation data to db")
+
     db = connect_db()
     with db.cursor() as cur:
-        cur.execute("""
-                    UPDATE mappings SET
+        logger.info("Serializing encrypted permutation data")
+        result_to_save = psycopg2.extras.Json(json.dumps(
+            {"rows": dataset_size, "mask": encrypted_mask, "paillier_context": paillier_context}))
+
+        logger.info("Inserting encrypted permutation data to db")
+        cur.execute("""UPDATE mappings SET
                     result = (%s),
                     ready = TRUE,
                     time_completed = now()
                     """,
-                [psycopg2.extras.Json(json.dumps({
-                    "rows": dataset_size,
-                    "mask": encrypted_mask,
-                    "paillier_context": paillier_context
-                }))])
+                    [result_to_save])
+    logger.debug("Committing encrypted permutation data to db")
     db.commit()
     logger.info("Encrypted mask has been saved")
 

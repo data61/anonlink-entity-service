@@ -29,7 +29,7 @@ class Config(object):
     GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000'))
 
     # Number of entities to match per chunk
-    GREEDY_CHUNK_SIZE = int(os.environ.get('GREEDY_CHUNK_SIZE', '1000'))
+    GREEDY_CHUNK_SIZE = int(os.environ.get('GREEDY_CHUNK_SIZE', '2000'))
 
     ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))
 
