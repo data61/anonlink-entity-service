@@ -4,7 +4,7 @@ import json
 import random
 from datetime import datetime, timedelta
 
-from celery import Celery, Task, chord
+from celery import Celery, Task, chord, chain
 from celery.utils.log import get_task_logger
 import psycopg2.extras
 
@@ -54,7 +54,7 @@ def calculate_mapping(resource_id):
         logger.info("Mapping '{}' is already computed. Skipping".format(resource_id))
         return
 
-    logger.info("Calculating mapping ")
+    logger.info("Calculating similarity ")
     # Get the data provider IDS
     dp_ids = list(map(lambda d: d['id'], query_db(db, """
         SELECT id
@@ -66,12 +66,38 @@ def calculate_mapping(resource_id):
     logger.info("Data providers: {}".format(dp_ids))
     assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
+    result_future = chain(
+        compute_similarity.s(dp_ids),
+        save_and_permute.s(resource_id, dp_ids)
+    ).apply_async()
+
+    logger.info("Entity similarity computation scheduled")
+
+    return 'Done'
+
+
+@celery.task()
+def compute_similarity(dp_ids):
+    """
+    Returns a simple dict to avoid having to recalculate things in later tasks:
+
+    {
+        "mapping": The sparse similarity mapping dict,
+        "lenf1": number of entities in filters1,
+        "lenf2": number of entities in filters2,
+    }
+    """
+
     logger.debug("Deserializing filters")
+    db = connect_db()
     filters1 = deserialize_filters(get_filter(db, dp_ids[0]))
     filters2 = deserialize_filters(get_filter(db, dp_ids[1]))
 
+    lenf1 = len(filters1)
+    lenf2 = len(filters2)
+
     logger.info("Computing similarity")
-    if max(len(filters1), len(filters2)) < config.GREEDY_SIZE:
+    if max(lenf1, lenf2) < config.GREEDY_SIZE:
         logger.debug("Computing similarity using more accurate method")
         similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
         logger.debug("Calculating optimal connections for entire network")
@@ -81,7 +107,6 @@ def calculate_mapping(resource_id):
                                                      method='bipartite')
     else:
         logger.debug("Computing similarity using greedy method")
-        #mapping = anonlink.entitymatch.calculate_mapping_greedy(filters1, filters2, config.ENTITY_MATCH_THRESHOLD)
 
         logger.debug("Chunking computation task")
         chunk_size = config.GREEDY_CHUNK_SIZE
@@ -89,7 +114,9 @@ def calculate_mapping(resource_id):
 
         sparse_matrix = []
         for chunk_number, chunk in enumerate(filter1_chunks):
-            chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2, threshold=config.ENTITY_MATCH_THRESHOLD, k=5)
+            chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
+                                                                             threshold=config.ENTITY_MATCH_THRESHOLD,
+                                                                             k=5)
 
             # offset chunk's A index by chunk_size * chunk_number
             offset = chunk_size * chunk_number
@@ -100,15 +127,26 @@ def calculate_mapping(resource_id):
         logger.debug("Calculating the optimal mapping from similarity matrix")
         mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
+    logger.info("Similarity matrix has been computed")
+    return {
+        "mapping": mapping,
+        "lenf1": lenf1,
+        "lenf2": lenf2
+    }
 
-    logger.info("Entity similarity computed")
 
-    if result_type == "mapping":
-        logger.debug("Submitting job to save mapping")
-        save_mapping_data.apply_async((mapping,))
-    elif result_type == "permutation":
-        permute_mapping_data.apply_async((resource_id, len(filters1), len(filters2), mapping, dp_ids))
-    return 'Done'
+@celery.task()
+def save_and_permute(similarity_result, resource_id, dp_ids):
+    logger.debug("Saving and possibly permuting data")
+    mapping = similarity_result['mapping']
+    logger.debug("Submitting job to save mapping")
+    save_mapping_data.apply_async((mapping,))
+
+    db = connect_db()
+    _, _, result_type = check_mapping_ready(db, resource_id)
+    if result_type == "permutation":
+        logger.debug("Submitting job to permute mapping")
+        permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'], similarity_result['lenf2'], mapping, dp_ids))
 
 
 @celery.task()
@@ -174,7 +212,6 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
 
         # For every element in a's permutation
         for a_index in range(len_filters1):
-            logger.debug("A index: {}".format(a_index))
             # Check if it is not already present
             if a_index not in a_permutation:
                 # This index isn't yet mapped
@@ -200,7 +237,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
 
         for i, permutation in enumerate([a_permutation, b_permutation]):
             perm_list = convert_mapping_to_list(permutation)
-            logger.debug("Saving permutations")
+            logger.debug("Saving a permutation")
             cur.execute("""
                     INSERT INTO permutationdata
                     (dp, raw)
@@ -234,7 +271,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
 
     # TODO have we made any changes we need to commit?
     db.commit()
-    logger.info("Permutation calculation complete")
+    logger.info("Permutation calculation all scheduled")
 
 
 @celery.task()
