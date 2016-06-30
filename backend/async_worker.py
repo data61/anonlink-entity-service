@@ -236,16 +236,10 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
         logger.info("Completed new permutations for each party")
 
         for i, permutation in enumerate([a_permutation, b_permutation]):
+            logger.info("Scheduling a job to save the unencrypted permutation data")
+            # We convert here because celery and dicts with int keys don't play nice
             perm_list = convert_mapping_to_list(permutation)
-            logger.debug("Saving a permutation")
-            cur.execute("""
-                    INSERT INTO permutationdata
-                    (dp, raw)
-                    VALUES
-                    (%s, %s)
-                    """,
-                        [dp_ids[i], psycopg2.extras.Json(perm_list)]
-                        )
+            save_permutation.apply_async((dp_ids[i], perm_list))
 
         logger.info("Encrypting mask data")
 
@@ -273,6 +267,22 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
     db.commit()
     logger.info("Permutation calculation all scheduled")
 
+
+@celery.task()
+def save_permutation(dp, perm_list):
+    logger.debug("Saving a permutation")
+
+    db = connect_db()
+    with db.cursor() as cur:
+        cur.execute("""INSERT INTO permutationdata
+                    (dp, raw)
+                    VALUES
+                    (%s, %s)
+                    """,
+                [dp, psycopg2.extras.Json(perm_list)]
+                )
+    db.commit()
+    logger.info("Raw permutation data saved")
 
 @celery.task()
 def save_mapping_data(mapping):
@@ -317,7 +327,7 @@ def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context):
                     "paillier_context": paillier_context
                 }))])
     db.commit()
-    logger.info("Permutation saved (?)")
+    logger.info("Encrypted mask has been saved")
 
 
 @celery.task()
