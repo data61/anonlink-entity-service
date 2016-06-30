@@ -24,7 +24,12 @@ class Config(object):
 
     ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
 
+    # Matches that have more than this number of entities will use the
+    # faster greedy solver
     GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000'))
+
+    # Number of entities to match per chunk
+    GREEDY_CHUNK_SIZE = int(os.environ.get('GREEDY_CHUNK_SIZE', '1000'))
 
     ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))
 
