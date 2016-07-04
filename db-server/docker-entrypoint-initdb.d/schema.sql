@@ -52,6 +52,7 @@ CREATE TABLE dataproviders (
 
 );
 
+-- The raw data given by each org
 CREATE TABLE bloomingdata (
   id  SERIAL PRIMARY KEY,
 
@@ -64,6 +65,9 @@ CREATE TABLE bloomingdata (
 
   -- Store it in the form given
   raw JSONB
+
+  -- Note the number of entries
+  -- jsonb_array_length(raw)
 );
 
 -- Paillier encrypted mask data when result_type is permutation
@@ -74,4 +78,15 @@ CREATE TABLE permutationdata (
 
   -- Store it in the form it will be served as.
   raw JSONB
+);
+
+
+-- Calculation metrics
+CREATE TABLE metrics (
+  id  SERIAL PRIMARY KEY,
+
+  ts  TIMESTAMP DEFAULT current_timestamp,
+
+  -- Comparisons per second
+  rate INT
 );
