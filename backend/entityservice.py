@@ -245,7 +245,7 @@ class Mapping(Resource):
             comparisons, total_comparisons = db.get_mapping_progress(dbinstance, resource_id)
 
             return {
-                       'message': "Mapping isn't ready.",
+                       "message": "Mapping isn't ready.",
                        "elapsed": time_elapsed.total_seconds(),
                        "total": total_comparisons,
                        "current": comparisons
