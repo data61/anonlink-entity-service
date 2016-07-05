@@ -222,7 +222,8 @@ class Mapping(Resource):
         # Check the resource exists
         abort_if_mapping_doesnt_exist(resource_id)
 
-        mapping = db.get_mapping(get_db(), resource_id)
+        dbinstance = get_db()
+        mapping = db.get_mapping(dbinstance, resource_id)
 
         app.logger.info("Checking credentials")
 
@@ -235,10 +236,20 @@ class Mapping(Resource):
         app.logger.info("Checking for results")
         # Check that the mapping is ready
         if not mapping['ready']:
-            # return compute time elapsed here
-            time_elapsed = db.get_mapping_time(get_db(), resource_id)
+            # return compute time elapsed and number of comparisons here
+            time_elapsed = db.get_mapping_time(dbinstance, resource_id)
             app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
-            return {'message': "Mapping isn't ready.", "elapsed": time_elapsed.total_seconds()}, 503
+
+            rate = db.get_latest_rate(dbinstance)
+
+            comparisons, total_comparisons = db.get_mapping_progress(dbinstance, resource_id)
+
+            return {
+                       'message': "Mapping isn't ready.",
+                       "elapsed": time_elapsed.total_seconds(),
+                       "total": total_comparisons,
+                       "current": comparisons
+                   }, 503
 
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
@@ -246,7 +257,7 @@ class Mapping(Resource):
         elif mapping['result_type'] == 'permutation':
             app.logger.info("Permutation result being returned")
             result = json.loads(mapping['result'])
-            perm = db.get_permutation_result(get_db(), dp_id)
+            perm = db.get_permutation_result(dbinstance, dp_id)
             result['permutation'] = perm
             return {'permutation': result}
         else:
@@ -302,12 +313,12 @@ class Status(Resource):
             select COUNT(*) from mappings
             ''', one=True)['count']
 
-        current_rate = db.query_db(db1, 'select ts, rate from metrics order by ts desc limit 1', one=True)
+        current_rate = db.get_latest_rate(db1)
 
         return {
             'status': 'ok',
             'number_mappings': number_of_mappings,
-            'rate': current_rate['rate']
+            'rate': current_rate
         }
 
 

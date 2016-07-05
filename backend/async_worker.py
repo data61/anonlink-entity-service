@@ -148,16 +148,8 @@ def compute_similarity(resource_id, dp_ids):
         chunk_size = config.GREEDY_CHUNK_SIZE
         filter1_chunks = chunks(serialized_filters1, chunk_size)
 
-        sparse_matrix = []
-
-        # encrypted_mask_future = chord(
-        #     (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
-        #     persist_mask.s(dataset_size=smaller_dataset_size,
-        #                    paillier_context=res['paillier_context'])
-        # ).apply_async()
-
         mapping_future = chord(
-            (compute_filter_similarity.s(chunk, serialized_filters2, chunk_number) for chunk_number, chunk in enumerate(filter1_chunks)),
+            (compute_filter_similarity.s(chunk, serialized_filters2, chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
             aggregate_filter_chunks.s(resource_id, dp_ids, lenf1, lenf2)
 
         ).apply_async()
@@ -335,7 +327,7 @@ def save_mapping_data(mapping):
 
 
 @celery.task()
-def compute_filter_similarity(f1, f2, chunk_number):
+def compute_filter_similarity(f1, f2, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
 
     logger.debug("Deserializing filters")
@@ -346,6 +338,8 @@ def compute_filter_similarity(f1, f2, chunk_number):
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
                                                                      threshold=config.ENTITY_MATCH_THRESHOLD,
                                                                      k=5)
+    # Update the number of comparisons completed
+    save_current_progress.delay(len(filters2) * len(chunk), resource_id)
 
     partial_sparse_result = []
     # offset chunk's A index by chunk_size * chunk_number
@@ -356,6 +350,20 @@ def compute_filter_similarity(f1, f2, chunk_number):
         partial_sparse_result.append((ia + offset, score, ib))
 
     return partial_sparse_result
+
+
+@celery.task()
+def save_current_progress(comparisons, resource_id):
+    logger.info("Compared {}".format(comparisons))
+    db = connect_db()
+    with db.cursor() as cur:
+        cur.execute("""UPDATE mappings SET
+                      comparisons = comparisons + %s
+                    WHERE
+                      resource_id = %s
+                    """,
+                    [comparisons, resource_id])
+    db.commit()
 
 
 @celery.task()
@@ -411,7 +419,7 @@ def encrypt_mask(values, pk, base):
 
 @celery.task()
 def calculate_comparison_rate():
-    db = connect_db()
+    dbinstance = connect_db()
     logger.info("Calculating comparison rate")
     elapsed_mapping_time_query = """
         select id, resource_id, time_completed - time_added as elapsed
@@ -422,27 +430,19 @@ def calculate_comparison_rate():
 
     total_comparisons = 0
     total_time = timedelta(0)
-    for mapping in query_db(db, elapsed_mapping_time_query):
+    for mapping in query_db(dbinstance, elapsed_mapping_time_query):
 
-        dpres = query_db(db, """SELECT jsonb_array_length(bloomingdata.raw) as count
-            from dataproviders, bloomingdata
-            WHERE
-              dataproviders.mapping=%s
-              AND bloomingdata.dp=dataproviders.id
-            """, [mapping['id']])
-
-        comparisons = dpres[0]['count'] * dpres[1]['count']
-        logger.info(comparisons)
-        logger.info("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
+        comparisons, _ = get_mapping_progress(dbinstance, mapping['resource_id'])
+        #logger.debug("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
         total_comparisons += comparisons
         total_time += mapping['elapsed']
 
     if total_time.total_seconds() > 0:
         rate = total_comparisons/total_time.total_seconds()
         logger.info("Saving new comparison rate: {}".format(rate))
-        with db.cursor() as cur:
+        with dbinstance.cursor() as cur:
             insert_comparison_rate(cur, rate)
 
-        db.commit()
+        dbinstance.commit()
     else:
         logger.warning("Can't compute comparison rate yet")

@@ -36,6 +36,9 @@ CREATE TABLE mappings (
 
   parties        SMALLINT               DEFAULT 2,
 
+  -- For accurate progress during calculation. comparisons
+  comparisons    BIGINT        NOT NULL DEFAULT 0,
+
   result_type    MAPPINGRESULT NOT NULL
 );
 

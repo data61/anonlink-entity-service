@@ -162,7 +162,7 @@ def mapping_test(dataset_size=1000):
 
     response = retrieve_result(id, new_map_response['result_token'])
     while not response.status_code == 200:
-        snooze = 30*dataset_size/10000
+        snooze = dataset_size/1000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, new_map_response['result_token'])

@@ -88,6 +88,16 @@ def check_mapping_exists(db, resource_id):
         [resource_id], one=True)['count'] == 1
 
 
+def get_latest_rate(db):
+    res = query_db(db, 'select ts, rate from metrics order by ts desc limit 1', one=True)
+    if res is None:
+        current_rate = 0
+    else:
+        current_rate = res['rate']
+
+    return current_rate
+
+
 def get_number_parties_uploaded(db, resource_id):
     return query_db(db, """
         SELECT COUNT(*)
@@ -165,6 +175,33 @@ def get_mapping_time(db, resource_id):
         from mappings
         WHERE resource_id = %s""",
         [resource_id], one=True)['elapsed']
+
+
+def get_mapping_progress(db, resource_id):
+    """
+    :return (comparisons_complete, total_comparisons)
+    """
+    comparisons = query_db(db, """
+        SELECT comparisons
+        from mappings
+        WHERE resource_id = %s""",
+        [resource_id], one=True)['comparisons']
+
+    res = query_db(db, """
+    SELECT jsonb_array_length(bloomingdata.raw) as rows
+    from mappings, dataproviders, bloomingdata
+    where
+      bloomingdata.dp=dataproviders.id AND
+      dataproviders.mapping=mappings.id AND
+      mappings.resource_id=%s""", [resource_id])
+
+    if len(res) == 2:
+        total_comparisons = res[0]['rows'] * res[1]['rows']
+    else:
+        total_comparisons = 'NA'
+
+    return comparisons, total_comparisons
+
 
 
 def get_dataprovider_id(db, update_token):
