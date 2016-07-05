@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata;
+DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
 
 CREATE TYPE MAPPINGRESULT AS ENUM ('mapping', 'permutation');
 

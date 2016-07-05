@@ -172,7 +172,7 @@ def mapping_test(dataset_size=1000):
     mapping_result = response.json()["mapping"]
     print(mapping_result)
 
-    delete_mapping(id)
+    #delete_mapping(id)
 
 
 def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
@@ -304,7 +304,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     assert response.status_code == 200
     mapping_result_b = response.json()
 
-    delete_mapping(id)
+    #delete_mapping(id)
 
     # Now we will print a few sample matches...
 
@@ -361,9 +361,9 @@ def delete_all_mappings():
 def timing_test(outfile=None):
     test_sizes = [
         10, 100, 200, 500, 1000, 2000, 5000,
-        # 10000, 20000
-        # 50000,
-        # 100000
+        10000, 20000,
+        50000,
+        100000
     ]
 
     party1_filters, party2_filters, s1, s2 = generate_test_data(test_sizes[-1])
@@ -374,6 +374,8 @@ def timing_test(outfile=None):
 
         start = time.time()
         permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        # TODO
+        #mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         elapsed = time.time() - start
 
         results[size] = elapsed
@@ -388,6 +390,7 @@ if __name__ == "__main__":
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
     do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
     do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
+    do_permutation_test = os.environ.get("ENTITY_SERVICE_PERMUTATION", None) is not None
 
     server_status_test()
 
@@ -408,11 +411,12 @@ if __name__ == "__main__":
             mapping_test(size)
             mapping_times.append(time.time() - mapping_start)
 
-        for i in range(repeats):
-            perm_start = time.time()
-            permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-            permutation_times.append(time.time() - perm_start)
+        if do_permutation_test:
+            for i in range(repeats):
+                perm_start = time.time()
+                permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+                permutation_times.append(time.time() - perm_start)
+            print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
 
-        print("---> Number of entities: {}".format(size))
         print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
-        print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
+        print("---> Number of entities: {}".format(size))

@@ -297,11 +297,18 @@ class Status(Resource):
         """Displays the latest mapping statistics"""
 
         # We ensure we can connect to the database during the status check
-        number_of_mappings = db.query_db(get_db(), '''
+        db1 = get_db()
+        number_of_mappings = db.query_db(db1, '''
             select COUNT(*) from mappings
             ''', one=True)['count']
 
-        return {'status': 'ok', 'number_mappings': number_of_mappings}
+        current_rate = db.query_db(db1, 'select ts, rate from metrics order by ts desc limit 1', one=True)
+
+        return {
+            'status': 'ok',
+            'number_mappings': number_of_mappings,
+            'rate': current_rate['rate']
+        }
 
 
 def check_mapping(mapping):

@@ -127,7 +127,7 @@ def get_mapping(db, resource_id):
 def delete_mapping(db, resource_id):
     mapping_id = get_mapping(db, resource_id)['id']
     with db.cursor() as cur:
-        logger.info("Begining db transaction to remove a mapping resource")
+        logger.info("Beginning db transaction to remove a mapping resource")
         dps = query_db(db, """
             SELECT id
             FROM dataproviders
@@ -190,6 +190,15 @@ def get_permutation_result(db, dp_id):
         [dp_id], one=True)['raw']
 
 # Insertion Queries
+
+
+def insert_comparison_rate(cur, rate):
+    return insert_returning_id(cur, """
+        INSERT INTO metrics
+        (rate) VALUES (%s)
+        RETURNING id;
+        """, [rate])
+
 
 def insert_mapping(cur, data, mapping, resource_id):
     return insert_returning_id(cur,

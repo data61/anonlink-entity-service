@@ -43,6 +43,38 @@ def chunks(l, n):
         yield l[i:i+n]
 
 
+def encrypt_vector(values, public_key, base):
+    """
+    Encrypt an array of booleans.
+
+    Note the exponent will always be 0
+
+    :return list of encrypted ciphertext strings
+    """
+
+    # Only use this for testing purposes!
+    # Should use the next section of code instead!
+    #return [1 if x else 0 for x in values]
+
+    # Using the default encoding Base:
+    # return [
+    #     str(public_key.encrypt(int(x)).ciphertext())
+    #     for x in values]
+
+
+    class EntityEncodedNumber(paillier.EncodedNumber):
+        BASE = base
+        LOG2_BASE = math.log(BASE, 2)
+
+    precision = 1e3
+
+    encoded_mask = [EntityEncodedNumber.encode(public_key, x) for x in values]
+
+    encrypted_mask = [public_key.encrypt(enc, precision).ciphertext() for enc in encoded_mask]
+
+    return encrypted_mask
+
+
 @celery.task()
 def calculate_mapping(resource_id):
     logger.info("Checking we need to calculating mapping")
@@ -76,13 +108,7 @@ def calculate_mapping(resource_id):
 @celery.task()
 def compute_similarity(resource_id, dp_ids):
     """
-    Returns a simple dict to avoid having to recalculate things in later tasks:
 
-    {
-        "mapping": The sparse similarity mapping dict,
-        "lenf1": number of entities in filters1,
-        "lenf2": number of entities in filters2,
-    }
     """
 
     logger.debug("Pulling CLKs from db")
@@ -151,6 +177,8 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
     if result_type == "permutation":
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'], similarity_result['lenf2'], mapping, dp_ids))
+
+    calculate_comparison_rate.delay()
 
 
 @celery.task()
@@ -264,7 +292,8 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
         encrypted_mask_future = chord(
             (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
             persist_mask.s(dataset_size=smaller_dataset_size,
-                           paillier_context=res['paillier_context'])
+                           paillier_context=res['paillier_context'],
+                           resource_id=resource_id)
         ).apply_async()
 
     # TODO have we made any changes we need to commit?
@@ -287,6 +316,7 @@ def save_permutation(dp, perm_list):
                 )
     db.commit()
     logger.info("Raw permutation data saved")
+
 
 @celery.task()
 def save_mapping_data(mapping):
@@ -349,7 +379,7 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, dp_ids, lenf1, le
 
 
 @celery.task()
-def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context):
+def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context, resource_id):
     encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
 
     db = connect_db()
@@ -363,8 +393,10 @@ def persist_mask(encrypted_mask_chunks, dataset_size, paillier_context):
                     result = (%s),
                     ready = TRUE,
                     time_completed = now()
+                    WHERE
+                    resource_id = %s
                     """,
-                    [result_to_save])
+                    [result_to_save, resource_id])
     logger.debug("Committing encrypted permutation data to db")
     db.commit()
     logger.info("Encrypted mask has been saved")
@@ -377,33 +409,40 @@ def encrypt_mask(values, pk, base):
     return encrypt_vector(values, public_key, base)
 
 
-def encrypt_vector(values, public_key, base):
-    """
-    Encrypt an array of booleans.
+@celery.task()
+def calculate_comparison_rate():
+    db = connect_db()
+    logger.info("Calculating comparison rate")
+    elapsed_mapping_time_query = """
+        select id, resource_id, time_completed - time_added as elapsed
+        from mappings
+        WHERE
+          mappings.ready=TRUE
+      """
 
-    Note the exponent will always be 0
+    total_comparisons = 0
+    total_time = timedelta(0)
+    for mapping in query_db(db, elapsed_mapping_time_query):
 
-    :return list of encrypted ciphertext strings
-    """
+        dpres = query_db(db, """SELECT jsonb_array_length(bloomingdata.raw) as count
+            from dataproviders, bloomingdata
+            WHERE
+              dataproviders.mapping=%s
+              AND bloomingdata.dp=dataproviders.id
+            """, [mapping['id']])
 
-    # Only use this for testing purposes!
-    # Should use the next section of code instead!
-    #return [1 if x else 0 for x in values]
+        comparisons = dpres[0]['count'] * dpres[1]['count']
+        logger.info(comparisons)
+        logger.info("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
+        total_comparisons += comparisons
+        total_time += mapping['elapsed']
 
-    # Using the default encoding Base:
-    # return [
-    #     str(public_key.encrypt(int(x)).ciphertext())
-    #     for x in values]
+    if total_time.total_seconds() > 0:
+        rate = total_comparisons/total_time.total_seconds()
+        logger.info("Saving new comparison rate: {}".format(rate))
+        with db.cursor() as cur:
+            insert_comparison_rate(cur, rate)
 
-
-    class EntityEncodedNumber(paillier.EncodedNumber):
-        BASE = base
-        LOG2_BASE = math.log(BASE, 2)
-
-    precision = 1e3
-
-    encoded_mask = [EntityEncodedNumber.encode(public_key, x) for x in values]
-
-    encrypted_mask = [public_key.encrypt(enc, precision).ciphertext() for enc in encoded_mask]
-
-    return encrypted_mask
+        db.commit()
+    else:
+        logger.warning("Can't compute comparison rate yet")
