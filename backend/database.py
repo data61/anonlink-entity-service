@@ -181,6 +181,7 @@ def get_mapping_time(db, resource_id):
 
     return timedelta(seconds=0) if res is None else res
 
+
 def get_mapping_progress(db, resource_id):
     """
     :return (comparisons_complete, total_comparisons)

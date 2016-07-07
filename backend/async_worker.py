@@ -362,7 +362,7 @@ def compute_filter_similarity(f1, f2, chunk_number, resource_id):
                                                                      threshold=config.ENTITY_MATCH_THRESHOLD,
                                                                      k=5)
     # Update the number of comparisons completed
-    save_current_progress.delay(len(filters2) * len(chunk), resource_id)
+    save_current_progress(len(filters2) * len(chunk), resource_id)
 
     partial_sparse_result = []
     # offset chunk's A index by chunk_size * chunk_number
@@ -375,7 +375,6 @@ def compute_filter_similarity(f1, f2, chunk_number, resource_id):
     return partial_sparse_result
 
 
-@celery.task()
 def save_current_progress(comparisons, resource_id):
     logger.info("Progress. Compared {} CLKS".format(comparisons))
     db = connect_db()

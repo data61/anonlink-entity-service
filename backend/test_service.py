@@ -377,7 +377,6 @@ def timing_test(outfile=None):
             "Permutation test with {} entities complete after {:.3f} seconds".format(size, elapsed),
             file=outfile)
 
-
 if __name__ == "__main__":
 
     size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))

@@ -240,18 +240,11 @@ class Mapping(Resource):
 
             comparisons, total_comparisons = db.get_mapping_progress(dbinstance, resource_id)
 
-            current_rate = db.get_latest_rate(dbinstance)
-            if total_comparisons is not 'NA':
-                estimated = (total_comparisons - comparisons)/current_rate
-            else:
-                # Assume a day of computation
-                estimated = 24*60*60
             return {
                        "message": "Mapping isn't ready.",
                        "elapsed": time_elapsed.total_seconds(),
                        "total": str(total_comparisons),
-                       "current": str(comparisons),
-                       "estimated": estimated
+                       "current": str(comparisons)
                    }, 503
 
         if mapping['result_type'] == 'mapping':
