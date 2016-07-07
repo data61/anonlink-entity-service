@@ -12,6 +12,8 @@ CREATE TABLE mappings (
   -- When was this mapping added
   time_added     TIMESTAMP              DEFAULT current_timestamp,
 
+  time_started TIMESTAMP       NULL,
+
   time_completed TIMESTAMP     NULL,
 
   -- currently 1:1, but this could be own table too

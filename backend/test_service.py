@@ -150,7 +150,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
     response = retrieve_result(id, new_map_response['result_token'])
     while not response.status_code == 200:
-        snooze = dataset_size/10000
+        snooze = dataset_size/20000
         #print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, new_map_response['result_token'])
@@ -352,12 +352,11 @@ def delete_all_mappings():
 
 def timing_test(outfile=None):
     test_sizes = [
-        #10, 100, 200, 500, 1000, 2000,
         5000,
         10000,
         20000,
         50000,
-        # 100000
+        100000
     ]
 
     party1_filters, party2_filters, s1, s2 = generate_test_data(test_sizes[-1])
@@ -403,7 +402,7 @@ if __name__ == "__main__":
 
         for i in range(repeats):
             mapping_start = time.time()
-            mapping_test(size)
+            mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
             mapping_times.append(time.time() - mapping_start)
 
         if do_permutation_test:

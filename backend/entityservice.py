@@ -11,23 +11,21 @@ import anonlink
 import database as db
 from serialization import load_public_key
 from async_worker import calculate_mapping
+from settings import Config as config
 
 app = Flask(__name__)
 
 # Logging config
-LOGFILE = os.environ.get("LOGFILE", None)
-fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
-consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
-                                  datefmt="%H:%M:%S")
+
 
 # Logging setup
-if LOGFILE is not None:
-    fileHandler = logging.FileHandler(LOGFILE)
+if config.LOGFILE is not None:
+    fileHandler = logging.FileHandler(config.LOGFILE)
     fileHandler.setLevel(logging.INFO)
-    fileHandler.setFormatter(fileFormat)
+    fileHandler.setFormatter(config.fileFormat)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
-consoleHandler.setFormatter(consoleFormat)
+consoleHandler.setFormatter(config.consoleFormat)
 
 
 # Config could be Config, DevelopmentConfig or ProductionConfig
@@ -36,7 +34,7 @@ app.config.from_object('settings.Config')
 # Add loggers to app
 del app.logger.handlers[:]
 app.logger.propagate = False
-if LOGFILE is not None:
+if config.LOGFILE is not None:
     app.logger.addHandler(fileHandler)
 app.logger.addHandler(consoleHandler)
 
@@ -240,15 +238,20 @@ class Mapping(Resource):
             time_elapsed = db.get_mapping_time(dbinstance, resource_id)
             app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
 
-            rate = db.get_latest_rate(dbinstance)
-
             comparisons, total_comparisons = db.get_mapping_progress(dbinstance, resource_id)
 
+            current_rate = db.get_latest_rate(dbinstance)
+            if total_comparisons is not 'NA':
+                estimated = (total_comparisons - comparisons)/current_rate
+            else:
+                # Assume a day of computation
+                estimated = 24*60*60
             return {
                        "message": "Mapping isn't ready.",
                        "elapsed": time_elapsed.total_seconds(),
-                       "total": total_comparisons,
-                       "current": comparisons
+                       "total": str(total_comparisons),
+                       "current": str(comparisons),
+                       "estimated": estimated
                    }, 503
 
         if mapping['result_type'] == 'mapping':

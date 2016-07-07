@@ -1,5 +1,6 @@
 import psycopg2
 from settings import Config as config
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger('db')
@@ -91,7 +92,9 @@ def check_mapping_exists(db, resource_id):
 def get_latest_rate(db):
     res = query_db(db, 'select ts, rate from metrics order by ts desc limit 1', one=True)
     if res is None:
-        current_rate = 0
+        # Just to avoid annoying divide by zero errors return a low rate
+        # if the true value is unknown
+        current_rate = 1
     else:
         current_rate = res['rate']
 
@@ -170,12 +173,13 @@ def delete_mapping(db, resource_id):
 
 
 def get_mapping_time(db, resource_id):
-    return query_db(db, """
-        SELECT (now() - time_added) as elapsed
+    res = query_db(db, """
+        SELECT (now() - time_started) as elapsed
         from mappings
         WHERE resource_id = %s""",
         [resource_id], one=True)['elapsed']
 
+    return timedelta(seconds=0) if res is None else res
 
 def get_mapping_progress(db, resource_id):
     """
