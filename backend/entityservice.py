@@ -244,7 +244,8 @@ class Mapping(Resource):
                        "message": "Mapping isn't ready.",
                        "elapsed": time_elapsed.total_seconds(),
                        "total": str(total_comparisons),
-                       "current": str(comparisons)
+                       "current": str(comparisons),
+                       "progress": (comparisons/total_comparisons) if total_comparisons is not 'NA' else 0.0
                    }, 503
 
         if mapping['result_type'] == 'mapping':
