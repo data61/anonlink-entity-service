@@ -275,7 +275,6 @@ class Mapping(Resource):
 
         token = headers['Authorization']
 
-
         if data is None or 'clks' not in data:
             abort(400, message="Missing information")
 
