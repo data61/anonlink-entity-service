@@ -95,6 +95,12 @@ docker-compose, and directly run the celery and flask applications with Python.
 
     docker-compose -f tools/docker-compose.yml run es_redis
 
+## Scaling
+
+You can run additional worker containers by scaling with docker-compose:
+
+    docker-compose -f tools/docker-compose.yml scale es_worker=2
+
 
 # Name generation
 

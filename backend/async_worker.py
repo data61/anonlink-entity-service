@@ -3,7 +3,7 @@ import math
 import json
 import random
 from datetime import datetime, timedelta
-
+from celery.signals import after_setup_task_logger, after_setup_logger
 from celery import Celery, Task, chord, chain
 from celery.utils.log import get_task_logger
 import psycopg2.extras
@@ -19,12 +19,23 @@ celery = Celery('tasks',
                 broker=config.BROKER_URL,
                 backend=config.CELERY_RESULT_BACKEND
                 )
+
 celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
+celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
+
+
+@after_setup_logger.connect
+@after_setup_task_logger.connect
+def init_celery_logger(logger, **kwargs):
+    for handler in logger.handlers[:]:
+        handler.setFormatter(config.consoleFormat)
+        handler.setLevel(logging.INFO)
+
 
 logger = get_task_logger(__name__)
-logger.info("Setting up celery...")
+logger.info("Setting up celery worker")
 
 
 def convert_mapping_to_list(permutation):
@@ -98,6 +109,16 @@ def calculate_mapping(resource_id):
     logger.info("Data providers: {}".format(dp_ids))
     assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
+    logger.info("Setting start time")
+    with db.cursor() as cur:
+        cur.execute("""UPDATE mappings SET
+                      time_started = now()
+                    WHERE
+                      resource_id = %s
+                    """,
+                    [resource_id])
+    db.commit()
+
     compute_similarity.delay(resource_id, dp_ids)
 
     logger.info("Entity similarity computation scheduled")
@@ -145,7 +166,9 @@ def compute_similarity(resource_id, dp_ids):
         logger.debug("Computing similarity using greedy method")
 
         logger.debug("Chunking computation task")
-        chunk_size = config.GREEDY_CHUNK_SIZE
+
+        chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
+        logger.info("Chunking org 1's {} entities into computation tasks of size {}".format(lenf1, chunk_size))
         filter1_chunks = chunks(serialized_filters1, chunk_size)
 
         mapping_future = chord(
@@ -339,7 +362,7 @@ def compute_filter_similarity(f1, f2, chunk_number, resource_id):
                                                                      threshold=config.ENTITY_MATCH_THRESHOLD,
                                                                      k=5)
     # Update the number of comparisons completed
-    save_current_progress.delay(len(filters2) * len(chunk), resource_id)
+    save_current_progress(len(filters2) * len(chunk), resource_id)
 
     partial_sparse_result = []
     # offset chunk's A index by chunk_size * chunk_number
@@ -352,17 +375,16 @@ def compute_filter_similarity(f1, f2, chunk_number, resource_id):
     return partial_sparse_result
 
 
-@celery.task()
 def save_current_progress(comparisons, resource_id):
-    logger.info("Compared {}".format(comparisons))
+    logger.info("Progress. Compared {} CLKS".format(comparisons))
     db = connect_db()
     with db.cursor() as cur:
         cur.execute("""UPDATE mappings SET
-                      comparisons = comparisons + %s
+                      comparisons = (comparisons + %s)
                     WHERE
                       resource_id = %s
                     """,
-                    [comparisons, resource_id])
+                    [int(comparisons), resource_id])
     db.commit()
 
 

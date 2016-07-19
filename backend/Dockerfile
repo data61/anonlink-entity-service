@@ -11,14 +11,18 @@ RUN (pip install --upgrade pip; \
      apt-get update; \
      apt-get --assume-yes install libmpc-dev)
 
-# Use of a private ssh key which has read-only permission for 
-# the AnonymousLinking repo. 
+# Use of a private ssh key which has read-only permission for
+# the AnonymousLinking repo.
 # Needed to pull the git repo in the container.
 RUN (chmod 600 /root/.ssh/*; \
     eval `ssh-agent -s`; \
     ssh-add /root/.ssh/n1-anonlink-deploy-2016; \
     ssh -o StrictHostKeyChecking=no -l git github.csiro.au; \
     pip install -r requirements.txt)
+
+RUN groupadd user && useradd --home-dir /var/www -g user user
+RUN chown user:user /var/www; chown user:user /var/log
+USER user
 
 ADD . /var/www
 

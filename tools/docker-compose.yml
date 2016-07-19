@@ -40,7 +40,7 @@ services:
     depends_on:
       - es_redis
       - es_db
-    entrypoint: celery -A async_worker worker --loglevel=debug --beat --concurrency=10 -n entity-worker
+    entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
     networks:
