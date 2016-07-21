@@ -6,7 +6,6 @@ from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 from pympler import muppy, summary, tracker
 
-from phe import paillier
 import anonlink
 import database as db
 from serialization import load_public_key
@@ -14,9 +13,6 @@ from async_worker import calculate_mapping
 from settings import Config as config
 
 app = Flask(__name__)
-
-# Logging config
-
 
 # Logging setup
 if config.LOGFILE is not None:
@@ -116,7 +112,7 @@ new_mapping_fields = {
 class MappingList(Resource):
 
     """
-    A list of all mappings allong with their status.
+    A list of all mappings along with their status.
     """
 
     def get(self):
@@ -377,23 +373,6 @@ def test():
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
     return json.dumps(mapping)
-
-
-
-@app.route('/danger/memory', methods=['GET'])
-def memory():
-    app.logger.warn("Analysing memory")
-    all_objects = muppy.get_objects()
-    sum1 = summary.summarize(all_objects)
-
-    for line in summary.format_(sum1):
-        app.logger.debug(line)
-
-    return json.dumps({
-        "Number of objects": len(all_objects),
-        "Total memory size": muppy.get_size(all_objects),
-        "Note": "A memory usage summary has been logged"
-    })
 
 
 @app.route('/danger/generate-names')
