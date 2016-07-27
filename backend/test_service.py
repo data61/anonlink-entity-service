@@ -2,7 +2,9 @@ import os
 import math
 import time
 import requests
-from anonlink import randomnames, entitymatch
+
+from anonlink import randomnames, entitymatch, bloomfilter
+
 from phe import paillier, util
 from serialization import *
 
@@ -335,8 +337,8 @@ def generate_test_data(dataset_size=1000):
 
     print("Locally hashing identity data to create bloom filters")
     keys = ('something', 'secret')
-    filters1 = entitymatch.calculate_bloom_filters(s1, nl.schema, keys)
-    filters2 = entitymatch.calculate_bloom_filters(s2, nl.schema, keys)
+    filters1 = bloomfilter.calculate_bloom_filters(s1, nl.schema, keys)
+    filters2 = bloomfilter.calculate_bloom_filters(s2, nl.schema, keys)
 
     party1_filters = serialize_filters(filters1)
     party2_filters = serialize_filters(filters2)
