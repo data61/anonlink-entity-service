@@ -172,7 +172,7 @@ def compute_similarity(resource_id, dp_ids):
 
         filter1_chunks = chunks(serialized_filters1, chunk_size)
         logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
-            lenf1, len(filter1_chunks), chunk_size))
+            lenf1, lenf1/chunk_size, chunk_size))
 
         mapping_future = chord(
             (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
