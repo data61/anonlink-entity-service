@@ -132,7 +132,7 @@ def compute_similarity(resource_id, dp_ids):
 
     """
 
-    logger.debug("Pulling CLKs from db")
+    logger.info("Pulling CLKs from db with data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     db = connect_db()
 
     serialized_filters1 = get_filter(db, dp_ids[0])
@@ -141,7 +141,7 @@ def compute_similarity(resource_id, dp_ids):
     lenf1 = len(serialized_filters1)
     lenf2 = len(serialized_filters2)
 
-    logger.info("Computing similarity")
+    logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
     if max(lenf1, lenf2) < config.GREEDY_SIZE:
         logger.debug("Computing similarity using more accurate method")
 
@@ -172,7 +172,7 @@ def compute_similarity(resource_id, dp_ids):
         filter1_chunks = chunks(serialized_filters1, chunk_size)
 
         mapping_future = chord(
-            (compute_filter_similarity.s(chunk, serialized_filters2, chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
+            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
             aggregate_filter_chunks.s(resource_id, dp_ids, lenf1, lenf2)
 
         ).apply_async()
@@ -350,12 +350,16 @@ def save_mapping_data(mapping):
 
 
 @celery.task()
-def compute_filter_similarity(f1, f2, chunk_number, resource_id):
+def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
 
-    logger.debug("Deserializing filters")
+    logger.debug("Deserializing chunked filters")
     chunk = deserialize_filters(f1)
-    filters2 = deserialize_filters(f2)
+    db = connect_db()
+    serialized_filters2 = get_filter(db, dp2_id)
+
+    filters2 = deserialize_filters(serialized_filters2)
+
     logger.info("Calculating filter similarity")
 
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,

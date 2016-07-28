@@ -335,11 +335,14 @@ def generate_test_data(dataset_size=1000):
 
     # s2 = s2[:10]
 
-    print("Locally hashing identity data to create bloom filters")
+    print("Locally hashing party A identity data to create bloom filters")
     keys = ('something', 'secret')
     filters1 = bloomfilter.calculate_bloom_filters(s1, nl.schema, keys)
+
+    print("Locally hashing party B identity data to create bloom filters")
     filters2 = bloomfilter.calculate_bloom_filters(s2, nl.schema, keys)
 
+    print("Serialising bloom filters")
     party1_filters = serialize_filters(filters1)
     party2_filters = serialize_filters(filters2)
 

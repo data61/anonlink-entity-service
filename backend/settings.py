@@ -26,7 +26,9 @@ class Config(object):
 
     CELERY_RESULT_BACKEND = BROKER_URL
 
-    CELERY_ANNOTATIONS = {'async_worker.calculate_mapping': {'rate_limit': '1/s'}}
+    CELERY_ANNOTATIONS = {
+        'async_worker.calculate_mapping': {'rate_limit': '1/s'}
+    }
 
     ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
 
@@ -34,7 +36,8 @@ class Config(object):
     # faster greedy solver
     GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000'))
 
-    # Number of comparisons to match per chunk. Default is 20M
+    # Number of comparisons to match per chunk. Default is 20M.
+    # Larger jobs will favor larger chunks
     GREEDY_CHUNK_SIZE = int(os.environ.get('GREEDY_CHUNK_SIZE', '20000000'))
 
     ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))
