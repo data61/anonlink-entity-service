@@ -43,6 +43,10 @@ services:
     entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
+      - ENTITY_MATCH_THRESHOLD=0.95
+      # Trade off between more fine grained progress updates & fast processing of small jobs
+      # versus incuring additional task overhead too many times.
+      - GREEDY_CHUNK_SIZE=100000000
     networks:
       es_network:
 
@@ -58,6 +62,18 @@ services:
       PUBLIC_IP:
     networks:
       es_network:
+
+  # A celery monitor
+  es_celery_monitor:
+    image: quay.io/n1analytics/entity-app
+    depends_on:
+      - es_redis
+      - es_worker
+    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
+    networks:
+      es_network:
+        aliases:
+          - monitor
 
 networks:
   es_network:
