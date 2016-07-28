@@ -24,6 +24,7 @@ celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
 celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
+celery.conf.CELERYD_PREFETCH_MULTIPLIER = 1
 
 
 @after_setup_logger.connect
@@ -168,8 +169,10 @@ def compute_similarity(resource_id, dp_ids):
         logger.debug("Chunking computation task")
 
         chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
-        logger.info("Chunking org 1's {} entities into computation tasks of size {}".format(lenf1, chunk_size))
+
         filter1_chunks = chunks(serialized_filters1, chunk_size)
+        logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
+            lenf1, len(filter1_chunks), chunk_size))
 
         mapping_future = chord(
             (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
@@ -448,7 +451,7 @@ def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating comparison rate")
     elapsed_mapping_time_query = """
-        select id, resource_id, time_completed - time_added as elapsed
+        select id, resource_id, (time_completed - time_added) as elapsed
         from mappings
         WHERE
           mappings.ready=TRUE
@@ -465,7 +468,10 @@ def calculate_comparison_rate():
 
     if total_time.total_seconds() > 0:
         rate = total_comparisons/total_time.total_seconds()
-        logger.info("Saving new comparison rate: {}".format(rate))
+        logger.info("Total comparisons: {}".format(total_comparisons))
+        logger.info("Total time:        {}".format(total_time.total_seconds()))
+        logger.info("Comparison rate:   {}".format(rate))
+
         with dbinstance.cursor() as cur:
             insert_comparison_rate(cur, rate)
 
