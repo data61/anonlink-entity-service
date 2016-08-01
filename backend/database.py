@@ -1,7 +1,9 @@
 import psycopg2
-from settings import Config as config
+
 from datetime import timedelta
 import logging
+
+from settings import Config as config
 
 logger = logging.getLogger('db')
 
@@ -182,31 +184,25 @@ def get_mapping_time(db, resource_id):
     return timedelta(seconds=0) if res is None else res
 
 
-def get_mapping_progress(db, resource_id):
+def get_total_comparisons_for_mapping(db, resource_id):
     """
-    :return (comparisons_complete, total_comparisons)
+    :return total number of comparisons for this job
     """
-    comparisons = query_db(db, """
-        SELECT comparisons
-        from mappings
-        WHERE resource_id = %s""",
-        [resource_id], one=True)['comparisons']
 
     res = query_db(db, """
-    SELECT jsonb_array_length(bloomingdata.raw) as rows
-    from mappings, dataproviders, bloomingdata
-    where
-      bloomingdata.dp=dataproviders.id AND
-      dataproviders.mapping=mappings.id AND
-      mappings.resource_id=%s""", [resource_id])
+        SELECT bloomingdata.size as rows
+        from mappings, dataproviders, bloomingdata
+        where
+          bloomingdata.dp=dataproviders.id AND
+          dataproviders.mapping=mappings.id AND
+          mappings.resource_id=%s""", [resource_id])
 
     if len(res) == 2:
         total_comparisons = res[0]['rows'] * res[1]['rows']
     else:
         total_comparisons = 'NA'
 
-    return comparisons, total_comparisons
-
+    return total_comparisons
 
 
 def get_dataprovider_id(db, update_token):
@@ -290,17 +286,19 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
         )
 
 
-def insert_raw_filter_data(db, clks, dp_id, receipt_token):
+def insert_raw_filter_data(db, clks, dp_id, receipt_token, size):
     with db.cursor() as cur:
         logger.debug("Adding blooming data")
         cur.execute("""
             INSERT INTO bloomingdata
-            (dp, token, raw)
+            (dp, token, raw, size)
             VALUES
-            (%s, %s, %s)
+            (%s, %s, %s, %s)
             """,
-                    [dp_id, receipt_token,
-                     psycopg2.extras.Json(clks)])
+                    [dp_id,
+                     receipt_token,
+                     psycopg2.extras.Json(clks),
+                     size])
 
         cur.execute("""
             UPDATE dataproviders

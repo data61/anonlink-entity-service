@@ -5,13 +5,12 @@ import json
 import random
 from datetime import datetime, timedelta
 
-import redis
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery import Celery, Task, chord, chain
 from celery.utils.log import get_task_logger
 import psycopg2.extras
 
-import filter_cache
+import cache
 from serialization import deserialize_filters, load_public_key
 from database import *
 from settings import Config as config
@@ -141,8 +140,8 @@ def compute_similarity(resource_id, dp_ids):
     db = connect_db()
 
     # Prime the redis cache
-    filters1 = filter_cache.get_deserialized_filter(dp_ids[0])
-    filters2 = filter_cache.get_deserialized_filter(dp_ids[1])
+    filters1 = cache.get_deserialized_filter(dp_ids[0])
+    filters2 = cache.get_deserialized_filter(dp_ids[1])
 
     serialized_filters1 = get_filter(db, dp_ids[0])
 
@@ -203,8 +202,8 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
         permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'], similarity_result['lenf2'], mapping, dp_ids))
 
     logger.info("Removing from cache")
-    filter_cache.remove_from_cache(dp_ids[0])
-    filter_cache.remove_from_cache(dp_ids[1])
+    cache.remove_from_cache(dp_ids[0])
+    cache.remove_from_cache(dp_ids[1])
 
     calculate_comparison_rate.delay()
 
@@ -367,7 +366,7 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
     t0 = time.time()
     logger.debug("Deserializing chunked filters")
-    filters2 = filter_cache.get_deserialized_filter(dp2_id)
+    filters2 = cache.get_deserialized_filter(dp2_id)
     t1 = time.time()
     chunk = deserialize_filters(f1)
     t2 = time.time()
@@ -377,7 +376,7 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
                                                                      k=5)
     t3 = time.time()
 
-    logger.info("Timings: Prep: {:.4f}, Solve: {:.4f}, Total: {:.4f}".format(t2-t0, t3-t2, t3-t0))
+    logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}".format(t1-t0, t2-t1, t3-t2, t3-t0))
     # Update the number of comparisons completed
     save_current_progress(len(filters2) * len(chunk), resource_id)
 
@@ -394,15 +393,7 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
 
 def save_current_progress(comparisons, resource_id):
     logger.info("Progress. Compared {} CLKS".format(comparisons))
-    db = connect_db()
-    with db.cursor() as cur:
-        cur.execute("""UPDATE mappings SET
-                      comparisons = (comparisons + %s)
-                    WHERE
-                      resource_id = %s
-                    """,
-                    [int(comparisons), resource_id])
-    db.commit()
+    cache.update_progress(comparisons, resource_id)
 
 
 @celery.task()
@@ -461,7 +452,7 @@ def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating comparison rate")
     elapsed_mapping_time_query = """
-        select id, resource_id, (time_completed - time_added) as elapsed
+        select resource_id, (time_completed - time_added) as elapsed
         from mappings
         WHERE
           mappings.ready=TRUE
@@ -471,7 +462,7 @@ def calculate_comparison_rate():
     total_time = timedelta(0)
     for mapping in query_db(dbinstance, elapsed_mapping_time_query):
 
-        comparisons, _ = get_mapping_progress(dbinstance, mapping['resource_id'])
+        comparisons = get_total_comparisons_for_mapping(dbinstance, mapping['resource_id'])
         #logger.debug("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
         total_comparisons += comparisons
         total_time += mapping['elapsed']

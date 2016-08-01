@@ -38,9 +38,6 @@ CREATE TABLE mappings (
 
   parties        SMALLINT               DEFAULT 2,
 
-  -- For accurate progress during calculation. comparisons
-  comparisons    BIGINT        NOT NULL DEFAULT 0,
-
   result_type    MAPPINGRESULT NOT NULL
 );
 
@@ -57,7 +54,7 @@ CREATE TABLE dataproviders (
 
 );
 
--- The raw data given by each org
+-- The raw CLK data given by each org
 CREATE TABLE bloomingdata (
   id  SERIAL PRIMARY KEY,
 
@@ -69,9 +66,10 @@ CREATE TABLE bloomingdata (
   token    CHAR(48) NOT NULL UNIQUE,
 
   -- Store it in the form given
-  raw JSONB
+  raw JSONB,
 
-  -- Note the number of entries
+  size  INT NOT NULL
+  -- Note the number of entries can also be calculated:
   -- jsonb_array_length(raw)
 );
 

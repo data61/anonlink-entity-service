@@ -7,6 +7,7 @@ from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 from pympler import muppy, summary, tracker
 
 import anonlink
+import cache
 import database as db
 from serialization import load_public_key
 from async_worker import calculate_mapping
@@ -234,7 +235,8 @@ class Mapping(Resource):
             time_elapsed = db.get_mapping_time(dbinstance, resource_id)
             app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
 
-            comparisons, total_comparisons = db.get_mapping_progress(dbinstance, resource_id)
+            comparisons = cache.get_progress(resource_id)
+            total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
 
             return {
                        "message": "Mapping isn't ready.",
@@ -324,10 +326,12 @@ def check_mapping(mapping):
 
 
 def add_mapping_data(dp_id, clks):
-    # TODO add some checks for the clks data
+    # Check the clks data is all good json, and get the length
+
+    size = len(clks)
 
     receipt_token = generate_code()
-    db.insert_raw_filter_data(get_db(), clks, dp_id, receipt_token)
+    db.insert_raw_filter_data(get_db(), clks, dp_id, receipt_token, size)
     return receipt_token
 
 
