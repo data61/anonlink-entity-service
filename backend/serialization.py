@@ -3,6 +3,7 @@ import base64
 import phe.util
 from phe import paillier
 
+
 def bytes_to_list(python_object):
     if isinstance(python_object, bytes):
         return list(python_object)

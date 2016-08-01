@@ -452,7 +452,7 @@ def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating comparison rate")
     elapsed_mapping_time_query = """
-        select resource_id, (time_completed - time_added) as elapsed
+        select resource_id, (time_completed - time_started) as elapsed
         from mappings
         WHERE
           mappings.ready=TRUE
