@@ -3,7 +3,7 @@ services:
 
   es_db:
     image: quay.io/n1analytics/entity-db-server
-    mem_limit: 1024m
+    mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
