@@ -37,6 +37,11 @@ def serialize_filters(filters):
 
 
 def deserialize_filters(filters):
+    """
+    Deserialise iterable of base64 encoded clks.
+
+    Carrying out the popcount as we go.
+    """
     res = []
     for i, f in enumerate(filters):
         ba = deserialize_bitarray(f)

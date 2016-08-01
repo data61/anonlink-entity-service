@@ -1,13 +1,17 @@
 import os
+import time
 import math
 import json
 import random
 from datetime import datetime, timedelta
+
+import redis
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery import Celery, Task, chord, chain
 from celery.utils.log import get_task_logger
 import psycopg2.extras
 
+import filter_cache
 from serialization import deserialize_filters, load_public_key
 from database import *
 from settings import Config as config
@@ -136,11 +140,14 @@ def compute_similarity(resource_id, dp_ids):
     logger.info("Pulling CLKs from db with data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     db = connect_db()
 
-    serialized_filters1 = get_filter(db, dp_ids[0])
-    serialized_filters2 = get_filter(db, dp_ids[1])
+    # Prime the redis cache
+    filters1 = filter_cache.get_deserialized_filter(dp_ids[0])
+    filters2 = filter_cache.get_deserialized_filter(dp_ids[1])
 
-    lenf1 = len(serialized_filters1)
-    lenf2 = len(serialized_filters2)
+    serialized_filters1 = get_filter(db, dp_ids[0])
+
+    lenf1 = len(filters1)
+    lenf2 = len(filters2)
 
     logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
     if max(lenf1, lenf2) < config.GREEDY_SIZE:
@@ -172,12 +179,11 @@ def compute_similarity(resource_id, dp_ids):
 
         filter1_chunks = chunks(serialized_filters1, chunk_size)
         logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
-            lenf1, lenf1/chunk_size, chunk_size))
+            lenf1, int(lenf1/chunk_size), chunk_size))
 
         mapping_future = chord(
             (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
             aggregate_filter_chunks.s(resource_id, dp_ids, lenf1, lenf2)
-
         ).apply_async()
 
 
@@ -195,6 +201,10 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
     if result_type == "permutation":
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'], similarity_result['lenf2'], mapping, dp_ids))
+
+    logger.info("Removing from cache")
+    filter_cache.remove_from_cache(dp_ids[0])
+    filter_cache.remove_from_cache(dp_ids[1])
 
     calculate_comparison_rate.delay()
 
@@ -355,19 +365,19 @@ def save_mapping_data(mapping):
 @celery.task()
 def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
-
+    t0 = time.time()
     logger.debug("Deserializing chunked filters")
+    filters2 = filter_cache.get_deserialized_filter(dp2_id)
+    t1 = time.time()
     chunk = deserialize_filters(f1)
-    db = connect_db()
-    serialized_filters2 = get_filter(db, dp2_id)
-
-    filters2 = deserialize_filters(serialized_filters2)
-
-    logger.info("Calculating filter similarity")
-
+    t2 = time.time()
+    logger.debug("Calculating filter similarity")
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
                                                                      threshold=config.ENTITY_MATCH_THRESHOLD,
                                                                      k=5)
+    t3 = time.time()
+
+    logger.info("Timings: Prep: {:.4f}, Solve: {:.4f}, Total: {:.4f}".format(t2-t0, t3-t2, t3-t0))
     # Update the number of comparisons completed
     save_current_progress(len(filters2) * len(chunk), resource_id)
 
