@@ -9,7 +9,7 @@ from pympler import muppy, summary, tracker
 import anonlink
 import cache
 import database as db
-from serialization import load_public_key
+from serialization import load_public_key, deserialize_filters
 from async_worker import calculate_mapping
 from settings import Config as config
 
@@ -325,13 +325,20 @@ def check_mapping(mapping):
     return parties_contributed == mapping['parties']
 
 
-def add_mapping_data(dp_id, clks):
-    # Check the clks data is all good json, and get the length
-
-    size = len(clks)
-
+def add_mapping_data(dp_id, raw_clks):
+    # Note we don't do this in the worker, because we don't want
+    # to introduce a race condition for uploading & checking clk data.
     receipt_token = generate_code()
-    db.insert_raw_filter_data(get_db(), clks, dp_id, receipt_token, size)
+
+    app.logger.info("Deserialisation of filters from json")
+    python_filters = deserialize_filters(raw_clks)
+    clkcounts = [cnt for _, _, cnt in python_filters]
+
+    db.insert_raw_filter_data(get_db(), raw_clks, dp_id, receipt_token, clkcounts)
+
+    # Preload the redis cache
+    cache.set_deserialized_filter(dp_id, python_filters)
+
     return receipt_token
 
 

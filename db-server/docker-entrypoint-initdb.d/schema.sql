@@ -68,9 +68,11 @@ CREATE TABLE bloomingdata (
   -- Store it in the form given
   raw JSONB,
 
-  size  INT NOT NULL
+  size  INT NOT NULL,
   -- Note the number of entries can also be calculated:
   -- jsonb_array_length(raw)
+
+  popcounts JSONB
 );
 
 -- Paillier encrypted mask data when result_type is permutation

@@ -143,7 +143,7 @@ def compute_similarity(resource_id, dp_ids):
     filters1 = cache.get_deserialized_filter(dp_ids[0])
     filters2 = cache.get_deserialized_filter(dp_ids[1])
 
-    serialized_filters1 = get_filter(db, dp_ids[0])
+    serialized_filters1, filter1_popcounts = get_filter(db, dp_ids[0])
 
     lenf1 = len(filters1)
     lenf2 = len(filters2)

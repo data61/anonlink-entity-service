@@ -213,13 +213,13 @@ def get_dataprovider_id(db, update_token):
 
 def get_filter(db, dp_id):
     raw_json_filter = query_db(db, """
-        SELECT raw
+        SELECT raw, popcounts
         FROM bloomingdata
         WHERE
           dp = %s
-        """, [dp_id], one=True)['raw']
+        """, [dp_id], one=True)
 
-    return raw_json_filter
+    return raw_json_filter['raw'], raw_json_filter['popcounts']
 
 
 def get_permutation_result(db, dp_id):
@@ -286,19 +286,23 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
         )
 
 
-def insert_raw_filter_data(db, clks, dp_id, receipt_token, size):
+def insert_raw_filter_data(db, clks, dp_id, receipt_token, clkcounts):
+    size = len(clks)
     with db.cursor() as cur:
-        logger.debug("Adding blooming data")
+        logger.info("Adding blooming data to database")
         cur.execute("""
             INSERT INTO bloomingdata
-            (dp, token, raw, size)
+            (dp, token, raw, size, popcounts)
             VALUES
-            (%s, %s, %s, %s)
+            (%s, %s, %s, %s, %s)
             """,
-                    [dp_id,
-                     receipt_token,
-                     psycopg2.extras.Json(clks),
-                     size])
+            [
+                dp_id,
+                receipt_token,
+                psycopg2.extras.Json(clks),
+                size,
+                psycopg2.extras.Json(clkcounts)
+             ])
 
         cur.execute("""
             UPDATE dataproviders
