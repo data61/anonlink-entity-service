@@ -54,11 +54,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     Uses the NameList data and schema and a result_type of "mapping"
     """
     dataset_size = len(party1_filters)
-    print("Connecting to server '{}'".format(url))
-    status = requests.get(url + '/status')
-    print("Server status:")
-    assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
-    print(status.json())
+    server_status_test()
 
     print("Servers mappings:")
     print(requests.get(url + '/mappings').json())
@@ -84,7 +80,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     print("Servers mappings:")
     print(requests.get(url + '/mappings').json())
 
-    print("Checking status without authentication token")
+    print("Checking mapping status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
     print(r.status_code, r.json())
     assert r.status_code == 401
@@ -124,6 +120,9 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     r1 = resp1.json()
     assert 'receipt-token' in r1
     print(resp1.status_code, r1)
+
+    print("Check the server hasn't died")
+    server_status_test()
 
     print("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}
@@ -246,6 +245,8 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     r1 = resp1.json()
     assert 'receipt-token' in r1
     print(resp1.status_code, r1)
+
+    server_status_test()
 
     print("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}

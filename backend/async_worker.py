@@ -464,7 +464,10 @@ def calculate_comparison_rate():
 
         comparisons = get_total_comparisons_for_mapping(dbinstance, mapping['resource_id'])
         #logger.debug("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
-        total_comparisons += comparisons
+        if comparisons != 'NA':
+            total_comparisons += comparisons
+        else:
+            logger.debug("Skipping mapping as it hasn't completed")
         total_time += mapping['elapsed']
 
     if total_time.total_seconds() > 0:
