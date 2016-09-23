@@ -2,7 +2,7 @@ version: '2'
 services:
 
   es_db:
-    image: quay.io/n1analytics/entity-db-server
+    image: quay.io/n1analytics/entity-db-server:v1
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
@@ -22,7 +22,7 @@ services:
 
   # The flask application server
   es_backend:
-    image: quay.io/n1analytics/entity-app
+    image: quay.io/n1analytics/entity-app:v1
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -37,7 +37,7 @@ services:
 
   # A celery worker
   es_worker:
-    image: quay.io/n1analytics/entity-app
+    image: quay.io/n1analytics/entity-app:v1
     depends_on:
       - es_redis
       - es_db
@@ -52,7 +52,7 @@ services:
       es_network:
 
   es_nginx:
-    image: quay.io/n1analytics/entity-nginx
+    image: quay.io/n1analytics/entity-nginx:v1
     ports:
       - "8851:8851"
     depends_on:
@@ -66,7 +66,7 @@ services:
 
   # A celery monitor
   es_celery_monitor:
-    image: quay.io/n1analytics/entity-app
+    image: quay.io/n1analytics/entity-app:v1
     depends_on:
       - es_redis
       - es_worker
