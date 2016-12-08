@@ -1,6 +1,7 @@
 import os
 import math
 import time
+import json
 import requests
 
 from anonlink import randomnames, entitymatch, bloomfilter, concurrent
@@ -18,7 +19,8 @@ url = "http://localhost:8851/api/v1"
 # When running the flask application directly
 set the environment variable ENTITY_SERVICE_URL to "http://localhost:8851"
 """
-url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
+#url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
+url = os.environ.get("ENTITY_SERVICE_URL", "http://130.155.156.203:8851/api/v1")
 
 
 def retrieve_result(mapping_id, token):
@@ -164,7 +166,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     print("Success")
     mapping_result = response.json()["mapping"]
     #print(mapping_result)
-
+    # TODO Actually check the result.
     #delete_mapping(id)
 
 
@@ -329,6 +331,160 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     print("Server took {:8.3f} seconds for matching".format(matching_time))
 
 
+def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, base=2):
+    """
+    Uses the NameList data and schema and a result_type of "permutation"
+    """
+    dataset_size = len(party1_filters)
+    print("Servers mappings:")
+    print(requests.get(url + '/mappings').json())
+
+    print('Creating a new mapping')
+    # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
+    schema = [
+        {"identifier": "INDEX",          "weight": 0, "notes":""},
+        {"identifier": "NAME freetext",  "weight": 1, "notes": "max length set to 128"},
+        {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
+        {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
+    ]
+    new_map_response = requests.post(url + '/mappings', json={
+        'schema': schema,
+        'result_type': 'permutation_unencrypted_mask'
+    }).json()
+    print(new_map_response)
+
+    id = new_map_response['resource_id']
+    result_token = new_map_response['result_token']
+    print("New mapping request created with id: ", id)
+
+    print("Checking status without authentication token")
+    r = requests.get(url + '/mappings/{}'.format(id))
+    print(r.status_code, r.json())
+    assert r.status_code == 401
+
+    print("Checking status with invalid token")
+    r = requests.get(url + '/mappings/{}'.format(id),
+                     headers={'Authorization': 'invalid'})
+    print(r.status_code, r.json())
+    assert r.status_code == 403
+
+    print("Test a mapping that doesn't exist with valid token")
+    response = requests.get(
+        url + '/mappings/NOT_A_REAL_MAPPING',
+        headers={'Authorization': new_map_response['result_token']})
+    print(response.status_code)
+    assert response.status_code == 404
+
+    print("Checking status with valid token (before adding data)")
+    r = requests.get(
+        url + '/mappings/{}'.format(id),
+        headers={'Authorization': new_map_response['result_token']})
+    print(r.status_code, r.json())
+    assert r.status_code == 503
+
+    print("Adding first party's filter data")
+
+    party1_data = {
+        'clks': party1_filters
+    }
+
+    resp1 = requests.put(url + '/mappings/{}'.format(id),
+                         json=party1_data,
+                         headers={'Authorization': new_map_response['update_tokens'][0]})
+    # status code should be 201 if a resource was created
+    assert resp1.status_code == 201
+
+    r1 = resp1.json()
+    assert 'receipt-token' in r1
+    print(resp1.status_code, r1)
+
+    server_status_test()
+
+    print("Adding second party's data - without authentication")
+    party2_data = {'clks': party2_filters}
+    resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
+    assert resp.status_code == 401
+    assert 'token required' in resp.json()['message']
+
+    print("Adding second party's data - without clk data")
+    resp = requests.put(url + '/mappings/{}'.format(id),
+                        headers={'Authorization': new_map_response['update_tokens'][1]})
+    assert resp.status_code == 400
+    assert 'Missing information' in resp.json()['message']
+
+    matching_start = time.time()
+    print("Adding second party's data - properly this time")
+    party2_data = {
+        'clks': party2_filters
+    }
+    resp2 = requests.put(url + '/mappings/{}'.format(id),
+                         json=party2_data,
+                         headers={'Authorization': new_map_response['update_tokens'][1]})
+
+    assert resp2.status_code == 201
+    r2 = resp2.json()
+    print(resp2.status_code, r2)
+
+    print("Going to sleep to give the server some processing time...")
+    time.sleep(1)
+
+    print("Retrieving results as organisation 1")
+    response_org1 = retrieve_result(id, r1['receipt-token'])
+    while not response_org1.status_code == 200:
+        snooze = dataset_size/200
+        print("Sleeping for another {} seconds".format(snooze))
+        time.sleep(snooze)
+        response_org1 = retrieve_result(id, r1['receipt-token'])
+
+    matching_time = time.time() - matching_start
+    assert response_org1.status_code == 200
+    mapping_result_a = response_org1.json()
+    print(mapping_result_a)
+
+    print("Retrieving results as organisation 2")
+    response_org2 = retrieve_result(id, r2['receipt-token'])
+    while not response_org2.status_code == 200:
+        snooze = 3*dataset_size/1000
+        print("Sleeping for another {} seconds".format(snooze))
+        time.sleep(snooze)
+        response_org2 = retrieve_result(id, r2['receipt-token'])
+
+    assert response_org2.status_code == 200
+    mapping_result_b = response_org2.json()
+    print(mapping_result_b)
+
+    print("Retrieving results as coordinator")
+    response_coordinator = retrieve_result(id, result_token)
+    while not response_coordinator.status_code == 200:
+        snooze = 3*dataset_size/1000
+        print("Sleeping for another {} seconds".format(snooze))
+        time.sleep(snooze)
+        response_coordinator = retrieve_result(id, result_token)
+
+    assert response_coordinator.status_code == 200
+    mask = json.loads(response_coordinator.json()['permutation_unencrypted_mask'])['mask']
+    print(response_coordinator.json())
+
+    #delete_mapping(id)
+
+    # Now we will print a few sample matches...
+
+    for original_a_index, element in enumerate(s1):
+        new_index = mapping_result_a['permutation_unencrypted_mask'][original_a_index]
+        if new_index < 10:
+            print(original_a_index, " -> ", new_index, element)
+
+    print("\nOrg 2\n")
+    for original_b_index, element in enumerate(s2):
+        new_index = mapping_result_b['permutation_unencrypted_mask'][original_b_index]
+        if new_index < 10:
+            print(original_b_index, " -> ", new_index, element)
+
+    print("\nCoordinator\n")
+    print(mask[:10])
+    print("Server took {:8.3f} seconds for matching".format(matching_time))
+
+
 def generate_test_data(dataset_size=1000):
     print("Generating local address data")
     nl = randomnames.NameList(math.floor(dataset_size * 1.2))
@@ -385,7 +541,7 @@ def timing_test(outfile=None):
 
 if __name__ == "__main__":
 
-    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "500"))
+    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "100"))
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
     do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
     do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
@@ -402,20 +558,22 @@ if __name__ == "__main__":
 
         party1_filters, party2_filters, s1, s2 = generate_test_data(size)
 
-        mapping_times = []
-        permutation_times = []
+        # mapping_times = []
+        # permutation_times = []
+        #
+        # for i in range(repeats):
+        #     mapping_start = time.time()
+        #     mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        #     mapping_times.append(time.time() - mapping_start)
+        #
+        # if do_permutation_test:
+        #     for i in range(repeats):
+        #         perm_start = time.time()
+        #         permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        #         permutation_times.append(time.time() - perm_start)
+        #     print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
+        #
+        # print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
+        # print("---> Number of entities: {}".format(size))
 
-        for i in range(repeats):
-            mapping_start = time.time()
-            mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-            mapping_times.append(time.time() - mapping_start)
-
-        if do_permutation_test:
-            for i in range(repeats):
-                perm_start = time.time()
-                permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-                permutation_times.append(time.time() - perm_start)
-            print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
-
-        print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
-        print("---> Number of entities: {}".format(size))
+        permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])

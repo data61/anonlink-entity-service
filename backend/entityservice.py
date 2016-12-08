@@ -92,6 +92,19 @@ def abort_if_invalid_receipt_token(resource_id, receipt_token):
     return dp_id
 
 
+def abort_if_invalid_token(resource_id, token):
+    app.logger.debug("checking authorization token to fetch results data")
+    valid_access = db.check_mapping_auth(get_db(), resource_id, token)
+    if not valid_access:
+        app.logger.debug("checking authorization token to fetch permutation data")
+        dp_id = db.select_dataprovider_id(get_db(), resource_id, token)
+        if dp_id is None:
+            abort(403, message="Invalid access token")
+    else:
+        dp_id = "Coordinator"
+    return dp_id
+
+
 def check_public_key(pk):
     """
     Check we can unmarshal the public key, and that it has sufficient length.
@@ -144,14 +157,19 @@ class MappingList(Resource):
         The permutation type requires a paillier public key to be
         passed in. It takes significantly longer as it has to encrypt
         a mask vector.
+
+        The "permutation_unencrypted_mask" does a permutation but do not encrypt the mask which is
+        only sends to the coordinator.
         """
         data = request.get_json()
 
         if data is None or 'schema' not in data:
             abort(400, message="Schema information required")
 
-        if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping'}:
-            abort(400, message='result-type must be either "permutation" or "mapping"')
+        if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
+                                                                    'permutation_unencrypted_mask'}:
+            abort(400, message='result-type must be either "permutation", "mapping" or '
+                               '"permutation_unencrypted_mask"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
             abort(400, message='Paillier public key required when result_type="permutation"')
@@ -177,8 +195,11 @@ class MappingList(Resource):
             # Insert public key
             if data['result_type'] == 'permutation':
                 mapping_db_id = db.insert_permutation(cur, data, mapping, mapping_resource)
-            else:
+            elif data['result_type'] == 'mapping':
                 mapping_db_id = db.insert_mapping(cur, data, mapping, mapping_resource)
+            else:
+                mapping_db_id = db.insert_permutation_unencrypted_mask(cur, data, mapping,
+                                                                       mapping_resource)
 
             app.logger.debug("New resource id: {}".format(mapping_db_id))
             app.logger.debug("Creating new data provider entries")
@@ -227,6 +248,8 @@ class Mapping(Resource):
             abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation':
             dp_id = abort_if_invalid_receipt_token(resource_id, headers.get('Authorization'))
+        elif mapping['result_type'] == 'permutation_unencrypted_mask':
+            dp_id = abort_if_invalid_token(resource_id, headers.get('Authorization'))
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
@@ -255,6 +278,12 @@ class Mapping(Resource):
             perm = db.get_permutation_result(dbinstance, dp_id)
             result['permutation'] = perm
             return {'permutation': result}
+        elif mapping['result_type'] == 'permutation_unencrypted_mask':
+            app.logger.info("Permutation with unencrypted mask result being returned")
+            # result = json.loads(mapping['result'])
+            res = db.get_permutation_unencrypted_mask_result(dbinstance, dp_id, mapping)
+            #result['permutation_unencrypted_mask'] = res
+            return {'permutation_unencrypted_mask': res}
         else:
             app.logger.warning("Unimplemented result type")
 

@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
 
-CREATE TYPE MAPPINGRESULT AS ENUM ('mapping', 'permutation');
+CREATE TYPE MAPPINGRESULT AS ENUM ('mapping', 'permutation', 'permutation_unencrypted_mask');
 
 CREATE TABLE mappings (
   -- Just the table index
