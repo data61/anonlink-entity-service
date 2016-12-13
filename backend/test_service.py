@@ -558,22 +558,22 @@ if __name__ == "__main__":
 
         party1_filters, party2_filters, s1, s2 = generate_test_data(size)
 
-        # mapping_times = []
-        # permutation_times = []
-        #
-        # for i in range(repeats):
-        #     mapping_start = time.time()
-        #     mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-        #     mapping_times.append(time.time() - mapping_start)
-        #
-        # if do_permutation_test:
-        #     for i in range(repeats):
-        #         perm_start = time.time()
-        #         permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-        #         permutation_times.append(time.time() - perm_start)
-        #     print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
-        #
-        # print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
-        # print("---> Number of entities: {}".format(size))
+        mapping_times = []
+        permutation_times = []
 
-        permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        for i in range(repeats):
+            mapping_start = time.time()
+            mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+            mapping_times.append(time.time() - mapping_start)
+
+        if do_permutation_test:
+            for i in range(repeats):
+                perm_start = time.time()
+                permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+                permutation_times.append(time.time() - perm_start)
+            print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
+
+        print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
+        print("---> Number of entities: {}".format(size))
+
+        # permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
