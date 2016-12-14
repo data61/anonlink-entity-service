@@ -216,7 +216,7 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
 
 
 @celery.task()
-def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, dp_ids, toEncrypt = True):
+def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, dp_ids, is_mask_to_encrypt=True):
 
     # Celery seems to turn dict keys into strings. Top quality bug.
     mapping = {int(k): mapping_old[k] for k in mapping_old}
@@ -307,7 +307,21 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
             perm_list = convert_mapping_to_list(permutation)
             save_permutation.apply_async((dp_ids[i], perm_list))
 
-        if toEncrypt:
+        save_mask.apply_async((resource_id, smaller_dataset_size, mask, is_mask_to_encrypt))
+
+    # TODO have we made any changes we need to commit?
+    db.commit()
+    logger.info("Permutation calculation all scheduled")
+
+
+@celery.task()
+def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
+    """
+    The mask is saved as the result in the mapping table.
+    """
+    db = connect_db()
+    with db.cursor() as cur:
+        if is_mask_to_encrypt:
             logger.info("Encrypting mask data")
 
             res = query_db(db, """
@@ -341,10 +355,6 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
                 resource_id = %s
                 """,
                 [json_mask, resource_id])
-
-    # TODO have we made any changes we need to commit?
-    db.commit()
-    logger.info("Permutation calculation all scheduled")
 
 
 @celery.task()
