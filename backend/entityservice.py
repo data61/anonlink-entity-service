@@ -77,29 +77,50 @@ def abort_if_invalid_dataprovider_token(update_token):
         abort(403, message="Invalid update token")
 
 
+def is_results_token_valid(resource_id, results_token):
+    if not db.check_mapping_auth(get_db(), resource_id, results_token):
+        return False
+    else:
+        return True
+
+
+def is_receipt_token_valid(resource_id, receipt_token):
+    if db.select_dataprovider_id(get_db(), resource_id, receipt_token) is None:
+        return False
+    else:
+        return True
+
+
 def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
-    valid_access = db.check_mapping_auth(get_db(), resource_id, results_token)
-    if not valid_access:
+    if not is_results_token_valid(resource_id, results_token):
         abort(403, message="Invalid access token")
 
 
-def abort_if_invalid_receipt_token(resource_id, receipt_token):
+def dataprovider_id_if_authorize(resource_id, receipt_token):
     app.logger.debug("checking authorization token to fetch mask data")
-    dp_id = db.select_dataprovider_id(get_db(), resource_id, receipt_token)
-    if dp_id is None:
+    if not is_receipt_token_valid(resource_id, receipt_token):
         abort(403, message="Invalid access token")
+
+    dp_id = db.select_dataprovider_id(get_db(), resource_id, receipt_token)
     return dp_id
 
 
-def abort_if_invalid_token(resource_id, token):
+def node_id_if_authorize(resource_id, token):
+    """
+    In case of a permutation with an unencrypted mask, we are using both the result token and the
+    receipt tokens. The result token is used by the coordinator to get the mask. The receipts tokens
+    are used by the dataproviders to get their permutations. However, we do not know before checking
+    which is the type of the received token.
+    """
     app.logger.debug("checking authorization token to fetch results data")
-    valid_access = db.check_mapping_auth(get_db(), resource_id, token)
-    if not valid_access:
+    # If the token is not a valid result token, it should be a receipt token.
+    if not is_results_token_valid(resource_id, token):
         app.logger.debug("checking authorization token to fetch permutation data")
-        dp_id = db.select_dataprovider_id(get_db(), resource_id, token)
-        if dp_id is None:
+        # If the token is not a valid receipt token, we abort.
+        if not is_receipt_token_valid(resource_id, token):
             abort(403, message="Invalid access token")
+        dp_id = db.select_dataprovider_id(get_db(), resource_id, token)
     else:
         dp_id = "Coordinator"
     return dp_id
@@ -152,14 +173,14 @@ class MappingList(Resource):
 
         By default the mapping will be between two organisations.
 
-        There are two types, a "mapping" and a "permutation".
+        There are three types, a "mapping", a "permutation" and a "permutation_unencrypted_mask".
 
         The permutation type requires a paillier public key to be
         passed in. It takes significantly longer as it has to encrypt
         a mask vector.
 
         The "permutation_unencrypted_mask" does a permutation but do not encrypt the mask which is
-        only sends to the coordinator.
+        only sends to the coordinator (owner of the results_token).
         """
         data = request.get_json()
 
@@ -247,9 +268,9 @@ class Mapping(Resource):
             # Check the caller has a valid results token if we are including results
             abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation':
-            dp_id = abort_if_invalid_receipt_token(resource_id, headers.get('Authorization'))
+            dp_id = dataprovider_id_if_authorize(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
-            dp_id = abort_if_invalid_token(resource_id, headers.get('Authorization'))
+            dp_id = node_id_if_authorize(resource_id, headers.get('Authorization'))
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
@@ -280,9 +301,9 @@ class Mapping(Resource):
             return {'permutation': result}
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
             app.logger.info("Permutation with unencrypted mask result being returned")
-            # result = json.loads(mapping['result'])
             res = db.get_permutation_unencrypted_mask_result(dbinstance, dp_id, mapping)
-            #result['permutation_unencrypted_mask'] = res
+            # The result in this case is either a permutation, or the encrypted mask.
+            # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
             return {'permutation_unencrypted_mask': res}
         else:
             app.logger.warning("Unimplemented result type")

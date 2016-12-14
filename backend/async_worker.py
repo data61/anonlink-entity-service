@@ -216,7 +216,7 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
 
 
 @celery.task()
-def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, dp_ids, toEncrypt = True):
+def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, dp_ids, is_mask_to_encrypt=True):
 
     # Celery seems to turn dict keys into strings. Top quality bug.
     mapping = {int(k): mapping_old[k] for k in mapping_old}
@@ -307,44 +307,48 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
             perm_list = convert_mapping_to_list(permutation)
             save_permutation.apply_async((dp_ids[i], perm_list))
 
-        if toEncrypt:
-            logger.info("Encrypting mask data")
-
-            res = query_db(db, """
-                    SELECT public_key, paillier_context
-                    FROM mappings
-                    WHERE
-                      resource_id = %s
-                    """, [resource_id], one=True)
-            pk = res['public_key']
-            base = res['paillier_context']['base']
-
-            # Subtasks will encrypt the mask in chunks
-            logger.info("Chunking mask")
-            encrypted_chunks = chunks(convert_mapping_to_list(mask), config.ENCRYPTION_CHUNK_SIZE)
-            # calling .apply_async will create a dedicated task so that the
-            # individual tasks are applied in a worker instead
-            encrypted_mask_future = chord(
-                (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
-                persist_mask.s(dataset_size=smaller_dataset_size,
-                               paillier_context=res['paillier_context'],
-                               resource_id=resource_id)
-            ).apply_async()
-        else:
-            logger.info("Save the mask unencrypted")
-            json_mask = psycopg2.extras.Json(json.dumps({"mask": convert_mapping_to_list(mask)}))
-            cur.execute("""UPDATE mappings SET
-                result = (%s),
-                ready = TRUE,
-                time_completed = now()
-                WHERE
-                resource_id = %s
-                """,
-                [json_mask, resource_id])
+        save_mask(db, resource_id, smaller_dataset_size, mask, is_mask_to_encrypt, cur)
 
     # TODO have we made any changes we need to commit?
     db.commit()
     logger.info("Permutation calculation all scheduled")
+
+
+def save_mask(db, resource_id, smaller_dataset_size, mask, is_mask_to_encrypt, cursor):
+    if is_mask_to_encrypt:
+        logger.info("Encrypting mask data")
+
+        res = query_db(db, """
+                SELECT public_key, paillier_context
+                FROM mappings
+                WHERE
+                  resource_id = %s
+                """, [resource_id], one=True)
+        pk = res['public_key']
+        base = res['paillier_context']['base']
+
+        # Subtasks will encrypt the mask in chunks
+        logger.info("Chunking mask")
+        encrypted_chunks = chunks(convert_mapping_to_list(mask), config.ENCRYPTION_CHUNK_SIZE)
+        # calling .apply_async will create a dedicated task so that the
+        # individual tasks are applied in a worker instead
+        encrypted_mask_future = chord(
+            (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+            persist_mask.s(dataset_size=smaller_dataset_size,
+                           paillier_context=res['paillier_context'],
+                           resource_id=resource_id)
+        ).apply_async()
+    else:
+        logger.info("Save the mask unencrypted")
+        json_mask = psycopg2.extras.Json(json.dumps({"mask": convert_mapping_to_list(mask)}))
+        cursor.execute("""UPDATE mappings SET
+            result = (%s),
+            ready = TRUE,
+            time_completed = now()
+            WHERE
+            resource_id = %s
+            """,
+            [json_mask, resource_id])
 
 
 @celery.task()

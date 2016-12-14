@@ -19,8 +19,7 @@ url = "http://localhost:8851/api/v1"
 # When running the flask application directly
 set the environment variable ENTITY_SERVICE_URL to "http://localhost:8851"
 """
-#url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
-url = os.environ.get("ENTITY_SERVICE_URL", "http://130.155.156.203:8851/api/v1")
+url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
 
 
 def retrieve_result(mapping_id, token):
