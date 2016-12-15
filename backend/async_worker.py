@@ -196,7 +196,7 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
 
     if result_type == "mapping":
         logger.debug("Submitting job to save mapping")
-        save_mapping_data.apply_async((mapping,))
+        save_mapping_data.apply_async((mapping, resource_id))
 
     if result_type == "permutation":
         logger.debug("Submitting job to permute mapping")
@@ -379,7 +379,7 @@ def save_permutation(dp, perm_list):
 
 
 @celery.task()
-def save_mapping_data(mapping):
+def save_mapping_data(mapping, resource_id):
     logger.debug("Saving the blooming data")
     db = connect_db()
     with db.cursor() as cur:
@@ -388,8 +388,10 @@ def save_mapping_data(mapping):
               result = (%s),
               ready = TRUE,
               time_completed = now()
+            WHERE
+              resource_id = %s
             """,
-            [psycopg2.extras.Json(mapping)])
+            [psycopg2.extras.Json(mapping), resource_id])
     db.commit()
     logger.info("Mapping saved")
 
