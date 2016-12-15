@@ -47,7 +47,7 @@ def convert_mapping_to_list(permutation):
     l = len(permutation)
 
     perm_list = []
-    for j in range(len(permutation)):
+    for j in range(l):
         perm_list.append(permutation[j])
     return perm_list
 
@@ -206,7 +206,7 @@ def save_and_permute(similarity_result, resource_id, dp_ids):
     if result_type == "permutation_unencrypted_mask":
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'],
-                                          similarity_result['lenf2'], mapping, dp_ids), {"toEncrypt": False})
+                                          similarity_result['lenf2'], mapping, dp_ids), {"is_mask_to_encrypt": False})
 
     logger.info("Removing from cache")
     cache.remove_from_cache(dp_ids[0])
@@ -346,15 +346,19 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
             ).apply_async()
         else:
             logger.info("Save the mask unencrypted")
-            json_mask = psycopg2.extras.Json(json.dumps({"mask": convert_mapping_to_list(mask)}))
+            # The mask has been transformed such than each key is a string instead of an int. Transform back.
+            mask_list = convert_mapping_to_list({int(key): value for key, value in mask.items()})
+            json_mask = psycopg2.extras.Json(json.dumps({"mask": mask_list}))
             cur.execute("""UPDATE mappings SET
-                result = (%s),
-                ready = TRUE,
-                time_completed = now()
+                  result = (%s),
+                  ready = TRUE,
+                  time_completed = now()
                 WHERE
-                resource_id = %s
+                  resource_id = %s
                 """,
                 [json_mask, resource_id])
+    db.commit()
+    logger.info("Mask saved")
 
 
 @celery.task()
