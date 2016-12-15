@@ -348,7 +348,7 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
             logger.info("Save the mask unencrypted")
             # The mask has been transformed such than each key is a string instead of an int. Transform back.
             mask_list = convert_mapping_to_list({int(key): value for key, value in mask.items()})
-            json_mask = psycopg2.extras.Json(json.dumps({"mask": mask_list}))
+            json_mask = psycopg2.extras.Json(json.dumps(mask_list))
             cur.execute("""UPDATE mappings SET
                   result = (%s),
                   ready = TRUE,

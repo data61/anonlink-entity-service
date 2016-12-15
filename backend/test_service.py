@@ -438,7 +438,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     matching_time = time.time() - matching_start
     assert response_org1.status_code == 200
     mapping_result_a = response_org1.json()
-    print(mapping_result_a)
+    print("Mapping from org 1: {}".format(mapping_result_a))
 
     print("Retrieving results as organisation 2")
     response_org2 = retrieve_result(id, r2['receipt-token'])
@@ -450,7 +450,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
     assert response_org2.status_code == 200
     mapping_result_b = response_org2.json()
-    print(mapping_result_b)
+    print("Mapping from org 2: {}".format(mapping_result_b))
 
     print("Retrieving results as coordinator")
     response_coordinator = retrieve_result(id, result_token)
@@ -459,9 +459,10 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_coordinator = retrieve_result(id, result_token)
+    print("Mapping from coordinator: {}".format(response_coordinator.json()))
 
     assert response_coordinator.status_code == 200
-    mask = json.loads(response_coordinator.json()['permutation_unencrypted_mask'])['mask']
+    mask = response_coordinator.json()['permutation_unencrypted_mask']['mask']
     print(response_coordinator.json())
 
     #delete_mapping(id)
@@ -469,13 +470,13 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation_unencrypted_mask'][original_a_index]
+        new_index = mapping_result_a['permutation_unencrypted_mask']['permutation'][original_a_index]
         if new_index < 10:
             print(original_a_index, " -> ", new_index, element)
 
     print("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation_unencrypted_mask'][original_b_index]
+        new_index = mapping_result_b['permutation_unencrypted_mask']['permutation'][original_b_index]
         if new_index < 10:
             print(original_b_index, " -> ", new_index, element)
 
@@ -575,4 +576,4 @@ if __name__ == "__main__":
         print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
         print("---> Number of entities: {}".format(size))
 
-        # permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])

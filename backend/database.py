@@ -230,11 +230,13 @@ def get_permutation_result(db, dp_id):
 
 def get_permutation_unencrypted_mask_result(db, dp_id, mapping):
     if dp_id == "Coordinator":
-        return mapping['result']
+        # The mask is originally a json blob, which is a string. Here we transform it back to an
+        # array of string to help the future receiver.
+        return {"mask": mapping['result'].replace("[", "").replace("]", "").split(",")}
     else:
-        return query_db(db,
+        return {"permutation": query_db(db,
             """SELECT raw from permutationdata WHERE dp = %s""",
-            [dp_id], one=True)['raw']
+            [dp_id], one=True)['raw']}
 
 # Insertion Queries
 
