@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: entityservice-api
+  labels:
+    app: entityservice
+spec:
+  ports:
+    - port: 8851
+  selector:
+    app: entityservice
+    tier: frontend
+  type: LoadBalancer

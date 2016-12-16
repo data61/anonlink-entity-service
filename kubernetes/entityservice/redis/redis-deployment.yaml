@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: entityservice-redis
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: entityservice-redis
+    spec:
+      containers:
+      - name: entityservice-redis
+        image: redis:3.2
+        ports:
+        - containerPort: 6379

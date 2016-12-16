@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: entityservice-api
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: frontend
+        run: entityservice-api
+    spec:
+      containers:
+      - name: entityservice-nginx
+        image: quay.io/n1analytics/entity-nginx:v1
+        ports:
+        - containerPort: 8851
+          name: entityservice
+      - name: entityservice-flask
+        image: quay.io/n1analytics/entity-app:v1
+        env:
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: entityservice-db-password
+                key: db-password.txt
+
+          - name: DEBUG
+            value: "true"
+      imagePullSecrets:
+            - name: n1analytics-coreos-pull-secret

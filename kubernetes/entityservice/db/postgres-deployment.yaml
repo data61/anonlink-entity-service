@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: entityservice-db
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres
+        run: entityservice-db
+    spec:
+      containers:
+      - image: quay.io/n1analytics/entity-db-server:v1
+        name: entityservice-db
+        env:
+        - name: POSTGRES_PASSWORD
+          # Added to cluster with:
+          # kubectl create secret generic entityservice-db-password --from-file=db-password.txt
+          valueFrom:
+            secretKeyRef:
+              name: entityservice-db-password
+              key: db-password.txt
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: db-volume
+      imagePullSecrets:
+      - name: n1analytics-coreos-pull-secret
+
+      volumes:
+      - name: db-volume
+        # should instead be a persistent storage claim...
+        emptyDir: {}
+# TODO
+#      - name: db-volume
+#        persistentVolumeClaim:
+#          claimName: es-db-pv-claim
