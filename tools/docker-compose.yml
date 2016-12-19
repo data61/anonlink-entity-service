@@ -58,6 +58,7 @@ services:
     depends_on:
       - es_backend
     environment:
+      TARGET_SERVICE: backend
       ETCD_URL:
       PUBLIC_PORT: 8851
       PUBLIC_IP:

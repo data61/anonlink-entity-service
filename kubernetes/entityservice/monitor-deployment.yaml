@@ -1,0 +1,29 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: entityservice-monitor
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+        run: celery-monitor
+    spec:
+      containers:
+      - name: celery-monitor
+        image: quay.io/n1analytics/entity-app:v1.2
+        imagePullPolicy: Always
+        env:
+          - name: REDIS_SERVER
+            value: entityservice-redis
+        command:
+          - "/usr/local/bin/celery"
+          - "-A"
+          - "async_worker"
+          - "flower"
+          - "--port=8888"
+          - "--url_prefix=monitor"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret
