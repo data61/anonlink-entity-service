@@ -3,10 +3,11 @@ kind: Service
 metadata:
   name: entityservice-redis
   labels:
-    app: redis
+    app: entityservice
 spec:
   ports:
     - port: 6379
   selector:
-    app: redis
-  clusterIP: None
+    app: entityservice
+    run: redis
+    tier: data

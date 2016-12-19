@@ -1,0 +1,42 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: entityservice-worker
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: backend
+        run: entityservice-worker
+    spec:
+      containers:
+      - name: celery-worker
+        image: quay.io/n1analytics/entity-app:v1.2
+        imagePullPolicy: Always
+        env:
+          - name: REDIS_SERVER
+            value: entityservice-redis
+          - name: DATABASE_SERVER
+            value: entityservice-db
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: entityservice-db-password
+                key: db-password.txt
+          - name: DEBUG
+            value: "true"
+          - name: ENTITY_MATCH_THRESHOLD
+            value: "0.95"
+          - name: GREEDY_CHUNK_SIZE
+            value: "100000000"
+        command:
+          - "/usr/local/bin/celery"
+          - "-A"
+          - "async_worker"
+          - "worker"
+          - "--loglevel=info"
+          - "--concurrency=10"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret

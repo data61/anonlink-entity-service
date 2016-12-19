@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: es-db-pv-claim
   labels:
-    app: postgres
+    app: entityservice
 spec:
   accessModes:
     - ReadWriteOnce

@@ -7,8 +7,9 @@ spec:
   template:
     metadata:
       labels:
-        app: postgres
-        run: entityservice-db
+        app: entityservice
+        tier: data
+        run: postgres
     spec:
       containers:
       - image: quay.io/n1analytics/entity-db-server:v1
@@ -29,12 +30,11 @@ spec:
           name: db-volume
       imagePullSecrets:
       - name: n1analytics-coreos-pull-secret
-
       volumes:
       - name: db-volume
-        # should instead be a persistent storage claim...
         emptyDir: {}
-# TODO
+# should instead be a persistent storage claim...
+# TODO check how to do this...
 #      - name: db-volume
 #        persistentVolumeClaim:
 #          claimName: es-db-pv-claim

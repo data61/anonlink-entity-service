@@ -3,11 +3,11 @@ kind: Service
 metadata:
   name: entityservice-db
   labels:
-    app: postgres
+    app: entityservice
 spec:
   ports:
     - port: 5432
   selector:
-    app: postgres
-    tier: db
-  clusterIP: None
+    app: entityservice
+    tier: data
+    run: postgres

@@ -18,6 +18,14 @@ spec:
         ports:
         - containerPort: 8851
           name: entity-nginx
+        env:
+          - name: TARGET_SERVICE
+            value: localhost
+        lifecycle:
+          preStop:
+            exec:
+              # SIGTERM triggers a quick exit; gracefully terminate instead
+              command: ["/usr/sbin/nginx","-s","quit"]
       - name: entityservice-flask
         image: quay.io/n1analytics/entity-app:v1.2
         env:

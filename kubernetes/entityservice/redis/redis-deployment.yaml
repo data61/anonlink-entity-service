@@ -7,7 +7,9 @@ spec:
   template:
     metadata:
       labels:
-        run: entityservice-redis
+        run: redis
+        app: entityservice
+        tier: data
     spec:
       containers:
       - name: entityservice-redis
