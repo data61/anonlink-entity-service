@@ -5,6 +5,7 @@ Config shared between the application backend and the celery workers.
 import os
 import logging
 
+
 class Config(object):
     """
     Hard coded default configuration which can be overwritten with environment variables
@@ -18,11 +19,12 @@ class Config(object):
                                       datefmt="%H:%M:%S")
 
     DATABASE_SERVER = os.environ.get('DATABASE_SERVER', 'db')
+    REDIS_SERVER = os.environ.get('REDIS_SERVER', 'redis')
     DATABASE = os.environ.get('DATABASE', 'postgres')
     DATABASE_USER = os.environ.get('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD', '')
 
-    BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+    BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://{}:6379/0'.format(REDIS_SERVER))
 
     CELERY_RESULT_BACKEND = BROKER_URL
 

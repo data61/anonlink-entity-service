@@ -5,15 +5,15 @@ import logging
 
 import serialization
 import database
-
+from settings import Config as config
 
 logger = logging.getLogger('cache')
-
+redis_host = config.REDIS_SERVER
 
 def set_deserialized_filter(dp_id, python_filters):
     logger.debug("Pickling filters and storing in redis")
     key = 'clk-pkl-{}'.format(dp_id)
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
     pickled_filters = pickle.dumps(python_filters)
     r.set(key, pickled_filters)
 
@@ -23,7 +23,7 @@ def get_deserialized_filter(dp_id):
     """
     logger.debug("Getting filters")
     key = 'clk-pkl-{}'.format(dp_id)
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
 
     # Check if this dp_id is already saved in redis?
     if r.exists(key):
@@ -46,19 +46,19 @@ def get_deserialized_filter(dp_id):
 
 def remove_from_cache(dp_id):
     logger.debug("Deleting from redis cache")
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
     key = 'clk-pkl-{}'.format(dp_id)
     r.delete(key)
 
 
 def update_progress(comparisons, resource_id):
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
     key = 'progress-{}'.format(resource_id)
     r.incr(key, comparisons)
 
 
 def get_progress(resource_id):
-    r = redis.StrictRedis(host='redis', port=6379, db=0)
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
     key = 'progress-{}'.format(resource_id)
     res = r.get(key)
     # redis returns bytes, and None if not present
