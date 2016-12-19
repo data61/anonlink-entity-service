@@ -14,13 +14,14 @@ if [ -n "$ETCD_URL" ]; then
     [[ $success != 0 ]] && sleep 5
   done
 fi
-echo "[INFO]  Starting web server"
-exec nginx -g "daemon off;"
 
-# Local Variables:
-# mode: sh
-# tab-width: 2
-# sh-basic-offset: 2
-# sh-indentation: 2
-# indent-tabs-mode: nil
-# End:
+
+# Tell nginx the address of the backend service to proxy to
+if [ ! -v TARGET_SERVICE ]; then
+    # Assume localhost
+    TARGET_SERVICE=localhost
+fi
+sed -i "s/{{TARGET_SERVICE}}/${TARGET_SERVICE}/g;" /etc/nginx/nginx.conf
+echo "[INFO]  Starting web server"
+echo "[INFO]  Backend: $TARGET_SERVICE"
+exec nginx -g "daemon off;"
