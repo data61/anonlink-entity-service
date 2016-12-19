@@ -227,6 +227,17 @@ def get_permutation_result(db, dp_id):
         """SELECT raw from permutationdata WHERE dp = %s""",
         [dp_id], one=True)['raw']
 
+
+def get_permutation_unencrypted_mask_result(db, dp_id, mapping):
+    if dp_id == "Coordinator":
+        # The mask is originally a json blob, which is a string. Here we transform it back to an
+        # array of string to help the future receiver.
+        return {"mask": mapping['result'].replace("[", "").replace("]", "").split(",")}
+    else:
+        return {"permutation": query_db(db,
+            """SELECT raw from permutationdata WHERE dp = %s""",
+            [dp_id], one=True)['raw']}
+
 # Insertion Queries
 
 
@@ -269,6 +280,22 @@ def insert_permutation(cur, data, mapping, resource_id):
                 data['result_type'],
                 psycopg2.extras.Json(data['public_key']),
                 psycopg2.extras.Json(data['paillier_context'])
+            ]
+        )
+
+def insert_permutation_unencrypted_mask(cur, data, mapping, resource_id):
+    return insert_returning_id(cur, """
+            INSERT INTO mappings
+            (resource_id, access_token, ready, schema, result_type)
+            VALUES
+            (%s, %s, false, %s, %s)
+            RETURNING id;
+            """,
+            [
+                resource_id,
+                mapping.result_token,
+                psycopg2.extras.Json(data['schema']),
+                data['result_type'],
             ]
         )
 
