@@ -22,7 +22,7 @@ services:
 
   # The flask application server
   es_backend:
-    image: quay.io/n1analytics/entity-app:v1
+    image: quay.io/n1analytics/entity-app:v1.2
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -37,7 +37,7 @@ services:
 
   # A celery worker
   es_worker:
-    image: quay.io/n1analytics/entity-app:v1
+    image: quay.io/n1analytics/entity-app:v1.2
     depends_on:
       - es_redis
       - es_db
@@ -52,7 +52,7 @@ services:
       es_network:
 
   es_nginx:
-    image: quay.io/n1analytics/entity-nginx:v1
+    image: quay.io/n1analytics/entity-nginx:v1.2
     ports:
       - "8851:8851"
     depends_on:

@@ -13,20 +13,27 @@ spec:
     spec:
       containers:
       - name: entityservice-nginx
-        image: quay.io/n1analytics/entity-nginx:v1
+        image: quay.io/n1analytics/entity-nginx:v1.2
+        imagePullPolicy: Always
         ports:
         - containerPort: 8851
-          name: entityservice
+          name: entity-nginx
       - name: entityservice-flask
-        image: quay.io/n1analytics/entity-app:v1
+        image: quay.io/n1analytics/entity-app:v1.2
         env:
+          - name: REDIS_SERVER
+            value: entityservice-redis
+          - name: DATABASE_SERVER
+            value: entityservice-db
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: entityservice-db-password
                 key: db-password.txt
-
           - name: DEBUG
             value: "true"
+        ports:
+          - containerPort: 8000
+            name: entity-flask
       imagePullSecrets:
             - name: n1analytics-coreos-pull-secret
