@@ -28,6 +28,7 @@ spec:
               command: ["/usr/sbin/nginx","-s","quit"]
       - name: entityservice-flask
         image: quay.io/n1analytics/entity-app:v1.2
+        imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
             value: entityservice-redis

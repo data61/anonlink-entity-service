@@ -8,7 +8,7 @@ spec:
     metadata:
       labels:
         app: entityservice
-        tier: debug
+        tier: aux
         run: entitytester
     spec:
       containers:
@@ -18,13 +18,14 @@ spec:
           - name: ENTITY_SERVICE_URL
             value: http://entityservice-api:8851/api/v1
           - name: ENTITY_SERVICE_TEST_SIZE
-            value: "1000"
+            value: "10000"
           - name: ENTITY_SERVICE_TEST_REPEATS
-            value: "3"
+            value: "100"
           - name: DEBUG
             value: "true"
         command:
-          - "python test_service.py"
+          - "python"
+          - "test_service.py"
 
       imagePullSecrets:
             - name: n1analytics-coreos-pull-secret
