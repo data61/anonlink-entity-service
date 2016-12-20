@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: n1-py-notebook
+spec:
+  type: LoadBalancer
+  # Can lock down access to an IP range:
+  loadBalancerSourceRanges:
+  - 130.155.157.5/24
+  ports:
+  - port: 443
+    protocol: TCP
+  selector:
+    tier: aux
+    run: n1-py-notebook
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: n1-py-notebook
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        tier: aux
+        run: n1-py-notebook
+      annotations:
+        scheduler.alpha.kubernetes.io/tolerations: '[{"key":"dedicated", "value":"management"}]'
+    spec:
+      containers:
+      - name: n1-py-notebook
+        image: quay.io/n1analytics/pythonclient:0.1.1
+        args:
+        - start-notebook.sh
+        - --NotebookApp.password=sha1:7e7568c5eb33:ed6fa0b86f55dc199a2e99ff8b1f213cf3af7664
+        ports:
+        - containerPort: 8888
+        env:
+        - name: USE_HTTPS
+          value: "yes"
+        - name: GRANT_SUDO
+          value: "yes"
+      imagePullSecrets:
+      - name: n1analytics-coreos-pull-secret
