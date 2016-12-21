@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: delete-mappings
+spec:
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+        run: entitytester
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: entitytester
+        image: quay.io/n1analytics/entity-app:v1.2
+        imagePullPolicy: Always
+        env:
+          - name: ENTITY_SERVICE_URL
+            value: http://entityservice-api/api/v1
+          - name: ENTITY_SERVICE_DELETE_ALL
+            value: "true"
+        command:
+          - "python"
+          - "test_service.py"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret
