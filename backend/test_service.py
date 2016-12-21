@@ -500,8 +500,6 @@ def generate_test_data(dataset_size=1000):
     nl = randomnames.NameList(math.floor(dataset_size * 1.2))
     s1, s2 = nl.generate_subsets(dataset_size, 0.8)
 
-    # s2 = s2[:10]
-
     logger.info("Locally hashing party A identity data to create bloom filters")
     keys = ('something', 'secret')
     filters1 = concurrent.bloom_filters(s1, nl.schema, keys)
@@ -512,7 +510,7 @@ def generate_test_data(dataset_size=1000):
     logger.info("Serialising bloom filters")
     party1_filters = serialize_filters(filters1)
     party2_filters = serialize_filters(filters2)
-
+    logger.info("Data generation complete")
     return party1_filters, party2_filters, s1, s2
 
 
@@ -526,9 +524,9 @@ def timing_test(outfile=None):
     test_sizes = [
         5000,
         10000,
-        #20000,
-        #50000,
-        #100000
+        20000,
+        50000,
+        100000
     ]
     logger.warning("Generating test data. This may take some time.")
     party1_filters, party2_filters, s1, s2 = generate_test_data(test_sizes[-1])
