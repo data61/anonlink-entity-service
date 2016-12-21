@@ -60,7 +60,6 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     print("Servers mappings:")
     print(requests.get(url + '/mappings').json())
 
-
     print('Creating a new mapping')
     # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
     schema = [
@@ -152,7 +151,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
     response = retrieve_result(id, new_map_response['result_token'])
     while not response.status_code == 200:
-        snooze = dataset_size/20000
+        snooze = 5 + dataset_size/20000
         #print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, new_map_response['result_token'])
@@ -280,7 +279,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     print("Retrieving results as organisation 1")
     response = retrieve_result(id, r1['receipt-token'])
     while not response.status_code == 200:
-        snooze = dataset_size/200
+        snooze = 5 + dataset_size/200
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r1['receipt-token'])
@@ -292,7 +291,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     print("Retrieving results as organisation 2")
     response = retrieve_result(id, r2['receipt-token'])
     while not response.status_code == 200:
-        snooze = 3*dataset_size/1000
+        snooze = 5 + 3*dataset_size/1000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r2['receipt-token'])
@@ -430,7 +429,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     print("Retrieving results as organisation 1")
     response_org1 = retrieve_result(id, r1['receipt-token'])
     while not response_org1.status_code == 200:
-        snooze = dataset_size/200
+        snooze = 5 + dataset_size/200
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_org1 = retrieve_result(id, r1['receipt-token'])
@@ -443,7 +442,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     print("Retrieving results as organisation 2")
     response_org2 = retrieve_result(id, r2['receipt-token'])
     while not response_org2.status_code == 200:
-        snooze = 3*dataset_size/1000
+        snooze = 5 + 3 * dataset_size/1000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_org2 = retrieve_result(id, r2['receipt-token'])
@@ -455,7 +454,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     print("Retrieving results as coordinator")
     response_coordinator = retrieve_result(id, result_token)
     while not response_coordinator.status_code == 200:
-        snooze = 3*dataset_size/1000
+        snooze = 5 + 3 * dataset_size/1000
         print("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_coordinator = retrieve_result(id, result_token)
