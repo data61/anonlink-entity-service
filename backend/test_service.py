@@ -1,13 +1,23 @@
-import os
+import os, sys
 import math
 import time
 import json
+import logging
 import requests
 
 from anonlink import randomnames, entitymatch, bloomfilter, concurrent
 
 from phe import paillier, util
 from serialization import *
+
+LOGLEVEL = getattr(logging, os.environ.get("LOGGING_LEVEL", "WARNING"))
+logger = logging.getLogger('n1')
+logger.setLevel(LOGLEVEL)
+formatter = logging.Formatter('%(asctime)s.%(msecs)03d %(levelname)s - %(message)s', "%H:%M:%S")
+ch = logging.StreamHandler()
+ch.setFormatter(formatter)
+logger.propagate = False
+logger.addHandler(ch)
 
 """
 The URL to test can be overridden with the environment variable
@@ -20,32 +30,33 @@ url = "http://localhost:8851/api/v1"
 set the environment variable ENTITY_SERVICE_URL to "http://localhost:8851"
 """
 url = os.environ.get("ENTITY_SERVICE_URL", "http://localhost:8851/api/v1")
+logger.info("Entity Service URL: {}".format(url))
 
 
 def retrieve_result(mapping_id, token):
-    print("Retrieving mapping")
+    logger.info("Retrieving mapping")
     response = requests.get(url + '/mappings/{}'.format(mapping_id),
                             headers={'Authorization': token})
-    print(response.status_code)
-    #print(response.json())
+    logger.debug(response.status_code)
+    #logger.debug(response.json())
     return response
 
 
 def server_status_test():
-    print("Connecting to server '{}'".format(url))
+    logger.debug("Connecting to server '{}'".format(url))
     status = requests.get(url + '/status')
-    print("Server status:")
+    logger.debug("Server status:")
     assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
-    print(status.json())
+    logger.debug(status.json())
 
 
 def delete_mapping(id):
-    print("Delete the mapping + data")
+    logger.info("Delete the mapping + data")
     response_delete = requests.delete(url + '/mappings/{}'.format(id),
                                       # headers={'Authorization': new_map_response['update_tokens'][1]}
                                       )
-    print(response_delete)
-    print("Servers mappings:")
+    logger.debug(response_delete)
+    logger.debug("Servers mappings:")
     mappings_response = requests.get(url + '/mappings').json()
     assert not any(mapping['resource_id'] == id for mapping in mappings_response['mappings'])
 
@@ -57,10 +68,10 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     dataset_size = len(party1_filters)
     server_status_test()
 
-    print("Servers mappings:")
-    print(requests.get(url + '/mappings').json())
+    logger.debug("Servers mappings:")
+    logger.debug(requests.get(url + '/mappings').json())
 
-    print('Creating a new mapping')
+    logger.info('Creating a new mapping')
     # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
     schema = [
         {"identifier": "INDEX",          "weight": 0, "notes":""},
@@ -72,40 +83,40 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
         'schema': schema,
         'result_type': 'mapping'
     }).json()
-    print(new_map_response)
+    logger.debug(new_map_response)
 
     id = new_map_response['resource_id']
-    print("New mapping request created with id: ", id)
+    logger.info("New mapping request created with id: {}".format(id))
 
-    print("Servers mappings:")
-    print(requests.get(url + '/mappings').json())
+    logger.debug("Servers mappings:")
+    logger.debug(requests.get(url + '/mappings').json())
 
-    print("Checking mapping status without authentication token")
+    logger.info("Checking mapping status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 401
 
-    print("Checking status with invalid token")
+    logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
                      headers={'Authorization': 'invalid'})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 403
 
-    print("Test a mapping that doesn't exist with valid token")
+    logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
-    print(response.status_code)
+    logger.debug(response.status_code)
     assert response.status_code == 404
 
-    print("Checking status with valid token (before adding data)")
+    logger.info("Checking status with valid token (before adding data)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
         headers={'Authorization': new_map_response['result_token']})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 503
 
-    print("Adding first party's filter data")
+    logger.info("Adding first party's filter data")
 
     party1_data = {
         'clks': party1_filters
@@ -119,26 +130,26 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
     r1 = resp1.json()
     assert 'receipt-token' in r1
-    print(resp1.status_code, r1)
+    logger.debug(resp1.status_code, r1)
 
-    print("Check the server hasn't died")
+    logger.info("Check the server hasn't died")
     server_status_test()
 
-    print("Adding second party's data - without authentication")
+    logger.info("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}
     resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
     assert resp.status_code == 401
-    print(resp.text)
+    logger.debug(resp.text)
     assert 'token required' in resp.json()['message']
 
-    print("Adding second party's data - without clk data")
+    logger.info("Adding second party's data - without clk data")
     resp = requests.put(url + '/mappings/{}'.format(id),
                         json={},
                         headers={'Authorization': new_map_response['update_tokens'][1]})
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
-    print("Adding second party's data - properly this time")
+    logger.info("Adding second party's data - properly this time")
     party2_data = {'clks': party2_filters}
     resp2 = requests.put(url + '/mappings/{}'.format(id),
                          json=party2_data,
@@ -146,24 +157,24 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
     assert resp2.status_code == 201
 
-    print("Going to sleep to give the server some processing time...")
+    logger.debug("Going to sleep to give the server some processing time...")
     time.sleep(1)
 
     response = retrieve_result(id, new_map_response['result_token'])
     while not response.status_code == 200:
         snooze = 5 + dataset_size/20000
-        #print("Sleeping for another {} seconds".format(snooze))
+        #logger.debug("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, new_map_response['result_token'])
 
         if response.status_code == 503:
-            print(response.json())
+            logger.debug(response.json())
 
     assert response.status_code == 200
 
-    print("Success")
+    logger.info("Success")
     mapping_result = response.json()["mapping"]
-    #print(mapping_result)
+    #logger.debug(mapping_result)
     # TODO Actually check the result.
     #delete_mapping(id)
 
@@ -173,10 +184,10 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     Uses the NameList data and schema and a result_type of "permutation"
     """
     dataset_size = len(party1_filters)
-    print("Servers mappings:")
-    print(requests.get(url + '/mappings').json())
+    logger.debug("Servers mappings:")
+    logger.debug(requests.get(url + '/mappings').json())
 
-    print("Generating paillier keypair")
+    logger.info("Generating paillier keypair")
     pub, priv = paillier.generate_paillier_keypair()
     public_key = {
         "n": util.int_to_base64(pub.n),
@@ -186,7 +197,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         "kid": "entity-service generated key for testing"
     }
 
-    print('Creating a new mapping')
+    logger.info('Creating a new mapping')
     # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
     schema = [
         {"identifier": "INDEX",          "weight": 0, "notes":""},
@@ -200,37 +211,37 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         'public_key': public_key,
         'paillier_context': {'base': base, 'encoded': True}
     }).json()
-    print(new_map_response)
+    logger.debug(new_map_response)
 
     id = new_map_response['resource_id']
-    print("New mapping request created with id: ", id)
+    logger.info("New mapping request created with id: ", id)
 
-    print("Checking status without authentication token")
+    logger.info("Checking status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 401
 
-    print("Checking status with invalid token")
+    logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
                      headers={'Authorization': 'invalid'})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 403
 
-    print("Test a mapping that doesn't exist with valid token")
+    logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
-    print(response.status_code)
+    logger.debug(response.status_code)
     assert response.status_code == 404
 
-    print("Checking status with valid results token (not receipt token as required)")
+    logger.info("Checking status with valid results token (not receipt token as required)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
         headers={'Authorization': new_map_response['result_token']})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 403
 
-    print("Adding first party's filter data")
+    logger.info("Adding first party's filter data")
 
     party1_data = {
         'clks': party1_filters
@@ -244,24 +255,24 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
 
     r1 = resp1.json()
     assert 'receipt-token' in r1
-    print(resp1.status_code, r1)
+    logger.debug(resp1.status_code, r1)
 
     server_status_test()
 
-    print("Adding second party's data - without authentication")
+    logger.info("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}
     resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
     assert resp.status_code == 401
     assert 'token required' in resp.json()['message']
 
-    print("Adding second party's data - without clk data")
+    logger.info("Adding second party's data - without clk data")
     resp = requests.put(url + '/mappings/{}'.format(id),
                         headers={'Authorization': new_map_response['update_tokens'][1]})
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
     matching_start = time.time()
-    print("Adding second party's data - properly this time")
+    logger.info("Adding second party's data - properly this time")
     party2_data = {
         'clks': party2_filters
     }
@@ -271,16 +282,16 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
 
     assert resp2.status_code == 201
     r2 = resp2.json()
-    print(resp2.status_code, r2)
+    logger.debug(resp2.status_code, r2)
 
-    print("Going to sleep to give the server some processing time...")
+    logger.debug("Going to sleep to give the server some processing time...")
     time.sleep(1)
 
-    print("Retrieving results as organisation 1")
+    logger.info("Retrieving results as organisation 1")
     response = retrieve_result(id, r1['receipt-token'])
     while not response.status_code == 200:
         snooze = 5 + dataset_size/200
-        print("Sleeping for another {} seconds".format(snooze))
+        logger.info("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r1['receipt-token'])
 
@@ -288,11 +299,11 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     assert response.status_code == 200
     mapping_result_a = response.json()
 
-    print("Retrieving results as organisation 2")
+    logger.info("Retrieving results as organisation 2")
     response = retrieve_result(id, r2['receipt-token'])
     while not response.status_code == 200:
         snooze = 5 + 3*dataset_size/1000
-        print("Sleeping for another {} seconds".format(snooze))
+        logger.info("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response = retrieve_result(id, r2['receipt-token'])
 
@@ -306,17 +317,17 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     for original_a_index, element in enumerate(s1):
         new_index = mapping_result_a['permutation']['permutation'][original_a_index]
         if new_index < 10:
-            print(original_a_index, " -> ", new_index, element)
+            logger.info(original_a_index, " -> ", new_index, element)
 
-    print("\nOrg 2\n")
+    logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation']['permutation'][original_b_index]
         if new_index < 10:
             # Encrypted mask:
             # mapping_result_b['permutation']['mask']
-            print(original_b_index, " -> ", new_index, element)
+            logger.info(original_b_index, " -> ", new_index, element)
 
-    print("Decrypting mask used for first 10 entities...")
+    logger.info("Decrypting mask used for first 10 entities...")
 
     class EntityEncodedNumber(paillier.EncodedNumber):
         BASE = base
@@ -325,8 +336,8 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     encrypted_mask = [paillier.EncryptedNumber(pub, int(m)) for m in mapping_result_b['permutation']['mask'][:10]]
 
     decrypted_mask = [priv.decrypt_encoded(e, Encoding=EntityEncodedNumber).decode() for e in encrypted_mask]
-    print(decrypted_mask)
-    print("Server took {:8.3f} seconds for matching".format(matching_time))
+    logger.info(decrypted_mask)
+    logger.info("Server took {:8.3f} seconds for matching".format(matching_time))
 
 
 def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, base=2):
@@ -334,10 +345,10 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     Uses the NameList data and schema and a result_type of "permutation"
     """
     dataset_size = len(party1_filters)
-    print("Servers mappings:")
-    print(requests.get(url + '/mappings').json())
+    logger.debug("Servers mappings:")
+    logger.debug(requests.get(url + '/mappings').json())
 
-    print('Creating a new mapping')
+    logger.info('Starting permutation_unencrypted_mask_test')
     # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
     schema = [
         {"identifier": "INDEX",          "weight": 0, "notes":""},
@@ -349,38 +360,38 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
         'schema': schema,
         'result_type': 'permutation_unencrypted_mask'
     }).json()
-    print(new_map_response)
+    logger.debug(new_map_response)
 
     id = new_map_response['resource_id']
     result_token = new_map_response['result_token']
-    print("New mapping request created with id: ", id)
+    logger.info("New mapping request created with id: {}".format(id))
 
-    print("Checking status without authentication token")
+    logger.info("Checking status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 401
 
-    print("Checking status with invalid token")
+    logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
                      headers={'Authorization': 'invalid'})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 403
 
-    print("Test a mapping that doesn't exist with valid token")
+    logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
-    print(response.status_code)
+    logger.debug(response.status_code)
     assert response.status_code == 404
 
-    print("Checking status with valid token (before adding data)")
+    logger.info("Checking status with valid token (before adding data)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
         headers={'Authorization': new_map_response['result_token']})
-    print(r.status_code, r.json())
+    logger.debug(r.status_code, r.json())
     assert r.status_code == 503
 
-    print("Adding first party's filter data")
+    logger.info("Adding first party's filter data")
 
     party1_data = {
         'clks': party1_filters
@@ -394,24 +405,24 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
     r1 = resp1.json()
     assert 'receipt-token' in r1
-    print(resp1.status_code, r1)
+    logger.debug(resp1.status_code, r1)
 
     server_status_test()
 
-    print("Adding second party's data - without authentication")
+    logger.info("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}
     resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
     assert resp.status_code == 401
     assert 'token required' in resp.json()['message']
 
-    print("Adding second party's data - without clk data")
+    logger.info("Adding second party's data - without clk data")
     resp = requests.put(url + '/mappings/{}'.format(id),
                         headers={'Authorization': new_map_response['update_tokens'][1]})
     assert resp.status_code == 400
     assert 'Missing information' in resp.json()['message']
 
     matching_start = time.time()
-    print("Adding second party's data - properly this time")
+    logger.info("Adding second party's data - properly this time")
     party2_data = {
         'clks': party2_filters
     }
@@ -421,48 +432,48 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
     assert resp2.status_code == 201
     r2 = resp2.json()
-    print(resp2.status_code, r2)
+    logger.debug(resp2.status_code, r2)
 
-    print("Going to sleep to give the server some processing time...")
+    logger.debug("Going to sleep to give the server some processing time...")
     time.sleep(1)
 
-    print("Retrieving results as organisation 1")
+    logger.info("Retrieving results as organisation 1")
     response_org1 = retrieve_result(id, r1['receipt-token'])
     while not response_org1.status_code == 200:
         snooze = 5 + dataset_size/200
-        print("Sleeping for another {} seconds".format(snooze))
+        logger.info("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_org1 = retrieve_result(id, r1['receipt-token'])
 
     matching_time = time.time() - matching_start
     assert response_org1.status_code == 200
     mapping_result_a = response_org1.json()
-    print("Mapping from org 1: {}".format(mapping_result_a))
+    logger.info("Mapping from org 1: {}".format(mapping_result_a))
 
-    print("Retrieving results as organisation 2")
+    logger.info("Retrieving results as organisation 2")
     response_org2 = retrieve_result(id, r2['receipt-token'])
     while not response_org2.status_code == 200:
         snooze = 5 + 3 * dataset_size/1000
-        print("Sleeping for another {} seconds".format(snooze))
+        logger.info("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_org2 = retrieve_result(id, r2['receipt-token'])
 
     assert response_org2.status_code == 200
     mapping_result_b = response_org2.json()
-    print("Mapping from org 2: {}".format(mapping_result_b))
+    logger.info("Mapping from org 2: {}".format(mapping_result_b))
 
-    print("Retrieving results as coordinator")
+    logger.info("Retrieving results as coordinator")
     response_coordinator = retrieve_result(id, result_token)
     while not response_coordinator.status_code == 200:
         snooze = 5 + 3 * dataset_size/1000
-        print("Sleeping for another {} seconds".format(snooze))
+        logger.info("Sleeping for another {} seconds".format(snooze))
         time.sleep(snooze)
         response_coordinator = retrieve_result(id, result_token)
-    print("Mapping from coordinator: {}".format(response_coordinator.json()))
+    logger.info("Mapping from coordinator: {}".format(response_coordinator.json()))
 
     assert response_coordinator.status_code == 200
     mask = response_coordinator.json()['permutation_unencrypted_mask']['mask']
-    print(response_coordinator.json())
+    logger.debug(response_coordinator.json())
 
     #delete_mapping(id)
 
@@ -471,34 +482,34 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     for original_a_index, element in enumerate(s1):
         new_index = mapping_result_a['permutation_unencrypted_mask']['permutation'][original_a_index]
         if new_index < 10:
-            print(original_a_index, " -> ", new_index, element)
+            logger.info("{} -> {} {}".format(original_a_index, new_index, element))
 
-    print("\nOrg 2\n")
+    logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
         new_index = mapping_result_b['permutation_unencrypted_mask']['permutation'][original_b_index]
         if new_index < 10:
-            print(original_b_index, " -> ", new_index, element)
+            logger.info("{} -> {} {}".format(original_b_index, new_index, element))
 
-    print("\nCoordinator\n")
-    print(mask[:10])
-    print("Server took {:8.3f} seconds for matching".format(matching_time))
+    logger.info("\nCoordinator\n")
+    logger.info(mask[:10])
+    logger.info("Server took {:8.3f} seconds for matching".format(matching_time))
 
 
 def generate_test_data(dataset_size=1000):
-    print("Generating local address data")
+    logger.info("Generating local address data")
     nl = randomnames.NameList(math.floor(dataset_size * 1.2))
     s1, s2 = nl.generate_subsets(dataset_size, 0.8)
 
     # s2 = s2[:10]
 
-    print("Locally hashing party A identity data to create bloom filters")
+    logger.info("Locally hashing party A identity data to create bloom filters")
     keys = ('something', 'secret')
     filters1 = concurrent.bloom_filters(s1, nl.schema, keys)
 
-    print("Locally hashing party B identity data to create bloom filters")
+    logger.info("Locally hashing party B identity data to create bloom filters")
     filters2 = concurrent.bloom_filters(s2, nl.schema, keys)
 
-    print("Serialising bloom filters")
+    logger.info("Serialising bloom filters")
     party1_filters = serialize_filters(filters1)
     party2_filters = serialize_filters(filters2)
 
@@ -515,22 +526,23 @@ def timing_test(outfile=None):
     test_sizes = [
         5000,
         10000,
-        20000,
-        50000,
-        100000
+        #20000,
+        #50000,
+        #100000
     ]
-
+    logger.warning("Generating test data. This may take some time.")
     party1_filters, party2_filters, s1, s2 = generate_test_data(test_sizes[-1])
 
     results = {}
     for size in test_sizes:
-        print("Running e2e test with {} entites".format(size))
+        logger.info("Running e2e test with {} entites".format(size))
 
         start = time.time()
 
         #permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        #mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
 
-        mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         elapsed = time.time() - start
 
         results[size] = elapsed
@@ -549,12 +561,13 @@ if __name__ == "__main__":
     server_status_test()
 
     if do_timing:
-        with open("timing-results.txt", "at") as f:
-            timing_test(f)
+        logger.info("Carrying out timing benchmark")
+        timing_test()
     elif do_delete_all:
+        logger.warning("Deleting all mapping data")
         delete_all_mappings()
     else:
-
+        logger.info("Carrying out e2e test")
         party1_filters, party2_filters, s1, s2 = generate_test_data(size)
 
         mapping_times = []
