@@ -1,0 +1,20 @@
+# https://github.com/wearemolecule/route53-kubernetes
+apiVersion: v1
+kind: Service
+metadata:
+  name: route53-kubernetes
+  namespace: kube-system
+  labels:
+    app: route53-kubernetes
+spec:
+  replicas: 1
+  selector:
+    app: route53-kubernetes
+  template:
+    metadata:
+      labels:
+        app: route53-kubernetes
+    spec:
+      containers:
+        - image: quay.io/molecule/route53-kubernetes:v1.3.0
+          name: route53-kubernetes

@@ -2,11 +2,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: es-db-pv-claim
-  labels:
-    app: entityservice
+  annotations:
+    volume.beta.kubernetes.io/storage-class: slow
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 50Gi
+      storage: "20Gi"

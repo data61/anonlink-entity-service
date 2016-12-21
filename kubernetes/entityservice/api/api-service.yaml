@@ -14,6 +14,7 @@ spec:
   selector:
     app: entityservice
     tier: frontend
+    run: entityservice-api
   type: LoadBalancer
 # Can lock down access to an IP range:
 #  loadBalancerSourceRanges:

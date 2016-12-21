@@ -18,6 +18,8 @@ spec:
         - name: POSTGRES_PASSWORD
           # Added to cluster with:
           # kubectl create secret generic entityservice-db-password --from-file=db-password.txt
+          # Get the new secret resource description with
+          # kubectl get secret entityservice-db-password -o yaml
           valueFrom:
             secretKeyRef:
               name: entityservice-db-password
@@ -26,15 +28,18 @@ spec:
         - containerPort: 5432
           name: postgres
         volumeMounts:
-        - mountPath: /var/lib/postgresql/data
+        - mountPath: "/var/lib/postgresql"
+          # Note we can't mount to /var/lib/postgresql/data
+          # as aws ebs seems to include a "Lost and Found" directory
+          # which postgres gets upset about.
           name: db-volume
       imagePullSecrets:
       - name: n1analytics-coreos-pull-secret
       volumes:
+      # A persistent storage claim...
       - name: db-volume
-        emptyDir: {}
-# should instead be a persistent storage claim...
-# TODO check how to do this...
+        persistentVolumeClaim:
+          claimName: es-db-pv-claim
+# For testing
 #      - name: db-volume
-#        persistentVolumeClaim:
-#          claimName: es-db-pv-claim
+#        emptyDir: {}
