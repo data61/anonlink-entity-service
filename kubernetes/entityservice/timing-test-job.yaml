@@ -1,9 +1,8 @@
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: entity-api-test
+  name: entityservice-timing-test
 spec:
-  replicas: 1
   template:
     metadata:
       labels:
@@ -11,21 +10,22 @@ spec:
         tier: aux
         run: entitytester
     spec:
+      restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:v1.2
+        image: quay.io/n1analytics/entity-app:v1.2.1
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: http://entityservice-api:8851/api/v1
+            value: "http://entityservice-api/api/v1"
           - name: ENTITY_SERVICE_TEST_SIZE
             value: "10000"
-          - name: ENTITY_SERVICE_TEST_REPEATS
-            value: "100"
-          - name: DEBUG
+          - name: ENTITY_SERVICE_TIMING_TEST
             value: "true"
+          - name: LOGGING_LEVEL
+            value: "WARNING"
         command:
           - "python"
           - "test_service.py"
       imagePullSecrets:
-            - name: n1analytics-coreos-pull-secret
+        - name: n1analytics-coreos-pull-secret

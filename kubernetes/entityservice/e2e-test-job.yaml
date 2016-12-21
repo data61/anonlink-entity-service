@@ -13,17 +13,19 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:v1.2
+        image: quay.io/n1analytics/entity-app:v1.2.1
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
             value: http://entityservice-api/api/v1
           - name: ENTITY_SERVICE_TEST_SIZE
-            value: "100000"
+            value: "10000"
           - name: ENTITY_SERVICE_TEST_REPEATS
             value: "1"
           - name: ENTITY_SERVICE_PERMUTATION
             value: "true"
+          - name: LOGGING_LEVEL
+            value: "INFO"
         command:
           - "python"
           - "test_service.py"

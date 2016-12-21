@@ -27,7 +27,7 @@ spec:
               # SIGTERM triggers a quick exit; gracefully terminate instead
               command: ["/usr/sbin/nginx","-s","quit"]
       - name: entityservice-flask
-        image: quay.io/n1analytics/entity-app:v1.2
+        image: quay.io/n1analytics/entity-app:v1.2.1
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
@@ -40,7 +40,7 @@ spec:
                 name: entityservice-db-password
                 key: db-password.txt
           - name: DEBUG
-            value: "true"
+            value: "false"
         ports:
           - containerPort: 8000
             name: entity-flask

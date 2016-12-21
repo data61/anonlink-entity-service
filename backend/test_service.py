@@ -214,7 +214,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     logger.debug(new_map_response)
 
     id = new_map_response['resource_id']
-    logger.info("New mapping request created with id: ", id)
+    logger.info("New mapping request created with id: {}".format(id))
 
     logger.info("Checking status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
@@ -577,6 +577,7 @@ if __name__ == "__main__":
             mapping_times.append(time.time() - mapping_start)
 
         if do_permutation_test:
+            logger.info("Doing permutation with encrypted mask test")
             for i in range(repeats):
                 perm_start = time.time()
                 permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
