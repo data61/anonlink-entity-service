@@ -321,7 +321,9 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
     """
 
     # The mask has been transformed such than each key is a string instead of an int. Transform back.
-    mask_list = convert_mapping_to_list({int(key): value for key, value in mask.items()})
+    mask_list = convert_mapping_to_list({
+                                            int(key): 1 if value else 0
+                                            for key, value in mask.items()})
 
     db = connect_db()
     with db.cursor() as cur:
