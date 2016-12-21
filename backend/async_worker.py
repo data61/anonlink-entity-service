@@ -319,6 +319,10 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
     """
     The mask is saved as the result in the mapping table.
     """
+
+    # The mask has been transformed such than each key is a string instead of an int. Transform back.
+    mask_list = convert_mapping_to_list({int(key): value for key, value in mask.items()})
+
     db = connect_db()
     with db.cursor() as cur:
         if is_mask_to_encrypt:
@@ -335,7 +339,7 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
 
             # Subtasks will encrypt the mask in chunks
             logger.info("Chunking mask")
-            encrypted_chunks = chunks(convert_mapping_to_list(mask), config.ENCRYPTION_CHUNK_SIZE)
+            encrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
             # calling .apply_async will create a dedicated task so that the
             # individual tasks are applied in a worker instead
             encrypted_mask_future = chord(
@@ -346,8 +350,6 @@ def save_mask(resource_id, smaller_dataset_size, mask, is_mask_to_encrypt):
             ).apply_async()
         else:
             logger.info("Save the mask unencrypted")
-            # The mask has been transformed such than each key is a string instead of an int. Transform back.
-            mask_list = convert_mapping_to_list({int(key): value for key, value in mask.items()})
             json_mask = psycopg2.extras.Json(json.dumps(mask_list))
             cur.execute("""UPDATE mappings SET
                   result = (%s),
