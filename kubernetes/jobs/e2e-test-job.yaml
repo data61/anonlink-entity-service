@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: entityservice-e2e-test-1M
+spec:
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+        run: entitytester
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: entitytester
+        image: quay.io/n1analytics/entity-app:v1.2.1
+        imagePullPolicy: Always
+        env:
+          - name: ENTITY_SERVICE_URL
+            value: http://entityservice-api/api/v1
+          - name: ENTITY_SERVICE_TEST_SIZE
+            value: "1000000"
+          - name: ENTITY_SERVICE_TEST_REPEATS
+            value: "1"
+          - name: ENTITY_SERVICE_PERMUTATION
+            value: "true"
+          - name: LOGGING_LEVEL
+            value: "WARNING"
+        command:
+          - "python"
+          - "test_service.py"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret

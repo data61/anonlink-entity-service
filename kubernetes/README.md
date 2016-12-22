@@ -36,7 +36,7 @@ Add secret to enable pulling from private quay.io repository:
 # Deploy the entity service
 
     cd entityservice
-    kubectl create -f entityservice/db/volume-claim.yaml
+    kubectl create -f db/volume-claim.yaml -f db/db-password-secret.yaml
     kubectl create -f db/postgres-service.yaml -f db/postgres-deployment.yaml
     kubectl create -f redis
     kubectl create -f worker

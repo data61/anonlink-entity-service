@@ -17,6 +17,7 @@ spec:
         imagePullPolicy: Always
         ports:
           - containerPort: 8888
+            name: celery-monitor
         env:
           - name: REDIS_SERVER
             value: entityservice-redis

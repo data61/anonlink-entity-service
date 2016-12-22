@@ -325,7 +325,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         if new_index < 10:
             # Encrypted mask:
             # mapping_result_b['permutation']['mask']
-            logger.info(original_b_index, " -> ", new_index, element)
+            logger.info("{} -> {} {}".format(original_b_index, new_index, element))
 
     logger.info("Decrypting mask used for first 10 entities...")
 
