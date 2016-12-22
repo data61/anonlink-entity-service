@@ -2,6 +2,7 @@ import psycopg2
 
 from datetime import timedelta
 import logging
+import json
 
 from settings import Config as config
 
@@ -230,13 +231,14 @@ def get_permutation_result(db, dp_id):
 
 def get_permutation_unencrypted_mask_result(db, dp_id, mapping):
     if dp_id == "Coordinator":
-        # The mask is originally a json blob, which is a string. Here we transform it back to an
-        # array of string to help the future receiver.
-        return {"mask": mapping['result'].replace("[", "").replace("]", "").split(",")}
+        # The mask is a json blob. Here we transform it back to an
+        # array of 0/1 ints to help the future receiver.
+        return {"mask": json.loads(mapping['result'])}
     else:
-        return {"permutation": query_db(db,
-            """SELECT raw from permutationdata WHERE dp = %s""",
-            [dp_id], one=True)['raw']}
+        return {
+            "permutation": query_db(db, """SELECT raw from permutationdata WHERE dp = %s""",
+            [dp_id], one=True)['raw']
+        }
 
 # Insertion Queries
 
