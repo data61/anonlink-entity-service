@@ -403,6 +403,13 @@ def save_mapping_data(mapping, resource_id):
 @celery.task()
 def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
+
+    logger.debug("Checking that the resource exists (in case of job being canceled)")
+    db = connect_db()
+    if not check_mapping_exists(db, resource_id):
+        logger.warning("Skipping as resource not found.")
+        return None
+
     t0 = time.time()
     logger.debug("Deserializing chunked filters")
     filters2 = cache.get_deserialized_filter(dp2_id)

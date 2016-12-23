@@ -244,6 +244,7 @@ class Mapping(Resource):
         abort_if_mapping_doesnt_exist(resource_id)
         app.logger.info("Deleting a mapping resource and all data")
         db.delete_mapping(get_db(), resource_id)
+
         return '', 204
 
     def get(self, resource_id):

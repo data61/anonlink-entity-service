@@ -171,7 +171,7 @@ def delete_mapping(db, resource_id):
             WHERE resource_id = %s
             """, [resource_id])
 
-    logger.info("Commiting removal of mapping resource")
+    logger.info("Committing removal of mapping resource")
     db.commit()
 
 
@@ -241,7 +241,6 @@ def get_permutation_unencrypted_mask_result(db, dp_id, mapping):
         }
 
 # Insertion Queries
-
 
 def insert_comparison_rate(cur, rate):
     return insert_returning_id(cur, """
