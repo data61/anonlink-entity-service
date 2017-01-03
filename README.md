@@ -70,6 +70,14 @@ there are two solutions:
 
 Then use the previous command with `-e ENTITY_SERVICE_URL=http://<container-ip-or-name>:8851/api/v1`
 
+## Using docker-compose
+
+An additional docker-compose config file can be found in `./tools/ci.yml`,
+this can be added in to run along with the rest of the service:
+
+    docker-compose -f tools/docker-compose.yml -f ci.yml -p entityservicetest up -d
+
+
 # Data generation
 
     docker run -it \
