@@ -1,0 +1,19 @@
+version: '2'
+services:
+
+  # The integration test
+  ci:
+    image: quay.io/n1analytics/entity-app:v1
+    environment:
+      - DEBUG=true
+      - ENTITY_SERVICE_URL=http://api:8851/api/v1
+      - ENTITY_SERVICE_TEST_SIZE=1000
+      - ENTITY_SERVICE_TEST_REPEATS=1
+    entrypoint: python test_service.py
+    depends_on:
+      - es_db
+      - es_redis
+      - es_worker
+      - es_nginx
+    networks:
+      es_network:

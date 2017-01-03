@@ -63,6 +63,9 @@ services:
       PUBLIC_IP:
     networks:
       es_network:
+        aliases:
+          - api
+
 
   # A celery monitor
   es_celery_monitor:
