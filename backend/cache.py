@@ -10,6 +10,7 @@ from settings import Config as config
 logger = logging.getLogger('cache')
 redis_host = config.REDIS_SERVER
 
+
 def set_deserialized_filter(dp_id, python_filters):
     logger.debug("Pickling filters and storing in redis")
     key = 'clk-pkl-{}'.format(dp_id)
@@ -66,3 +67,20 @@ def get_progress(resource_id):
         return int(res)
     else:
         return 0
+
+
+def get_status():
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    key = 'entityservice-status'
+    if r.exists(key):
+        logger.debug("returning status from cache")
+        return pickle.loads(r.get(key))
+    else:
+        return None
+
+
+def set_status(status):
+    logger.debug("Saving the service status to redis cache")
+    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r.setex('entityservice-status', 30, pickle.dumps(status))
+
