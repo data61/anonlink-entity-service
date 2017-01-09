@@ -189,7 +189,7 @@ class MappingList(Resource):
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
                                                                     'permutation_unencrypted_mask'}:
-            abort(400, message='result-type must be either "permutation", "mapping" or '
+            abort(400, message='result_type must be either "permutation", "mapping" or '
                                '"permutation_unencrypted_mask"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
