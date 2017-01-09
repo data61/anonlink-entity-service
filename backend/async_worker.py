@@ -221,96 +221,93 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
     # Celery seems to turn dict keys into strings. Top quality bug.
     mapping = {int(k): mapping_old[k] for k in mapping_old}
 
-    db = connect_db()
-    with db.cursor() as cur:
-        logger.info("Creating random permutations")
+    logger.info("Creating random permutations")
+    logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
 
-        logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
+    """
+    Pack all the entities that match in the **same** random locations in both permutations.
+    Then fill in all the gaps!
 
-        """
-        Pack all the entities that match in the **same** random locations in both permutations.
-        Then fill in all the gaps!
+    Dictionaries first, then converted to lists.
+    """
+    smaller_dataset_size = min(len_filters1, len_filters2)
+    logger.info("Smaller dataset size is {}".format(smaller_dataset_size))
+    number_in_common = len(mapping)
+    a_permutation = {}  # Should be length of filters1
+    b_permutation = {}  # length of filters2
 
-        Dictionaries first, then converted to lists.
-        """
-        smaller_dataset_size = min(len_filters1, len_filters2)
-        logger.info("Smaller dataset size is {}".format(smaller_dataset_size))
-        number_in_common = len(mapping)
-        a_permutation = {}  # Should be length of filters1
-        b_permutation = {}  # length of filters2
+    # By default mark all rows as NOT included in the mask
+    mask = {i: False for i in range(smaller_dataset_size)}
 
-        # By default mark all rows as NOT included in the mask
-        mask = {i: False for i in range(smaller_dataset_size)}
+    # start with all the possible indexes
+    remaining_new_indexes = list(range(smaller_dataset_size))
+    logger.info("Shuffling indices for matched entities")
+    random.shuffle(remaining_new_indexes)
+    logger.info("Assigning random indexes for {} matched entities".format(number_in_common))
 
-        # start with all the possible indexes
-        remaining_new_indexes = set(range(smaller_dataset_size))
+    for mapping_number, a_index in enumerate(mapping):
+        b_index = mapping[a_index]
 
-        logger.info("Randomly assigning indexes for {} matched entities".format(number_in_common))
-        for mapping_number, a_index in enumerate(mapping):
-            b_index = mapping[a_index]
+        # Choose the index in the new mapping (randomly)
+        mapping_index = remaining_new_indexes[mapping_number]
 
-            # Choose the index in the new mapping (randomly)
-            mapping_index = random.choice(tuple(remaining_new_indexes))
-            remaining_new_indexes.remove(mapping_index)
+        a_permutation[a_index] = mapping_index
+        b_permutation[b_index] = mapping_index
+
+        # Mark the row included in the mask
+        mask[mapping_index] = True
+
+    remaining_new_indexes = set(remaining_new_indexes[number_in_common:])
+    logger.info("Randomly adding all non matched entities")
+
+    # Note the a and b datasets could be of different size.
+    # At this point, both still have to use the remaining_new_indexes, and any
+    # indexes that go over the number_in_common
+    remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
+    remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
+
+    # DEBUG ONLY TEST
+    a_values = set(a_permutation.values())
+    for i in remaining_a_values:
+        assert i not in a_values
+
+    # Shuffle the remaining indices on each
+    random.shuffle(remaining_a_values)
+    random.shuffle(remaining_b_values)
+
+    # For every element in a's permutation
+    for a_index in range(len_filters1):
+        # Check if it is not already present
+        if a_index not in a_permutation:
+            # This index isn't yet mapped
+
+            # choose and remove a random index from the extended list of those that remain
+            # note this "could" be the same row (a NOP 1-1 permutation)
+            mapping_index = remaining_a_values.pop()
 
             a_permutation[a_index] = mapping_index
+
+    # For every eventual element in a's permutation
+    for b_index in range(len_filters2):
+        # Check if it is not already present
+        if b_index not in b_permutation:
+            # This index isn't yet mapped
+
+            # choose and remove a random index from the extended list of those that remain
+            # note this "could" be the same row (a NOP 1-1 permutation)
+            mapping_index = remaining_b_values.pop()
             b_permutation[b_index] = mapping_index
 
-            # Mark the row included in the mask
-            mask[mapping_index] = True
+    logger.info("Completed new permutations for each party")
 
-        logger.info("Randomly adding all non matched entities")
+    for i, permutation in enumerate([a_permutation, b_permutation]):
+        logger.info("Scheduling a job to save the unencrypted permutation data")
+        # We convert here because celery and dicts with int keys don't play nice
+        perm_list = convert_mapping_to_list(permutation)
+        save_permutation.apply_async((dp_ids[i], perm_list))
 
-        # Note the a and b datasets could be of different size.
-        # At this point, both still have to use the remaining_new_indexes, and any
-        # indexes that go over the number_in_common
-        remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
-        remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
+    save_mask.apply_async((resource_id, smaller_dataset_size, mask, is_mask_to_encrypt))
 
-        # DEBUG ONLY TEST
-        a_values = set(a_permutation.values())
-        for i in remaining_a_values:
-            assert i not in a_values
-
-        # Shuffle the remaining indices on each
-        random.shuffle(remaining_a_values)
-        random.shuffle(remaining_b_values)
-
-        # For every element in a's permutation
-        for a_index in range(len_filters1):
-            # Check if it is not already present
-            if a_index not in a_permutation:
-                # This index isn't yet mapped
-
-                # choose and remove a random index from the extended list of those that remain
-                # note this "could" be the same row (a NOP 1-1 permutation)
-                mapping_index = remaining_a_values.pop()
-
-                a_permutation[a_index] = mapping_index
-
-        # For every eventual element in a's permutation
-        for b_index in range(len_filters2):
-            # Check if it is not already present
-            if b_index not in b_permutation:
-                # This index isn't yet mapped
-
-                # choose and remove a random index from the extended list of those that remain
-                # note this "could" be the same row (a NOP 1-1 permutation)
-                mapping_index = remaining_b_values.pop()
-                b_permutation[b_index] = mapping_index
-
-        logger.info("Completed new permutations for each party")
-
-        for i, permutation in enumerate([a_permutation, b_permutation]):
-            logger.info("Scheduling a job to save the unencrypted permutation data")
-            # We convert here because celery and dicts with int keys don't play nice
-            perm_list = convert_mapping_to_list(permutation)
-            save_permutation.apply_async((dp_ids[i], perm_list))
-
-        save_mask.apply_async((resource_id, smaller_dataset_size, mask, is_mask_to_encrypt))
-
-    # TODO have we made any changes we need to commit?
-    db.commit()
     logger.info("Permutation calculation all scheduled")
 
 

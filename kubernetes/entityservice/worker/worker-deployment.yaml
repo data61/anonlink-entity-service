@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: celery-worker
-        image: quay.io/n1analytics/entity-app:v1.2.2
+        image: quay.io/n1analytics/entity-app:v1.2.3
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
