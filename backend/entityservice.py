@@ -211,16 +211,13 @@ class MappingList(Resource):
         conn = get_db()
         with conn.cursor() as cur:
             app.logger.debug("Starting database transaction")
-            app.logger.debug("Adding mapping")
+            app.logger.debug("Creating a new mapping")
+            mapping_db_id = db.insert_mapping(cur, data, mapping, mapping_resource)
 
-            # Insert public key
             if data['result_type'] == 'permutation':
-                mapping_db_id = db.insert_permutation(cur, data, mapping, mapping_resource)
-            elif data['result_type'] == 'mapping':
-                mapping_db_id = db.insert_mapping(cur, data, mapping, mapping_resource)
-            else:
-                mapping_db_id = db.insert_permutation_unencrypted_mask(cur, data, mapping,
-                                                                       mapping_resource)
+                app.logger.debug("Inserting public key and paillier context into db")
+                paillier_db_id = db.insert_paillier(cur, data, mapping_resource)
+                db.insert_empty_encrypted_mask(cur, mapping_resource, paillier_db_id)
 
             app.logger.debug("New resource id: {}".format(mapping_db_id))
             app.logger.debug("Creating new data provider entries")
@@ -272,6 +269,8 @@ class Mapping(Resource):
             dp_id = dataprovider_id_if_authorize(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
             dp_id = node_id_if_authorize(resource_id, headers.get('Authorization'))
+        else:
+            abort(500, "Unknown error")
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
@@ -293,19 +292,29 @@ class Mapping(Resource):
 
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
-            return {"mapping": mapping['result']}
+            result = db.get_mapping_result(dbinstance, resource_id)
+            return {"mapping": result}
+
         elif mapping['result_type'] == 'permutation':
             app.logger.info("Permutation result being returned")
-            result = json.loads(mapping['result'])
             perm = db.get_permutation_result(dbinstance, dp_id)
-            result['permutation'] = perm
-            return {'permutation': result}
+            return {'permutation': perm}
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
             app.logger.info("Permutation with unencrypted mask result being returned")
-            res = db.get_permutation_unencrypted_mask_result(dbinstance, dp_id, mapping)
+
+            if dp_id == "Coordinator":
+                # The mask is a json blob. Here we transform it back to an
+                # array of 0/1 ints to help the future receiver.
+                mask = db.get_permutation_unencrypted_mask(dbinstance, dp_id, mapping)
+                return {"mask": json.loads(mask)}
+            else:
+                perm = db.get_permutation_result(dbinstance, dp_id)
+                return {
+                    'permutation_unencrypted_mask': perm
+                }
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
-            return {'permutation_unencrypted_mask': res}
+
         else:
             app.logger.warning("Unimplemented result type")
 
@@ -377,7 +386,7 @@ def check_mapping(mapping):
 
 
 def add_mapping_data(dp_id, raw_clks):
-    # Note we don't do this in the worker, because we don't want
+    # Note we don't do this in a worker, because we don't want
     # to introduce a race condition for uploading & checking clk data.
     receipt_token = generate_code()
 

@@ -140,6 +140,38 @@ def get_mapping(db, resource_id):
         [resource_id], one=True)
 
 
+def get_mapping_result(db, resource_id):
+    return query_db(db,
+        """
+        SELECT * from mapping_results
+        WHERE mapping = %s
+        """,
+        [resource_id], one=True)
+
+
+def get_paillier(db, resource_id):
+    """Given a mapping resource, return
+    the Paillier public key and context.
+    """
+    _, mapping_id, _ = check_mapping_ready(db, resource_id)
+    paillier_id = query_db(db, """
+                    SELECT paillier
+                    FROM encrypted_permutation_masks
+                    WHERE
+                      mapping = %s
+                    """, [mapping_id], one=True)['paillier']
+
+    res = query_db(db, """
+                    SELECT public_key, paillier_context
+                    FROM paillier
+                    WHERE
+                      id = %s
+                    """, [paillier_id], one=True)
+    pk = res['public_key']
+    cntx = res['context']
+
+    return pk, cntx
+
 def delete_mapping(db, resource_id):
     mapping_id = get_mapping(db, resource_id)['id']
     with db.cursor() as cur:
@@ -225,22 +257,24 @@ def get_filter(db, dp_id):
 
 def get_permutation_result(db, dp_id):
     return query_db(db,
-        """SELECT raw from permutationdata WHERE dp = %s""",
+        """
+        SELECT permutation FROM permutations
+        WHERE
+          dp = %s
+
+        """,
+        [dp_id], one=True)['permutation']
+
+
+def get_permutation_unencrypted_mask(db, dp_id, mapping):
+
+    return {
+        "permutation": query_db(db, """SELECT raw from permutationdata WHERE dp = %s""",
         [dp_id], one=True)['raw']
-
-
-def get_permutation_unencrypted_mask_result(db, dp_id, mapping):
-    if dp_id == "Coordinator":
-        # The mask is a json blob. Here we transform it back to an
-        # array of 0/1 ints to help the future receiver.
-        return {"mask": json.loads(mapping['result'])}
-    else:
-        return {
-            "permutation": query_db(db, """SELECT raw from permutationdata WHERE dp = %s""",
-            [dp_id], one=True)['raw']
-        }
+    }
 
 # Insertion Queries
+
 
 def insert_comparison_rate(cur, rate):
     return insert_returning_id(cur, """
@@ -267,36 +301,32 @@ def insert_mapping(cur, data, mapping, resource_id):
         ])
 
 
-def insert_permutation(cur, data, mapping, resource_id):
+def insert_paillier(cur, data, resource_id):
     return insert_returning_id(cur, """
-            INSERT INTO mappings
-            (resource_id, access_token, ready, schema, result_type, public_key, paillier_context)
+            INSERT INTO paillier
+            (public_key, paillier_context)
             VALUES
-            (%s, %s, false, %s, %s, %s, %s)
+            (%s, %s)
             RETURNING id;
             """,
             [
-                resource_id, mapping.result_token,
-                psycopg2.extras.Json(data['schema']),
-                data['result_type'],
                 psycopg2.extras.Json(data['public_key']),
                 psycopg2.extras.Json(data['paillier_context'])
             ]
         )
 
-def insert_permutation_unencrypted_mask(cur, data, mapping, resource_id):
+
+def insert_empty_encrypted_mask(cur, resource_id, pid):
     return insert_returning_id(cur, """
-            INSERT INTO mappings
-            (resource_id, access_token, ready, schema, result_type)
+            INSERT INTO encrypted_permutation_masks
+            (mapping, paillier)
             VALUES
-            (%s, %s, false, %s, %s)
+            (%s, %s)
             RETURNING id;
             """,
             [
                 resource_id,
-                mapping.result_token,
-                psycopg2.extras.Json(data['schema']),
-                data['result_type'],
+                pid
             ]
         )
 

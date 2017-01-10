@@ -36,6 +36,8 @@ def get_deserialized_filter(dp_id):
         logger.debug("Deserialising from JSON")
 
         python_filters = []
+        # Note this uses already calculated popcounts unlike
+        # serialization.deserialize_filters()
         for i, (f, cnt) in enumerate(zip(json_serialized_filters, popcnts)):
             ba = serialization.deserialize_bitarray(f)
             python_filters.append((ba, i, cnt))
