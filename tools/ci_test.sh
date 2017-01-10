@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+export COMPOSE_PROJECT_NAME=entityservicetest
+
 # Stop and remove any existing entity service
+docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest stop
 docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down
-docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest rm
 
 # Build the images
 ./tools/build.sh
@@ -17,7 +19,7 @@ docker ps
 docker logs -t -f entityservicetest_ci_1
 
 # Raise the exit code of the tests
-exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci`
+exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci_1`
 
 sleep 5
 cd deploy/entity-service
