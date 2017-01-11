@@ -313,7 +313,7 @@ class Mapping(Resource):
             else:
                 perm = db.get_permutation_result(dbinstance, dp_id)
                 return {
-                    'permutation_unencrypted_mask': perm
+                    'permutation': perm
                 }
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
