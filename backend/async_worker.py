@@ -101,13 +101,7 @@ def calculate_mapping(resource_id):
         return
 
     logger.debug("Getting dp ids for compute similarity task")
-    # Get the data provider IDS
-    dp_ids = list(map(lambda d: d['id'], query_db(db, """
-        SELECT id
-        FROM dataproviders
-        WHERE
-          mapping = %s AND uploaded = TRUE
-        """, [mapping_db_id])))
+    dp_ids = get_dataprovider_ids(db, resource_id)
 
     logger.debug("Data providers: {}".format(dp_ids))
     assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
@@ -142,9 +136,6 @@ def compute_similarity(resource_id, dp_ids):
     filters1 = cache.get_deserialized_filter(dp_ids[0])
     filters2 = cache.get_deserialized_filter(dp_ids[1])
 
-    #serialized_filters1, filter1_popcounts = get_filter(db, dp_ids[0])
-    #serialized_filters2, filter2_popcounts = get_filter(db, dp_ids[1])
-
     lenf1 = len(filters1)
     lenf2 = len(filters2)
 
@@ -166,14 +157,17 @@ def compute_similarity(resource_id, dp_ids):
             "lenf1": lenf1,
             "lenf2": lenf2
         }
-        save_and_permute.delay(res, resource_id, dp_ids)
+        save_and_permute.delay(res, resource_id)
 
     else:
-        logger.debug("Computing similarity using greedy method")
+        logger.info("Computing similarity using greedy method")
 
         logger.debug("Chunking computation task")
 
         chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
+
+        serialized_filters1, filter1_popcounts = get_filter(db, dp_ids[0])
+        # serialized_filters2, filter2_popcounts = get_filter(db, dp_ids[1])
 
         filter1_chunks = chunks(serialized_filters1, chunk_size)
         logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
@@ -181,44 +175,61 @@ def compute_similarity(resource_id, dp_ids):
 
         mapping_future = chord(
             (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
-            aggregate_filter_chunks.s(resource_id, dp_ids, lenf1, lenf2)
+            aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
         ).apply_async()
 
 
 @celery.task()
-def save_and_permute(similarity_result, resource_id, dp_ids):
+def save_and_permute(similarity_result, resource_id):
     logger.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
     db = connect_db()
     _, _, result_type = check_mapping_ready(db, resource_id)
 
-    if result_type == "mapping":
-        # Just save the raw "mapping"
-        logger.debug("Submitting job to save mapping")
-        save_mapping_data.apply_async((mapping, resource_id))
+    # Just save the raw "mapping"
+    logger.info("Saving the resulting map data to the db")
+    with db.cursor() as cur:
+        cur.execute("""
+            UPDATE mapping_results SET
+              result = (%s),
+            WHERE
+              mapping = %s
+            """,
+            [psycopg2.extras.Json(mapping), resource_id])
+    db.commit()
+    logger.info("Mapping saved")
 
-    if result_type == "permutation":
+    if result_type in {"permutation", "permutation_unencrypted_mask"}:
         logger.debug("Submitting job to permute mapping")
-        permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'],
-                                          similarity_result['lenf2'], mapping, dp_ids))
+        permute_mapping_data.apply_async(
+            (
+                resource_id,
+                similarity_result['lenf1'],
+                similarity_result['lenf2']
+            )
+        )
 
-    if result_type == "permutation_unencrypted_mask":
-        logger.debug("Submitting job to permute mapping and encrypt mask")
-        permute_mapping_data.apply_async((resource_id, similarity_result['lenf1'],
-                                          similarity_result['lenf2'], mapping, dp_ids), {"is_mask_to_encrypt": False})
+    # Post similarity computation cleanup
+    logger.info("Removing clk filters from redis cache")
 
-    logger.info("Removing from cache")
+    dp_ids = get_dataprovider_ids(db, resource_id)
     cache.remove_from_cache(dp_ids[0])
     cache.remove_from_cache(dp_ids[1])
-
     calculate_comparison_rate.delay()
 
 
 @celery.task()
-def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, dp_ids, is_mask_to_encrypt=True):
+def permute_mapping_data(resource_id, len_filters1, len_filters2):
+    """
+    Task which will create a permutation after a mapping has been completed.
 
-    # Celery seems to turn dict keys into strings. Top quality bug.
-    mapping = {int(k): mapping_old[k] for k in mapping_old}
+    :param resource_id: The mapping resource
+    :param len_filters1:
+    :param len_filters2:
+
+    """
+    db = connect_db()
+    mapping = json.loads(get_mapping_result(db, resource_id))
 
     logger.info("Creating random permutations")
     logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
@@ -294,29 +305,55 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
 
     logger.info("Completed new permutations for each party")
 
-    for i, permutation in enumerate([a_permutation, b_permutation]):
-        logger.info("Scheduling a job to save the unencrypted permutation data")
-        # We convert here because celery and dicts with int keys don't play nice
-        perm_list = convert_mapping_to_list(permutation)
-        save_permutation.apply_async((dp_ids[i], perm_list))
+    with db.cursor() as cur:
+        dp_ids = get_dataprovider_ids(db, resource_id)
 
-    save_mask.apply_async((resource_id, smaller_dataset_size, mask, is_mask_to_encrypt))
+        for i, permutation in enumerate([a_permutation, b_permutation]):
+            # We convert here because celery and dicts with int keys don't play nice
+            perm_list = convert_mapping_to_list(permutation)
+            logger.debug("Saving a permutation")
 
-    logger.info("Permutation calculation all scheduled")
+            cur.execute("""INSERT INTO permutations
+                        (dp, permutation)
+                        VALUES
+                        (%s, %s)
+                        """,
+                        [dp_ids[i], psycopg2.extras.Json(perm_list)]
+                        )
+
+        logger.debug("Raw permutation data saved. Now saving raw mask")
+
+        # Convert the mask dict to a list of 0/1 ints
+        mask_list = convert_mapping_to_list({
+                                                int(key): 1 if value else 0
+                                                for key, value in mask.items()})
+
+        logger.debug("Saving the mask")
+        json_mask = psycopg2.extras.Json(json.dumps(mask_list))
+        cur.execute("""UPDATE permutation_masks SET
+                      raw = (%s),
+                    WHERE
+                      mapping = %s
+                    """,
+                    [json_mask, resource_id])
+        logger.info("Mask saved")
+    db.commit()
+
+    post_permutation.apply_async((resource_id,))
+
 
 
 @celery.task()
-def save_paillier_mask(resource_id, smaller_dataset_size):
+def paillier_encrypt_mask(resource_id):
     """
     The paillier encrypted mask is saved in the encrypted_permutation_masks table.
     """
 
-
     db = connect_db()
     with db.cursor() as cur:
+        smaller_dataset_size = get_smaller_dataset_size_for_mapping(db, resource_id)
 
-        mask_list =
-
+        mask_list = get_permutation_unencrypted_mask(db, resource_id)
 
         logger.info("Encrypting mask data")
 
@@ -331,66 +368,30 @@ def save_paillier_mask(resource_id, smaller_dataset_size):
         encrypted_mask_future = chord(
             (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
             persist_encrypted_mask.s(dataset_size=smaller_dataset_size,
-                           paillier_context=res['paillier_context'],
+                           paillier_context=cntx,
                            resource_id=resource_id)
         ).apply_async()
 
 
 @celery.task()
-def save_mask(resource_id, smaller_dataset_size, mask):
+def post_permutation(resource_id):
     """
-    The mask is saved in the permutation_masks table.
+    Task to carry out any follow up after the permutation + mask is saved.
     """
-    # The mask has been transformed such than each key is a string instead of an int. Transform back.
-    mask_list = convert_mapping_to_list({
-                                            int(key): 1 if value else 0
-                                            for key, value in mask.items()})
-    db = connect_db()
-    with db.cursor() as cur:
-        logger.info("Saving the mask")
-        json_mask = psycopg2.extras.Json(json.dumps(mask_list))
-        cur.execute("""UPDATE permutation_masks SET
-              raw = (%s),
-            WHERE
-              mapping = %s
-            """,
-            [json_mask, resource_id])
-    db.commit()
-    logger.info("Mask saved")
 
-
-@celery.task()
-def save_permutation(dp, perm_list):
-    logger.debug("Saving a permutation")
+    # If the resource has an encrypted mask type, here we should
+    # trigger the encryption of the mask
 
     db = connect_db()
-    with db.cursor() as cur:
-        cur.execute("""INSERT INTO permutations
-                    (dp, permutation)
-                    VALUES
-                    (%s, %s)
-                    """,
-                [dp, psycopg2.extras.Json(perm_list)]
-                )
-    db.commit()
-    logger.info("Raw permutation data saved")
+    _, _, result_type = check_mapping_ready(db, resource_id)
 
+    if result_type == "permutation":
+        logger.info("Need to encrypt the mask")
+        paillier_encrypt_mask.apply_async((resource_id,))
 
-@celery.task()
-def save_mapping_data(mapping, resource_id):
-    logger.debug("Saving the resulting map data")
-    db = connect_db()
-    with db.cursor() as cur:
-        cur.execute("""
-            UPDATE mapping_results SET
-              result = (%s),
-            WHERE
-              mapping = %s
-            """,
-            [psycopg2.extras.Json(mapping), resource_id])
-    db.commit()
-    logger.info("Mapping saved")
-    return resource_id
+    elif result_type == "permutation_unencrypted_mask":
+        logger.info("No need to encrypt the mask")
+        mark_mapping_complete.apply_async((resource_id,))
 
 
 @celery.task()
@@ -453,7 +454,7 @@ def save_current_progress(comparisons, resource_id):
 
 
 @celery.task()
-def aggregate_filter_chunks(sparse_result_groups, resource_id, dp_ids, lenf1, lenf2):
+def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     sparse_matrix = []
 
     for partial_sparse_result in sparse_result_groups:
@@ -469,7 +470,7 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, dp_ids, lenf1, le
         "lenf1": lenf1,
         "lenf2": lenf2
     }
-    save_and_permute.delay(res, resource_id, dp_ids)
+    save_and_permute.delay(res, resource_id)
 
 
 @celery.task()
@@ -494,6 +495,7 @@ def persist_encrypted_mask(encrypted_mask_chunks, dataset_size, paillier_context
     logger.debug("Committing encrypted permutation data to db")
     db.commit()
     logger.info("Encrypted mask has been saved")
+    mark_mapping_complete.apply_async((resource_id,))
 
 
 @celery.task()

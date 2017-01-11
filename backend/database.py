@@ -86,6 +86,19 @@ def select_dataprovider_id(db, mapping_resource_id, receipt_token):
     return res['dp'] if res is not None else None
 
 
+def get_dataprovider_ids(db, mapping_resource_id):
+    # Get the data provider IDS given a mapping resource
+    dp_ids = list(map(lambda d: d['id'], query_db(db, """
+            SELECT dataproviders.id
+            FROM dataproviders, mappings
+            WHERE
+              mapping.resource_id = %s AND
+              dataproviders.uploaded = TRUE AND
+              mapping.id = dataproviders.mapping
+            """, [mapping_resource_id])))
+    return dp_ids
+
+
 def check_mapping_exists(db, resource_id):
     return query_db(db,
         'select count(*) from mappings WHERE resource_id = %s',
@@ -143,10 +156,10 @@ def get_mapping(db, resource_id):
 def get_mapping_result(db, resource_id):
     return query_db(db,
         """
-        SELECT * from mapping_results
+        SELECT result from mapping_results
         WHERE mapping = %s
         """,
-        [resource_id], one=True)
+        [resource_id], one=True)['result']
 
 
 def get_paillier(db, resource_id):
@@ -171,6 +184,7 @@ def get_paillier(db, resource_id):
     cntx = res['context']
 
     return pk, cntx
+
 
 def delete_mapping(db, resource_id):
     mapping_id = get_mapping(db, resource_id)['id']
@@ -217,6 +231,18 @@ def get_mapping_time(db, resource_id):
     return timedelta(seconds=0) if res is None else res
 
 
+def get_smaller_dataset_size_for_mapping(db, resource_id):
+
+    return query_db(db, """
+        SELECT MIN(bloomingdata.size) as smaller
+        from mappings, dataproviders, bloomingdata
+        where
+          bloomingdata.dp=dataproviders.id AND
+          dataproviders.mapping=mappings.id AND
+          mappings.resource_id=%s""", [resource_id])['smaller']
+
+
+
 def get_total_comparisons_for_mapping(db, resource_id):
     """
     :return total number of comparisons for this job
@@ -256,6 +282,7 @@ def get_filter(db, dp_id):
 
 
 def get_permutation_result(db, dp_id):
+    # Note doesn't include the mask, just the permutation for given dp
     return query_db(db,
         """
         SELECT permutation FROM permutations
@@ -266,12 +293,11 @@ def get_permutation_result(db, dp_id):
         [dp_id], one=True)['permutation']
 
 
-def get_permutation_unencrypted_mask(db, dp_id, mapping):
+def get_permutation_unencrypted_mask(db, mapping_resource_id):
+    return query_db(db, """SELECT raw from permutation_masks
+                    WHERE mapping = %s""",
+        [mapping_resource_id], one=True)['raw']
 
-    return {
-        "permutation": query_db(db, """SELECT raw from permutationdata WHERE dp = %s""",
-        [dp_id], one=True)['raw']
-    }
 
 # Insertion Queries
 
