@@ -22,7 +22,7 @@ services:
 
   # The flask application server
   es_backend:
-    image: quay.io/n1analytics/entity-app:v1.2
+    image: quay.io/n1analytics/entity-app:v1.2.5
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -37,7 +37,7 @@ services:
 
   # A celery worker
   es_worker:
-    image: quay.io/n1analytics/entity-app:v1.2
+    image: quay.io/n1analytics/entity-app:v1.2.5
     depends_on:
       - es_redis
       - es_db
@@ -48,6 +48,7 @@ services:
       # Trade off between more fine grained progress updates & fast processing of small jobs
       # versus incuring additional task overhead too many times.
       - GREEDY_CHUNK_SIZE=100000000
+      - DEBUG=true
     networks:
       es_network:
 

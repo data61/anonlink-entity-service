@@ -48,6 +48,8 @@ def server_status_test():
     logger.debug("Server status:")
     assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
     logger.debug(status.json())
+    version = requests.get(url + '/version')
+    logger.info(version.text)
 
 
 def delete_mapping(id):

@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import logging
 import binascii
 from flask import Flask, g, request
@@ -12,6 +13,8 @@ import database as db
 from serialization import load_public_key, deserialize_filters
 from async_worker import calculate_mapping
 from settings import Config as config
+
+__version__ = open('VERSION').read().strip()
 
 app = Flask(__name__)
 
@@ -361,19 +364,26 @@ class Status(Resource):
     def get(self):
         """Displays the latest mapping statistics"""
 
-        # We ensure we can connect to the database during the status check
-        db1 = get_db()
-        number_of_mappings = db.query_db(db1, '''
-            select COUNT(*) from mappings
-            ''', one=True)['count']
+        status = cache.get_status()
 
-        current_rate = db.get_latest_rate(db1)
+        if status is None:
+            # We ensure we can connect to the database during the status check
+            db1 = get_db()
 
-        return {
-            'status': 'ok',
-            'number_mappings': number_of_mappings,
-            'rate': current_rate
-        }
+            number_of_mappings = db.query_db(db1, '''
+                        SELECT COUNT(*) FROM mappings
+                        ''', one=True)['count']
+
+            current_rate = db.get_latest_rate(db1)
+
+            status = {
+                'status': 'ok',
+                'number_mappings': number_of_mappings,
+                'rate': current_rate
+            }
+
+            cache.set_status(status)
+        return status
 
 
 def check_mapping(mapping):
@@ -402,9 +412,21 @@ def add_mapping_data(dp_id, raw_clks):
     return receipt_token
 
 
+class Version(Resource):
+
+    def get(self):
+        return {
+            'anonlink': anonlink.__version__,
+            'entityservice': __version__,
+            'libc': "".join(platform.libc_ver()),
+            'python': platform.python_version()
+        }
+
+
 api.add_resource(MappingList, '/mappings', endpoint='mapping-list')
 api.add_resource(Mapping, '/mappings/<resource_id>', endpoint='mapping')
 api.add_resource(Status, '/status', endpoint='status')
+api.add_resource(Version, '/version', endpoint='version')
 
 
 def get_db():
@@ -426,11 +448,6 @@ def before_request():
 def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
-
-
-@app.route('/version')
-def version():
-    return 'anonlink: {}'.format(anonlink.__version__)
 
 
 @app.route('/danger/test')
