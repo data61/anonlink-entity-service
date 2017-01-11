@@ -266,11 +266,6 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2, mapping_old, d
     remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
     remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
 
-    # DEBUG ONLY TEST
-    a_values = set(a_permutation.values())
-    for i in remaining_a_values:
-        assert i not in a_values
-
     # Shuffle the remaining indices on each
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
