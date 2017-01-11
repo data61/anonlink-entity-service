@@ -33,10 +33,14 @@ celery.conf.CELERYD_PREFETCH_MULTIPLIER = 1
 @after_setup_logger.connect
 @after_setup_task_logger.connect
 def init_celery_logger(logger, **kwargs):
+
+    level = logging.DEBUG #if config.DEBUG else logging.INFO
+
     for handler in logger.handlers[:]:
         handler.setFormatter(config.consoleFormat)
-        handler.setLevel(logging.INFO)
+        handler.setLevel(level)
 
+    logger.debug("Set logging up")
 
 logger = get_task_logger(__name__)
 logger.info("Setting up celery worker")
@@ -183,21 +187,26 @@ def compute_similarity(resource_id, dp_ids):
 def save_and_permute(similarity_result, resource_id):
     logger.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
+
+    # Note Postgres requires JSON object keys to be strings
+    # Celery actually converts the json arguments in the same way
+
     db = connect_db()
     _, _, result_type = check_mapping_ready(db, resource_id)
 
     # Just save the raw "mapping"
     logger.info("Saving the resulting map data to the db")
     with db.cursor() as cur:
-        cur.execute("""
-            UPDATE mapping_results SET
-              result = (%s),
-            WHERE
-              mapping = %s
+        result_id = insert_returning_id(cur, """
+            INSERT into mapping_results
+              (mapping, result)
+            VALUES
+              (%s, %s)
+            RETURNING id;
             """,
-            [psycopg2.extras.Json(mapping), resource_id])
+            [resource_id, psycopg2.extras.Json(mapping), ])
     db.commit()
-    logger.info("Mapping saved")
+    logger.info("Mapping result saved with id {}".format(result_id))
 
     if result_type in {"permutation", "permutation_unencrypted_mask"}:
         logger.debug("Submitting job to permute mapping")
@@ -229,7 +238,9 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
 
     """
     db = connect_db()
-    mapping = json.loads(get_mapping_result(db, resource_id))
+    mapping_strings = get_mapping_result(db, resource_id)
+
+    mapping = {int(k): mapping_strings[k] for k in mapping_strings}
 
     logger.info("Creating random permutations")
     logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
@@ -276,7 +287,10 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
     remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
 
-    # Shuffle the remaining indices on each
+    logger.info("A has {} remaining positions to fill".format(len(remaining_a_values)))
+    logger.info("B has {} remaining positions to fill".format(len(remaining_b_values)))
+
+    logger.info("Shuffle the remaining indices on each")
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
 
@@ -330,17 +344,16 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
 
         logger.debug("Saving the mask")
         json_mask = psycopg2.extras.Json(json.dumps(mask_list))
-        cur.execute("""UPDATE permutation_masks SET
-                      raw = (%s),
-                    WHERE
-                      mapping = %s
+        cur.execute("""INSERT INTO permutation_masks
+                    (mapping, raw)
+                    VALUES
+                    (%s, %s)
                     """,
-                    [json_mask, resource_id])
+                    [resource_id, json_mask])
         logger.info("Mask saved")
     db.commit()
 
     post_permutation.apply_async((resource_id,))
-
 
 
 @celery.task()

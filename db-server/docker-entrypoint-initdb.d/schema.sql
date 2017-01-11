@@ -79,7 +79,7 @@ CREATE TABLE mapping_results (
   -- Just the table index
   id          SERIAL PRIMARY KEY,
 
-  mapping     INT REFERENCES mappings (resource_id),
+  mapping     CHAR(48) REFERENCES mappings (resource_id),
 
   -- the mapping result as json blob
   result      JSONB
@@ -100,7 +100,7 @@ CREATE TABLE permutations (
 CREATE TABLE permutation_masks (
   id  SERIAL PRIMARY KEY,
 
-  mapping  INT REFERENCES mappings (resource_id),
+  mapping  CHAR(48) REFERENCES mappings (resource_id),
 
   -- Store it in the json form how it will be served
   raw JSONB

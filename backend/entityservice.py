@@ -308,7 +308,7 @@ class Mapping(Resource):
             if dp_id == "Coordinator":
                 # The mask is a json blob. Here we transform it back to an
                 # array of 0/1 ints to help the future receiver.
-                mask = db.get_permutation_unencrypted_mask(dbinstance, dp_id, mapping)
+                mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
                 return {"mask": json.loads(mask)}
             else:
                 perm = db.get_permutation_result(dbinstance, dp_id)

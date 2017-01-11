@@ -92,9 +92,9 @@ def get_dataprovider_ids(db, mapping_resource_id):
             SELECT dataproviders.id
             FROM dataproviders, mappings
             WHERE
-              mapping.resource_id = %s AND
+              mappings.resource_id = %s AND
               dataproviders.uploaded = TRUE AND
-              mapping.id = dataproviders.mapping
+              mappings.id = dataproviders.mapping
             """, [mapping_resource_id])))
     return dp_ids
 
