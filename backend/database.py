@@ -154,6 +154,13 @@ def get_mapping(db, resource_id):
 
 
 def get_mapping_result(db, resource_id):
+    """
+    Return a Python dictionary mapping the index in A to
+    the index in B.
+
+    Note the response is mapping str -> int as both celery and
+    postgres prefer keys to be strings.
+    """
     return query_db(db,
         """
         SELECT result from mapping_results

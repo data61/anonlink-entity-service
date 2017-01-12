@@ -48,7 +48,7 @@ def get_deserialized_filter(dp_id):
 
 
 def remove_from_cache(dp_id):
-    logger.debug("Deleting from redis cache")
+    logger.debug("Deleting CLKS for DP {} from redis cache".format(dp_id))
     r = redis.StrictRedis(host=redis_host, port=6379, db=0)
     key = 'clk-pkl-{}'.format(dp_id)
     r.delete(key)

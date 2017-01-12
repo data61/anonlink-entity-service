@@ -2,7 +2,7 @@ version: '2'
 services:
 
   es_db:
-    image: quay.io/n1analytics/entity-db-server:v1
+    image: quay.io/n1analytics/entity-db-server:v1.1
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
@@ -29,7 +29,6 @@ services:
     depends_on:
       - es_db
       - es_redis
-      - es_worker
     networks:
       es_network:
         aliases:

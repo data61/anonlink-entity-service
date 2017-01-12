@@ -217,6 +217,9 @@ def save_and_permute(similarity_result, resource_id):
                 similarity_result['lenf2']
             )
         )
+    else:
+        logger.info("Mark mapping job as complete")
+        mark_mapping_complete.delay(resource_id)
 
     # Post similarity computation cleanup
     logger.info("Removing clk filters from redis cache")
@@ -238,9 +241,9 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
 
     """
     db = connect_db()
-    mapping_strings = get_mapping_result(db, resource_id)
+    mapping_str = get_mapping_result(db, resource_id)
 
-    mapping = {int(k): mapping_strings[k] for k in mapping_strings}
+    mapping = {int(k): mapping_str[k] for k in mapping_str}
 
     logger.info("Creating random permutations")
     logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
@@ -290,7 +293,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     logger.info("A has {} remaining positions to fill".format(len(remaining_a_values)))
     logger.info("B has {} remaining positions to fill".format(len(remaining_b_values)))
 
-    logger.info("Shuffle the remaining indices on each")
+    logger.info("Shuffle the remaining indices")
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
 
