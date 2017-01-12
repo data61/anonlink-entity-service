@@ -11,6 +11,8 @@ docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest down -v
 # Build the images
 ./build.sh
 
+
+
 # Start all the containers
 docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest up -d
 
