@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
-cd backend
+cd $(dirname "$0")
+
+cd ../backend
 export APPVERSION=$(cat VERSION)
 docker build -t quay.io/n1analytics/entity-app:$APPVERSION .
 cd ../frontend

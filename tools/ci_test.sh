@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 
+set -e
+cd $(dirname "$0")
+
 export COMPOSE_PROJECT_NAME=entityservicetest
 
 # Stop and remove any existing entity service
-docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down -v
+docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest down -v
 
 # Build the images
-./tools/build.sh
+./build.sh
 
 # Start all the containers
-docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
+docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest up -d
 
 sleep 5
 docker ps
