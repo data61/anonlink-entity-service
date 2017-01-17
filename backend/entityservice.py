@@ -5,7 +5,6 @@ import logging
 import binascii
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
-from pympler import muppy, summary, tracker
 
 import anonlink
 import cache
@@ -97,6 +96,7 @@ def is_receipt_token_valid(resource_id, receipt_token):
 def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
     if not is_results_token_valid(resource_id, results_token):
+        app.logger.debug("Auth invalid")
         abort(403, message="Invalid access token")
 
 
@@ -134,7 +134,7 @@ def check_public_key(pk):
     Check we can unmarshal the public key, and that it has sufficient length.
     """
     publickey = load_public_key(pk)
-    return publickey.max_int > 2**1024
+    return publickey.max_int >= 2 ** config.ENCRYPTION_MIN_KEY_LENGTH
 
 
 def generate_code(length=24):
@@ -299,21 +299,25 @@ class Mapping(Resource):
             return {"mapping": result}
 
         elif mapping['result_type'] == 'permutation':
-            app.logger.info("Permutation result being returned")
-            perm = db.get_permutation_result(dbinstance, dp_id)
-            return {'permutation': perm}
+            app.logger.info("Encrypted permutation result being returned")
+            return db.get_permutation_encrypted_result_with_mask(dbinstance, resource_id, dp_id)
+
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
-            app.logger.info("Permutation with unencrypted mask result being returned")
+            app.logger.info("Permutation with unencrypted mask result type")
 
             if dp_id == "Coordinator":
-                # The mask is a json blob. Here we transform it back to an
-                # array of 0/1 ints to help the future receiver.
+                app.logger.info("Returning unencrypted mask to coordinator")
+                # The mask is a json blob of an
+                # array of 0/1 ints
                 mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
                 return {"mask": json.loads(mask)}
             else:
                 perm = db.get_permutation_result(dbinstance, dp_id)
+                rows = db.get_smaller_dataset_size_for_mapping(dbinstance, resource_id)
+
                 return {
-                    'permutation': perm
+                    'permutation': perm,
+                    'rows': rows
                 }
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.

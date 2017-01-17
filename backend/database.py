@@ -173,16 +173,15 @@ def get_paillier(db, resource_id):
     """Given a mapping resource, return
     the Paillier public key and context.
     """
-    _, mapping_id, _ = check_mapping_ready(db, resource_id)
     paillier_id = query_db(db, """
                     SELECT paillier
                     FROM encrypted_permutation_masks
                     WHERE
                       mapping = %s
-                    """, [mapping_id], one=True)['paillier']
+                    """, [resource_id], one=True)['paillier']
 
     res = query_db(db, """
-                    SELECT public_key, paillier_context
+                    SELECT public_key, context
                     FROM paillier
                     WHERE
                       id = %s
@@ -242,11 +241,11 @@ def get_smaller_dataset_size_for_mapping(db, resource_id):
 
     return query_db(db, """
         SELECT MIN(bloomingdata.size) as smaller
-        from mappings, dataproviders, bloomingdata
-        where
+        FROM mappings, dataproviders, bloomingdata
+        WHERE
           bloomingdata.dp=dataproviders.id AND
           dataproviders.mapping=mappings.id AND
-          mappings.resource_id=%s""", [resource_id])['smaller']
+          mappings.resource_id=%s""", [resource_id], one=True)['smaller']
 
 
 
@@ -301,9 +300,32 @@ def get_permutation_result(db, dp_id):
 
 
 def get_permutation_unencrypted_mask(db, mapping_resource_id):
-    return query_db(db, """SELECT raw from permutation_masks
-                    WHERE mapping = %s""",
+    return query_db(db,
+        """SELECT raw from permutation_masks
+        WHERE mapping = %s
+        """,
         [mapping_resource_id], one=True)['raw']
+
+
+def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
+    # Query to fetch the full result for the 'permutation' result type
+    return query_db(db,
+        """
+        SELECT
+          permutations.permutation AS permutation,
+          encrypted_permutation_masks.raw AS mask,
+          paillier.context AS paillier_context
+        FROM
+          encrypted_permutation_masks,
+          permutations,
+          paillier
+        WHERE
+          encrypted_permutation_masks.paillier = paillier.id AND
+          permutations.dp = %s AND
+          mapping = %s
+
+        """,
+        [dp_id, mapping_resource_id], one=True)
 
 
 # Insertion Queries
@@ -337,7 +359,7 @@ def insert_mapping(cur, data, mapping, resource_id):
 def insert_paillier(cur, data, resource_id):
     return insert_returning_id(cur, """
             INSERT INTO paillier
-            (public_key, paillier_context)
+            (public_key, context)
             VALUES
             (%s, %s)
             RETURNING id;
@@ -402,11 +424,5 @@ def insert_raw_filter_data(db, clks, dp_id, receipt_token, clkcounts):
             """, [dp_id])
 
     db.commit()
-
-
-if __name__ == "__main__":
-
-    db = connect_db()
-
 
 
