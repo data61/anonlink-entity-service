@@ -5,8 +5,8 @@ metadata:
 spec:
   type: LoadBalancer
   # Can lock down access to an IP range:
-  loadBalancerSourceRanges:
-  - 130.155.157.5/24
+#  loadBalancerSourceRanges:
+#  - 130.155.157.5/24
   ports:
   - port: 443
     protocol: TCP
@@ -25,8 +25,6 @@ spec:
       labels:
         tier: aux
         run: n1-py-notebook
-      annotations:
-        scheduler.alpha.kubernetes.io/tolerations: '[{"key":"dedicated", "value":"management"}]'
     spec:
       containers:
       - name: n1-py-notebook
@@ -41,5 +39,12 @@ spec:
           value: "yes"
         - name: GRANT_SUDO
           value: "yes"
+        volumeMounts:
+          - mountPath: "/data"
+            name: data-volume
       imagePullSecrets:
       - name: n1analytics-coreos-pull-secret
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: es-job-data

@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: n1.test.e2e.10000.repeat.parallel
 spec:
-  completions: 100
-  parallelism: 50
+  completions: 2
+  parallelism: 2
   template:
     metadata:
       labels:
@@ -21,9 +21,9 @@ spec:
           - name: ENTITY_SERVICE_URL
             value: http://entityservice-api/api/v1
           - name: ENTITY_SERVICE_TEST_SIZE
-            value: "10000"
+            value: "1000"
           - name: ENTITY_SERVICE_TEST_REPEATS
-            value: "100"
+            value: "10"
           - name: ENTITY_SERVICE_PERMUTATION
             value: "true"
           - name: LOGGING_LEVEL
