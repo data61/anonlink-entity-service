@@ -317,13 +317,13 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation']['permutation'][original_a_index]
+        new_index = mapping_result_a['permutation'][original_a_index]
         if new_index < 10:
             logger.info(original_a_index, " -> ", new_index, element)
 
     logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation']['permutation'][original_b_index]
+        new_index = mapping_result_b['permutation'][original_b_index]
         if new_index < 10:
             # Encrypted mask:
             # mapping_result_b['permutation']['mask']
@@ -335,7 +335,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         BASE = base
         LOG2_BASE = math.log(BASE, 2)
 
-    encrypted_mask = [paillier.EncryptedNumber(pub, int(m)) for m in mapping_result_b['permutation']['mask'][:10]]
+    encrypted_mask = [paillier.EncryptedNumber(pub, phe.util.base64_to_int(m)) for m in mapping_result_b['mask'][:10]]
 
     decrypted_mask = [priv.decrypt_encoded(e, Encoding=EntityEncodedNumber).decode() for e in encrypted_mask]
     logger.info(decrypted_mask)
@@ -351,7 +351,6 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     logger.debug(requests.get(url + '/mappings').json())
 
     logger.info('Starting permutation_unencrypted_mask_test')
-    # ('INDEX', 'NAME freetext', 'DOB YYYY/MM/DD', 'GENDER M or F')
     schema = [
         {"identifier": "INDEX",          "weight": 0, "notes":""},
         {"identifier": "NAME freetext",  "weight": 1, "notes": "max length set to 128"},
@@ -474,7 +473,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     logger.info("Mapping from coordinator: {}".format(response_coordinator.json()))
 
     assert response_coordinator.status_code == 200
-    mask = response_coordinator.json()['permutation_unencrypted_mask']['mask']
+    mask = response_coordinator.json()['mask']
     logger.debug(response_coordinator.json())
 
     #delete_mapping(id)
@@ -482,13 +481,13 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation_unencrypted_mask']['permutation'][original_a_index]
+        new_index = mapping_result_a['permutation'][original_a_index]
         if new_index < 10:
             logger.info("{} -> {} {}".format(original_a_index, new_index, element))
 
     logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation_unencrypted_mask']['permutation'][original_b_index]
+        new_index = mapping_result_b['permutation'][original_b_index]
         if new_index < 10:
             logger.info("{} -> {} {}".format(original_b_index, new_index, element))
 
@@ -539,6 +538,7 @@ def timing_test(outfile=None):
 
         start = time.time()
 
+        # Switch method if more interested in the encrypted or non masked versions:
         #permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         #mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
@@ -549,6 +549,16 @@ def timing_test(outfile=None):
         print(
             "Permutation test with {} entities complete after {:.3f} seconds".format(size, elapsed),
             file=outfile)
+
+
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
 
 if __name__ == "__main__":
 
@@ -574,19 +584,21 @@ if __name__ == "__main__":
         permutation_times = []
 
         for i in range(repeats):
-            mapping_start = time.time()
-            mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-            mapping_times.append(time.time() - mapping_start)
+            with Timer() as mapping_timer:
+                mapping_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+            mapping_times.append(mapping_timer.interval)
 
         if do_permutation_test:
             logger.info("Doing permutation with encrypted mask test")
             for i in range(repeats):
-                perm_start = time.time()
-                permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
-                permutation_times.append(time.time() - perm_start)
-            print("---> Permutation test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
+                with Timer() as perm_timer:
+                    permutation_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+                permutation_times.append(perm_timer.interval)
+            print("---> Permutation (encrypted) test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
 
         print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
         print("---> Number of entities: {}".format(size))
 
-        permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        with Timer() as t:
+            permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+        print("---> Permutation (unencrypted) test took {:.3f} seconds".format(t.interval))

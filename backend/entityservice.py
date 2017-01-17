@@ -310,7 +310,7 @@ class Mapping(Resource):
                 # The mask is a json blob of an
                 # array of 0/1 ints
                 mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
-                return {"mask": json.loads(mask)}
+                return {"mask": mask}
             else:
                 perm = db.get_permutation_result(dbinstance, dp_id)
                 rows = db.get_smaller_dataset_size_for_mapping(dbinstance, resource_id)
