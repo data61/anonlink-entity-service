@@ -32,6 +32,8 @@ class Config(object):
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }
 
+    ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
+
     ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
 
     # Matches that have more than this number of entities will use the

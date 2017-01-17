@@ -44,6 +44,7 @@ services:
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.95
+      - ENCRYPTION_MIN_KEY_LENGTH=1024
       # Trade off between more fine grained progress updates & fast processing of small jobs
       # versus incuring additional task overhead too many times.
       - GREEDY_CHUNK_SIZE=100000000
@@ -73,7 +74,6 @@ services:
     image: quay.io/n1analytics/entity-app:v1
     depends_on:
       - es_redis
-      - es_worker
     entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
     networks:
       es_network:
