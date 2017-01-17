@@ -11,7 +11,7 @@ from celery.utils.log import get_task_logger
 import psycopg2.extras
 
 import cache
-from serialization import deserialize_filters, load_public_key
+from serialization import deserialize_filters, load_public_key, int_to_base64, base64_to_int
 from database import *
 from settings import Config as config
 
@@ -68,7 +68,8 @@ def encrypt_vector(values, public_key, base):
 
     Note the exponent will always be 0
 
-    :return list of encrypted ciphertext strings
+    :param values: List of booleans.
+    :return list of base64 encoded encrypted ciphertext strings
     """
 
     # Only use this for testing purposes!
@@ -87,11 +88,13 @@ def encrypt_vector(values, public_key, base):
 
     precision = 1e3
 
-    encoded_mask = [EntityEncodedNumber.encode(public_key, x) for x in values]
+    encoded_mask = [EntityEncodedNumber.encode(public_key, int(x)) for x in values]
 
     encrypted_mask = [public_key.encrypt(enc, precision).ciphertext() for enc in encoded_mask]
 
-    return encrypted_mask
+    base64_encoded_mask = [int_to_base64(m) for m in encrypted_mask]
+
+    return base64_encoded_mask
 
 
 @celery.task()
@@ -346,7 +349,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
                                                 for key, value in mask.items()})
 
         logger.debug("Saving the mask")
-        json_mask = psycopg2.extras.Json(json.dumps(mask_list))
+        json_mask = psycopg2.extras.Json(mask_list)
         cur.execute("""INSERT INTO permutation_masks
                     (mapping, raw)
                     VALUES
@@ -367,8 +370,6 @@ def paillier_encrypt_mask(resource_id):
 
     db = connect_db()
     with db.cursor() as cur:
-        smaller_dataset_size = get_smaller_dataset_size_for_mapping(db, resource_id)
-
         mask_list = get_permutation_unencrypted_mask(db, resource_id)
 
         logger.info("Encrypting mask data")
@@ -383,9 +384,9 @@ def paillier_encrypt_mask(resource_id):
         # individual tasks are applied in a worker instead
         encrypted_mask_future = chord(
             (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
-            persist_encrypted_mask.s(dataset_size=smaller_dataset_size,
-                           paillier_context=cntx,
-                           resource_id=resource_id)
+            persist_encrypted_mask.s(
+                paillier_context=cntx,
+                resource_id=resource_id)
         ).apply_async()
 
 
@@ -479,6 +480,10 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     logger.debug("Calculating the optimal mapping from similarity matrix")
     mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
+    logger.debug("Converting all indicies to strings")
+    for key in mapping:
+        mapping[key] = str(mapping[key])
+
     logger.info("Entity mapping has been computed")
 
     res = {
@@ -490,22 +495,21 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
 
 
 @celery.task()
-def persist_encrypted_mask(encrypted_mask_chunks, dataset_size, paillier_context, resource_id):
+def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
     encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+
+
 
     db = connect_db()
     with db.cursor() as cur:
         logger.info("Serializing encrypted permutation data")
-        result_to_save = psycopg2.extras.Json(json.dumps(
-            {"rows": dataset_size, "mask": encrypted_mask, "paillier_context": paillier_context}))
+        result_to_save = psycopg2.extras.Json(encrypted_mask)
 
         logger.info("Inserting encrypted permutation data to db")
-        cur.execute("""UPDATE mappings SET
-                    result = (%s),
-                    ready = TRUE,
-                    time_completed = now()
+        cur.execute("""UPDATE encrypted_permutation_masks SET
+                    raw = (%s)
                     WHERE
-                    resource_id = %s
+                    mapping = %s
                     """,
                     [result_to_save, resource_id])
     logger.debug("Committing encrypted permutation data to db")

@@ -102,8 +102,9 @@ CREATE TABLE permutation_masks (
 
   mapping  CHAR(48) REFERENCES mappings (resource_id),
 
-  -- Store it in the json form how it will be served
-  raw JSONB
+  -- Store the mask in the json form how it will be served
+  -- A list of [0, 1, 0...]
+  raw   JSONB
 );
 
 
@@ -124,7 +125,7 @@ CREATE TABLE paillier (
 CREATE TABLE encrypted_permutation_masks (
   id  SERIAL PRIMARY KEY,
 
-  mapping  INT REFERENCES mappings (id),
+  mapping  CHAR(48) REFERENCES mappings (resource_id),
 
   paillier  INT REFERENCES paillier (id),
 
