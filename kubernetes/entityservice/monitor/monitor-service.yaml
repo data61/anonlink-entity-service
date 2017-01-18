@@ -13,7 +13,3 @@ spec:
     app: entityservice
     tier: aux
     run: celery-monitor
-#  type: LoadBalancer
-# Can lock down access to an IP range:
-#  loadBalancerSourceRanges:
-#  - 130.155.157.5/24

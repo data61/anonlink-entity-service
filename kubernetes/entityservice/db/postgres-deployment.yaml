@@ -12,7 +12,7 @@ spec:
         run: postgres
     spec:
       containers:
-      - image: quay.io/n1analytics/entity-db-server:v1
+      - image: quay.io/n1analytics/entity-db-server:v1.1
         name: entityservice-db
         env:
         - name: POSTGRES_PASSWORD

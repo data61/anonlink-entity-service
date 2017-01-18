@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: celery-worker
-        image: quay.io/n1analytics/entity-app:v1.2.5
+        image: quay.io/n1analytics/entity-app:v1.3.0
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
@@ -31,6 +31,8 @@ spec:
             value: "0.95"
           - name: GREEDY_CHUNK_SIZE
             value: "100000000"
+          - name: ENCRYPTION_MIN_KEY_LENGTH
+            value: "512"
         command:
           - "/usr/local/bin/celery"
           - "-A"

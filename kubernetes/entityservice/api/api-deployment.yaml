@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: entityservice-nginx
-        image: quay.io/n1analytics/entity-nginx:v1.2.3
+        image: quay.io/n1analytics/entity-nginx:v1.2
         imagePullPolicy: Always
         ports:
         - containerPort: 8851
@@ -27,7 +27,7 @@ spec:
               # SIGTERM triggers a quick exit; gracefully terminate instead
               command: ["/usr/sbin/nginx","-s","quit"]
       - name: entityservice-flask
-        image: quay.io/n1analytics/entity-app:v1.2.5
+        image: quay.io/n1analytics/entity-app:v1.3.0
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
