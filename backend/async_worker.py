@@ -339,9 +339,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
         for i, permutation in enumerate([a_permutation, b_permutation]):
             # We convert here because celery and dicts with int keys don't play nice
 
-            perm_str = {str(k): str(permutation[k]) for k in permutation}
-
-            perm_list = convert_mapping_to_list(perm_str)
+            perm_list = convert_mapping_to_list(permutation)
             logger.debug("Saving a permutation")
 
             cur.execute("""INSERT INTO permutations

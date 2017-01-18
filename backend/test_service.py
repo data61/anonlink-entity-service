@@ -317,13 +317,13 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation'][original_a_index]
+        new_index = int(mapping_result_a['permutation'][original_a_index])
         if new_index < 10:
-            logger.info(original_a_index, " -> ", new_index, element)
+            logger.info("{} -> {} {}".format(original_a_index, new_index, element))
 
     logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation'][original_b_index]
+        new_index = int(mapping_result_b['permutation'][original_b_index])
         if new_index < 10:
             # Encrypted mask:
             # mapping_result_b['permutation']['mask']
@@ -481,13 +481,13 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     # Now we will print a few sample matches...
 
     for original_a_index, element in enumerate(s1):
-        new_index = mapping_result_a['permutation'][original_a_index]
+        new_index = int(mapping_result_a['permutation'][original_a_index])
         if new_index < 10:
             logger.info("{} -> {} {}".format(original_a_index, new_index, element))
 
     logger.info("\nOrg 2\n")
     for original_b_index, element in enumerate(s2):
-        new_index = mapping_result_b['permutation'][original_b_index]
+        new_index = int(mapping_result_b['permutation'][original_b_index])
         if new_index < 10:
             logger.info("{} -> {} {}".format(original_b_index, new_index, element))
 
@@ -562,7 +562,7 @@ class Timer:
 
 if __name__ == "__main__":
 
-    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "100"))
+    size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "1000"))
     repeats = int(os.environ.get("ENTITY_SERVICE_TEST_REPEATS", "1"))
     do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
     do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
@@ -578,6 +578,7 @@ if __name__ == "__main__":
         delete_all_mappings()
     else:
         logger.info("Carrying out e2e test")
+        print("---> Number of entities: {}".format(size))
         party1_filters, party2_filters, s1, s2 = generate_test_data(size)
 
         mapping_times = []
@@ -597,7 +598,6 @@ if __name__ == "__main__":
             print("---> Permutation (encrypted) test took an average of {:.3f} seconds".format(sum(permutation_times)/repeats))
 
         print("---> Mapping test took an average of {:.3f} seconds".format(sum(mapping_times)/repeats))
-        print("---> Number of entities: {}".format(size))
 
         with Timer() as t:
             permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
