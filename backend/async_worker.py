@@ -47,7 +47,14 @@ logger.info("Setting up celery worker")
 
 
 def convert_mapping_to_list(permutation):
-    """Convert the permutation from a dict mapping into a list"""
+    """Convert the permutation from a dict mapping into a list
+
+    Assumes the keys and values of the given dict are numbers in the
+    inclusive range from 0 to length. Note the keys should be int.
+
+    Returns a list of the values from the passed dict - in the order
+    defined by the keys.
+    """
     l = len(permutation)
 
     perm_list = []
@@ -137,7 +144,6 @@ def compute_similarity(resource_id, dp_ids):
     """
 
     logger.info("Pulling CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
-    #db = connect_db()
 
     # Prime the redis cache
     filters1 = cache.get_deserialized_filter(dp_ids[0])
@@ -172,7 +178,7 @@ def compute_similarity(resource_id, dp_ids):
         logger.debug("Chunking computation task")
 
         chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
-
+        db = connect_db()
         serialized_filters1, filter1_popcounts = get_filter(db, dp_ids[0])
         # serialized_filters2, filter2_popcounts = get_filter(db, dp_ids[1])
 
@@ -246,7 +252,8 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     db = connect_db()
     mapping_str = get_mapping_result(db, resource_id)
 
-    mapping = {int(k): mapping_str[k] for k in mapping_str}
+    # Convert to int: int
+    mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
 
     logger.info("Creating random permutations")
     logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
@@ -300,6 +307,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
 
+
     # For every element in a's permutation
     for a_index in range(len_filters1):
         # Check if it is not already present
@@ -330,7 +338,10 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
 
         for i, permutation in enumerate([a_permutation, b_permutation]):
             # We convert here because celery and dicts with int keys don't play nice
-            perm_list = convert_mapping_to_list(permutation)
+
+            perm_str = {str(k): str(permutation[k]) for k in permutation}
+
+            perm_list = convert_mapping_to_list(perm_str)
             logger.debug("Saving a permutation")
 
             cur.execute("""INSERT INTO permutations
