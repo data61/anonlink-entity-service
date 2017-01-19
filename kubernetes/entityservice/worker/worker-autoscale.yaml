@@ -8,5 +8,5 @@ spec:
     kind: Deployment
     name: entityservice-worker
   minReplicas: 1
-  maxReplicas: 6
+  maxReplicas: 20
   targetCPUUtilizationPercentage: 75

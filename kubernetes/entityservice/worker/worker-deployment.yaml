@@ -32,13 +32,12 @@ spec:
           - name: GREEDY_CHUNK_SIZE
             value: "100000000"
           - name: ENCRYPTION_MIN_KEY_LENGTH
-            value: "512"
+            value: "1024"
         command:
           - "/usr/local/bin/celery"
           - "-A"
           - "async_worker"
           - "worker"
           - "--loglevel=info"
-          - "--concurrency=10"
       imagePullSecrets:
         - name: n1analytics-coreos-pull-secret
