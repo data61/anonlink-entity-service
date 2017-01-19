@@ -44,6 +44,16 @@ def connect_db():
     return conn
 
 
+class DBConn:
+    def __enter__(self):
+        self.conn = connect_db()
+        return self.conn
+
+    def __exit__(self, *args):
+        self.conn.commit()
+        self.conn.close()
+
+
 def insert_returning_id(cur, query, args):
     """
 

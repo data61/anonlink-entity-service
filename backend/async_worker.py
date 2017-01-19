@@ -442,10 +442,10 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
     logger.info("Computing similarity for a chunk of filters")
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
-    db = connect_db()
-    if not check_mapping_exists(db, resource_id):
-        logger.warning("Skipping as resource not found.")
-        return None
+    with DBConn() as db:
+        if not check_mapping_exists(db, resource_id):
+            logger.warning("Skipping as resource not found.")
+            return None
 
     t0 = time.time()
     logger.debug("Deserializing chunked filters")
@@ -506,8 +506,6 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
 @celery.task()
 def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
     encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
-
-
 
     db = connect_db()
     with db.cursor() as cur:
