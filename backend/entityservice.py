@@ -363,6 +363,32 @@ class Mapping(Resource):
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
 
 
+class MappingStatus(Resource):
+
+    """
+    Status of a particular mappings
+    """
+
+    def get(self, resource_id):
+        mapping_resource_fields = {
+            'ready': fields.Boolean,
+            'time_added': fields.DateTime(dt_format='iso8601'),
+            'time_started': fields.DateTime(dt_format='iso8601'),
+            'time_completed': fields.DateTime(dt_format='iso8601')
+        }
+
+        app.logger.debug("Getting list of all mappings")
+        query = '''
+        SELECT ready, time_added, time_started, time_completed
+        FROM mappings
+        WHERE
+        resource_id = %s
+        '''
+
+        stats = db.query_db(get_db(), query, (resource_id,), one=True)
+        return marshal(stats, mapping_resource_fields)
+
+
 class Status(Resource):
 
     def get(self):
@@ -429,6 +455,7 @@ class Version(Resource):
 
 api.add_resource(MappingList, '/mappings', endpoint='mapping-list')
 api.add_resource(Mapping, '/mappings/<resource_id>', endpoint='mapping')
+api.add_resource(MappingStatus, '/mappings/<resource_id>/status', endpoint='mapping-stats')
 api.add_resource(Status, '/status', endpoint='status')
 api.add_resource(Version, '/version', endpoint='version')
 
