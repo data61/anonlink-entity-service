@@ -13,8 +13,12 @@ spec:
     spec:
       containers:
       - name: entityservice-nginx
-        image: quay.io/n1analytics/entity-nginx:v1.2.3
+        image: quay.io/n1analytics/entity-nginx:v1.2.4
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "256Mi"
+
         ports:
         - containerPort: 8851
           name: entity-nginx
@@ -29,6 +33,9 @@ spec:
       - name: entityservice-flask
         image: quay.io/n1analytics/entity-app:v1.3.0
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "2048Mi"
         env:
           - name: REDIS_SERVER
             value: entityservice-redis

@@ -8,7 +8,7 @@ then
     echo "Pushing images to quay.io";
     export APPVERSION=$(cat ../backend/VERSION);
     docker push quay.io/n1analytics/entity-app:$APPVERSION;
-    docker push quay.io/n1analytics/entity-nginx:v1.2.3;
+    docker push quay.io/n1analytics/entity-nginx:v1.2.4;
     docker push quay.io/n1analytics/entity-db-server:v1.1;
 else
     echo "Skipping upload as not in master branch";

@@ -54,7 +54,7 @@ services:
       es_network:
 
   es_nginx:
-    image: quay.io/n1analytics/entity-nginx:v1.2.3
+    image: quay.io/n1analytics/entity-nginx:v1.2.4
     ports:
       - "8851:8851"
     depends_on:
