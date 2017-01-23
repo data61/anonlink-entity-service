@@ -42,7 +42,7 @@ def deserialize_filters(filters):
     """
     Deserialise iterable of base64 encoded clks.
 
-    Carrying out the popcount as we go.
+    Carrying out the popcount and adding the index as we go.
     """
     res = []
     for i, f in enumerate(filters):

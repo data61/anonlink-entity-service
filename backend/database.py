@@ -409,20 +409,20 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
         )
 
 
-def insert_raw_filter_data(db, clks, dp_id, receipt_token, clkcounts):
-    size = len(clks)
+def insert_raw_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
+    size = len(clkcounts)
     with db.cursor() as cur:
         logger.info("Adding blooming data to database")
         cur.execute("""
             INSERT INTO bloomingdata
-            (dp, token, raw, size, popcounts)
+            (dp, token, file, size, popcounts)
             VALUES
             (%s, %s, %s, %s, %s)
             """,
             [
                 dp_id,
                 receipt_token,
-                psycopg2.extras.Json(clks),
+                clks_filename,
                 size,
                 psycopg2.extras.Json(clkcounts)
              ])

@@ -18,8 +18,14 @@ class Config(object):
     consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
                                       datefmt="%H:%M:%S")
 
-    DATABASE_SERVER = os.environ.get('DATABASE_SERVER', 'db')
     REDIS_SERVER = os.environ.get('REDIS_SERVER', 'redis')
+
+    MINIO_SERVER = os.environ.get('MINIO_SERVER', 'minio:9000')
+    MINIO_ACCESS_KEY = os.environ.get('MINIO_ACCESS_KEY', '')
+    MINIO_SECRET_KEY = os.environ.get('MINIO_SECRET_KEY', '')
+    MINIO_BUCKET = os.environ.get('MINIO_BUCKET', 'entityservice')
+
+    DATABASE_SERVER = os.environ.get('DATABASE_SERVER', 'db')
     DATABASE = os.environ.get('DATABASE', 'postgres')
     DATABASE_USER = os.environ.get('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD', '')

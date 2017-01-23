@@ -9,3 +9,4 @@ redis==2.10.5
 phe==1.2.3
 pympler==0.4.3
 -e git+ssh://git@github.csiro.au/magic/AnonymousLinking.git#egg=anonlink
+minio

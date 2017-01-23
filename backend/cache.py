@@ -18,6 +18,8 @@ def set_deserialized_filter(dp_id, python_filters):
     pickled_filters = pickle.dumps(python_filters)
     r.set(key, pickled_filters)
 
+    return pickled_filters
+
 
 def get_deserialized_filter(dp_id):
     """Cached, deserialized version.

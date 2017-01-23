@@ -13,6 +13,21 @@ services:
         aliases:
           - db
 
+  es_minio:
+    image: minio/minio
+    command: server /export
+    ports:
+      - "9000:9000"
+    environment:
+      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    networks:
+      es_network:
+        aliases:
+          - minio
+    volumes:
+      - es_minio:/export
+
   es_redis:
     image: redis:3.2
     networks:
@@ -26,6 +41,9 @@ services:
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
+      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
     depends_on:
       - es_db
       - es_redis
@@ -87,3 +105,4 @@ networks:
 
 volumes:
   es_psql:
+  es_minio:

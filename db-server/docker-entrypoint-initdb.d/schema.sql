@@ -64,12 +64,12 @@ CREATE TABLE bloomingdata (
   -- The receipt token for this data
   token    CHAR(48) NOT NULL UNIQUE,
 
-  -- Store it in the form given
-  raw JSONB,
+  -- Store the raw CLK data in a file
+  file     CHAR(64) NOT NULL,
 
   size  INT NOT NULL,
   -- Note the number of entries can also be calculated:
-  -- jsonb_array_length(raw)
+  -- jsonb_array_length(popcounts)
 
   popcounts JSONB
 );

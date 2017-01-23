@@ -1,11 +1,12 @@
 import json
 import os
+import tempfile
 import platform
 import logging
 import binascii
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
-
+import minio
 import anonlink
 import cache
 import database as db
@@ -426,18 +427,49 @@ def check_mapping(mapping):
 
 
 def add_mapping_data(dp_id, raw_clks):
-    # Note we don't do this in a worker, because we don't want
-    # to introduce a race condition for uploading & checking clk data.
+    """
+    Deserialize, popcount and save raw CLK hashes.
+
+    Note we don't do this in a worker, because we don't want
+    to introduce a race condition for uploading & checking clk data.
+    """
     receipt_token = generate_code()
 
     app.logger.info("Deserialisation of filters from json")
     python_filters = deserialize_filters(raw_clks)
     clkcounts = [cnt for _, _, cnt in python_filters]
 
-    db.insert_raw_filter_data(get_db(), raw_clks, dp_id, receipt_token, clkcounts)
+    mc = minio.Minio(
+        config.MINIO_SERVER,
+        config.MINIO_ACCESS_KEY,
+        config.MINIO_SECRET_KEY,
+        secure=False
+    )
+
+    app.logger.info("Connected to minio")
+    if not mc.bucket_exists(config.MINIO_BUCKET):
+        app.logger.info("Creating bucket")
+        mc.make_bucket(config.MINIO_BUCKET)
+
+    filename = "{}-raw-clks.csv".format(dp_id)
+    # Create a csv file with "index, CLK, popcount"
+    with tempfile.NamedTemporaryFile(mode='w') as data:
+        for ba_clks, indx, count in python_filters:
+            data.write(
+                '{},"{}",{}'.format(indx, ''.join(raw_clks[indx].split('\n')), count)
+            )
+
+        app.logger.info("Storing clks in minio")
+
+        mc.fput_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
+
+    #db.insert_raw_filter_data(get_db(), raw_clks, dp_id, receipt_token, clkcounts)
+    db.insert_raw_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
 
     # Preload the redis cache
-    cache.set_deserialized_filter(dp_id, python_filters)
+    pickled_filters = cache.set_deserialized_filter(dp_id, python_filters)
+
+
 
     return receipt_token
 
