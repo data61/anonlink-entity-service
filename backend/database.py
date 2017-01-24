@@ -54,7 +54,7 @@ class DBConn:
         self.conn.close()
 
 
-def insert_returning_id(cur, query, args):
+def execute_returning_id(cur, query, args):
     """
 
     """
@@ -203,7 +203,10 @@ def get_paillier(db, resource_id):
 
 
 def delete_mapping(db, resource_id):
-    mapping_id = get_mapping(db, resource_id)['id']
+    mapping = get_mapping(db, resource_id)
+    mapping_id = mapping['id']
+    result_type = mapping['result_type']
+
     with db.cursor() as cur:
         logger.info("Beginning db transaction to remove a mapping resource")
         dps = query_db(db, """
@@ -218,15 +221,38 @@ def delete_mapping(db, resource_id):
                 WHERE dp = %s
                 """, [dp['id']])
 
+            if result_type != 'mapping':
+                cur.execute("""
+                    DELETE FROM permutations
+                    WHERE dp = %s
+                    """, [dp['id']])
+        if result_type != 'mapping':
             cur.execute("""
-                DELETE FROM permutationdata
-                WHERE dp = %s
-                """, [dp['id']])
+                DELETE FROM permutation_masks
+                WHERE mapping = %s
+                """, [resource_id])
+
+        if result_type == "permutation":
+            paillier_id = execute_returning_id("""
+                DELETE FROM encrypted_permutation_masks
+                WHERE mapping = %s
+                RETURNING paillier
+                """, [resource_id])
+
+            cur.execute("""
+                DELETE FROM paillier
+                WHERE id = %s
+                """, [paillier_id])
 
         cur.execute("""
             DELETE FROM dataproviders
             WHERE mapping = %s
             """, [mapping_id])
+
+        cur.execute("""
+            DELETE FROM mapping_results
+            WHERE mapping = %s
+            """, [resource_id])
 
         cur.execute("""
             DELETE FROM mappings
@@ -342,7 +368,7 @@ def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
 
 
 def insert_comparison_rate(cur, rate):
-    return insert_returning_id(cur, """
+    return execute_returning_id(cur, """
         INSERT INTO metrics
         (rate) VALUES (%s)
         RETURNING id;
@@ -350,7 +376,7 @@ def insert_comparison_rate(cur, rate):
 
 
 def insert_mapping(cur, data, mapping, resource_id):
-    return insert_returning_id(cur,
+    return execute_returning_id(cur,
         """
         INSERT INTO mappings
         (resource_id, access_token, ready, schema, result_type)
@@ -358,7 +384,7 @@ def insert_mapping(cur, data, mapping, resource_id):
         (%s, %s, false, %s, %s)
         RETURNING id;
         """,
-        [
+                                [
             resource_id,
             mapping.result_token,
             psycopg2.extras.Json(data['schema']),
@@ -367,37 +393,37 @@ def insert_mapping(cur, data, mapping, resource_id):
 
 
 def insert_paillier(cur, data, resource_id):
-    return insert_returning_id(cur, """
+    return execute_returning_id(cur, """
             INSERT INTO paillier
             (public_key, context)
             VALUES
             (%s, %s)
             RETURNING id;
             """,
-            [
+                                [
                 psycopg2.extras.Json(data['public_key']),
                 psycopg2.extras.Json(data['paillier_context'])
             ]
-        )
+                                )
 
 
 def insert_empty_encrypted_mask(cur, resource_id, pid):
-    return insert_returning_id(cur, """
+    return execute_returning_id(cur, """
             INSERT INTO encrypted_permutation_masks
             (mapping, paillier)
             VALUES
             (%s, %s)
             RETURNING id;
             """,
-            [
+                                [
                 resource_id,
                 pid
             ]
-        )
+                                )
 
 
 def insert_dataprovider(cur, auth_token, mapping_db_id):
-    return insert_returning_id(cur,
+    return execute_returning_id(cur,
         """
         INSERT INTO dataproviders
         (mapping, token)
@@ -405,8 +431,8 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
         (%s, %s)
         RETURNING id
         """,
-        [mapping_db_id, auth_token]
-        )
+                                [mapping_db_id, auth_token]
+                                )
 
 
 def insert_raw_filter_data(db, clks, dp_id, receipt_token, clkcounts):

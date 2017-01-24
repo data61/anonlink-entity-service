@@ -206,14 +206,14 @@ def save_and_permute(similarity_result, resource_id):
     # Just save the raw "mapping"
     logger.debug("Saving the resulting map data to the db")
     with db.cursor() as cur:
-        result_id = insert_returning_id(cur, """
+        result_id = execute_returning_id(cur, """
             INSERT into mapping_results
               (mapping, result)
             VALUES
               (%s, %s)
             RETURNING id;
             """,
-            [resource_id, psycopg2.extras.Json(mapping), ])
+                                         [resource_id, psycopg2.extras.Json(mapping), ])
     db.commit()
     logger.info("Mapping result saved to db with id {}".format(result_id))
 
