@@ -1,10 +1,12 @@
 import redis
 
 import pickle
+import tempfile
 import logging
 
 import serialization
 import database
+from object_store import connect_to_object_store
 from settings import Config as config
 
 logger = logging.getLogger('cache')
@@ -33,12 +35,17 @@ def get_deserialized_filter(dp_id):
         logger.debug("returning filters from cache")
         return pickle.loads(r.get(key))
     else:
-        logger.debug("Getting filters from db")
+        logger.debug("Looking up popcounts and filename from database")
         db = database.connect_db()
-        json_serialized_filters, popcnts = database.get_filter(db, dp_id)
-        logger.debug("Deserialising from JSON")
+        mc = connect_to_object_store()
+        serialized_filters_file, popcnts = database.get_filter(db, dp_id)
+
+        logger.debug("Getting filters from object store")
 
         python_filters = []
+        with tempfile.NamedTemporaryFile('w') as f:
+            mc.fget_object(config.MINIO_BUCKET, serialized_filters_file, f.name)
+
         # Note this uses already calculated popcounts unlike
         # serialization.deserialize_filters()
         for i, (f, cnt) in enumerate(zip(json_serialized_filters, popcnts)):

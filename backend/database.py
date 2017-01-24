@@ -287,14 +287,17 @@ def get_dataprovider_id(db, update_token):
 
 
 def get_filter(db, dp_id):
+    """
+    :return: The filename of the raw clks and a list of popcounts for given data provider
+    """
     raw_json_filter = query_db(db, """
-        SELECT raw, popcounts
+        SELECT file, popcounts
         FROM bloomingdata
         WHERE
           dp = %s
         """, [dp_id], one=True)
 
-    return raw_json_filter['raw'], raw_json_filter['popcounts']
+    return raw_json_filter['file'], raw_json_filter['popcounts']
 
 
 def get_permutation_result(db, dp_id):

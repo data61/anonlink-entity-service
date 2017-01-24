@@ -5,6 +5,7 @@ import json
 import random
 from datetime import datetime, timedelta
 
+import minio
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery import Celery, Task, chord, chain
 from celery.utils.log import get_task_logger
@@ -13,6 +14,7 @@ import psycopg2.extras
 import cache
 from serialization import deserialize_filters, load_public_key, int_to_base64, base64_to_int
 from database import *
+from object_store import connect_to_object_store
 from settings import Config as config
 
 from phe import paillier

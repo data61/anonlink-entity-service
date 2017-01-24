@@ -12,6 +12,7 @@ import cache
 import database as db
 from serialization import load_public_key, deserialize_filters
 from async_worker import calculate_mapping
+from object_store import connect_to_object_store
 from settings import Config as config
 
 __version__ = open('VERSION').read().strip()
@@ -435,43 +436,37 @@ def add_mapping_data(dp_id, raw_clks):
     """
     receipt_token = generate_code()
 
-    app.logger.info("Deserialisation of filters from json")
+    app.logger.debug("Deserialisation of filters from json")
     python_filters = deserialize_filters(raw_clks)
     clkcounts = [cnt for _, _, cnt in python_filters]
 
-    mc = minio.Minio(
-        config.MINIO_SERVER,
-        config.MINIO_ACCESS_KEY,
-        config.MINIO_SECRET_KEY,
-        secure=False
-    )
+    mc = connect_to_object_store()
 
-    app.logger.info("Connected to minio")
-    if not mc.bucket_exists(config.MINIO_BUCKET):
-        app.logger.info("Creating bucket")
-        mc.make_bucket(config.MINIO_BUCKET)
-
-    filename = "{}-raw-clks.csv".format(dp_id)
-    # Create a csv file with "index, CLK, popcount"
+    filename = "raw-clks/{}.csv".format(receipt_token)
+    app.logger.debug("Writing csv file with index, base64 encoded CLK, popcount")
+    # Question for review: should this re-serialize the clks as opposed to "trusting"
+    # user provided data and writing raw_clks[indx] to our object store?
     with tempfile.NamedTemporaryFile(mode='w') as data:
         for ba_clks, indx, count in python_filters:
             data.write(
                 '{},"{}",{}'.format(indx, ''.join(raw_clks[indx].split('\n')), count)
             )
 
-        app.logger.info("Storing clks in minio")
-
+        app.logger.info("Uploading clks to object store")
         mc.fput_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
 
-    #db.insert_raw_filter_data(get_db(), raw_clks, dp_id, receipt_token, clkcounts)
     db.insert_raw_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
 
-    # Preload the redis cache
-    pickled_filters = cache.set_deserialized_filter(dp_id, python_filters)
-
-
+    # If small enough preload the data into our redis cache
+    if len(clkcounts) < config.ENTITY_CACHE_THRESHOLD:
+        app.logger.info("Caching clk data")
+        cache.set_deserialized_filter(dp_id, python_filters)
+    else:
+        app.logger.info("Not caching clk data as it is too large")
 
     return receipt_token
+
+
 
 
 class Version(Resource):

@@ -71,6 +71,8 @@ CREATE TABLE bloomingdata (
   -- Note the number of entries can also be calculated:
   -- jsonb_array_length(popcounts)
 
+  -- We store an array of the popcounts
+  -- this is limited to uploads of around 100M entries
   popcounts JSONB
 );
 
