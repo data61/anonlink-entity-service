@@ -34,7 +34,7 @@ celery.conf.CELERYD_PREFETCH_MULTIPLIER = 1
 @after_setup_task_logger.connect
 def init_celery_logger(logger, **kwargs):
 
-    level = logging.DEBUG #if config.DEBUG else logging.INFO
+    level = logging.DEBUG if config.DEBUG else logging.INFO
 
     for handler in logger.handlers[:]:
         handler.setFormatter(config.consoleFormat)
@@ -143,7 +143,7 @@ def compute_similarity(resource_id, dp_ids):
 
     """
 
-    logger.info("Pulling CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+    logger.debug("Pulling CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
 
     # Prime the redis cache
     filters1 = cache.get_deserialized_filter(dp_ids[0])
@@ -204,7 +204,7 @@ def save_and_permute(similarity_result, resource_id):
     _, _, result_type = check_mapping_ready(db, resource_id)
 
     # Just save the raw "mapping"
-    logger.info("Saving the resulting map data to the db")
+    logger.debug("Saving the resulting map data to the db")
     with db.cursor() as cur:
         result_id = insert_returning_id(cur, """
             INSERT into mapping_results
@@ -215,7 +215,7 @@ def save_and_permute(similarity_result, resource_id):
             """,
             [resource_id, psycopg2.extras.Json(mapping), ])
     db.commit()
-    logger.info("Mapping result saved with id {}".format(result_id))
+    logger.info("Mapping result saved to db with id {}".format(result_id))
 
     if result_type in {"permutation", "permutation_unencrypted_mask"}:
         logger.debug("Submitting job to permute mapping")
@@ -227,11 +227,11 @@ def save_and_permute(similarity_result, resource_id):
             )
         )
     else:
-        logger.info("Mark mapping job as complete")
+        logger.debug("Mark mapping job as complete")
         mark_mapping_complete.delay(resource_id)
 
     # Post similarity computation cleanup
-    logger.info("Removing clk filters from redis cache")
+    logger.debug("Removing clk filters from redis cache")
 
     dp_ids = get_dataprovider_ids(db, resource_id)
     cache.remove_from_cache(dp_ids[0])
@@ -256,7 +256,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
 
     logger.info("Creating random permutations")
-    logger.info("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
+    logger.debug("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
 
     """
     Pack all the entities that match in the **same** random locations in both permutations.
@@ -265,7 +265,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     Dictionaries first, then converted to lists.
     """
     smaller_dataset_size = min(len_filters1, len_filters2)
-    logger.info("Smaller dataset size is {}".format(smaller_dataset_size))
+    logger.debug("Smaller dataset size is {}".format(smaller_dataset_size))
     number_in_common = len(mapping)
     a_permutation = {}  # Should be length of filters1
     b_permutation = {}  # length of filters2
@@ -300,10 +300,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
     remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
 
-    logger.info("A has {} remaining positions to fill".format(len(remaining_a_values)))
-    logger.info("B has {} remaining positions to fill".format(len(remaining_b_values)))
-
-    logger.info("Shuffle the remaining indices")
+    logger.debug("Shuffle the remaining indices")
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
 
@@ -331,7 +328,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
             mapping_index = remaining_b_values.pop()
             b_permutation[b_index] = mapping_index
 
-    logger.info("Completed new permutations for each party")
+    logger.debug("Completed creating new permutations for each party")
 
     with db.cursor() as cur:
         dp_ids = get_dataprovider_ids(db, resource_id)
