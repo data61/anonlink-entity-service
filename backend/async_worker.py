@@ -181,8 +181,12 @@ def compute_similarity(resource_id, dp_ids):
 
         chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
         db = connect_db()
-        serialized_filters1, filter1_popcounts = get_filter(db, dp_ids[0])
+        filters1_object_filename, filter1_popcounts = get_filter(db, dp_ids[0])
         # serialized_filters2, filter2_popcounts = get_filter(db, dp_ids[1])
+
+        mc = connect_to_object_store()
+        mc.get_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
+        serialized_filters1 = ...
 
         filter1_chunks = chunks(serialized_filters1, chunk_size)
         logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
@@ -438,6 +442,7 @@ def mark_mapping_complete(resource_id):
 
 @celery.task()
 def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
+    # Note f1 is now an object store filename.
     logger.info("Computing similarity for a chunk of filters")
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")

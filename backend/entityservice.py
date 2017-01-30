@@ -4,13 +4,14 @@ import tempfile
 import platform
 import logging
 import binascii
+
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 import minio
 import anonlink
 import cache
 import database as db
-from serialization import load_public_key, deserialize_filters
+from serialization import load_public_key, deserialize_filters, binary_pack_filters
 from async_worker import calculate_mapping
 from object_store import connect_to_object_store
 from settings import Config as config
@@ -245,6 +246,10 @@ class Mapping(Resource):
         # Check the resource exists
         abort_if_mapping_doesnt_exist(resource_id)
         app.logger.info("Deleting a mapping resource and all data")
+        # First get the filenames of everything in the object store
+
+        mc = connect_to_object_store()
+
         db.delete_mapping(get_db(), resource_id)
 
         return '', 204
@@ -443,14 +448,11 @@ def add_mapping_data(dp_id, raw_clks):
     mc = connect_to_object_store()
 
     filename = "raw-clks/{}.csv".format(receipt_token)
-    app.logger.debug("Writing csv file with index, base64 encoded CLK, popcount")
-    # Question for review: should this re-serialize the clks as opposed to "trusting"
-    # user provided data and writing raw_clks[indx] to our object store?
-    with tempfile.NamedTemporaryFile(mode='w') as data:
-        for ba_clks, indx, count in python_filters:
-            data.write(
-                '{},"{}",{}'.format(indx, ''.join(raw_clks[indx].split('\n')), count)
-            )
+    app.logger.debug("Writing binary file with index, base64 encoded CLK, popcount")
+
+    with tempfile.NamedTemporaryFile(mode='wb') as data:
+        for packed_bloomfilter in binary_pack_filters(python_filters):
+            data.write(packed_bloomfilter)
 
         app.logger.info("Uploading clks to object store")
         mc.fput_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
@@ -465,7 +467,6 @@ def add_mapping_data(dp_id, raw_clks):
         app.logger.info("Not caching clk data as it is too large")
 
     return receipt_token
-
 
 
 

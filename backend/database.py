@@ -323,7 +323,7 @@ def get_filter(db, dp_id):
           dp = %s
         """, [dp_id], one=True)
 
-    return raw_json_filter['file'], raw_json_filter['popcounts']
+    return raw_json_filter['file'].strip(), raw_json_filter['popcounts']
 
 
 def get_permutation_result(db, dp_id):

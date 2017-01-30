@@ -46,11 +46,11 @@ def get_deserialized_filter(dp_id):
         with tempfile.NamedTemporaryFile('w') as f:
             mc.fget_object(config.MINIO_BUCKET, serialized_filters_file, f.name)
 
-        # Note this uses already calculated popcounts unlike
-        # serialization.deserialize_filters()
-        for i, (f, cnt) in enumerate(zip(json_serialized_filters, popcnts)):
-            ba = serialization.deserialize_bitarray(f)
-            python_filters.append((ba, i, cnt))
+            # Note this uses already calculated popcounts unlike
+            # serialization.deserialize_filters()
+            for i, (f, cnt) in enumerate(zip(json_serialized_filters, popcnts)):
+                ba = serialization.deserialize_bitarray(f)
+                python_filters.append((ba, i, cnt))
 
         set_deserialized_filter(dp_id, python_filters)
         return python_filters

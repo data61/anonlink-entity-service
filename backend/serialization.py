@@ -1,5 +1,6 @@
 from bitarray import bitarray
 import base64
+import struct
 import phe.util
 from phe import paillier
 
@@ -30,9 +31,29 @@ def serialize_bitarray(ba):
     """
     return base64.encodebytes(ba.tobytes()).decode('utf8')
 
+bit_packing_fmt = "!1I128p1H"
+
+
+def binary_pack_filters(filters):
+    """Efficient packing of bloomfilters with index and popcount.
+
+    :param filters:
+        An iterable of tuples as produced by deserialize_filters.
+
+    :return:
+        An iterable of bytes.
+    """
+    for ba_clk, indx, count in filters:
+        yield struct.pack(
+          bit_packing_fmt,
+          indx,
+          ba_clk.tobytes(),
+          count
+        )
 
 
 def serialize_filters(filters):
+    """Serialize filters as clients are required to."""
     return [
         serialize_bitarray(f[0]) for f in filters
     ]
@@ -40,7 +61,7 @@ def serialize_filters(filters):
 
 def deserialize_filters(filters):
     """
-    Deserialise iterable of base64 encoded clks.
+    Deserialize iterable of base64 encoded clks.
 
     Carrying out the popcount and adding the index as we go.
     """
