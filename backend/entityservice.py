@@ -447,9 +447,10 @@ def add_mapping_data(dp_id, raw_clks):
 
     mc = connect_to_object_store()
 
-    filename = "raw-clks/{}.csv".format(receipt_token)
+    filename = "raw-clks/{}.bin".format(receipt_token)
     app.logger.debug("Writing binary file with index, base64 encoded CLK, popcount")
 
+    # Note we can probably upload without the temp file.
     with tempfile.NamedTemporaryFile(mode='wb') as data:
         for packed_bloomfilter in binary_pack_filters(python_filters):
             data.write(packed_bloomfilter)
@@ -457,7 +458,7 @@ def add_mapping_data(dp_id, raw_clks):
         app.logger.info("Uploading clks to object store")
         mc.fput_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
 
-    db.insert_raw_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
+    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
 
     # If small enough preload the data into our redis cache
     if len(clkcounts) < config.ENTITY_CACHE_THRESHOLD:
@@ -467,7 +468,6 @@ def add_mapping_data(dp_id, raw_clks):
         app.logger.info("Not caching clk data as it is too large")
 
     return receipt_token
-
 
 
 class Version(Resource):

@@ -19,7 +19,7 @@ def list_to_bytes(python_object):
 
 
 def deserialize_bitarray(bytes_data):
-    ba = bitarray()
+    ba = bitarray(endian='big')
     data_as_bytes = base64.decodebytes(bytes_data.encode())
     ba.frombytes(data_as_bytes)
     return ba
@@ -32,6 +32,7 @@ def serialize_bitarray(ba):
     return base64.encodebytes(ba.tobytes()).decode('utf8')
 
 bit_packing_fmt = "!1I128p1H"
+bit_packed_element_size = struct.calcsize(bit_packing_fmt)
 
 
 def binary_pack_filters(filters):
@@ -50,6 +51,22 @@ def binary_pack_filters(filters):
           ba_clk.tobytes(),
           count
         )
+
+
+def binary_unpack_one(data):
+    index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
+
+    ba = bitarray(endian="big")
+    ba.frombytes(clk_bytes)
+    return ba, index, count
+
+
+def binary_unpack_filters(streamable_data):
+    filters = []
+    for raw_bytes in streamable_data.stream(bit_packed_element_size):
+        filters.append(binary_unpack_one(raw_bytes))
+
+    return filters
 
 
 def serialize_filters(filters):

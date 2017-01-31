@@ -12,7 +12,7 @@ from celery.utils.log import get_task_logger
 import psycopg2.extras
 
 import cache
-from serialization import deserialize_filters, load_public_key, int_to_base64, base64_to_int
+from serialization import deserialize_filters, load_public_key, int_to_base64, base64_to_int, binary_unpack_filters
 from database import *
 from object_store import connect_to_object_store
 from settings import Config as config
@@ -176,24 +176,23 @@ def compute_similarity(resource_id, dp_ids):
 
     else:
         logger.info("Computing similarity using greedy method")
+        db = connect_db()
+        filters1_object_filename, filter1_popcounts = get_filter_metadata(db, dp_ids[0])
 
         logger.debug("Chunking computation task")
 
         chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
-        db = connect_db()
-        filters1_object_filename, filter1_popcounts = get_filter(db, dp_ids[0])
-        # serialized_filters2, filter2_popcounts = get_filter(db, dp_ids[1])
+        filter1_job_chunks = []
+        for chunk_start_index in range(0, lenf1, chunk_size):
+            filter1_job_chunks.append(
+                (filters1_object_filename, chunk_start_index, min(chunk_start_index + chunk_size, lenf1))
+            )
 
-        mc = connect_to_object_store()
-        mc.get_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
-        serialized_filters1 = ...
-
-        filter1_chunks = chunks(serialized_filters1, chunk_size)
         logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
             lenf1, int(lenf1/chunk_size), chunk_size))
 
         mapping_future = chord(
-            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_chunks)),
+            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_job_chunks)),
             aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
         ).apply_async()
 
@@ -441,8 +440,21 @@ def mark_mapping_complete(resource_id):
 
 
 @celery.task()
-def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
-    # Note f1 is now an object store filename.
+def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
+    """Compute filter similarity between a chunk of filters in dataprovider 1,
+    and all the filters in dataprovider 2.
+
+    :param chunk_info:
+        An iterable of tuples containing:
+            - (object store filename
+            - Chunk start index
+            - Chunk stop index
+    :param dp2_id:
+        The database identifier for dataprovider 2.
+    :param chunk_number:
+    :param resource_id:
+    :return:
+    """
     logger.info("Computing similarity for a chunk of filters")
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
@@ -452,10 +464,23 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
             return None
 
     t0 = time.time()
-    logger.debug("Deserializing chunked filters")
+    logger.debug("Fetching and deserializing filters for dataprovider 2")
     filters2 = cache.get_deserialized_filter(dp2_id)
     t1 = time.time()
-    chunk = deserialize_filters(f1)
+    logger.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+
+    mc = connect_to_object_store()
+
+    bit_packed_element_size = 134
+    raw_data_response = mc.get_partial_object(
+        config.MINIO_BUCKET,
+        chunk_info[0],
+        bit_packed_element_size * chunk_info[1],
+        bit_packed_element_size * chunk_info[2]
+    )
+
+    chunk = binary_unpack_filters(raw_data_response)
+    chunk_size = chunk_info[2] - chunk_info[1]
     t2 = time.time()
     logger.debug("Calculating filter similarity")
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
@@ -465,11 +490,10 @@ def compute_filter_similarity(f1, dp2_id, chunk_number, resource_id):
 
     logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}".format(t1-t0, t2-t1, t3-t2, t3-t0))
     # Update the number of comparisons completed
-    save_current_progress(len(filters2) * len(chunk), resource_id)
+    save_current_progress(len(filters2) * chunk_size, resource_id)
 
     partial_sparse_result = []
     # offset chunk's A index by chunk_size * chunk_number
-    chunk_size = len(chunk)
     offset = chunk_size * chunk_number
     logger.debug("Offset by {}".format(offset))
     for (ia, score, ib) in chunk_results:

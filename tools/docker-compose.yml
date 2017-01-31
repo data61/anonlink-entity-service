@@ -68,6 +68,9 @@ services:
       - GREEDY_CHUNK_SIZE=100000000
       - DEBUG=true
       - LOGGING_LEVEL=DEBUG
+      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
     networks:
       es_network:
 

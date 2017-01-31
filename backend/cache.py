@@ -38,19 +38,14 @@ def get_deserialized_filter(dp_id):
         logger.debug("Looking up popcounts and filename from database")
         db = database.connect_db()
         mc = connect_to_object_store()
-        serialized_filters_file, popcnts = database.get_filter(db, dp_id)
+        serialized_filters_file, popcnts = database.get_filter_metadata(db, dp_id)
 
         logger.debug("Getting filters from object store")
 
-        python_filters = []
-        with tempfile.NamedTemporaryFile('w') as f:
-            mc.fget_object(config.MINIO_BUCKET, serialized_filters_file, f.name)
-
-            # Note this uses already calculated popcounts unlike
-            # serialization.deserialize_filters()
-            for i, (f, cnt) in enumerate(zip(json_serialized_filters, popcnts)):
-                ba = serialization.deserialize_bitarray(f)
-                python_filters.append((ba, i, cnt))
+        # Note this uses already calculated popcounts unlike
+        # serialization.deserialize_filters()
+        raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
+        python_filters = serialization.binary_unpack_filters(raw_data_response)
 
         set_deserialized_filter(dp_id, python_filters)
         return python_filters

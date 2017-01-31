@@ -312,7 +312,7 @@ def get_dataprovider_id(db, update_token):
                     [update_token], one=True)['id']
 
 
-def get_filter(db, dp_id):
+def get_filter_metadata(db, dp_id):
     """
     :return: The filename of the raw clks and a list of popcounts for given data provider
     """
@@ -438,7 +438,7 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
                                 )
 
 
-def insert_raw_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
+def insert_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
     size = len(clkcounts)
     with db.cursor() as cur:
         logger.info("Adding blooming data to database")
