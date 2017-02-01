@@ -130,9 +130,12 @@ def get_latest_rate(db):
 def get_number_parties_uploaded(db, resource_id):
     return query_db(db, """
         SELECT COUNT(*)
-        FROM dataproviders
+        FROM dataproviders, bloomingdata
         WHERE
-          mapping = %s AND uploaded = TRUE
+          mapping = %s AND
+          bloomingdata.dp = dataproviders.id AND
+          dataproviders.uploaded = TRUE AND
+          bloomingdata.state = 'ready'
         """, [resource_id], one=True)['count']
 
 
@@ -438,13 +441,13 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
                                 )
 
 
-def insert_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
-    size = len(clkcounts)
+def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
+
     with db.cursor() as cur:
         logger.info("Adding blooming data to database")
         cur.execute("""
             INSERT INTO bloomingdata
-            (dp, token, file, size, popcounts)
+            (dp, token, file, size, state)
             VALUES
             (%s, %s, %s, %s, %s)
             """,
@@ -453,7 +456,7 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
                 receipt_token,
                 clks_filename,
                 size,
-                psycopg2.extras.Json(clkcounts)
+                'pending'
              ])
 
         cur.execute("""
@@ -461,6 +464,32 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, clkcounts):
             SET uploaded = TRUE
             WHERE id = %s
             """, [dp_id])
+
+    db.commit()
+
+
+def update_filter_data(db, clks_filename, dp_id, clkcounts, state='ready'):
+
+    with db.cursor() as cur:
+        logger.info("Updating blooming data file")
+        cur.execute("""
+            UPDATE bloomingdata
+            SET
+              state = %s,
+              file = %s,
+              size = %s,
+              popcounts = %s
+            WHERE
+              dp = %s
+            """,
+            [
+                state,
+                clks_filename,
+                len(clkcounts),
+                psycopg2.extras.Json(clkcounts),
+                dp_id,
+             ])
+
 
     db.commit()
 

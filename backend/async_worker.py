@@ -1,3 +1,4 @@
+import io
 import math
 import random
 import time
@@ -12,7 +13,8 @@ from phe import paillier
 import cache
 from database import *
 from object_store import connect_to_object_store
-from serialization import load_public_key, int_to_base64, binary_unpack_filters
+from serialization import load_public_key, int_to_base64, binary_unpack_filters, \
+    binary_pack_filters, deserialize_filters
 from settings import Config as config
 from utils import chunks
 
@@ -95,6 +97,68 @@ def encrypt_vector(values, public_key, base):
 
     return base64_encoded_mask
 
+
+def check_mapping(mapping):
+    """ See if the given mapping has had all parties contribute data.
+    """
+    logger.info("Counting contributing parties")
+    parties_contributed = get_number_parties_uploaded(connect_db(), mapping['id'])
+    logger.info("{} parties have contributed hashes".format(parties_contributed))
+    return parties_contributed == mapping['parties']
+
+
+@celery.task()
+def handle_raw_upload(resource_id, dp_id, receipt_token):
+    logger.info("User upload")
+    mc = connect_to_object_store()
+    raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
+    raw_data_response = mc.get_object(
+        config.MINIO_BUCKET,
+        raw_file
+    )
+
+    logger.info("Received raw file...")
+
+    clks = raw_data_response.data.decode().split('\n')
+
+    logger.info("Deserializing json filters")
+
+    python_filters = deserialize_filters(clks)
+    logger.debug("JSON parsed - there were {} clks".format(len(python_filters)))
+    clkcounts = [cnt for _, _, cnt in python_filters]
+
+    filename = config.BIN_FILENAME_FMT.format(receipt_token)
+    logger.info("Writing binary file with index, base64 encoded CLK, popcount")
+
+    # TODO better to upload without the very large temp buffer
+    f = io.BytesIO()
+    for packed_bloomfilter in binary_pack_filters(python_filters):
+        f.write(packed_bloomfilter)
+    f.seek(0)
+
+    logger.info("Uploading binary packed clks to object store")
+    mc.put_object(
+        config.MINIO_BUCKET,
+        filename,
+        data=f,
+        length=len(python_filters)*134
+    )
+
+    update_filter_data(connect_db(), filename, dp_id, clkcounts)
+
+    # If small enough preload the data into our redis cache
+    if len(clkcounts) < config.ENTITY_CACHE_THRESHOLD:
+        logger.info("Caching clk data")
+        cache.set_deserialized_filter(dp_id, python_filters)
+    else:
+        logger.info("Not caching clk data as it is too large")
+
+    # Now work out if all parties have added their data
+    mapping = get_mapping(connect_db(), resource_id)
+    if check_mapping(mapping):
+        logger.info("Ready to match some entities")
+        calculate_mapping.delay(resource_id)
+        logger.info("Matching job scheduled with celery worker")
 
 @celery.task()
 def calculate_mapping(resource_id):

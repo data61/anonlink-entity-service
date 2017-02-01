@@ -53,6 +53,12 @@ CREATE TABLE dataproviders (
 CREATE INDEX ON dataproviders (mapping);
 CREATE INDEX ON dataproviders (uploaded);
 
+CREATE TYPE UPLOADSTATE AS ENUM (
+  'pending',
+  'ready',
+  'error'
+);
+
 -- The uploaded CLK data for each dataprovider
 CREATE TABLE bloomingdata (
   id  SERIAL PRIMARY KEY,
@@ -67,9 +73,9 @@ CREATE TABLE bloomingdata (
   -- Store the raw CLK data in a file
   file     CHAR(64) NOT NULL,
 
+  state     UPLOADSTATE NOT NULL,
+
   size  INT NOT NULL,
-  -- Note the number of entries can also be calculated:
-  -- jsonb_array_length(popcounts)
 
   -- We store an array of the popcounts
   -- this is limited to uploads of around 100M entries

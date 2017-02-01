@@ -13,7 +13,7 @@ import anonlink
 import cache
 import database as db
 from serialization import load_public_key, deserialize_filters, binary_pack_filters
-from async_worker import calculate_mapping
+from async_worker import calculate_mapping, handle_raw_upload
 from object_store import connect_to_object_store
 from settings import Config as config
 
@@ -340,6 +340,10 @@ class Mapping(Resource):
         # ensure we read the post data, even though we mightn't need it
         # without this you get occasional nginx errors failed (104:
         # Connection reset by peer) (See issue #195)
+
+        # TODO we could consider passing request.stream to add_mapping_data
+        # to avoid parsing the json altogether, and would enable running the
+        # web frontend with less memory.
         headers = request.headers
         data = request.get_json()
         abort_if_mapping_doesnt_exist(resource_id)
@@ -351,7 +355,6 @@ class Mapping(Resource):
         if data is None or 'clks' not in data:
             abort(400, message="Missing information")
 
-        mapping = db.get_mapping(get_db(), resource_id)
         app.logger.info("Request to add data to mapping")
 
         # Check the caller has valid token
@@ -360,13 +363,12 @@ class Mapping(Resource):
         dp_id = db.get_dataprovider_id(get_db(), token)
 
         app.logger.info("Adding data to: {}".format(dp_id))
-        receipt_token = add_mapping_data(dp_id, data['clks'])
+        receipt_token, raw_file = add_mapping_data(dp_id, data['clks'])
 
-        # Now work out if all parties have added their data
-        if check_mapping(mapping):
-            app.logger.info("Ready to match some entities")
-            calculate_mapping.delay(resource_id)
-            app.logger.info("Matching job scheduled with celery worker")
+        # Schedule a task to deserialize the hashes, and carry
+        # out a pop count.
+        handle_raw_upload.delay(resource_id, dp_id, receipt_token)
+        app.logger.info("Job scheduled to handle user uploaded hashes")
 
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
 
@@ -424,84 +426,34 @@ class Status(Resource):
         return status
 
 
-def check_mapping(mapping):
-    """ See if the given mapping has had all parties contribute data.
-    """
-    app.logger.info("Counting contributing parties")
-    parties_contributed = db.get_number_parties_uploaded(get_db(), mapping['id'])
-    app.logger.info("{} parties have contributed blooming data so far".format(parties_contributed))
-    return parties_contributed == mapping['parties']
-
-
-from utils import chunks
-import concurrent.futures
-def deserialize_filters_concurrent(filters):
-    """
-    Deserialize iterable of base64 encoded clks.
-
-    Carrying out the popcount and adding the index as we go.
-    """
-    res = []
-    chunk_size = int(10000)
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = []
-        for i, chunk in enumerate(chunks(filters, chunk_size)):
-            future = executor.submit(deserialize_filters, chunk)
-            futures.append(future)
-
-        for future in futures:
-            res.extend(future.result())
-
-    return res
-
-
 def add_mapping_data(dp_id, raw_clks):
     """
-    Deserialize, popcount and save raw CLK hashes.
+    Save the untrusted user provided data and start a celery job to
+    deserialize, popcount and save the hashes.
 
-    Note we don't do this in a worker, because we don't want
-    to introduce a race condition for uploading & checking clk data.
-    This should probably be questioned. It does take a while.
-    Deserialization of JSON takes a while and only uses 1 core.
+    Because this takes place in a worker, we "lock" the upload by
+    setting the state to pending in the bloomingdata table.
     """
     receipt_token = generate_code()
-
-    app.logger.debug("Deserialisation of filters from json")
-    python_filters = deserialize_filters_concurrent(raw_clks)
-    # python_filters = deserialize_filters(raw_clks)
-    app.logger.debug("JSON parsed - there were {} clks".format(len(python_filters)))
-
-    clkcounts = [cnt for _, _, cnt in python_filters]
-
     mc = connect_to_object_store()
 
-    filename = "raw-clks/{}.bin".format(receipt_token)
-    app.logger.debug("Writing binary file with index, base64 encoded CLK, popcount")
+    filename = config.RAW_FILENAME_FMT.format(receipt_token)
+    app.logger.debug("Storing user supplied json file")
 
-    # Note we can probably upload without the temp file.
-    f = io.BytesIO()
-    for packed_bloomfilter in binary_pack_filters(python_filters):
-        f.write(packed_bloomfilter)
-    f.seek(0)
+    data = '\n'.join(''.join(clk.split('\n')) for clk in raw_clks).encode()
+    buffer = io.BytesIO(data)
 
     app.logger.info("Uploading clks to object store")
     mc.put_object(
         config.MINIO_BUCKET,
         filename,
-        data=f,
-        length=len(python_filters)*134
+        data=buffer,
+        length=len(data)
     )
 
-    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
+    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, len(raw_clks))
 
-    # If small enough preload the data into our redis cache
-    if len(clkcounts) < config.ENTITY_CACHE_THRESHOLD:
-        app.logger.info("Caching clk data")
-        cache.set_deserialized_filter(dp_id, python_filters)
-    else:
-        app.logger.info("Not caching clk data as it is too large")
-
-    return receipt_token
+    return receipt_token, filename
 
 
 class Version(Resource):

@@ -54,6 +54,9 @@ class Config(object):
 
     ENTITY_CACHE_THRESHOLD = int(os.environ.get('ENTITY_CACHE_THRESHOLD', '1000000'))
 
+    RAW_FILENAME_FMT = "quarantine/{}.txt"
+    BIN_FILENAME_FMT = "raw-clks/{}.bin"
+
 
 class ProductionConfig(Config):
     DEBUG = False

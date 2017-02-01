@@ -1,6 +1,8 @@
 from bitarray import bitarray
 import base64
 import struct
+from utils import chunks
+import concurrent.futures
 import phe.util
 from phe import paillier
 
@@ -86,6 +88,26 @@ def deserialize_filters(filters):
     for i, f in enumerate(filters):
         ba = deserialize_bitarray(f)
         res.append((ba, i, ba.count()))
+    return res
+
+
+def deserialize_filters_concurrent(filters):
+    """
+    Deserialize iterable of base64 encoded clks.
+
+    Carrying out the popcount and adding the index as we go.
+    """
+    res = []
+    chunk_size = int(100000)
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = []
+        for i, chunk in enumerate(chunks(filters, chunk_size)):
+            future = executor.submit(deserialize_filters, chunk)
+            futures.append(future)
+
+        for future in futures:
+            res.extend(future.result())
+
     return res
 
 
