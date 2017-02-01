@@ -1,5 +1,6 @@
 import json
 import os
+import io
 import tempfile
 import platform
 import logging
@@ -432,17 +433,44 @@ def check_mapping(mapping):
     return parties_contributed == mapping['parties']
 
 
+from utils import chunks
+import concurrent.futures
+def deserialize_filters_concurrent(filters):
+    """
+    Deserialize iterable of base64 encoded clks.
+
+    Carrying out the popcount and adding the index as we go.
+    """
+    res = []
+    chunk_size = int(10000)
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = []
+        for i, chunk in enumerate(chunks(filters, chunk_size)):
+            future = executor.submit(deserialize_filters, chunk)
+            futures.append(future)
+
+        for future in futures:
+            res.extend(future.result())
+
+    return res
+
+
 def add_mapping_data(dp_id, raw_clks):
     """
     Deserialize, popcount and save raw CLK hashes.
 
     Note we don't do this in a worker, because we don't want
     to introduce a race condition for uploading & checking clk data.
+    This should probably be questioned. It does take a while.
+    Deserialization of JSON takes a while and only uses 1 core.
     """
     receipt_token = generate_code()
 
     app.logger.debug("Deserialisation of filters from json")
-    python_filters = deserialize_filters(raw_clks)
+    python_filters = deserialize_filters_concurrent(raw_clks)
+    # python_filters = deserialize_filters(raw_clks)
+    app.logger.debug("JSON parsed - there were {} clks".format(len(python_filters)))
+
     clkcounts = [cnt for _, _, cnt in python_filters]
 
     mc = connect_to_object_store()
@@ -451,12 +479,18 @@ def add_mapping_data(dp_id, raw_clks):
     app.logger.debug("Writing binary file with index, base64 encoded CLK, popcount")
 
     # Note we can probably upload without the temp file.
-    with tempfile.NamedTemporaryFile(mode='wb') as data:
-        for packed_bloomfilter in binary_pack_filters(python_filters):
-            data.write(packed_bloomfilter)
+    f = io.BytesIO()
+    for packed_bloomfilter in binary_pack_filters(python_filters):
+        f.write(packed_bloomfilter)
+    f.seek(0)
 
-        app.logger.info("Uploading clks to object store")
-        mc.fput_object(config.MINIO_BUCKET, filename, data.name, content_type='application/csv')
+    app.logger.info("Uploading clks to object store")
+    mc.put_object(
+        config.MINIO_BUCKET,
+        filename,
+        data=f,
+        length=len(python_filters)*134
+    )
 
     db.insert_filter_data(get_db(), filename, dp_id, receipt_token, clkcounts)
 

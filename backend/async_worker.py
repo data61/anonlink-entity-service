@@ -1,24 +1,20 @@
-import os
-import time
 import math
-import json
 import random
-from datetime import datetime, timedelta
+import time
 
-import minio
-from celery.signals import after_setup_task_logger, after_setup_logger
-from celery import Celery, Task, chord, chain
-from celery.utils.log import get_task_logger
+import anonlink
 import psycopg2.extras
+from celery import Celery, chord
+from celery.signals import after_setup_task_logger, after_setup_logger
+from celery.utils.log import get_task_logger
+from phe import paillier
 
 import cache
-from serialization import deserialize_filters, load_public_key, int_to_base64, base64_to_int, binary_unpack_filters
 from database import *
 from object_store import connect_to_object_store
+from serialization import load_public_key, int_to_base64, binary_unpack_filters
 from settings import Config as config
-
-from phe import paillier
-import anonlink
+from utils import chunks
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -63,12 +59,6 @@ def convert_mapping_to_list(permutation):
     for j in range(l):
         perm_list.append(permutation[j])
     return perm_list
-
-
-def chunks(l, n):
-    """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i+n]
 
 
 def encrypt_vector(values, public_key, base):
