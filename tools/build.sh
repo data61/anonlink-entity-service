@@ -2,6 +2,9 @@
 set -e
 cd $(dirname "$0")
 
+git submodule init
+git submodule update
+
 cd ../backend
 export APPVERSION=$(cat VERSION)
 docker build -t quay.io/n1analytics/entity-app:$APPVERSION .
