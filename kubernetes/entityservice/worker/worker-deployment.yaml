@@ -31,7 +31,6 @@ spec:
             value: "0.95"
           - name: GREEDY_CHUNK_SIZE
             value: "1000000000"
-#            value: "100000000"
           - name: ENCRYPTION_MIN_KEY_LENGTH
             value: "1024"
         command:

@@ -14,7 +14,7 @@ import cache
 from database import *
 from object_store import connect_to_object_store
 from serialization import load_public_key, int_to_base64, binary_unpack_filters, \
-    binary_pack_filters, deserialize_filters
+    binary_pack_filters, deserialize_filters, bit_packed_element_size
 from settings import Config as config
 from utils import chunks
 
@@ -109,7 +109,7 @@ def check_mapping(mapping):
 
 @celery.task()
 def handle_raw_upload(resource_id, dp_id, receipt_token):
-    logger.info("User upload")
+    logger.debug("User upload")
     mc = connect_to_object_store()
     raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data_response = mc.get_object(
@@ -117,11 +117,11 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
         raw_file
     )
 
-    logger.info("Received raw file...")
+    logger.debug("Received raw file...")
 
     clks = raw_data_response.data.decode().split('\n')
 
-    logger.info("Deserializing json filters")
+    logger.debug("Deserializing json filters")
 
     python_filters = deserialize_filters(clks)
     logger.debug("JSON parsed - there were {} clks".format(len(python_filters)))
@@ -141,7 +141,7 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
         config.MINIO_BUCKET,
         filename,
         data=f,
-        length=len(python_filters)*134
+        length=len(python_filters)*bit_packed_element_size
     )
 
     update_filter_data(connect_db(), filename, dp_id, clkcounts)
@@ -156,9 +156,10 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
     # Now work out if all parties have added their data
     mapping = get_mapping(connect_db(), resource_id)
     if check_mapping(mapping):
-        logger.info("Ready to match some entities")
+        logger.debug("All parties data present. Scheduling matching")
         calculate_mapping.delay(resource_id)
         logger.info("Matching job scheduled with celery worker")
+
 
 @celery.task()
 def calculate_mapping(resource_id):

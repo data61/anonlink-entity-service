@@ -33,6 +33,16 @@ def serialize_bitarray(ba):
     """
     return base64.encodebytes(ba.tobytes()).decode('utf8')
 
+"""
+The binary format used:
+
+- "!" Use network byte order (big-endian).
+- "1I" Store the index in 4 bytes as an unsigned int.
+- "128p" Store the 128 raw bytes of the bitarray
+- "1H" The popcount stored in 2 bytes (unsigned short)
+
+https://docs.python.org/3/library/struct.html#format-strings
+"""
 bit_packing_fmt = "!1I128p1H"
 bit_packed_element_size = struct.calcsize(bit_packing_fmt)
 
