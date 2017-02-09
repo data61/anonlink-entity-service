@@ -43,7 +43,6 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
     depends_on:
       - es_db
       - es_redis
@@ -66,8 +65,8 @@ services:
       # Trade off between more fine grained progress updates & fast processing of small jobs
       # versus incuring additional task overhead too many times.
       - GREEDY_CHUNK_SIZE=100000000
-      - DEBUG=true
-      - LOGGING_LEVEL=DEBUG
+      - DEBUG=false
+      - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 
@@ -91,16 +90,17 @@ services:
           - api
 
 
-  # A celery monitor
-  es_celery_monitor:
-    image: quay.io/n1analytics/entity-app:v1.4.0
-    depends_on:
-      - es_redis
-    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
-    networks:
-      es_network:
-        aliases:
-          - monitor
+  # A celery monitor. Useful for debugging but okay to remain
+  # commented out for deployment
+#  es_celery_monitor:
+#    image: quay.io/n1analytics/entity-app:v1.4.0
+#    depends_on:
+#      - es_redis
+#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
+#    networks:
+#      es_network:
+#        aliases:
+#          - monitor
 
 networks:
   es_network:
