@@ -1,0 +1,11 @@
+name: Entity Service
+version: 1.4.0
+description: Privacy preserving entity matching
+home: es.data61.xyz
+sources:
+  - https://github.csiro.au/magic/AnonymousLinking/
+  - https://github.csiro.au/magic/n1-compute/
+maintainers:
+  - name: Brian Thorne
+    email: brian.thorne@n1analytics.com
+icon: https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2016-04-11/33560836053_df0d62a81bf32f53df00_72.png

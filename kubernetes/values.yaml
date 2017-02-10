@@ -1,0 +1,56 @@
+Name: "entityservice"
+
+domain: "es.data61.xyz"
+domainProvider: "route53"
+
+
+api:
+  imageRegistery: "quay.io/n1analytics"
+  imagePullPolicy: "Always"
+
+  ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
+  ## or access it from within the cluster (ClusterIP service).
+  ## Set the service type and the port to serve it.
+  ## ref: http://kubernetes.io/docs/user-guide/services/
+  serviceType: "LoadBalancer"
+  servicePort: 80
+
+  ## If using a load balancer on AWS you can optionally lock down access
+  ## to a given IP range. Provide a list of IPs that are allowed via a
+  ## security group.
+  #serviceSourceRanges:
+  #  - 130.155.157.0/24
+
+  www:
+    image: "entity-nginx"
+    tag: "v1.2.4"
+    memory: 256Mi
+    cpu: 250m
+    containerPort: 8851
+  app:
+    image: "entity-app"
+    memory: 2048Mi
+    tag: "v1.3.0"
+    debug: "false"
+    containerPort: 8000
+  Replicas: 1
+
+workers:
+  imageRegistery: "quay.io/n1analytics"
+  Image: ""
+  ImageTag: ""
+  Workers: 2
+
+
+
+
+
+persistence:
+  ## If defined, volume.beta.kubernetes.io/storage-class: <storageClass>
+  ## Default: volume.alpha.kubernetes.io/storage-class: default
+  ##
+  # storageClass:
+  dataDir:
+    # Set this to false if you don't care to persist state between restarts.
+    enabled: true
+    Size: 100Gi

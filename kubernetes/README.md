@@ -75,7 +75,12 @@ Add a CNAME record to aws.
 
 Helm can be used to easily deploy the system to a kubernetes cluster.
 
+Pull the deps:
+    
+    helm dependency update
 
+
+How I installed the object store:
 
     helm install --set persistence.storageClass=slow,persistence.size=50Gi stable/minio
 

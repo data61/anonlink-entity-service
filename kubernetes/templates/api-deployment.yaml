@@ -3,24 +3,25 @@ kind: Deployment
 metadata:
   name: entityservice-api
 spec:
-  replicas: 1
+  replicas: {{ .Values.api.Replicas }}
   template:
     metadata:
       labels:
-        app: entityservice
+        app: {{ template "fullname" . }}
         tier: frontend
         run: entityservice-api
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
       containers:
       - name: entityservice-nginx
-        image: quay.io/n1analytics/entity-nginx:v1.2.4
-        imagePullPolicy: Always
+        image: {{ .Values.api.imageRegistery}}/{{ .Values.api.www.image }}:{{ .Values.api.www.tag }}
+        imagePullPolicy: {{ .Values.api.imagePullPolicy }}
         resources:
           requests:
-            memory: "256Mi"
+            memory: {{ .Values.api.www.memory }}
 
         ports:
-        - containerPort: 8851
+        - containerPort: {{ .Values.api.www.containerPort }}
           name: entity-nginx
         env:
           - name: TARGET_SERVICE
@@ -31,11 +32,11 @@ spec:
               # SIGTERM triggers a quick exit; gracefully terminate instead
               command: ["/usr/sbin/nginx","-s","quit"]
       - name: entityservice-flask
-        image: quay.io/n1analytics/entity-app:v1.3.0
-        imagePullPolicy: Always
+        image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
+        imagePullPolicy: {{ .Values.api.imagePullPolicy }}
         resources:
           requests:
-            memory: "2048Mi"
+            memory: {{ .Values.api.app.memory }}
         env:
           - name: REDIS_SERVER
             value: entityservice-redis
@@ -47,9 +48,9 @@ spec:
                 name: entityservice-db-password
                 key: db-password.txt
           - name: DEBUG
-            value: "false"
+            value: {{default "false" .Values.api.app.debug }}
         ports:
-          - containerPort: 8000
+          - containerPort: {{ .Values.api.app.containerPort }}
             name: entity-flask
       imagePullSecrets:
-            - name: n1analytics-coreos-pull-secret
+        - name: n1analytics-coreos-pull-secret

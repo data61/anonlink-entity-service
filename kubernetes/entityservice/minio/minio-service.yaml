@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: entityservice-minio
+  labels:
+    app: entityservice
+spec:
+  ports:
+    - port: 9000
+  selector:
+    app: entityservice
+    run: minio
+    tier: data
