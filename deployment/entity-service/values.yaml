@@ -6,6 +6,8 @@ domainProvider: "route53"
 
 api:
   imageRegistery: "quay.io/n1analytics"
+
+  ## "IfNotPresent" or "Always"
   imagePullPolicy: "Always"
 
   ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
@@ -30,27 +32,35 @@ api:
   app:
     image: "entity-app"
     memory: 2048Mi
-    tag: "v1.3.0"
-    debug: "false"
+    tag: "v1.4.1"
+    debug: "true"
     containerPort: 8000
   Replicas: 1
 
 workers:
   imageRegistery: "quay.io/n1analytics"
-  Image: ""
-  ImageTag: ""
-  Workers: 2
+  image: "entity-app"
+  tag: "v1.4.1"
+  replicas: 1
+  debug: "true"
 
 
+postgresql:
+  postgresPassword: "x925SvzX6cuH"
+  persistence:
+    persistence.enabled: false
+    persistence.storageClass: "slow"
+    size: 20Gi
+  image:
+    pullPolicy: Always
 
+redis:
+  redisPassword: "gOgRockEPtiN"
+  persistence:
+    persistence.storageClass: "slow"
 
-
-persistence:
-  ## If defined, volume.beta.kubernetes.io/storage-class: <storageClass>
-  ## Default: volume.alpha.kubernetes.io/storage-class: default
-  ##
-  # storageClass:
-  dataDir:
-    # Set this to false if you don't care to persist state between restarts.
-    enabled: true
-    Size: 100Gi
+minio:
+  persistence:
+    persistence.storageClass: "slow"
+  accessKey: "AKIAIOSFODNN7EXAMPLE"
+  secretKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"

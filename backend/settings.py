@@ -19,6 +19,7 @@ class Config(object):
                                       datefmt="%H:%M:%S")
 
     REDIS_SERVER = os.environ.get('REDIS_SERVER', 'redis')
+    REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 
     MINIO_SERVER = os.environ.get('MINIO_SERVER', 'minio:9000')
     MINIO_ACCESS_KEY = os.environ.get('MINIO_ACCESS_KEY', '')
@@ -30,7 +31,7 @@ class Config(object):
     DATABASE_USER = os.environ.get('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD', '')
 
-    BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://{}:6379/0'.format(REDIS_SERVER))
+    BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
 
     CELERY_RESULT_BACKEND = BROKER_URL
 

@@ -8,7 +8,7 @@ tutorial [here](https://github.com/coreos/kube-aws).
 The entity service has been designed to scale across multiple nodes and
 handle node failure so spot instances are fine.
 
-Recommended worker instance type is `r3.4xlarge`
+Recommended worker instance type is `r3.4xlarge`.
 
 # Provision cluster resources
 
@@ -80,8 +80,22 @@ Pull the deps:
     helm dependency update
 
 
-How I installed the object store:
+Install the whole system
 
-    helm install --set persistence.storageClass=slow,persistence.size=50Gi stable/minio
+    helm install --set persistence.storageClass=slow,persistence.size=50Gi .
 
 
+Examples:
+
+https://github.com/deis/workflow/tree/master/charts/workflow
+
+Postgres was a bit annoying so I have packaged it up manually. Ideally it would be another line in `requirements.yaml` as opposed
+to a whole new sub chart. Here is what it is based off:
+
+    https://github.com/kubernetes/charts/tree/master/stable/postgresql
+
+This would need to be added back to the requirements file:
+
+    - name: postgresql
+      repository: https://kubernetes-charts.storage.googleapis.com
+      version: 0.3.0

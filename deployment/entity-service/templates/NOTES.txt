@@ -1,0 +1,26 @@
+
+*- N1 Analytics Entity Service -*
+
+Soon you should be able to visit the entity service.
+
+1. Get the entity service URL by running:
+
+{{- if contains "NodePort" .Values.api.serviceType }}
+
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT/
+
+{{- else if contains "LoadBalancer" .Values.api.serviceType }}
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        Watch the status with: 'kubectl get svc -w {{ .Chart.Name }}-api-svc --namespace {{ .Release.Namespace }}'
+
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ .Chart.Name }}-api-svc -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  echo http://$SERVICE_IP/
+{{- else if contains "ClusterIP"  .Values.api.serviceType }}
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "fullname" . }}" -o jsonpath="{.items[0].metadata.name}")
+  echo http://127.0.0.1:8080/
+  kubectl port-forward $POD_NAME 8080:80
+{{- end }}

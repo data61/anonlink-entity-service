@@ -1,0 +1,25 @@
+# Default values for entityservice-db.
+
+postgresPassword: "changeme"
+
+image:
+  repository: quay.io/n1analytics/entity-db-server
+  tag: v1.1
+  pullPolicy: IfNotPresent
+
+service:
+  name: db
+  type: ClusterIP
+  externalPort: 5432
+  internalPort: 5432
+
+resources:
+  limits:
+    memory: 6Gi
+  requests:
+    memory: 4Gi
+
+persistence:
+  persistence.enabled: true
+  persistence.storageClass: "slow"
+  size: 20Gi

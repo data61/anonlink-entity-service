@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: entityservice-worker
 spec:
-  replicas: 20
+  replicas: {{ .Values.workers.replicas }}
   template:
     metadata:
       labels:
@@ -13,26 +13,44 @@ spec:
     spec:
       containers:
       - name: celery-worker
-        image: quay.io/n1analytics/entity-app:v1.3.0
+        image: {{ .Values.workers.imageRegistery }}/{{ .Values.workers.image }}:{{ .Values.workers.tag }}
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
-            value: entityservice-redis
+            value: {{ .Release.Name }}-redis
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: redisPassword
           - name: DATABASE_SERVER
-            value: entityservice-db
+            value: "es-postgres"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: entityservice-db-password
-                key: db-password.txt
+                name: es-credentials
+                key: postgresPassword
           - name: DEBUG
-            value: "false"
+            value: {{ .Values.workers.debug | quote }}
           - name: ENTITY_MATCH_THRESHOLD
             value: "0.95"
           - name: GREEDY_CHUNK_SIZE
             value: "1000000000"
           - name: ENCRYPTION_MIN_KEY_LENGTH
             value: "1024"
+          - name: MINIO_SERVER
+            value: {{ .Release.Name }}-minio-svc:9000
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: minioAccessKey
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: minioSecretKey
+
         command:
           - "/usr/local/bin/celery"
           - "-A"

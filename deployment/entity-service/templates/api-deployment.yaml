@@ -39,16 +39,33 @@ spec:
             memory: {{ .Values.api.app.memory }}
         env:
           - name: REDIS_SERVER
-            value: entityservice-redis
+            value: {{ .Release.Name }}-redis
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: redisPassword
           - name: DATABASE_SERVER
-            value: entityservice-db
+            value: "es-postgres"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: entityservice-db-password
-                key: db-password.txt
+                name: es-credentials
+                key: postgresPassword
           - name: DEBUG
-            value: {{default "false" .Values.api.app.debug }}
+            value: {{default "false" .Values.api.app.debug | quote }}
+          - name: MINIO_SERVER
+            value: {{ .Release.Name }}-minio-svc:9000
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: minioAccessKey
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: minioSecretKey
         ports:
           - containerPort: {{ .Values.api.app.containerPort }}
             name: entity-flask

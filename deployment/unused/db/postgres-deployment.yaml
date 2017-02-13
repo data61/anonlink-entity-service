@@ -40,6 +40,3 @@ spec:
       - name: db-volume
         persistentVolumeClaim:
           claimName: es-db-pv-claim
-# For testing
-#      - name: db-volume
-#        emptyDir: {}

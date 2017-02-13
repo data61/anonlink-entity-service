@@ -11,12 +11,18 @@ from settings import Config as config
 
 logger = logging.getLogger('cache')
 redis_host = config.REDIS_SERVER
+redis_pass = config.REDIS_PASSWORD
+
+
+def connect_to_redis():
+    r = redis.StrictRedis(host=redis_host, password=redis_pass, port=6379, db=0)
+    return r
 
 
 def set_deserialized_filter(dp_id, python_filters):
     logger.debug("Pickling filters and storing in redis")
     key = 'clk-pkl-{}'.format(dp_id)
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     pickled_filters = pickle.dumps(python_filters)
     r.set(key, pickled_filters)
 
@@ -28,7 +34,7 @@ def get_deserialized_filter(dp_id):
     """
     logger.debug("Getting filters")
     key = 'clk-pkl-{}'.format(dp_id)
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
 
     # Check if this dp_id is already saved in redis?
     if r.exists(key):
@@ -53,19 +59,19 @@ def get_deserialized_filter(dp_id):
 
 def remove_from_cache(dp_id):
     logger.debug("Deleting CLKS for DP {} from redis cache".format(dp_id))
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     key = 'clk-pkl-{}'.format(dp_id)
     r.delete(key)
 
 
 def update_progress(comparisons, resource_id):
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     key = 'progress-{}'.format(resource_id)
     r.incr(key, comparisons)
 
 
 def get_progress(resource_id):
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     key = 'progress-{}'.format(resource_id)
     res = r.get(key)
     # redis returns bytes, and None if not present
@@ -76,7 +82,7 @@ def get_progress(resource_id):
 
 
 def get_status():
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     key = 'entityservice-status'
     if r.exists(key):
         logger.debug("returning status from cache")
@@ -87,6 +93,7 @@ def get_status():
 
 def set_status(status):
     logger.debug("Saving the service status to redis cache")
-    r = redis.StrictRedis(host=redis_host, port=6379, db=0)
+    r = connect_to_redis()
     r.setex('entityservice-status', 30, pickle.dumps(status))
+
 
