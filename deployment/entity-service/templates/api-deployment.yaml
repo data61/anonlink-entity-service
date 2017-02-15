@@ -39,7 +39,7 @@ spec:
             memory: {{ .Values.api.app.memory }}
         env:
           - name: REDIS_SERVER
-            value: {{ .Release.Name }}-redis
+            value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
@@ -55,7 +55,7 @@ spec:
           - name: DEBUG
             value: {{default "false" .Values.api.app.debug | quote }}
           - name: MINIO_SERVER
-            value: {{ .Release.Name }}-minio-svc:9000
+            value: "{{ .Release.Name }}-minio-svc:9000"
           - name: MINIO_ACCESS_KEY
             valueFrom:
               secretKeyRef:

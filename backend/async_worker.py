@@ -27,7 +27,8 @@ celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
 celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
-celery.conf.CELERYD_PREFETCH_MULTIPLIER = 1
+celery.conf.CELERYD_PREFETCH_MULTIPLIER = config.CELERYD_PREFETCH_MULTIPLIER
+celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
 
 
 @after_setup_logger.connect
@@ -208,9 +209,10 @@ def compute_similarity(resource_id, dp_ids):
 
     lenf1 = len(filters1)
     lenf2 = len(filters2)
+    size = lenf1 * lenf2
 
     logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-    if max(lenf1, lenf2) < config.GREEDY_SIZE:
+    if size < config.GREEDY_SIZE:
         logger.info("Computing similarity using more accurate method")
 
         #filters1 = deserialize_filters(serialized_filters1)
@@ -236,15 +238,21 @@ def compute_similarity(resource_id, dp_ids):
 
         logger.debug("Chunking computation task")
 
-        chunk_size = int(config.GREEDY_CHUNK_SIZE / lenf2)
+        if size <= config.MIN_GREEDY_CHUNK_SIZE:
+            logger.info("Small job, one node should do")
+            chunk_size = lenf1
+        else:
+            logger.info("Large job, chunking")
+            chunk_size = min(lenf1, int(config.MAX_GREEDY_CHUNK_SIZE / lenf2))
+
         filter1_job_chunks = []
         for chunk_start_index in range(0, lenf1, chunk_size):
             filter1_job_chunks.append(
                 (filters1_object_filename, chunk_start_index, min(chunk_start_index + chunk_size, lenf1))
             )
 
-        logger.info("Chunking org 1's {} entities into {} computation tasks of size {}".format(
-            lenf1, int(lenf1/chunk_size), chunk_size))
+        logger.info("Chunking org 1's {} entities into {} computation tasks each with {} entities.".format(
+            lenf1, len(filter1_job_chunks), chunk_size))
 
         mapping_future = chord(
             (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_job_chunks)),
@@ -493,7 +501,6 @@ def mark_mapping_complete(resource_id):
     db.commit()
 
 
-
 @celery.task()
 def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
@@ -510,7 +517,7 @@ def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
     :param resource_id:
     :return:
     """
-    logger.info("Computing similarity for a chunk of filters")
+    logger.debug("Computing similarity for a chunk of filters")
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
@@ -543,9 +550,13 @@ def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
                                                                      k=5)
     t3 = time.time()
 
-    logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}".format(t1-t0, t2-t1, t3-t2, t3-t0))
     # Update the number of comparisons completed
-    save_current_progress(len(filters2) * chunk_size, resource_id)
+    comparisons_computed = len(filters2) * chunk_size
+    logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}  Comparisons: {}".format(
+        t1-t0, t2-t1, t3-t2, t3-t0, comparisons_computed)
+    )
+
+    save_current_progress(comparisons_computed, resource_id)
 
     partial_sparse_result = []
     # offset chunk's A index by chunk_size * chunk_number
@@ -558,7 +569,7 @@ def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
 
 
 def save_current_progress(comparisons, resource_id):
-    logger.info("Progress. Compared {} CLKS".format(comparisons))
+    logger.debug("Progress. Compared {} CLKS".format(comparisons))
     cache.update_progress(comparisons, resource_id)
 
 

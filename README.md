@@ -20,7 +20,7 @@ images used by `docker-compose`.
 
 ## Start
 
-Everything can be started at once with:
+Everything can be started locally using docker-compose with:
 
     docker-compose -f tools/docker-compose.yml up
 
@@ -31,8 +31,9 @@ This will start the following containers:
 - celery backend worker
 - postgres database
 - redis job queue
+- minio object store
 
-The service should be running on port `8851`.
+The api service should be running on host port `8851`.
 
 # Testing
 
@@ -40,7 +41,8 @@ A simple query with curl should tell you the status of the service:
 
     curl localhost:8851/api/v1/status
     {
-        "number_mappings": 0,
+        "number_mappings": 2,
+        "rate": 44051409,
         "status": "ok"
     }
 
@@ -61,8 +63,10 @@ with docker compose. If the network is not recognized, use `docker network ls` t
 see the available docker networks and find which network was created by docker-compose.
 
 The `<ENTITY-SERVER-HOST>` is either the hostname or the host's IP address on the
-docker network. When running locally with docker compose, **do not use `0.0.0.0`**,
-there are two solutions:
+docker network. When running locally with docker compose, **do not use `0.0.0.0`** as 
+inside the test container `0.0.0.0` refers to that container; there are two solutions:
+
+### Finding the containers IP
 
 - find the name of the `entity-nginx` container with `docker ps` (in the column `names`)
 - use the local IP of the container with
@@ -70,7 +74,7 @@ there are two solutions:
 
 Then use the previous command with `-e ENTITY_SERVICE_URL=http://<container-ip-or-name>:8851/api/v1`
 
-## Using docker-compose
+### Testing with docker-compose
 
 An additional docker-compose config file can be found in `./tools/ci.yml`,
 this can be added in to run along with the rest of the service:
@@ -89,11 +93,15 @@ Note: the folder in which the generated data will be stored need to be existing.
 
 ## Development Tips
 
-You might need to destroy the docker volumes used to store the postgres database if
-you change the database schema:
+### Volumes
+
+You might need to destroy the docker volumes used for the object store
+and the postgres database:
 
     docker-compose -f tools/docker-compose.yml rm --all
 
+
+### Mix and match docker compose
 
 During development you can run the redis and database containers with
 docker-compose, and directly run the celery and flask applications with Python.
@@ -103,6 +111,15 @@ docker-compose, and directly run the celery and flask applications with Python.
 
     docker-compose -f tools/docker-compose.yml run es_redis
 
+### Restart one service
+
+Docker compose can modifying an existing deployment, this can be particularly
+effective when you modify and build the backend and want to restart it without
+changing anything else:
+
+    docker-compose -f tools/docker-compose.yml up -d --no-deps es_backend
+
+
 ## Scaling
 
 You can run additional worker containers by scaling with docker-compose:
@@ -110,8 +127,3 @@ You can run additional worker containers by scaling with docker-compose:
     docker-compose -f tools/docker-compose.yml scale es_worker=2
 
 
-# Name generation
-
-    http://<SERVER>:8851/danger/generate-names?n=10&p=0.5
-
-Where n is the number of entities you want and p is the overlap proportion.

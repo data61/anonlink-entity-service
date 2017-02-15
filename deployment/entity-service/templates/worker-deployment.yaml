@@ -15,9 +15,11 @@ spec:
       - name: celery-worker
         image: {{ .Values.workers.imageRegistery }}/{{ .Values.workers.image }}:{{ .Values.workers.tag }}
         imagePullPolicy: Always
+        resources:
+{{ toYaml .Values.workers.resources | indent 10 }}
         env:
           - name: REDIS_SERVER
-            value: {{ .Release.Name }}-redis
+            value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
@@ -33,13 +35,19 @@ spec:
           - name: DEBUG
             value: {{ .Values.workers.debug | quote }}
           - name: ENTITY_MATCH_THRESHOLD
-            value: "0.95"
-          - name: GREEDY_CHUNK_SIZE
-            value: "1000000000"
+            value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
+          - name: MIN_CHUNK_SIZE
+            value: {{ .Values.workers.MIN_CHUNK_SIZE | quote }}
+          - name: MAX_CHUNK_SIZE
+            value: {{ .Values.workers.MAX_CHUNK_SIZE | quote }}
+          - name: CELERYD_PREFETCH_MULTIPLIER
+            value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
+          - name: CELERYD_MAX_TASKS_PER_CHILD
+            value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
           - name: ENCRYPTION_MIN_KEY_LENGTH
             value: "1024"
           - name: MINIO_SERVER
-            value: {{ .Release.Name }}-minio-svc:9000
+            value: "{{ .Release.Name }}-minio-svc:9000"
           - name: MINIO_ACCESS_KEY
             valueFrom:
               secretKeyRef:

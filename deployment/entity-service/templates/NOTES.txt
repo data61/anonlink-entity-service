@@ -14,9 +14,9 @@ Soon you should be able to visit the entity service.
 {{- else if contains "LoadBalancer" .Values.api.serviceType }}
 
   NOTE: It may take a few minutes for the LoadBalancer IP to be available.
-        Watch the status with: 'kubectl get svc -w {{ .Chart.Name }}-api-svc --namespace {{ .Release.Namespace }}'
+        Watch the status with: 'kubectl get svc -w entityservice-api --namespace {{ .Release.Namespace }}'
 
-  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ .Chart.Name }}-api-svc -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} entityservice-api -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   echo http://$SERVICE_IP/
 {{- else if contains "ClusterIP"  .Values.api.serviceType }}
 
@@ -24,3 +24,8 @@ Soon you should be able to visit the entity service.
   echo http://127.0.0.1:8080/
   kubectl port-forward $POD_NAME 8080:80
 {{- end }}
+
+2. Task Monitoring
+
+To monitor the entity service tasks (time taken, completions, failures etc)
+You will need to forward a port from the monitoring pod.
