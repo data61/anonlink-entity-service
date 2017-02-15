@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  namespace: "kube-system"
+  name: kubernetes-api-ingress
+  labels:
+    dns: "n1-aws-cluster.data61.xyz"
+spec:
+  rules:
+  - host: {{ .Values.api.domain }}
+    http:
+      paths:
+      - backend:
+          serviceName: kubernetes-dashboard
+          servicePort: 80
+
