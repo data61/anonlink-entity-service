@@ -1,0 +1,21 @@
+{{- if .Values.api.ingress.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: entityservice-api-ingress
+  labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+    dns: {{ .Values.api.domainProvider }}
+spec:
+  rules:
+  - host: {{ .Values.api.domain }}
+    http:
+      paths:
+      - backend:
+          serviceName: entityservice-api
+          servicePort: {{ .Values.api.servicePort }}
+{{- end }}
+

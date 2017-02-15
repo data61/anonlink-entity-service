@@ -4,8 +4,8 @@ metadata:
   name: entityservice-api
   labels:
     app: {{ template "fullname" . }}
-    dns: {{ .Values.domainProvider }}
-    domain: {{ .Values.domain }}
+    dns: {{ .Values.api.domainProvider }}
+    domain: {{ .Values.api.domain }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
 spec:
   ports:

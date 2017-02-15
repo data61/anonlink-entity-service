@@ -1,9 +1,11 @@
 Name: "entityservice"
 
-domain: "es.data61.xyz"
-domainProvider: "route53"
-
 api:
+  ingress:
+    enabled: true
+  domain: "es.data61.xyz"
+  domainProvider: "route53"
+
   imageRegistery: "quay.io/n1analytics"
 
   ## "IfNotPresent" or "Always"
@@ -13,7 +15,10 @@ api:
   ## or access it from within the cluster (ClusterIP service).
   ## Set the service type and the port to serve it.
   ## ref: http://kubernetes.io/docs/user-guide/services/
-  serviceType: "LoadBalancer"
+  ## Most likely if ingress is enabled, this should be ClusterIP,
+  ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
+  ## an AWS ELB to 300+ seconds (from the default of 60).
+  serviceType: "ClusterIP"
   servicePort: 80
 
   ## If using a load balancer on AWS you can optionally lock down access

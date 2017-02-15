@@ -1,14 +1,45 @@
+# Production Deployment 
 
+The entity service has been deployed to Kubernetes clusters on GCE and
+AWS. The entity service has been designed to scale across multiple nodes
+and handle node failure.
 
-# Bring up a Kubernetes cluster:
+## Bring up a Kubernetes cluster:
 
 Out of scope for this documentation, for AWS there is a good
 tutorial [here](https://github.com/coreos/kube-aws).
 
-The entity service has been designed to scale across multiple nodes and
-handle node failure so spot instances are fine.
+Recommended worker instance type is `r3.4xlarge` - spot instances are 
+fine as we handle node failure.
 
-Recommended worker instance type is `r3.4xlarge`.
+
+## We assume the cluster has an ingress controller
+
+Deploy the [traefik ingress controller](https://docs.traefik.io/user-guide/kubernetes/) 
+into the kube-system namespace with:
+
+    helm install --name traefik --namespace kube-system --values traefik.yaml stable/traefik
+
+Note you can update the traefik.yaml file and upgrade in place with:
+
+    helm upgrade traefik --namespace kube-system --values traefik.yaml stable/traefik
+
+
+## Deploy the system
+
+Helm can be used to easily deploy the system to a kubernetes cluster.
+
+Pull the deps:
+    
+    helm dependency update
+
+
+Install the whole system
+
+    helm install --set domain="es.data61.xyz" . --name="entityservice"
+
+
+# Manually using kubernetes resources
 
 # Provision cluster resources
 
@@ -66,24 +97,9 @@ Find out the Amazon Load Balancer address:
 
 Add a CNAME record to aws.
 
-## Jupyter Notebook (optional)
-
-`n1-py-notebook.yaml`
 
 
-# Helm
-
-Helm can be used to easily deploy the system to a kubernetes cluster.
-
-Pull the deps:
-    
-    helm dependency update
-
-
-Install the whole system
-
-    helm install --set persistence.storageClass=slow,persistence.size=50Gi .
-
+# Helm bits and bobs:
 
 Examples:
 
