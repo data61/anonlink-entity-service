@@ -443,7 +443,7 @@ def add_mapping_data(dp_id, raw_clks):
     data = '\n'.join(''.join(clk.split('\n')) for clk in raw_clks).encode()
     buffer = io.BytesIO(data)
 
-    app.logger.info("Uploading clks to object store")
+    app.logger.info("Uploading {} bytes of user uploaded clks to object store".format(len(data)))
     mc.put_object(
         config.MINIO_BUCKET,
         filename,

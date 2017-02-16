@@ -1,0 +1,12 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: minio-ingress
+spec:
+  rules:
+  - host: minio.es.data61.xyz
+    http:
+      paths:
+      - backend:
+          serviceName: n1entityservice-minio
+          servicePort: 9000

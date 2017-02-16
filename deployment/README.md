@@ -30,7 +30,8 @@ When pods require persistent storage this can either be manually provided,
 or dynamically.
 
 For a cluster on AWS the `aws-storage.yaml` resource will dynamically
-provision elastic block store volumes.
+provision elastic block store volumes. The default `values.yaml` assumes
+the existance of a `"slow"` `storageClass`.
 
 ### Docker login credentials
 
@@ -69,7 +70,7 @@ Adjust the `values.yaml` file to your liking.
 Install the whole system
 
     cd entity-service
-    helm install . --name="entityservice"
+    helm install . --name="n1entityservice"
 
 
 ## Run an e2e test

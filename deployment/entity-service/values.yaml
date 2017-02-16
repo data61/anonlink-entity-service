@@ -35,8 +35,8 @@ api:
     containerPort: 8851
   app:
     image: "entity-app"
-    memory: 2048Mi
-    tag: "v1.4.6"
+    memory: 6000Mi
+    tag: "v1.4.8"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.4.6"
+  tag: "v1.4.7"
   replicas: 3
   debug: "true"
 # Single core should do 10 M/s
@@ -64,7 +64,7 @@ workers:
   # this isn't worth splitting across nodes.
   MIN_CHUNK_SIZE: "50000000"
 
-  MATCH_THRESHOLD: "0.95"
+  MATCH_THRESHOLD: "0.96"
 
   celery:
     PREFETCH_MULTIPLIER: "2"
@@ -99,7 +99,7 @@ minio:
   mode: "distributed"
   serviceType: "ClusterIP"
   persistence:
-    size: 20Gi
+    size: 100Gi
     storageClass: "slow"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"

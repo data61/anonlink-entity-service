@@ -129,20 +129,22 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
     clkcounts = [cnt for _, _, cnt in python_filters]
 
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    logger.info("Writing binary file with index, base64 encoded CLK, popcount")
+    num_bytes = len(python_filters) * bit_packed_element_size
+    logger.info("Creating binary file with index, base64 encoded CLK, popcount")
 
     # TODO better to upload without the very large temp buffer
-    f = io.BytesIO()
+    # https://docs.python.org/3/library/io.html#io.BytesIO
+    f = io.BytesIO(bytearray(num_bytes))
     for packed_bloomfilter in binary_pack_filters(python_filters):
         f.write(packed_bloomfilter)
     f.seek(0)
 
-    logger.info("Uploading binary packed clks to object store")
+    logger.info("Uploading binary packed clks to object store. {} bytes".format(num_bytes))
     mc.put_object(
         config.MINIO_BUCKET,
         filename,
         data=f,
-        length=len(python_filters)*bit_packed_element_size
+        length=num_bytes
     )
 
     update_filter_data(connect_db(), filename, dp_id, clkcounts)
