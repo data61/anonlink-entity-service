@@ -46,9 +46,8 @@ workers:
   image: "entity-app"
   tag: "v1.4.6"
   replicas: 3
-  debug: "false"
-
-  # Single core should do 10 M/s
+  debug: "true"
+# Single core should do 10 M/s
   # A worker with ~3 cores should do 30 M/s
   # There is some overhead for fetching data for each task - ~15s per 100K entities
   # The trade off is that intermediate jobs won't scale much. For instance 100k x 100k

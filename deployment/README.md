@@ -96,8 +96,8 @@ Add a CNAME record to aws.
 
 ## Postgres DB
 
-Postgres was a bit annoying so I have packaged it up manually. Ideally it would be another line in `requirements.yaml` as opposed
-to a whole new sub chart. Here is what it is based off:
+Postgres was a bit annoying so I have packaged it up manually. Ideally it would be another line 
+in `requirements.yaml` as opposed to a whole new sub chart. Here is what it is based off:
 
     https://github.com/kubernetes/charts/tree/master/stable/postgresql
 
