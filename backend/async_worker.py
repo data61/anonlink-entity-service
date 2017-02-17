@@ -14,9 +14,9 @@ import cache
 from database import *
 from object_store import connect_to_object_store
 from serialization import load_public_key, int_to_base64, binary_unpack_filters, \
-    binary_pack_filters, deserialize_filters, bit_packed_element_size
+    binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
 from settings import Config as config
-from utils import chunks
+from utils import chunks, iterable_to_stream, fmt_bytes
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -34,7 +34,6 @@ celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
 @after_setup_logger.connect
 @after_setup_task_logger.connect
 def init_celery_logger(logger, **kwargs):
-
     level = logging.DEBUG if config.DEBUG else logging.INFO
 
     for handler in logger.handlers[:]:
@@ -110,54 +109,59 @@ def check_mapping(mapping):
 
 @celery.task()
 def handle_raw_upload(resource_id, dp_id, receipt_token):
-    logger.debug("User upload")
+    logger.info("Handling user uploaded file for dp: {}".format(dp_id))
+    expected_size = get_number_of_hashes(connect_db(), dp_id)
+    logger.info("Expecting to handle {} hashes".format(expected_size))
+
     mc = connect_to_object_store()
+
+    # Input file is text, base64 encoded. One hash per line.
     raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(
-        config.MINIO_BUCKET,
-        raw_file
-    )
+    raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
 
-    logger.debug("Received raw file...")
-
-    clks = raw_data_response.data.decode().split('\n')
-
-    logger.debug("Deserializing json filters")
-
-    python_filters = deserialize_filters(clks)
-    logger.debug("JSON parsed - there were {} clks".format(len(python_filters)))
-    clkcounts = [cnt for _, _, cnt in python_filters]
-
+    # Output file is binary
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    num_bytes = len(python_filters) * bit_packed_element_size
-    logger.info("Creating binary file with index, base64 encoded CLK, popcount")
+    num_bytes = expected_size * bit_packed_element_size
 
-    # TODO better to upload without the very large temp buffer
-    # https://docs.python.org/3/library/io.html#io.BytesIO
-    f = io.BytesIO(bytearray(num_bytes))
-    for packed_bloomfilter in binary_pack_filters(python_filters):
-        f.write(packed_bloomfilter)
-    f.seek(0)
+    # Set up streaming processing pipeline
+    buffered_stream = iterable_to_stream(raw_data_response.stream())
+    text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
-    logger.info("Uploading binary packed clks to object store. {} bytes".format(num_bytes))
-    mc.put_object(
-        config.MINIO_BUCKET,
-        filename,
-        data=f,
-        length=num_bytes
-    )
+    clkcounts = []
 
-    update_filter_data(connect_db(), filename, dp_id, clkcounts)
+    def filter_generator():
+        logger.debug("Deserializing json filters")
+        for i, line in enumerate(text_stream):
+            ba = deserialize_bitarray(line)
+            yield (ba, i, ba.count())
+            clkcounts.append(ba.count())
 
+        logger.info("Processed {} hashes".format(len(clkcounts)))
+
+    python_filters = filter_generator()
     # If small enough preload the data into our redis cache
-    if len(clkcounts) < config.ENTITY_CACHE_THRESHOLD:
-        logger.info("Caching clk data")
+    if expected_size < config.ENTITY_CACHE_THRESHOLD:
+        logger.info("Caching pickled clk data")
+        python_filters = list(python_filters)
         cache.set_deserialized_filter(dp_id, python_filters)
     else:
         logger.info("Not caching clk data as it is too large")
 
+    packed_filters = binary_pack_filters(python_filters)
+
+    packed_filter_stream = iterable_to_stream(packed_filters)
+
+    logger.debug("Creating binary file with index, base64 encoded CLK, popcount")
+
+    # Upload to object store
+    logger.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
+    mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
+
+    update_filter_data(connect_db(), filename, dp_id)
+
     # Now work out if all parties have added their data
     mapping = get_mapping(connect_db(), resource_id)
+    logger.debug(str(mapping))
     if check_mapping(mapping):
         logger.debug("All parties data present. Scheduling matching")
         calculate_mapping.delay(resource_id)
@@ -236,7 +240,7 @@ def compute_similarity(resource_id, dp_ids):
     else:
         logger.info("Computing similarity using greedy method")
         db = connect_db()
-        filters1_object_filename, filter1_popcounts = get_filter_metadata(db, dp_ids[0])
+        filters1_object_filename = get_filter_metadata(db, dp_ids[0])
 
         logger.debug("Chunking computation task")
 

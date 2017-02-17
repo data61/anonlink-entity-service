@@ -1,14 +1,19 @@
 import json
 import os
 import io
-import tempfile
+
 import platform
 import logging
 import binascii
 
 from flask import Flask, g, request
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
-import minio
+
+try:
+    import ijson.backends.yajl2_cffi as ijson
+except ImportError:
+    import ijson
+
 import anonlink
 import cache
 import database as db
@@ -16,6 +21,7 @@ from serialization import load_public_key, deserialize_filters, binary_pack_filt
 from async_worker import calculate_mapping, handle_raw_upload
 from object_store import connect_to_object_store
 from settings import Config as config
+from utils import fmt_bytes
 
 __version__ = open('VERSION').read().strip()
 
@@ -226,7 +232,7 @@ class MappingList(Resource):
                 paillier_db_id = db.insert_paillier(cur, data, mapping_resource)
                 db.insert_empty_encrypted_mask(cur, mapping_resource, paillier_db_id)
 
-            app.logger.debug("New resource id: {}".format(mapping_db_id))
+            app.logger.debug("New mapping created in DB: {}".format(mapping_db_id))
             app.logger.debug("Creating new data provider entries")
 
             for auth_token in mapping.update_tokens:
@@ -340,30 +346,26 @@ class Mapping(Resource):
         # ensure we read the post data, even though we mightn't need it
         # without this you get occasional nginx errors failed (104:
         # Connection reset by peer) (See issue #195)
+        # data = request.get_json()
 
-        # TODO we could consider passing request.stream to add_mapping_data
-        # to avoid parsing the json altogether, and would enable running the
+        # Pass the request.stream to add_mapping_data
+        # to avoid parsing the json in one hit, this enables running the
         # web frontend with less memory.
         headers = request.headers
-        data = request.get_json()
+        stream = request.stream
         abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
             abort(401, message="Authentication token required")
 
         token = headers['Authorization']
 
-        if data is None or 'clks' not in data:
-            abort(400, message="Missing information")
-
-        app.logger.info("Request to add data to mapping")
-
         # Check the caller has valid token
         abort_if_invalid_dataprovider_token(token)
 
         dp_id = db.get_dataprovider_id(get_db(), token)
 
-        app.logger.info("Adding data to: {}".format(dp_id))
-        receipt_token, raw_file = add_mapping_data(dp_id, data['clks'])
+        app.logger.info("Receiving data for: dpid: {}".format(dp_id))
+        receipt_token, raw_file = add_mapping_data(dp_id, stream)
 
         # Schedule a task to deserialize the hashes, and carry
         # out a pop count.
@@ -426,7 +428,7 @@ class Status(Resource):
         return status
 
 
-def add_mapping_data(dp_id, raw_clks):
+def add_mapping_data(dp_id, raw_stream):
     """
     Save the untrusted user provided data and start a celery job to
     deserialize, popcount and save the hashes.
@@ -438,12 +440,37 @@ def add_mapping_data(dp_id, raw_clks):
     mc = connect_to_object_store()
 
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
-    app.logger.debug("Storing user supplied json file")
+    app.logger.info("Storing user {} supplied clks from json".format(dp_id))
 
-    data = '\n'.join(''.join(clk.split('\n')) for clk in raw_clks).encode()
+    # We will increment a counter as we process
+    store = {
+        'count': 0,
+        'totalbytes': 0
+    }
+
+    def counting_generator():
+        for clk in ijson.items(raw_stream, 'clks.item'):
+            # Often the clients upload base64 strings with newlines
+            # We remove those here
+            raw = ''.join(clk.split('\n')).encode() + b'\n'
+            store['count'] += 1
+            store['totalbytes'] += len(raw)
+            yield raw
+
+    # Annoyingly we need the totalbytes to upload to the object store
+    # so we consume the input stream here. We could change the public
+    # api instead so that we knew ahead of time.
+    data = b''.join(counting_generator())
+    num_bytes = len(data)
     buffer = io.BytesIO(data)
 
-    app.logger.info("Uploading {} bytes of user uploaded clks to object store".format(len(data)))
+    if store['count'] == 0:
+        abort(400, "Missing information")
+
+
+    app.logger.info("Processed {} CLKS".format(store['count']))
+    app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
+
     mc.put_object(
         config.MINIO_BUCKET,
         filename,
@@ -451,7 +478,7 @@ def add_mapping_data(dp_id, raw_clks):
         length=len(data)
     )
 
-    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, len(raw_clks))
+    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, store['count'])
 
     return receipt_token, filename
 

@@ -7,7 +7,7 @@ WORKDIR /var/www
 # libmpc-dev is necessary to setup gmpy2
 RUN (pip install --upgrade pip; \
      apt-get update; \
-     apt-get --assume-yes install libmpc-dev build-essential)
+     apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2)
 
 ADD requirements.txt /var/www/requirements.txt
 ADD AnonymousLinking AnonymousLinking
@@ -26,6 +26,8 @@ CMD gunicorn entityservice:app \
     -w 4 \
     -b 0.0.0.0:8000 \
     --timeout 600 \
+    --keep-alive 300 \
+    --graceful-timeout 120 \
     --log-level info \
     --access-logfile /var/log/gunicorn-access.log
 

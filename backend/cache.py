@@ -44,7 +44,7 @@ def get_deserialized_filter(dp_id):
         logger.debug("Looking up popcounts and filename from database")
         db = database.connect_db()
         mc = connect_to_object_store()
-        serialized_filters_file, popcnts = database.get_filter_metadata(db, dp_id)
+        serialized_filters_file = database.get_filter_metadata(db, dp_id)
 
         logger.debug("Getting filters from object store")
 

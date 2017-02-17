@@ -320,13 +320,27 @@ def get_filter_metadata(db, dp_id):
     :return: The filename of the raw clks and a list of popcounts for given data provider
     """
     raw_json_filter = query_db(db, """
-        SELECT file, popcounts
+        SELECT file
         FROM bloomingdata
         WHERE
           dp = %s
         """, [dp_id], one=True)
 
-    return raw_json_filter['file'].strip(), raw_json_filter['popcounts']
+    return raw_json_filter['file'].strip()
+
+
+def get_number_of_hashes(db, dp_id):
+    """
+    :return: The size of the uploaded raw clks.
+    """
+    raw_json_filter = query_db(db, """
+        SELECT size
+        FROM bloomingdata
+        WHERE
+          dp = %s
+        """, [dp_id], one=True)
+
+    return raw_json_filter['size']
 
 
 def get_permutation_result(db, dp_id):
@@ -421,11 +435,11 @@ def insert_empty_encrypted_mask(cur, resource_id, pid):
             (%s, %s)
             RETURNING id;
             """,
-                                [
+            [
                 resource_id,
                 pid
             ]
-                                )
+        )
 
 
 def insert_dataprovider(cur, auth_token, mapping_db_id):
@@ -437,8 +451,8 @@ def insert_dataprovider(cur, auth_token, mapping_db_id):
         (%s, %s)
         RETURNING id
         """,
-                                [mapping_db_id, auth_token]
-                                )
+        [mapping_db_id, auth_token]
+      )
 
 
 def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
@@ -468,25 +482,21 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
     db.commit()
 
 
-def update_filter_data(db, clks_filename, dp_id, clkcounts, state='ready'):
+def update_filter_data(db, clks_filename, dp_id, state='ready'):
 
     with db.cursor() as cur:
-        logger.info("Updating blooming data file")
+        logger.info("Updating database with info about hashes")
         cur.execute("""
             UPDATE bloomingdata
             SET
               state = %s,
-              file = %s,
-              size = %s,
-              popcounts = %s
+              file = %s
             WHERE
               dp = %s
             """,
             [
                 state,
                 clks_filename,
-                len(clkcounts),
-                psycopg2.extras.Json(clkcounts),
                 dp_id,
              ])
 

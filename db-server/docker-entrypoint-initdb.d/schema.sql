@@ -79,7 +79,7 @@ CREATE TABLE bloomingdata (
 
   -- We store an array of the popcounts
   -- this is limited to uploads of around 100M entries
-  popcounts JSONB
+  --popcounts JSONB
 );
 
 
