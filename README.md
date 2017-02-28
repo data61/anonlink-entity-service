@@ -10,6 +10,16 @@
 
 [Docker](http://docs.docker.com/installation/) and [docker-compose](http://docs.docker.com/compose/)
 
+## Checking out the code
+
+This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
+use `git clone --recursive git@github.csiro.au:magic/AnonymousLinking.git` or you will have to run:
+
+```
+git submodule init
+git submodule update
+```
+
 ## Build
 
 Provided you have quay.io credentials you can skip this step and docker will pull the
