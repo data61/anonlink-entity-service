@@ -1,7 +1,7 @@
 import json
 import os
+import os.path
 import io
-
 import platform
 import logging
 import binascii
@@ -23,7 +23,8 @@ from object_store import connect_to_object_store
 from settings import Config as config
 from utils import fmt_bytes
 
-__version__ = open('VERSION').read().strip()
+
+__version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
 
 app = Flask(__name__)
 
@@ -51,6 +52,13 @@ app.logger.addHandler(consoleHandler)
 api = Api(app)
 
 
+@app.cli.command('initdb')
+def initdb_command():
+    """Initializes the database after a short delay."""
+    db.init_db(5)
+    print('Initialized the database.')
+
+
 class MappingDao(object):
     """
     A python object for a newly created mapping.
@@ -75,18 +83,26 @@ class MappingDao(object):
         self.result = {}
 
 
+def safe_fail_request(status_code, message):
+    # ensure we read the post data, even though we mightn't need it
+    # without this you get occasional nginx errors failed (104:
+    # Connection reset by peer) (See issue #195)
+    data = request.get_json()
+    abort(http_status_code=status_code, message=message)
+
+
 def abort_if_mapping_doesnt_exist(resource_id):
     resource_exists = db.check_mapping_exists(get_db(), resource_id)
     if not resource_exists:
         app.logger.warning("Requested resource with invalid identifier token")
-        abort(404, message="Mapping {} doesn't exist".format(resource_id))
+        safe_fail_request(404, message="Mapping {} doesn't exist".format(resource_id))
 
 
 def abort_if_invalid_dataprovider_token(update_token):
     app.logger.debug("checking authorization token to update data")
     resource_exists = db.check_update_auth(get_db(), update_token)
     if not resource_exists:
-        abort(403, message="Invalid update token")
+        safe_fail_request(403, message="Invalid update token")
 
 
 def is_results_token_valid(resource_id, results_token):
@@ -107,13 +123,13 @@ def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
     if not is_results_token_valid(resource_id, results_token):
         app.logger.debug("Auth invalid")
-        abort(403, message="Invalid access token")
+        safe_fail_request(403, message="Invalid access token")
 
 
 def dataprovider_id_if_authorize(resource_id, receipt_token):
     app.logger.debug("checking authorization token to fetch mask data")
     if not is_receipt_token_valid(resource_id, receipt_token):
-        abort(403, message="Invalid access token")
+        safe_fail_request(403, message="Invalid access token")
 
     dp_id = db.select_dataprovider_id(get_db(), resource_id, receipt_token)
     return dp_id
@@ -132,7 +148,7 @@ def node_id_if_authorize(resource_id, token):
         app.logger.debug("checking authorization token to fetch permutation data")
         # If the token is not a valid receipt token, we abort.
         if not is_receipt_token_valid(resource_id, token):
-            abort(403, message="Invalid access token")
+            safe_fail_request(403, message="Invalid access token")
         dp_id = db.select_dataprovider_id(get_db(), resource_id, token)
     else:
         dp_id = "Coordinator"
@@ -269,7 +285,7 @@ class Mapping(Resource):
         headers = request.headers
 
         if headers is None or 'Authorization' not in headers:
-            abort(401, message="Authentication token required")
+            safe_fail_request(401, message="Authentication token required")
 
         # Check the resource exists
         abort_if_mapping_doesnt_exist(resource_id)
@@ -287,7 +303,7 @@ class Mapping(Resource):
         elif mapping['result_type'] == 'permutation_unencrypted_mask':
             dp_id = node_id_if_authorize(resource_id, headers.get('Authorization'))
         else:
-            abort(500, "Unknown error")
+            safe_fail_request(500, "Unknown error")
 
         app.logger.info("Checking for results")
         # Check that the mapping is ready
@@ -343,10 +359,6 @@ class Mapping(Resource):
         """
         Update a mapping to provide data
         """
-        # ensure we read the post data, even though we mightn't need it
-        # without this you get occasional nginx errors failed (104:
-        # Connection reset by peer) (See issue #195)
-        # data = request.get_json()
 
         # Pass the request.stream to add_mapping_data
         # to avoid parsing the json in one hit, this enables running the
@@ -355,7 +367,7 @@ class Mapping(Resource):
         stream = request.stream
         abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
-            abort(401, message="Authentication token required")
+            safe_fail_request(401, message="Authentication token required")
 
         token = headers['Authorization']
 
@@ -449,23 +461,28 @@ def add_mapping_data(dp_id, raw_stream):
     }
 
     def counting_generator():
-        for clk in ijson.items(raw_stream, 'clks.item'):
-            # Often the clients upload base64 strings with newlines
-            # We remove those here
-            raw = ''.join(clk.split('\n')).encode() + b'\n'
-            store['count'] += 1
-            store['totalbytes'] += len(raw)
-            yield raw
+        try:
+            for clk in ijson.items(raw_stream, 'clks.item'):
+                # Often the clients upload base64 strings with newlines
+                # We remove those here
+                raw = ''.join(clk.split('\n')).encode() + b'\n'
+                store['count'] += 1
+                store['totalbytes'] += len(raw)
+                yield raw
+        except ijson.common.IncompleteJSONError as e:
+            store['count'] = 0
+            app.logger.warning("Stopping as we have received incomplete json")
+            return
 
     # Annoyingly we need the totalbytes to upload to the object store
     # so we consume the input stream here. We could change the public
-    # api instead so that we knew ahead of time.
+    # api instead so that we know the expected size ahead of time.
     data = b''.join(counting_generator())
     num_bytes = len(data)
     buffer = io.BytesIO(data)
 
     if store['count'] == 0:
-        abort(400, "Missing information")
+        abort(400, message="Missing information")
 
 
     app.logger.info("Processed {} CLKS".format(store['count']))

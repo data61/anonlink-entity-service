@@ -1,11 +1,9 @@
-import psycopg2
-
-from datetime import timedelta
+import time
 import logging
-import json
-
+from datetime import timedelta
+import psycopg2
+from flask import current_app
 from settings import Config as config
-
 logger = logging.getLogger('db')
 
 
@@ -24,11 +22,12 @@ def query_db(db, query, args=(), one=False):
 
 def connect_db():
 
+    db = config.DATABASE
     host = config.DATABASE_SERVER
     user = config.DATABASE_USER
     pw = config.DATABASE_PASSWORD
-    db = config.DATABASE
 
+    logger.debug("Trying to connect to postgres db")
     # We nest the try/except blocks to allow one re-attempt with defaults
     try:
         try:
@@ -42,6 +41,16 @@ def connect_db():
         raise ConnectionError("Issue connecting to database")
 
     return conn
+
+
+def init_db(delay=0.5):
+    """Initializes the database."""
+    time.sleep(delay)
+    db = connect_db()
+    with current_app.open_resource('init-db-schema.sql', mode='r') as f:
+        logger.warning("Initialising database")
+        db.cursor().execute(f.read())
+    db.commit()
 
 
 class DBConn:

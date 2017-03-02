@@ -2,7 +2,7 @@ version: '2'
 services:
 
   es_db:
-    image: quay.io/n1analytics/entity-db-server:v1.1
+    image: postgres:9.5
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
@@ -37,7 +37,7 @@ services:
 
   # The flask application server
   es_backend:
-    image: quay.io/n1analytics/entity-app:v1.4.0
+    image: quay.io/n1analytics/entity-app:v1.4.9
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -45,15 +45,29 @@ services:
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     depends_on:
       - es_db
+      - es_db_init
       - es_redis
     networks:
       es_network:
         aliases:
           - backend
 
+  # The application server can also setup the database
+  es_db_init:
+    image: quay.io/n1analytics/entity-app:v1.4.9
+    environment:
+      - DEBUG=true
+      - DATABASE_PASSWORD=rX%QpV7Xgyrz
+      - FLASK_APP=entityservice.py
+    entrypoint: flask initdb
+    depends_on:
+      - es_db
+    networks:
+      es_network:
+
   # A celery worker
   es_worker:
-    image: quay.io/n1analytics/entity-app:v1.4.0
+    image: quay.io/n1analytics/entity-app:v1.4.9
     depends_on:
       - es_redis
       - es_db
@@ -63,18 +77,17 @@ services:
       - ENTITY_MATCH_THRESHOLD=0.95
       - ENCRYPTION_MIN_KEY_LENGTH=1024
       # Trade off between more fine grained progress updates & fast processing of small jobs
-      # versus incuring additional task overhead too many times.
+      # versus incurring additional task overhead too many times.
       - GREEDY_CHUNK_SIZE=100000000
       - DEBUG=false
       - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
     networks:
       es_network:
 
   es_nginx:
-    image: quay.io/n1analytics/entity-nginx:v1.2.5
+    image: quay.io/n1analytics/entity-nginx:v1.2.6
     ports:
       - "8851:8851"
     depends_on:
@@ -93,7 +106,7 @@ services:
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
 #  es_celery_monitor:
-#    image: quay.io/n1analytics/entity-app:v1.4.0
+#    image: quay.io/n1analytics/entity-app:v1.4.9
 #    depends_on:
 #      - es_redis
 #    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor

@@ -5,14 +5,15 @@ EXPOSE 8000
 WORKDIR /var/www
 
 # libmpc-dev is necessary to setup gmpy2
-RUN (pip install --upgrade pip; \
+RUN (pip install --upgrade pip setuptools; \
      apt-get update; \
      apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2)
 
 ADD requirements.txt /var/www/requirements.txt
 ADD AnonymousLinking AnonymousLinking
-RUN cd AnonymousLinking && python setup.py clean
-RUN pip install -r requirements.txt
+
+RUN cd AnonymousLinking && pip install -U -r requirements.txt
+RUN pip install -U -r requirements.txt
 
 RUN groupadd user && useradd --home-dir /var/www -g user user
 RUN chown user:user /var/www; chown user:user /var/log

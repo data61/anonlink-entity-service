@@ -31,7 +31,8 @@ class Config(object):
     DATABASE_USER = os.environ.get('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.environ.get('DATABASE_PASSWORD', '')
 
-    BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
+    BROKER_URL = os.environ.get('CELERY_BROKER_URL',
+                                'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
 
     CELERY_RESULT_BACKEND = BROKER_URL
     CELERY_ANNOTATIONS = {
@@ -59,13 +60,4 @@ class Config(object):
 
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
-
-
-class ProductionConfig(Config):
-    DEBUG = False
-
-
-class DevelopmentConfig(Config):
-    DEBUG = True
-
 

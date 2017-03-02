@@ -20,6 +20,12 @@ git submodule init
 git submodule update
 ```
 
+Note to update the submodule's repo, you can update to the latest master with:
+
+```
+git submodule foreach git pull origin master
+```
+
 ## Build
 
 Provided you have quay.io credentials you can skip this step and docker will pull the

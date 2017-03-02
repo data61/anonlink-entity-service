@@ -3,7 +3,7 @@ services:
 
   # The integration test
   ci:
-    image: quay.io/n1analytics/entity-app:v1.2.5
+    image: quay.io/n1analytics/entity-app:v1.4.9
     environment:
       - DEBUG=true
       - ENTITY_SERVICE_URL=http://api:8851/api/v1
