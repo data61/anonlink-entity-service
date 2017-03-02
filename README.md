@@ -1,10 +1,7 @@
 # N1 Entity Matching Microservice
 
-[![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app)
+[![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app) [![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
 
-[![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
-
-[![Postgres Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-db-server/status?token=35be0156-f6a5-4916-96a3-849aee10c6b2 "Postgres Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-db-server)
 
 ### Dependencies
 
@@ -13,7 +10,7 @@
 ## Checking out the code
 
 This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
-use `git clone --recursive git@github.csiro.au:magic/AnonymousLinking.git` or you will have to run:
+use `git clone --recursive git@github.com:n1analytics/entity-service.git` or you will have to run:
 
 ```
 git submodule init

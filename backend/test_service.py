@@ -18,7 +18,9 @@ from anonlink import randomnames, entitymatch, bloomfilter
 from phe import paillier, util
 from serialization import *
 
-rate_limit_delay = 0.25
+rate_limit_delay = float(os.environ.get("RATE_LIMIT_DELAY", "0.25"))
+initial_delay = float(os.environ.get("INITIAL_DELAY", "2"))
+
 
 LOGLEVEL = getattr(logging, os.environ.get("LOGGING_LEVEL", "WARNING"))
 logger = logging.getLogger('n1')
@@ -607,6 +609,8 @@ if __name__ == "__main__":
     do_timing = os.environ.get("ENTITY_SERVICE_TIMING_TEST", None) is not None
     do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
     do_permutation_test = os.environ.get("ENTITY_SERVICE_PERMUTATION", None) is not None
+
+    time.sleep(initial_delay)
 
     server_status_test()
 
