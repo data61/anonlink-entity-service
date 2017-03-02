@@ -1,15 +1,24 @@
+"""
+A script to test a deployed entity service.
+
+"""
+
+
 import os, sys
 import math
 import time
 import json
 import logging
 import requests
+import unittest
 
 import anonlink.concurrent
 from anonlink import randomnames, entitymatch, bloomfilter
 
 from phe import paillier, util
 from serialization import *
+
+rate_limit_delay = 0.25
 
 LOGLEVEL = getattr(logging, os.environ.get("LOGGING_LEVEL", "WARNING"))
 logger = logging.getLogger('n1')
@@ -49,8 +58,11 @@ def server_status_test():
     logger.debug("Server status:")
     assert status.status_code == 200, 'Server status was {}'.format(status.status_code)
     logger.debug(status.json())
+    # Small sleep to avoid hitting rate limits while testing
+    time.sleep(rate_limit_delay)
     version = requests.get(url + '/version')
     logger.info(version.text)
+    time.sleep(rate_limit_delay)
 
 
 def delete_mapping(id):
@@ -99,11 +111,15 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     logger.debug(r.status_code, r.json())
     assert r.status_code == 401
 
+    time.sleep(rate_limit_delay)
+
     logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
                      headers={'Authorization': 'invalid'})
     logger.debug(r.status_code, r.json())
     assert r.status_code == 403
+
+    time.sleep(rate_limit_delay)
 
     logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
@@ -111,6 +127,8 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
         headers={'Authorization': new_map_response['result_token']})
     logger.debug(response.status_code)
     assert response.status_code == 404
+
+    time.sleep(rate_limit_delay)
 
     logger.info("Checking status with valid token (before adding data)")
     r = requests.get(
@@ -167,7 +185,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     while not response.status_code == 200:
         snooze = 5 + dataset_size/20000
         #logger.debug("Sleeping for another {} seconds".format(snooze))
-        time.sleep(snooze)
+        time.sleep(snooze + rate_limit_delay)
         response = retrieve_result(id, new_map_response['result_token'])
 
         if response.status_code == 503:
@@ -219,10 +237,14 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     id = new_map_response['resource_id']
     logger.info("New mapping request created with id: {}".format(id))
 
+    time.sleep(rate_limit_delay)
+
     logger.info("Checking status without authentication token")
     r = requests.get(url + '/mappings/{}'.format(id))
     logger.debug(r.status_code, r.json())
     assert r.status_code == 401
+
+    time.sleep(rate_limit_delay)
 
     logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
@@ -230,12 +252,16 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     logger.debug(r.status_code, r.json())
     assert r.status_code == 403
 
+    time.sleep(rate_limit_delay)
+
     logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
     logger.debug(response.status_code)
     assert response.status_code == 404
+
+    time.sleep(rate_limit_delay)
 
     logger.info("Checking status with valid results token (not receipt token as required)")
     r = requests.get(
@@ -364,6 +390,8 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     }).json()
     logger.debug(new_map_response)
 
+    time.sleep(0.25)
+
     id = new_map_response['resource_id']
     result_token = new_map_response['result_token']
     logger.info("New mapping request created with id: {}".format(id))
@@ -373,11 +401,15 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     logger.debug(r.status_code, r.json())
     assert r.status_code == 401
 
+    time.sleep(0.25)
+
     logger.info("Checking status with invalid token")
     r = requests.get(url + '/mappings/{}'.format(id),
                      headers={'Authorization': 'invalid'})
     logger.debug(r.status_code, r.json())
     assert r.status_code == 403
+
+    time.sleep(0.25)
 
     logger.info("Test a mapping that doesn't exist with valid token")
     response = requests.get(
@@ -386,6 +418,8 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     logger.debug(response.status_code)
     assert response.status_code == 404
 
+    time.sleep(rate_limit_delay)
+
     logger.info("Checking status with valid token (before adding data)")
     r = requests.get(
         url + '/mappings/{}'.format(id),
@@ -393,11 +427,15 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
     logger.debug(r.status_code, r.json())
     assert r.status_code == 503
 
+    time.sleep(rate_limit_delay)
+
     logger.info("Adding first party's filter data")
 
     party1_data = {
         'clks': party1_filters
     }
+
+    time.sleep(rate_limit_delay)
 
     resp1 = requests.put(url + '/mappings/{}'.format(id),
                          json=party1_data,
@@ -413,9 +451,12 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
     logger.info("Adding second party's data - without authentication")
     party2_data = {'clks': party2_filters}
+    time.sleep(rate_limit_delay)
     resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
     assert resp.status_code == 401
     assert 'token required' in resp.json()['message']
+
+    time.sleep(rate_limit_delay)
 
     logger.info("Adding second party's data - without clk data")
     resp = requests.put(url + '/mappings/{}'.format(id),
@@ -425,9 +466,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
     matching_start = time.time()
     logger.info("Adding second party's data - properly this time")
-    party2_data = {
-        'clks': party2_filters
-    }
+
     resp2 = requests.put(url + '/mappings/{}'.format(id),
                          json=party2_data,
                          headers={'Authorization': new_map_response['update_tokens'][1]})
