@@ -8,6 +8,10 @@ spec:
       labels:
         app: entityservice
         tier: aux
+      annotations:
+        # This job only gets executed on install, not after an upgrade.
+        # Manual intervention is required to migrate a production database.
+        "helm.sh/hook": post-install
     spec:
       restartPolicy: Never
       containers:
