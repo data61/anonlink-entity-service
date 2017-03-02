@@ -610,6 +610,7 @@ if __name__ == "__main__":
     do_delete_all = os.environ.get("ENTITY_SERVICE_DELETE_ALL", None) is not None
     do_permutation_test = os.environ.get("ENTITY_SERVICE_PERMUTATION", None) is not None
 
+    logger.info("Waiting for {} seconds.".format(initial_delay))
     time.sleep(initial_delay)
 
     server_status_test()
