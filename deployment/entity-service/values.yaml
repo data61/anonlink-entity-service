@@ -31,12 +31,12 @@ api:
     image: "entity-nginx"
     tag: "v1.2.6"
     memory: 256Mi
-    cpu: 250m
+    cpu: 200m
     containerPort: 8851
   app:
     image: "entity-app"
     memory: 6000Mi
-    tag: "v1.4.8"
+    tag: "v1.4.9"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,8 +44,8 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.4.7"
-  replicas: 3
+  tag: "v1.4.9"
+  replicas: 1
   debug: "true"
 # Single core should do 10 M/s
   # A worker with ~3 cores should do 30 M/s
@@ -74,32 +74,46 @@ workers:
   resources:
     requests:
       memory: 10Gi
-      cpu: 3000m
+      cpu: 2000m
     limits:
       memory: 29Gi
-      cpu: 3900m
+      cpu: 3000m
 
 postgresql:
+  # See available settings and defaults at:
+  # https://github.com/kubernetes/charts/tree/master/stable/postgresql
+  nameOverride: "db"
   postgresPassword: "x925SvzX6cuH"
   persistence:
     persistence.enabled: false
     persistence.storageClass: "slow"
-    size: 8Gi
-  image:
-    pullPolicy: Always
+    size: 10Gi
+  imageTag: 9.5.4
+  imagePullPolicy: IfNotPresent
+  metrics:
+    enabled: true
+  resources:
+    limits:
+      memory: 8Gi
+    requests:
+      memory: 4Gi
+      cpu: 100m
+
 
 redis:
+  # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
   redisPassword: "gOgRockEPtiN"
   persistence:
     persistence.storageClass: "slow"
   nameOverride: "redis"
 
 minio:
+  # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
   ## Can distribute the object store across multiple nodes...
-  mode: "distributed"
+  #mode: "distributed"
   serviceType: "ClusterIP"
   persistence:
-    size: 100Gi
+    size: 120Gi
     storageClass: "slow"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"

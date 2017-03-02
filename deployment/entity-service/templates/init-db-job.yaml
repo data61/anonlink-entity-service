@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: entityservice-init-db
+spec:
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: db-init
+        image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
+        env:
+          - name: DATABASE_SERVER
+            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: postgresPassword
+          - name: DEBUG
+            value: {{default "false" .Values.api.app.debug | quote }}
+          - name: FLASK_APP
+            value: entityservice.py
+        command:
+          - "flask"
+          - "initdb"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret

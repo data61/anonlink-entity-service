@@ -11,10 +11,8 @@ then
     export APPVERSION=$(cat ../backend/VERSION);
     docker push quay.io/n1analytics/entity-app:${APPVERSION};
     docker push quay.io/n1analytics/entity-nginx:v1.2.6;
-    docker push quay.io/n1analytics/entity-db-server:v1.1;
 else
     echo "Uploading with label: ${BRANCH_NAME}";
     docker push quay.io/n1analytics/entity-app:${BRANCH_NAME};
     docker push quay.io/n1analytics/entity-nginx:${BRANCH_NAME};
-    docker push quay.io/n1analytics/entity-db-server:${BRANCH_NAME};
 fi

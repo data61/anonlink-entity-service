@@ -9,7 +9,7 @@ and handle node failure.
 Out of scope for this documentation, for AWS there is a good
 tutorial [here](https://github.com/coreos/kube-aws).
 
-Recommended worker instance type is `r3.4xlarge` - spot instances are 
+Recommended AWS worker instance type is `r3.4xlarge` - spot instances are 
 fine as we handle node failure.
 
 # Provision cluster resources
@@ -31,7 +31,7 @@ or dynamically.
 
 For a cluster on AWS the `aws-storage.yaml` resource will dynamically
 provision elastic block store volumes. The default `values.yaml` assumes
-the existance of a `"slow"` `storageClass`.
+the existence of a `"slow"` `storageClass`.
 
 ### Docker login credentials
 
@@ -41,8 +41,8 @@ Add secret to enable pulling from private quay.io repository:
 
 ### Ingress Controller
 
-We assume the cluster has an ingress controller, if this isn't the case we will have to
-add one.
+We assume the cluster has an ingress controller, if this isn't the case 
+we will have to add one.
 
 Deploy the [traefik ingress controller](https://docs.traefik.io/user-guide/kubernetes/) 
 into the kube-system namespace with:
@@ -95,15 +95,8 @@ Add a CNAME record to aws.
 
 # Helm bits and bobs:
 
-## Postgres DB
+Updating a running chart is usually straight forward. For example if the
+release is called `eerie-gecko` and you are in the `deployment/entity-service`
+directory:
 
-Postgres was a bit annoying so I have packaged it up manually. Ideally it would be another line 
-in `requirements.yaml` as opposed to a whole new sub chart. Here is what it is based off:
-
-    https://github.com/kubernetes/charts/tree/master/stable/postgresql
-
-This would need to be added back to the requirements file:
-
-    - name: postgresql
-      repository: https://kubernetes-charts.storage.googleapis.com
-      version: 0.3.0
+    helm upgrade eerie-gecko .

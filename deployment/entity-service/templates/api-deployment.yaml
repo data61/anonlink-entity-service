@@ -46,7 +46,7 @@ spec:
                 name: es-credentials
                 key: redisPassword
           - name: DATABASE_SERVER
-            value: "es-postgres"
+            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
