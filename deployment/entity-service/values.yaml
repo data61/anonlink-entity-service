@@ -29,7 +29,7 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.2.6"
+    tag: "v1.2.7"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
