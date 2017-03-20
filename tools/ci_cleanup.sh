@@ -8,4 +8,4 @@ exit_code=`docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci_1`
 
 docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest down -v
 
-exit exit_code
+exit "$exit_code"
