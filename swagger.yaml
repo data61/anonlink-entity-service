@@ -54,7 +54,7 @@ info:
 
 
 
-    ## Auth/Security
+    ## Security
 
     Full details on the security of the privacy preserving 
     record linkage are available in the paper:
@@ -397,6 +397,18 @@ definitions:
     properties:
       n:
         type: string
+      kty:
+        type: string
+        default: "DAJ"
+      kid:
+        type: string
+      key_ops:
+        type: array
+        items:
+          type: string
+      alg:
+        type: string
+        default: "PAI-GN1"
 
   PaillierContext:
     description: Information on the Paillier encoding
@@ -493,4 +505,3 @@ definitions:
         type: string
       message:
         type: string
-
