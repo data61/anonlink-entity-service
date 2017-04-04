@@ -29,7 +29,7 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.2.7"
+    tag: "v1.2.6"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
@@ -87,7 +87,7 @@ postgresql:
   persistence:
     persistence.enabled: false
     persistence.storageClass: "slow"
-    size: 10Gi
+    size: 20Gi
   imageTag: 9.5.4
   imagePullPolicy: IfNotPresent
   metrics:
@@ -113,7 +113,7 @@ minio:
   #mode: "distributed"
   serviceType: "ClusterIP"
   persistence:
-    size: 120Gi
+    size: 100Gi
     storageClass: "slow"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"

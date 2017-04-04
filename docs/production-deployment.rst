@@ -1,61 +1,76 @@
 Production deployment
 =====================
 
-Production deployment assumes a multi node kubernetes cluster.
+Production deployment assumes a multi node `Kubernetes <https://kubernetes.io/docs/home/>`__
+cluster.
 
-The entity service has been deployed to Kubernetes clusters on GCE and
-AWS. The entity service has been designed to scale across multiple nodes
-and handle node failure.
+The entity service has been deployed to kubernetes clusters on GCE and
+AWS. The system has been designed to scale across multiple nodes
+and handle node failure without data loss.
 
 Bring up a Kubernetes cluster:
 ------------------------------
 
-Out of scope for this documentation, for AWS there is a good tutorial
-`here <https://github.com/coreos/kube-aws>`__.
+Creating a Kubernetes cluster is out of scope for this documentation.
+For AWS there is a good tutorial `here <https://github.com/coreos/kube-aws>`__.
 
-Recommended AWS worker instance type is ``r3.4xlarge`` - spot instances
-are fine as we handle node failure.
+**Hardware requirements**
+
+Recommended AWS worker `instance type <https://aws.amazon.com/ec2/instance-types/>`__
+is ``r3.4xlarge`` - spot instances are fine as we handle node failure.
+
+
+**Software to interact with the cluster**
+
+You will need to install the `kubectl <https://kubernetes.io/docs/tasks/kubectl/install/>`__
+tool.
+
 
 Provision cluster resources
-~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Note ``kubectl`` uses the same interface to provision all types of
-resource:
-
-::
-
-    kubectl create -f some-resource.yaml
-
-Before deploying the entity service we need to provision a few other
-things on the cluster. An existing N1 cluster may already have these.
+resource. Before deploying the entity service we need to provision a few other
+things on the cluster. An existing kubernetes cluster may already have
+these.
 
 ::
 
     kubectl create -f aws-storage.yaml -f n1-coreos-secret.yaml
 
 
-Dynamically provisioned storage:
-~~~~
+**Dynamically provisioned storage**
 
-When pods require persistent storage this can either be manually
-provided, or dynamically.
-
-For a cluster on AWS the ``aws-storage.yaml`` resource will dynamically
-provision elastic block store volumes. The default ``values.yaml``
+When pods require persistent storage this can be dynamically
+provided by the cluster. The default settings (in ``values.yaml``)
 assumes the existence of a ``"slow"`` ``storageClass``.
 
-Docker login credentials
-~~~~~
+For a cluster on AWS the ``aws-storage.yaml`` resource will dynamically
+provision elastic block store volumes.
 
-Add secret to enable pulling from private quay.io repository:
+**Docker login credentials**
+
+This secret allows nodes to pull from our private quay.io repository:
 
 ``n1-coreos-secret.yaml``
 
-Ingress Controller
+
+Helm
 ~~~~
 
+The system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
+there is a program that needs to be `installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
+
+At the very least you will need to install tiller into the cluster::
+
+    helm init
+
+
+Ingress Controller
+~~~~~~~~~~~~~~~~~~
+
 We assume the cluster has an ingress controller, if this isn't the case
-we will have to add one.
+we will have to add one. We suggest using `Traefik <https://traefik.io/>`__.
 
 Deploy the `traefik ingress
 controller <https://docs.traefik.io/user-guide/kubernetes/>`__ into the
@@ -78,13 +93,18 @@ Deploy the system
 
 **Helm** can be used to easily deploy the system to a kubernetes cluster.
 
-Pull the dependencies:
+From the `deployment/entity-service` directory pull the dependencies:
 
 ::
 
     helm dependency update
 
-Adjust the ``values.yaml`` file to your liking.
+Carefully read through and adjust the ``values.yaml`` file to your deployment.
+
+For example set the domain by changing ``api.domain``, change the workers' cpu \
+and memory limits in ``workers.resources``.
+
+
 
 Install the whole system
 
@@ -92,6 +112,8 @@ Install the whole system
 
     cd entity-service
     helm install . --name="n1entityservice"
+
+This can take around 10 minutes the first time you deploy to a new cluster.
 
 Run an e2e test
 ---------------
@@ -121,7 +143,7 @@ Find out the Amazon Load Balancer address:
 Add a CNAME record to aws.
 
 Helm bits and bobs:
-===================
+-------------------
 
 Updating a running chart is usually straight forward. For example if the
 release is called ``eerie-gecko`` and you are in the
@@ -131,46 +153,3 @@ release is called ``eerie-gecko`` and you are in the
 
     helm upgrade eerie-gecko .
 
-
-
-Local deployment
-----------------
-
-
-Dependencies
-~~~~~~~~~~~~
-
-`Docker <http://docs.docker.com/installation/>`__ and
-`docker-compose <http://docs.docker.com/compose/>`__
-
-Build
-~~~~~
-
-From the folder ``deploy/entity-service``, run
-
-::
-
-    ./tools/build.sh
-
-The will create the images used by ``docker-compose``.
-
-Run
-~~~~
-
-Run docker compose:
-
-::
-
-    docker-compose -f tools/docker-compose.yml up
-
-This will start the following containers:
-
--  nginx frontend (named ``tools_es_nginx_1``)
--  gunicorn/flask backend (named ``tools_es_backend_1``)
--  celery backend worker (named ``tools_es_worker_1``)
--  postgres database (named ``tools_es_db_1``)
--  redis job queue (named ``tools_es_redis_1``)
-
-All these containers will be on the docker network ``tools_es_network``.
-
-The service should be exposed on port ``8851`` of the host machine.

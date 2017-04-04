@@ -1,23 +1,23 @@
 version: '2'
 services:
 
-  es_db:
+  db:
     image: postgres:9.5
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
-      - es_psql:/var/lib/postgresql/data
+      - psql:/var/lib/postgresql/data
     networks:
       es_network:
         aliases:
           - db
 
-  es_minio:
-    image: minio/minio
+  minio:
+    image: minio/minio:RELEASE.2017-02-16T01-47-30Z
     command: server /export
-    ports:
-      - "9000:9000"
+    #ports:
+    #  - "9000:9000"
     environment:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -26,9 +26,9 @@ services:
         aliases:
           - minio
     volumes:
-      - es_minio:/export
+      - minio:/export
 
-  es_redis:
+  redis:
     image: redis:3.2
     networks:
       es_network:
@@ -36,7 +36,7 @@ services:
           - redis
 
   # The flask application server
-  es_backend:
+  backend:
     image: quay.io/n1analytics/entity-app:v1.4.10
     environment:
       - DEBUG=true
@@ -44,16 +44,16 @@ services:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     depends_on:
-      - es_db
-      - es_db_init
-      - es_redis
+      - db
+      - db_init
+      - redis
     networks:
       es_network:
         aliases:
           - backend
 
   # The application server can also setup the database
-  es_db_init:
+  db_init:
     image: quay.io/n1analytics/entity-app:v1.4.10
     environment:
       - DEBUG=true
@@ -61,16 +61,16 @@ services:
       - FLASK_APP=entityservice.py
     entrypoint: flask initdb
     depends_on:
-      - es_db
+      - db
     networks:
       es_network:
 
   # A celery worker
-  es_worker:
+  worker:
     image: quay.io/n1analytics/entity-app:v1.4.10
     depends_on:
-      - es_redis
-      - es_db
+      - redis
+      - db
     entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -86,12 +86,12 @@ services:
     networks:
       es_network:
 
-  es_nginx:
+  nginx:
     image: quay.io/n1analytics/entity-nginx:v1.2.7
     ports:
       - "8851:8851"
     depends_on:
-      - es_backend
+      - backend
     environment:
       TARGET_SERVICE: backend
       ETCD_URL:
@@ -105,10 +105,10 @@ services:
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
-#  es_celery_monitor:
+#  celery_monitor:
 #    image: quay.io/n1analytics/entity-app:v1.4.9
 #    depends_on:
-#      - es_redis
+#      - redis
 #    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
 #    networks:
 #      es_network:
@@ -120,5 +120,5 @@ networks:
     driver: bridge
 
 volumes:
-  es_psql:
-  es_minio:
+  psql:
+  minio:

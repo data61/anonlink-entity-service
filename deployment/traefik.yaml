@@ -4,17 +4,22 @@ ssl:
   enforced: false
 
 acme:
-  enabled: true
+  enabled: false
   staging: false
-  email: "brian.thorne@n1analytics.com"
+  email: "support@n1analytics.com"
   persistence:
-    enabled: false
+    enabled: true
+    storageClass: slow
+    accessMode: ReadWriteOnce
+    size: 1Gi
 
 dashboard:
   enabled: true
   domain: "traefik.es.data61.xyz"
   auth:
     basic:
-      # Use "paillier" as password:
+      # Use n1: "paillier" as password:
       n1: "$2y$05$Dy1R3IAMxwIB0rULZVhSHuTGdXXpyHNv1GObyH/O.k.xRIo6p9yja"
 
+gzip:
+  enabled: false
