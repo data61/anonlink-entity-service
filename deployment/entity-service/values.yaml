@@ -35,7 +35,7 @@ api:
     containerPort: 8851
   app:
     image: "entity-app"
-    memory: 6000Mi
+    memory: 1024Mi
     tag: "v1.4.9"
     debug: "true"
     containerPort: 8000
@@ -73,10 +73,10 @@ workers:
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 10Gi
-      cpu: 2000m
+      memory: 2Gi
+      cpu: 1000m
     limits:
-      memory: 29Gi
+      memory: 8Gi
       cpu: 3000m
 
 postgresql:
@@ -96,7 +96,7 @@ postgresql:
     limits:
       memory: 8Gi
     requests:
-      memory: 4Gi
+      memory: 1Gi
       cpu: 100m
 
 

@@ -4,7 +4,7 @@ ssl:
   enforced: false
 
 acme:
-  enabled: false
+  enabled: true
   staging: false
   email: "support@n1analytics.com"
   persistence:
