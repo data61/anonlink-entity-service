@@ -29,13 +29,13 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.2.7"
+    tag: "v1.2.6"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
   app:
     image: "entity-app"
-    memory: 6000Mi
+    memory: 1024Mi
     tag: "v1.4.9"
     debug: "true"
     containerPort: 8000
@@ -73,10 +73,10 @@ workers:
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 10Gi
-      cpu: 2000m
+      memory: 2Gi
+      cpu: 1000m
     limits:
-      memory: 29Gi
+      memory: 8Gi
       cpu: 3000m
 
 postgresql:
@@ -87,7 +87,7 @@ postgresql:
   persistence:
     persistence.enabled: false
     persistence.storageClass: "slow"
-    size: 10Gi
+    size: 20Gi
   imageTag: 9.5.4
   imagePullPolicy: IfNotPresent
   metrics:
@@ -96,7 +96,7 @@ postgresql:
     limits:
       memory: 8Gi
     requests:
-      memory: 4Gi
+      memory: 1Gi
       cpu: 100m
 
 
@@ -113,7 +113,7 @@ minio:
   #mode: "distributed"
   serviceType: "ClusterIP"
   persistence:
-    size: 120Gi
+    size: 100Gi
     storageClass: "slow"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"

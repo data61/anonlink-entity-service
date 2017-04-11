@@ -29,6 +29,20 @@ Note to update the submodule's repo, you can update to the latest master with:
 git submodule foreach git pull origin master
 ```
 
+## Documentation
+
+The [docs](./docs) folder contains the RST sources for the services
+documentation. To build and server the html docs run:
+
+    pip install -f docs/doc-requirements.txt
+    sphinx-build -b html docs n1esdocs
+    cd n1esdocs
+    python -m http.server
+
+
+A high level description of the service is available in
+the [docs](./docs/index.rst).
+
 ## Build
 
 Provided you have quay.io credentials you can skip this step and docker will pull the
@@ -37,24 +51,18 @@ latest images when you start the service.
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
 
-## Start
+## Running Locally
 
-Everything can be started locally using docker-compose with:
+Note there is much more complete deployment documentation available for:
+- [Local Deployment](./docs/local-deployment.rst)
+- [Production Deployment](./docs/production-deployment.rst)
 
-    docker-compose -f tools/docker-compose.yml up
+To run locally with `docker-compose`:
 
-This will start the following containers:
+    docker-compose -f tools/docker-compose.yml
 
-- nginx frontend
-- gunicorn/flask backend
-- celery backend worker
-- postgres database
-- redis job queue
-- minio object store
 
-The api service should be running on host port `8851`.
-
-# Testing
+## Testing
 
 A simple query with curl should tell you the status of the service:
 
@@ -118,31 +126,4 @@ You might need to destroy the docker volumes used for the object store
 and the postgres database:
 
     docker-compose -f tools/docker-compose.yml rm --all
-
-
-### Mix and match docker compose
-
-During development you can run the redis and database containers with
-docker-compose, and directly run the celery and flask applications with Python.
-
-
-    docker-compose -f tools/docker-compose.yml run es_db
-
-    docker-compose -f tools/docker-compose.yml run es_redis
-
-### Restart one service
-
-Docker compose can modifying an existing deployment, this can be particularly
-effective when you modify and build the backend and want to restart it without
-changing anything else:
-
-    docker-compose -f tools/docker-compose.yml up -d --no-deps es_backend
-
-
-## Scaling
-
-You can run additional worker containers by scaling with docker-compose:
-
-    docker-compose -f tools/docker-compose.yml scale es_worker=2
-
 

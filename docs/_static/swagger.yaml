@@ -4,7 +4,7 @@ info:
   title: Entity Matching API
   contact:
     name: 'Confidential Computing, Data61 | CSIRO'
-    email: Brian.Thorne@data61.csiro.au
+    email: support@n1analytics.com
   description: >-
     Allows two organisations to carry out private record linkage -
     without disclosing personally identifiable information.
