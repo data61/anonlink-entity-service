@@ -23,6 +23,20 @@ Note to update the submodule's repo, you can update to the latest master with:
 git submodule foreach git pull origin master
 ```
 
+## Documentation
+
+The [docs](./docs) folder contains the RST sources for the services
+documentation. To build and server the html docs run:
+
+    pip install -f docs/doc-requirements.txt
+    sphinx-build -b html docs n1esdocs
+    cd n1esdocs
+    python -m http.server
+
+
+A high level description of the service is available in
+the [docs](./docs/index.rst).
+
 ## Build
 
 Provided you have quay.io credentials you can skip this step and docker will pull the
@@ -31,7 +45,18 @@ latest images when you start the service.
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
 
-# Testing
+## Running Locally
+
+Note there is much more complete deployment documentation available for:
+- [Local Deployment](./docs/local-deployment.rst)
+- [Production Deployment](./docs/production-deployment.rst)
+
+To run locally with `docker-compose`:
+
+    docker-compose -f tools/docker-compose.yml
+
+
+## Testing
 
 A simple query with curl should tell you the status of the service:
 

@@ -17,13 +17,16 @@ For AWS there is a good tutorial `here <https://github.com/coreos/kube-aws>`__.
 **Hardware requirements**
 
 Recommended AWS worker `instance type <https://aws.amazon.com/ec2/instance-types/>`__
-is ``r3.4xlarge`` - spot instances are fine as we handle node failure.
+is ``r3.4xlarge`` - spot instances are fine as we handle node failure. The
+number of nodes depends on the size of the expected jobs, as well as the
+memory on each node. We recommend starting with at least two nodes, with each
+node having at least 8GiB of memory and 2 vCPUs.
 
 
 **Software to interact with the cluster**
 
 You will need to install the `kubectl <https://kubernetes.io/docs/tasks/kubectl/install/>`__
-tool.
+command line tool, and `helm <https://github.com/kubernetes/helm>`__
 
 
 Provision cluster resources
@@ -115,8 +118,8 @@ Install the whole system
 
 This can take around 10 minutes the first time you deploy to a new cluster.
 
-Run an e2e test
----------------
+Run an end to end test
+----------------------
 
 ::
 

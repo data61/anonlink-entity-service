@@ -40,6 +40,13 @@ Matching Protocols
 The Entity Service supports different **result types** which effect what
 output is produced, and who may see the output.
 
+.. warning::
+
+   The matching protocol cannot always be enforced by the Entity Service,
+   so it is important that all participants trust and verify that they are
+   participating in the agreed mode.
+
+
 Direct Mapping Table
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -56,6 +63,10 @@ creates a mask revealing where the reordered rows line up. Accessing the
 mask requires the ``result_token``, and accessing the permutation
 requires a ``receipt-token`` (provided to each organization when they
 upload data).
+
+The security in this result type relies on the mask remaining secret
+from the data providers. Ensure the creator of the mapping can be trusted
+by both data providers for this task.
 
 Permutation and Encrypted Mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

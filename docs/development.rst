@@ -9,7 +9,7 @@ Volumes
 You might need to destroy the docker volumes used for the object store
 and the postgres database::
 
-    docker-compose -f tools/docker-compose.yml rm --all
+    docker-compose -f tools/docker-compose.yml rm -s -v [-p <project-name>]
 
 
 Restart one service

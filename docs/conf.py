@@ -38,7 +38,6 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.imgmath',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.swaggerdoc',
     'sphinx.ext.githubpages'
 ]
 
