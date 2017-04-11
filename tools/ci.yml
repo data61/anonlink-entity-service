@@ -12,9 +12,9 @@ services:
       - INITIAL_DELAY=30
     entrypoint: python test_service.py
     depends_on:
-      - es_db
-      - es_redis
-      - es_worker
-      - es_nginx
+      - db
+      - redis
+      - worker
+      - nginx
     networks:
       es_network:

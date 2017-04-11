@@ -3,7 +3,11 @@ set -e
 script_name=$(basename "$0")
 cd $(dirname "$0")
 
-export BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+if [ -z ${BRANCH_NAME+x} ]; then
+    export BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+else
+    echo "BRANCH_NAME is set to '$var'";
+fi
 
 if [ "$BRANCH_NAME" = "master" ];
 then
