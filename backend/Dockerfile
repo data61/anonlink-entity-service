@@ -12,15 +12,14 @@ RUN (pip install --upgrade pip setuptools; \
 ADD requirements.txt /var/www/requirements.txt
 ADD AnonymousLinking AnonymousLinking
 
-RUN cd AnonymousLinking && pip install -U -r requirements.txt && pip install -e .
+RUN cd AnonymousLinking && pip install -U -r requirements.txt && pip install -e . && cd ..
 RUN pip install -U -r requirements.txt
-
+RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)"
 RUN groupadd user && useradd --home-dir /var/www -g user user
 RUN chown user:user /var/www; chown user:user /var/log
 USER user
 
 ADD . /var/www
-
 # Serve using gunicorn. Ideally this has nginx in front of it!
 CMD gunicorn entityservice:app \
     -n entityservice-web \
