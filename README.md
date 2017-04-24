@@ -13,43 +13,36 @@ disclosing personally identifiable information.
 
 [Docker](http://docs.docker.com/installation/) and [docker-compose](http://docs.docker.com/compose/)
 
-## Checking out the code
-
-This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
-use `git clone --recursive git@github.com:n1analytics/entity-service.git` or you will have to run:
-
-```
-git submodule init
-git submodule update
-```
-
-Note to update the submodule's repo, you can update to the latest master with:
-
-```
-git submodule foreach git pull origin master
-```
 
 ## Documentation
 
-The [docs](./docs) folder contains the RST sources for the services
-documentation. To build and server the html docs run:
+The [docs](./docs) folder contains the services
+documentation. In a release this will be html documents. These
+can be served using Python's built in webserver:
+
+    cd docs
+    python -m http.server
+
+
+### Building the docs
+
+To build and serve the html docs run:
 
     pip install -f docs/doc-requirements.txt
     sphinx-build -b html docs n1esdocs
     cd n1esdocs
     python -m http.server
 
-
 A high level description of the service is available in
 the [docs](./docs/index.rst).
 
 ## Build
 
-Provided you have quay.io credentials you can skip this step and docker will pull the
-latest images when you start the service.
-
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
+
+Note developers should have quay.io credentials you can skip this step and docker will pull the
+latest images when you start the service.
 
 ## Running Locally
 
@@ -119,6 +112,24 @@ this can be added in to run along with the rest of the service:
 Note: the folder in which the generated data will be stored need to be existing.
 
 ## Development Tips
+
+### Checking out the code
+
+This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
+use `git clone --recursive git@github.com:n1analytics/entity-service.git` or you will have to run either
+`tools/update.sh` or:
+
+```
+git submodule init
+git submodule update
+```
+
+Note to update the submodule's repo, you can update to the latest master with:
+
+```
+git submodule foreach git pull origin master
+```
+
 
 ### Volumes
 
