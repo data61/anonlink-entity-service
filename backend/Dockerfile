@@ -7,12 +7,12 @@ WORKDIR /var/www
 # libmpc-dev is necessary to setup gmpy2
 RUN (pip install --upgrade pip setuptools; \
      apt-get update; \
-     apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2)
+     apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2 libstdc++6)
 
 ADD requirements.txt /var/www/requirements.txt
 ADD AnonymousLinking AnonymousLinking
 
-RUN cd AnonymousLinking && pip install -U -r requirements.txt
+RUN cd AnonymousLinking && pip install -U -r requirements.txt && pip install -e .
 RUN pip install -U -r requirements.txt
 
 RUN groupadd user && useradd --home-dir /var/www -g user user
