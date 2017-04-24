@@ -46,7 +46,6 @@ this can be added in to run along with the rest of the service::
 
     docker logs -f n1estest_ci_1
 
-
     docker-compose -p n1estest -f tools/docker-compose.yml -f tools/ci.yml down
 
 # Data generation

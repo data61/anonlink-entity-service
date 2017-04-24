@@ -9,11 +9,6 @@ disclosing personally identifiable information.
 - Jupyter notebook with tutorial available at: https://jupyter.es.data61.xyz
 
 
-### Dependencies
-
-[Docker](http://docs.docker.com/installation/) and [docker-compose](http://docs.docker.com/compose/)
-
-
 ## Documentation
 
 The [docs](./docs) folder contains the services
@@ -38,22 +33,29 @@ the [docs](./docs/index.rst).
 
 ## Build
 
+### Dependencies
+
+[Docker](http://docs.docker.com/installation/) and [docker-compose](http://docs.docker.com/compose/)
+
+
+### Building the docker containers
+
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
 
-Note developers should have quay.io credentials you can skip this step and docker will pull the
-latest images when you start the service.
+Note developers should have quay.io credentials - in which case you can skip this step and 
+docker will pull the latest images when you start the service.
 
 ## Running Locally
 
 Note there is much more complete deployment documentation available for:
+
 - [Local Deployment](./docs/local-deployment.rst)
 - [Production Deployment](./docs/production-deployment.rst)
 
 To run locally with `docker-compose`:
 
     docker-compose -f tools/docker-compose.yml
-
 
 ## Testing
 
