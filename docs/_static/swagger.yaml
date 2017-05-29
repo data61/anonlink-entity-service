@@ -353,6 +353,14 @@ paths:
           description: Successfully deleted
         '404':
           description: Mapping not present
+  '/mapping/{mapping-id}/status':
+    get:
+      description: A status update on a particular mapping
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            $ref: '#/definitions/MappingStatus'
 parameters:
   token:
     required: true
@@ -387,9 +395,27 @@ definitions:
         time_added:
           type: string
           description: ISO8601 formated datetime
+          format: 'date-time'
         time_completed:
           type: string
           description: ISO8601 formated datetime
+          format: 'date-time'
+
+  MappingStatus:
+    properties:
+      ready:
+        type: boolean
+      threshold:
+        type: number
+      time_added:
+        type: string
+        format: 'date-time'
+      time_started:
+        type: string
+        format: 'date-time'
+      time_completed:
+        type: string
+        format: 'date-time'
 
   PaillierPublicKey:
     description: https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation
