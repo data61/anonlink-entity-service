@@ -98,7 +98,8 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     ]
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
-        'result_type': 'mapping'
+        'result_type': 'mapping',
+        'threshold': 0.8
     }).json()
     logger.debug(new_map_response)
 
@@ -197,8 +198,14 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
     logger.info("Success")
     mapping_result = response.json()["mapping"]
-    #logger.debug(mapping_result)
-    # TODO Actually check the result.
+
+    # Now actually check the results
+    for i in mapping_result:
+        j = mapping_result[i]
+        logger.debug(i, j, s1[int(i)], s2[int(j)])
+        assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
+
+    # Delete a mapping
     #delete_mapping(id)
 
 
@@ -230,6 +237,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
     ]
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
+        'threshold': 0.6,
         'result_type': 'permutation',
         'public_key': public_key,
         'paillier_context': {'base': base, 'encoded': True}
