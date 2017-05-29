@@ -37,7 +37,7 @@ services:
 
   # The flask application server
   backend:
-    image: quay.io/n1analytics/entity-app:v1.4.10
+    image: quay.io/n1analytics/entity-app:v1.5.0
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -54,7 +54,7 @@ services:
 
   # The application server can also setup the database
   db_init:
-    image: quay.io/n1analytics/entity-app:v1.4.10
+    image: quay.io/n1analytics/entity-app:v1.5.0
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -67,14 +67,14 @@ services:
 
   # A celery worker
   worker:
-    image: quay.io/n1analytics/entity-app:v1.4.10
+    image: quay.io/n1analytics/entity-app:v1.5.0
     depends_on:
       - redis
       - db
     entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - ENTITY_MATCH_THRESHOLD=0.95
+      - ENTITY_MATCH_THRESHOLD=0.98
       - ENCRYPTION_MIN_KEY_LENGTH=1024
       # Trade off between more fine grained progress updates & fast processing of small jobs
       # versus incurring additional task overhead too many times.

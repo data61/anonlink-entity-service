@@ -173,8 +173,9 @@ def calculate_mapping(resource_id):
     logger.debug("Checking we need to calculating mapping")
 
     db = connect_db()
-    is_already_calculated, mapping_db_id, result_type = check_mapping_ready(db, resource_id)
-    if is_already_calculated:
+    res = get_mapping(db, resource_id)
+    threshold =  res['threshold']
+    if res['ready']:
         logger.info("Mapping '{}' is already computed. Skipping".format(resource_id))
         return
 
@@ -194,7 +195,7 @@ def calculate_mapping(resource_id):
                     [resource_id])
     db.commit()
 
-    compute_similarity.delay(resource_id, dp_ids)
+    compute_similarity.delay(resource_id, dp_ids, threshold)
 
     logger.info("Entity similarity computation scheduled")
 
@@ -202,7 +203,7 @@ def calculate_mapping(resource_id):
 
 
 @celery.task()
-def compute_similarity(resource_id, dp_ids):
+def compute_similarity(resource_id, dp_ids, threshold):
     """
 
     """
@@ -228,7 +229,7 @@ def compute_similarity(resource_id, dp_ids):
         logger.debug("Calculating optimal connections for entire network")
         # The method here makes a big difference in running time
         mapping = anonlink.network_flow.map_entities(similarity,
-                                                     threshold=config.ENTITY_MATCH_THRESHOLD,
+                                                     threshold=threshold,
                                                      method='bipartite')
         res = {
             "mapping": mapping,
@@ -261,7 +262,7 @@ def compute_similarity(resource_id, dp_ids):
             lenf1, len(filter1_job_chunks), chunk_size))
 
         mapping_future = chord(
-            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id) for chunk_number, chunk in enumerate(filter1_job_chunks)),
+            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id, threshold) for chunk_number, chunk in enumerate(filter1_job_chunks)),
             aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
         ).apply_async()
 
@@ -508,7 +509,7 @@ def mark_mapping_complete(resource_id):
 
 
 @celery.task()
-def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id):
+def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id, threshold):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and all the filters in dataprovider 2.
 

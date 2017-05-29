@@ -34,6 +34,8 @@ CREATE TABLE mappings (
 
   parties        SMALLINT               DEFAULT 2,
 
+  threshold      double precision NOT NULL,
+
   result_type    MAPPINGRESULT NOT NULL
 );
 

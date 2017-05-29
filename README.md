@@ -55,7 +55,7 @@ Note there is much more complete deployment documentation available for:
 
 To run locally with `docker-compose`:
 
-    docker-compose -f tools/docker-compose.yml
+    docker-compose -f tools/docker-compose.yml up
 
 ## Testing
 

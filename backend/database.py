@@ -150,7 +150,7 @@ def get_number_parties_uploaded(db, resource_id):
 
 def check_mapping_ready(db, resource_id):
     """See if the given mapping has indicated it is ready.
-    Returns the boolean, the mappings database id, and the result type
+    Returns the boolean, the mappings database id, the result type
     """
     logger.info("Selecting mapping resource")
     res = query_db(db, """
@@ -404,24 +404,25 @@ def insert_comparison_rate(cur, rate):
         """, [rate])
 
 
-def insert_mapping(cur, data, mapping, resource_id):
+def insert_mapping(cur, result_type, schema, threshold, mapping, resource_id):
     return execute_returning_id(cur,
         """
         INSERT INTO mappings
-        (resource_id, access_token, ready, schema, result_type)
+        (resource_id, access_token, ready, schema, result_type, threshold)
         VALUES
-        (%s, %s, false, %s, %s)
+        (%s, %s, false, %s, %s, %s)
         RETURNING id;
         """,
                                 [
             resource_id,
             mapping.result_token,
-            psycopg2.extras.Json(data['schema']),
-            data['result_type']
+            psycopg2.extras.Json(schema),
+            result_type,
+            threshold
         ])
 
 
-def insert_paillier(cur, data, resource_id):
+def insert_paillier(cur, public_key, context):
     return execute_returning_id(cur, """
             INSERT INTO paillier
             (public_key, context)
@@ -430,8 +431,8 @@ def insert_paillier(cur, data, resource_id):
             RETURNING id;
             """,
                                 [
-                psycopg2.extras.Json(data['public_key']),
-                psycopg2.extras.Json(data['paillier_context'])
+                psycopg2.extras.Json(public_key),
+                psycopg2.extras.Json(context)
             ]
                                 )
 
