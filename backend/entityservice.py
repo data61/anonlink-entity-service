@@ -230,9 +230,14 @@ class MappingList(Resource):
         if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
             abort(400, message='Paillier public key required when result_type="permutation"')
 
-        # TODO Parse input and check for validity
         mapping_resource = generate_code()
         mapping = MappingDao(mapping_resource)
+
+        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
+        if threshold <= 0.0 or threshold >= 1.0:
+            abort(400, message="Threshold parameter out of range")
+
+        app.logger.debug("Threshold for mapping is {}".format(threshold))
 
         # Persist the new mapping
         app.logger.info("Adding new mapping to database")
@@ -241,11 +246,11 @@ class MappingList(Resource):
         with conn.cursor() as cur:
             app.logger.debug("Starting database transaction")
             app.logger.debug("Creating a new mapping")
-            mapping_db_id = db.insert_mapping(cur, data, mapping, mapping_resource)
+            mapping_db_id = db.insert_mapping(cur, data['result_type'], data['schema'], threshold, mapping, mapping_resource)
 
             if data['result_type'] == 'permutation':
                 app.logger.debug("Inserting public key and paillier context into db")
-                paillier_db_id = db.insert_paillier(cur, data, mapping_resource)
+                paillier_db_id = db.insert_paillier(cur, data['public_key'], data['paillier_context'])
                 db.insert_empty_encrypted_mask(cur, mapping_resource, paillier_db_id)
 
             app.logger.debug("New mapping created in DB: {}".format(mapping_db_id))
@@ -326,7 +331,9 @@ class Mapping(Resource):
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
             result = db.get_mapping_result(dbinstance, resource_id)
-            return {"mapping": result}
+            return {
+                "mapping": result
+            }
 
         elif mapping['result_type'] == 'permutation':
             app.logger.info("Encrypted permutation result being returned")
@@ -340,7 +347,9 @@ class Mapping(Resource):
                 # The mask is a json blob of an
                 # array of 0/1 ints
                 mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
-                return {"mask": mask}
+                return {
+                    "mask": mask
+                }
             else:
                 perm = db.get_permutation_result(dbinstance, dp_id)
                 rows = db.get_smaller_dataset_size_for_mapping(dbinstance, resource_id)
@@ -398,12 +407,13 @@ class MappingStatus(Resource):
             'ready': fields.Boolean,
             'time_added': fields.DateTime(dt_format='iso8601'),
             'time_started': fields.DateTime(dt_format='iso8601'),
-            'time_completed': fields.DateTime(dt_format='iso8601')
+            'time_completed': fields.DateTime(dt_format='iso8601'),
+            'threshold': fields.Float()
         }
 
         app.logger.debug("Getting list of all mappings")
         query = '''
-        SELECT ready, time_added, time_started, time_completed
+        SELECT ready, time_added, time_started, time_completed, threshold
         FROM mappings
         WHERE
         resource_id = %s

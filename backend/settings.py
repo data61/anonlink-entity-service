@@ -54,6 +54,7 @@ class Config(object):
     MAX_GREEDY_CHUNK_SIZE = int(os.environ.get('MAX_CHUNK_SIZE', '200000000'))
     MIN_GREEDY_CHUNK_SIZE = int(os.environ.get('MIN_CHUNK_SIZE', '20000000'))
 
+    # Anything above this threshold is considered a match. Note each mapping job can override this
     ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))
 
     ENTITY_CACHE_THRESHOLD = int(os.environ.get('ENTITY_CACHE_THRESHOLD', '1000000'))
