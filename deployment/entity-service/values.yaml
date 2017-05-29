@@ -9,7 +9,7 @@ api:
   imageRegistery: "quay.io/n1analytics"
 
   ## "IfNotPresent" or "Always"
-  imagePullPolicy: "Always"
+  imagePullPolicy: "IfNotPresent"
 
   ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
   ## or access it from within the cluster (ClusterIP service).
@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1024Mi
-    tag: "v1.4.9"
+    tag: "v1.5.0"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.4.9"
+  tag: "v1.5.0"
   replicas: 1
   debug: "true"
 # Single core should do 10 M/s
