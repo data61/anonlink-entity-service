@@ -73,6 +73,7 @@ def delete_mapping(id):
                                       # headers={'Authorization': new_map_response['update_tokens'][1]}
                                       )
     logger.debug(response_delete)
+    time.sleep(0.05)
     logger.debug("Servers mappings:")
     mappings_response = requests.get(url + '/mappings').json()
     assert not any(mapping['resource_id'] == id for mapping in mappings_response['mappings'])
@@ -569,6 +570,7 @@ def delete_all_mappings():
     mappings = requests.get(url + '/mappings').json()['mappings']
     for mapping in mappings:
         delete_mapping(mapping['resource_id'])
+        time.sleep(0.05)
 
 
 def timing_test(outfile=None):
