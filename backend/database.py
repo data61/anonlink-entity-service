@@ -245,7 +245,7 @@ def delete_mapping(db, resource_id):
                 """, [resource_id])
 
         if result_type == "permutation":
-            paillier_id = execute_returning_id("""
+            paillier_id = execute_returning_id(cur, """
                 DELETE FROM encrypted_permutation_masks
                 WHERE mapping = %s
                 RETURNING paillier
