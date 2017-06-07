@@ -32,7 +32,7 @@ This will start the following containers:
 -  redis job queue (named ``n1es_redis_1``)
 -  minio object store
 
-All these containers will be on the docker network ``tools_es_network``.
+All these containers will be on the docker network ``n1es_es_network``.
 
 The service should be exposed on port ``8851`` of the host machine.
 
