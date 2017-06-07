@@ -10,8 +10,7 @@ services:
       - psql:/var/lib/postgresql/data
     networks:
       es_network:
-        aliases:
-          - db
+
 
   minio:
     image: minio/minio:RELEASE.2017-02-16T01-47-30Z
@@ -23,17 +22,15 @@ services:
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     networks:
       es_network:
-        aliases:
-          - minio
     volumes:
       - minio:/export
+
 
   redis:
     image: redis:3.2
     networks:
       es_network:
-        aliases:
-          - redis
+
 
   # The flask application server
   backend:
@@ -49,8 +46,7 @@ services:
       - redis
     networks:
       es_network:
-        aliases:
-          - backend
+
 
   # The application server can also setup the database
   db_init:
@@ -99,8 +95,6 @@ services:
       PUBLIC_IP:
     networks:
       es_network:
-        aliases:
-          - api
 
 
   # A celery monitor. Useful for debugging but okay to remain
@@ -112,8 +106,7 @@ services:
 #    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
 #    networks:
 #      es_network:
-#        aliases:
-#          - entityservice-monitor
+
 
 networks:
   es_network:
