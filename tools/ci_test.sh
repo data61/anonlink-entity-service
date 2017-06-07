@@ -25,7 +25,5 @@ docker logs entityservicetest_backend_1
 docker logs entityservicetest_nginx_1
 
 echo "Cleanup:"
+# Note this raises the exit code of the tests
 ./ci_cleanup.sh
-
-# Raise the exit code of the tests
-exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci_1`
