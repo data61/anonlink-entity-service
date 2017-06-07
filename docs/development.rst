@@ -15,11 +15,9 @@ and the postgres database::
 Restart one service
 -------------------
 
-Docker compose can modifying an existing deployment, this can be particularly
-effective when you modify and build the backend and want to restart it without
-changing anything else:
-
-::
+Docker compose can modify an existing deployment, this can be particularly
+effective when you modify and rebuild the backend and want to restart it without
+changing anything else::
 
     docker-compose -f tools/docker-compose.yml up -d --no-deps es_backend
 
@@ -27,9 +25,7 @@ changing anything else:
 Scaling
 -------
 
-You can run additional worker containers by scaling with docker-compose:
-
-::
+You can run additional worker containers by scaling with docker-compose::
 
     docker-compose -f tools/docker-compose.yml scale es_worker=2
 

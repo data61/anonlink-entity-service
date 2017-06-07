@@ -187,10 +187,15 @@ Returns when result\_type = "mapping":
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 **200** The mapping of indices between parties. Data is returned as
-``json`` object e.g,
+``json`` object e.g.,::
 
-{% code lang=json linenumbers=false %} { "mapping": { "0": "5", "2": "0"
-} } {% endcode %}
+    { "mapping":
+        {
+            "0": "5",
+            "2": "0"
+        }
+    }
+
 
 Returns when result\_type = "permutation":
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
