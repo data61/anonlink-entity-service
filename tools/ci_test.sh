@@ -21,8 +21,8 @@ docker logs -t -f entityservicetest_ci_1
 
 echo "Other Logs:"
 
-docker logs entityservicetest_es_backend_1
-docker logs entityservicetest_es_nginx_1
+docker logs entityservicetest_backend_1
+docker logs entityservicetest_nginx_1
 
 echo "Cleanup:"
 ./ci_cleanup.sh
