@@ -29,7 +29,7 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.2.6"
+    tag: "v1.3.0"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
@@ -64,7 +64,7 @@ workers:
   # this isn't worth splitting across nodes.
   MIN_CHUNK_SIZE: "50000000"
 
-  MATCH_THRESHOLD: "0.96"
+  MATCH_THRESHOLD: "0.95"
 
   celery:
     PREFETCH_MULTIPLIER: "2"
