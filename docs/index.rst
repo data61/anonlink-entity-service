@@ -68,6 +68,9 @@ The security in this result type relies on the mask remaining secret
 from the data providers. Ensure the creator of the mapping can be trusted
 by both data providers for this task.
 
+Note the mask will be the length of the smaller dataset and is applied after
+permuting the entities.
+
 Permutation and Encrypted Mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

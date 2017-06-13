@@ -476,11 +476,15 @@ definitions:
         
       paillier_context:
         $ref: "#/definitions/PaillierContext"
+
       threshold:
         type: number
         format: double
         default: 0.95
-        description: "The similarity threshold (a number between 0 and 1) above which two entites will be considered a match."
+        description: |
+          The similarity threshold (a number between 0 and 1) above which two entites will be considered a match.
+
+          Note the default can be changed at deployment time.
       
     required:
       - schema
