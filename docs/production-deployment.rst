@@ -8,6 +8,28 @@ The entity service has been deployed to kubernetes clusters on GCE and
 AWS. The system has been designed to scale across multiple nodes
 and handle node failure without data loss.
 
+
+.. figure:: _static/deployment.png
+   :alt: Entity Service Kubernetes Deployment
+   :width: 800 px
+
+At a high level the main custom components are:
+
+- **ES App** - a gunicorn/flask backend web service hosts the REST api
+- **Entity Match Worker** instances - uses celery for task scheduling
+
+The components that are used in support are:
+
+- postgresql database holds all match metadata
+- redis is used for the celery job queue and as a cache
+- minio object store stores the raw CLKs and result files
+- nginx provides upload buffering, request rate limiting.
+- an ingress controller (e.g. traefic) provides TLS termination
+
+
+The rest of this document goes into how to deploy in a production setting.
+
+
 Bring up a Kubernetes cluster:
 ------------------------------
 
@@ -19,8 +41,8 @@ For AWS there is a good tutorial `here <https://github.com/coreos/kube-aws>`__.
 Recommended AWS worker `instance type <https://aws.amazon.com/ec2/instance-types/>`__
 is ``r3.4xlarge`` - spot instances are fine as we handle node failure. The
 number of nodes depends on the size of the expected jobs, as well as the
-memory on each node. We recommend starting with at least two nodes, with each
-node having at least 8GiB of memory and 2 vCPUs.
+memory on each node. For testing we recommend starting with at least two nodes, with each
+node having at least 8 GiB of memory and 2 vCPUs.
 
 
 **Software to interact with the cluster**
