@@ -1,7 +1,8 @@
-flask==0.12
+flask==0.12.2
+Werkzeug==0.12.2
 flask-restful
-requests==2.9.1
-gunicorn==19.3.0
+requests==2.18.1
+gunicorn==19.7.1
 psycopg2==2.6.1
 celery==3.1.20
 flower==0.9.1
