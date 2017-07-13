@@ -40,7 +40,6 @@ consoleHandler.setFormatter(config.consoleFormat)
 
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object('settings.Config')
-
 # Add loggers to app
 del app.logger.handlers[:]
 app.logger.propagate = False
@@ -373,7 +372,11 @@ class Mapping(Resource):
         # to avoid parsing the json in one hit, this enables running the
         # web frontend with less memory.
         headers = request.headers
-        stream = request.stream
+
+        # Note we don't use request.stream so we handle chunked uploads without
+        # the content length set...
+        stream = request.input_stream
+
         abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
             safe_fail_request(401, message="Authentication token required")
@@ -459,7 +462,7 @@ def add_mapping_data(dp_id, raw_stream):
     setting the state to pending in the bloomingdata table.
     """
     receipt_token = generate_code()
-    mc = connect_to_object_store()
+
 
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     app.logger.info("Storing user {} supplied clks from json".format(dp_id))
@@ -497,7 +500,7 @@ def add_mapping_data(dp_id, raw_stream):
 
     app.logger.info("Processed {} CLKS".format(store['count']))
     app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
-
+    mc = connect_to_object_store()
     mc.put_object(
         config.MINIO_BUCKET,
         filename,
