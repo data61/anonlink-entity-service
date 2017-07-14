@@ -86,7 +86,12 @@ def safe_fail_request(status_code, message):
     # ensure we read the post data, even though we mightn't need it
     # without this you get occasional nginx errors failed (104:
     # Connection reset by peer) (See issue #195)
-    data = request.get_json()
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        chunk_size = 4096
+        for data in request.input_stream.read(chunk_size):
+            pass
+    else:
+        data = request.get_json()
     abort(http_status_code=status_code, message=message)
 
 
