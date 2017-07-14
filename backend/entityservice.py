@@ -95,6 +95,34 @@ def safe_fail_request(status_code, message):
     abort(http_status_code=status_code, message=message)
 
 
+def get_stream():
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        stream = request.input_stream
+    else:
+        stream = request.stream
+    return stream
+
+
+def get_json():
+    # Handle chunked Transfer-Encoding...
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        stream = get_stream()
+
+        def consume_as_string(byte_stream):
+            data = []
+            while True:
+                byte_data = byte_stream.read(4096)
+                if byte_data:
+                    data.append(byte_data.decode())
+                else:
+                    break
+            return ''.join(data)
+
+        return json.loads(consume_as_string(stream))
+    else:
+        return request.get_json()
+
+
 def abort_if_mapping_doesnt_exist(resource_id):
     resource_exists = db.check_mapping_exists(get_db(), resource_id)
     if not resource_exists:
@@ -215,31 +243,31 @@ class MappingList(Resource):
         The "permutation_unencrypted_mask" does a permutation but do not encrypt the mask which is
         only sends to the coordinator (owner of the results_token).
         """
-        data = request.get_json()
+        data = get_json()
 
         if data is None or 'schema' not in data:
-            abort(400, message="Schema information required")
+            safe_fail_request(400, message="Schema information required")
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
                                                                     'permutation_unencrypted_mask'}:
-            abort(400, message='result_type must be either "permutation", "mapping" or '
+            safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
                                '"permutation_unencrypted_mask"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
-            abort(400, message='Paillier public key required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
 
         if data['result_type'] == 'permutation' and 'paillier_context' not in data:
-            abort(400, message='Paillier context required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier context required when result_type="permutation"')
 
         if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
-            abort(400, message='Paillier public key required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
 
         mapping_resource = generate_code()
         mapping = MappingDao(mapping_resource)
 
         threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
         if threshold <= 0.0 or threshold >= 1.0:
-            abort(400, message="Threshold parameter out of range")
+            safe_fail_request(400, message="Threshold parameter out of range")
 
         app.logger.debug("Threshold for mapping is {}".format(threshold))
 
@@ -380,7 +408,7 @@ class Mapping(Resource):
 
         # Note we don't use request.stream so we handle chunked uploads without
         # the content length set...
-        stream = request.input_stream
+        stream = get_stream()
 
         abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
@@ -402,6 +430,7 @@ class Mapping(Resource):
         app.logger.info("Job scheduled to handle user uploaded hashes")
 
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
+
 
 
 class MappingStatus(Resource):
