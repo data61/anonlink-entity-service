@@ -6,7 +6,7 @@ services:
     image: quay.io/n1analytics/entity-app:v1.5.1
     environment:
       - DEBUG=true
-      - ENTITY_SERVICE_URL=http://api:8851/api/v1
+      - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
       - ENTITY_SERVICE_TEST_SIZE=1000
       - ENTITY_SERVICE_TEST_REPEATS=1
       - INITIAL_DELAY=30
