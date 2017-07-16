@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jupyter-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ template "fullname" . }}
+        run: jupyter
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      containers:
+      - name: jupyter-nb
+        image: jupyter/datascience-notebook
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        args:
+        - start-notebook.sh
+        - --NotebookApp.password={{ .Values.passwordhash }}
+        ports:
+        - containerPort: 8888
+          name: jupyter-nb
+        env:
+        - name: USE_HTTPS
+          value: "no"
+        - name: GRANT_SUDO
+          value: "yes"
+      imagePullSecrets:
+      - name: n1analytics-coreos-pull-secret

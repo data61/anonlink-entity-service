@@ -1,0 +1,7 @@
+name: n1-datascience
+version: 1.0.0
+description: Jupyter Notebook Server
+home: nb.data61.xyz
+maintainers:
+  - name: Brian Thorne
+    email: brian.thorne@n1analytics.com

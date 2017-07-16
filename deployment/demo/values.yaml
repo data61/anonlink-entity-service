@@ -1,0 +1,18 @@
+
+
+
+ingress:
+  enabled: true
+  domain: "nb.es.data61.xyz"
+
+# Made with:
+# from IPython.lib import passwd
+passwordhash: "sha1:XXX:XXX"
+
+resources:
+  limits:
+    memory: 16Gi
+    cpu: 2000m
+  requests:
+    memory: 1Gi
+    cpu: 100m
