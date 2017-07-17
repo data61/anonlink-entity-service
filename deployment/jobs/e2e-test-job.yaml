@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: n1.test.e2e.10000.repeat.parallel
+  name: n1.test.e2e.100000.parallel
 spec:
   completions: 2
   parallelism: 2
@@ -21,9 +21,9 @@ spec:
           - name: ENTITY_SERVICE_URL
             value: http://entityservice-api/api/v1
           - name: ENTITY_SERVICE_TEST_SIZE
-            value: "1000"
+            value: "100000"
           - name: ENTITY_SERVICE_TEST_REPEATS
-            value: "10"
+            value: "2"
           - name: ENTITY_SERVICE_PERMUTATION
             value: "true"
           - name: LOGGING_LEVEL

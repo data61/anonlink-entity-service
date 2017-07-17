@@ -22,10 +22,17 @@ spec:
         ports:
         - containerPort: 8888
           name: jupyter-nb
+        volumeMounts:
+        - mountPath: "/persist"
+          name: nb-data
         env:
         - name: USE_HTTPS
           value: "no"
         - name: GRANT_SUDO
           value: "yes"
-      imagePullSecrets:
-      - name: n1analytics-coreos-pull-secret
+#      imagePullSecrets:
+#      - name: n1analytics-coreos-pull-secret
+      volumes:
+      - name: nb-data
+        persistentVolumeClaim:
+          claimName: nb-pv-claim
