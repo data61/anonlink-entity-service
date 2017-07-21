@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: clear-jobs
+spec:
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+        run: entitytester
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: entitytester
+        image: quay.io/n1analytics/entity-app:v1.5.2
+        imagePullPolicy: Always
+        env:
+          - name: REDIS_SERVER
+            value: es-152-redis
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: es-credentials
+                key: redisPassword
+        command:
+          - "/usr/local/bin/celery"
+          - "-A"
+          - "async_worker"
+          - "purge"
+          - "-f"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret
