@@ -1,10 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: n1.test.e2e.100000.parallel
+  name: e2etest100k.2
 spec:
-  completions: 2
-  parallelism: 2
+  completions: 1
+  parallelism: 1
   template:
     metadata:
       labels:
@@ -15,7 +15,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:v1.2.1
+        image: quay.io/n1analytics/entity-app:v1.5.2
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
@@ -23,11 +23,11 @@ spec:
           - name: ENTITY_SERVICE_TEST_SIZE
             value: "100000"
           - name: ENTITY_SERVICE_TEST_REPEATS
-            value: "2"
-          - name: ENTITY_SERVICE_PERMUTATION
-            value: "true"
+            value: "1"
+#          - name: ENTITY_SERVICE_PERMUTATION
+#            value: "true"
           - name: LOGGING_LEVEL
-            value: "WARNING"
+            value: "INFO"
         command:
           - "python"
           - "test_service.py"
