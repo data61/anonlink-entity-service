@@ -40,7 +40,6 @@ consoleHandler.setFormatter(config.consoleFormat)
 
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object('settings.Config')
-
 # Add loggers to app
 del app.logger.handlers[:]
 app.logger.propagate = False
@@ -87,8 +86,41 @@ def safe_fail_request(status_code, message):
     # ensure we read the post data, even though we mightn't need it
     # without this you get occasional nginx errors failed (104:
     # Connection reset by peer) (See issue #195)
-    data = request.get_json()
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        chunk_size = 4096
+        for data in request.input_stream.read(chunk_size):
+            pass
+    else:
+        data = request.get_json()
     abort(http_status_code=status_code, message=message)
+
+
+def get_stream():
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        stream = request.input_stream
+    else:
+        stream = request.stream
+    return stream
+
+
+def get_json():
+    # Handle chunked Transfer-Encoding...
+    if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
+        stream = get_stream()
+
+        def consume_as_string(byte_stream):
+            data = []
+            while True:
+                byte_data = byte_stream.read(4096)
+                if byte_data:
+                    data.append(byte_data.decode())
+                else:
+                    break
+            return ''.join(data)
+
+        return json.loads(consume_as_string(stream))
+    else:
+        return request.get_json()
 
 
 def abort_if_mapping_doesnt_exist(resource_id):
@@ -211,31 +243,31 @@ class MappingList(Resource):
         The "permutation_unencrypted_mask" does a permutation but do not encrypt the mask which is
         only sends to the coordinator (owner of the results_token).
         """
-        data = request.get_json()
+        data = get_json()
 
         if data is None or 'schema' not in data:
-            abort(400, message="Schema information required")
+            safe_fail_request(400, message="Schema information required")
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
                                                                     'permutation_unencrypted_mask'}:
-            abort(400, message='result_type must be either "permutation", "mapping" or '
+            safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
                                '"permutation_unencrypted_mask"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
-            abort(400, message='Paillier public key required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
 
         if data['result_type'] == 'permutation' and 'paillier_context' not in data:
-            abort(400, message='Paillier context required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier context required when result_type="permutation"')
 
         if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
-            abort(400, message='Paillier public key required when result_type="permutation"')
+            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
 
         mapping_resource = generate_code()
         mapping = MappingDao(mapping_resource)
 
         threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
         if threshold <= 0.0 or threshold >= 1.0:
-            abort(400, message="Threshold parameter out of range")
+            safe_fail_request(400, message="Threshold parameter out of range")
 
         app.logger.debug("Threshold for mapping is {}".format(threshold))
 
@@ -373,7 +405,11 @@ class Mapping(Resource):
         # to avoid parsing the json in one hit, this enables running the
         # web frontend with less memory.
         headers = request.headers
-        stream = request.stream
+
+        # Note we don't use request.stream so we handle chunked uploads without
+        # the content length set...
+        stream = get_stream()
+
         abort_if_mapping_doesnt_exist(resource_id)
         if headers is None or 'Authorization' not in headers:
             safe_fail_request(401, message="Authentication token required")
@@ -394,6 +430,7 @@ class Mapping(Resource):
         app.logger.info("Job scheduled to handle user uploaded hashes")
 
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
+
 
 
 class MappingStatus(Resource):
@@ -459,7 +496,7 @@ def add_mapping_data(dp_id, raw_stream):
     setting the state to pending in the bloomingdata table.
     """
     receipt_token = generate_code()
-    mc = connect_to_object_store()
+
 
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     app.logger.info("Storing user {} supplied clks from json".format(dp_id))
@@ -497,7 +534,7 @@ def add_mapping_data(dp_id, raw_stream):
 
     app.logger.info("Processed {} CLKS".format(store['count']))
     app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
-
+    mc = connect_to_object_store()
     mc.put_object(
         config.MINIO_BUCKET,
         filename,

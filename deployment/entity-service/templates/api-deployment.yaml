@@ -69,5 +69,11 @@ spec:
         ports:
           - containerPort: {{ .Values.api.app.containerPort }}
             name: entity-flask
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: {{ .Values.api.app.containerPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 30
       imagePullSecrets:
         - name: n1analytics-coreos-pull-secret

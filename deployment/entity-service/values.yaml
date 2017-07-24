@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1024Mi
-    tag: "v1.5.1"
+    tag: "v1.5.3"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,9 +44,9 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.5.1"
+  tag: "v1.5.3"
   replicas: 1
-  debug: "true"
+  debug: "false"
 # Single core should do 10 M/s
   # A worker with ~3 cores should do 30 M/s
   # There is some overhead for fetching data for each task - ~15s per 100K entities
@@ -67,17 +67,17 @@ workers:
   MATCH_THRESHOLD: "0.95"
 
   celery:
-    PREFETCH_MULTIPLIER: "2"
-    MAX_TASKS_PER_CHILD: "4"
+    PREFETCH_MULTIPLIER: "1"
+    MAX_TASKS_PER_CHILD: "10"
 
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 2Gi
-      cpu: 1000m
-    limits:
       memory: 8Gi
-      cpu: 3000m
+      cpu: 2
+    limits:
+      memory: 32Gi
+      cpu: 8
 
 postgresql:
   # See available settings and defaults at:
