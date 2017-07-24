@@ -1,0 +1,18 @@
+workers:
+  replicas: 1
+  ## https://kubernetes.io/docs/user-guide/compute-resources
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 128Mi
+      cpu: 200m
+
+postgresql:
+  resources:
+    limits:
+      memory: 200Mi
+    requests:
+      memory: 100Mi
+      cpu: 100m

@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: celery-monitor
-        image: quay.io/n1analytics/entity-app:v1.2
+        image: quay.io/n1analytics/entity-app:{{ .Values.api.www.tag }}
         imagePullPolicy: Always
         ports:
           - containerPort: 8888
