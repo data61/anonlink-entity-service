@@ -134,10 +134,11 @@ paths:
   /mappings:
     get:
       description: |
-        List all mapping jobs.
+        List of all mappings with their completion status.
         
-        `'time_added'` and `'time_completed'` are represented in
+        `'time_added'`, `'time_started'` and `'time_completed'` are represented in
         [ISO 8601 format](https://docs.python.org/3/library/datetime.html#datetime.datetime.isoformat).
+        Note that the value will be `null` if the mapping has not yet started or completed.
       responses:
         '200':
           description: Successful response
@@ -393,6 +394,10 @@ definitions:
         ready:
           type: boolean
         time_added:
+          type: string
+          description: ISO8601 formated datetime
+          format: 'date-time'
+        time_started:
           type: string
           description: ISO8601 formated datetime
           format: 'date-time'

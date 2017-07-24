@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1024Mi
-    tag: "v1.5.3"
+    tag: "v1.5.4"
     debug: "true"
     containerPort: 8000
   Replicas: 1

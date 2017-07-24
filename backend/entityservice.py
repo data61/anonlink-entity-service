@@ -216,6 +216,7 @@ class MappingList(Resource):
             'resource_id': fields.String,
             'ready': fields.Boolean,
             'time_added': fields.DateTime(dt_format='iso8601'),
+            'time_started': fields.DateTime(dt_format='iso8601'),
             'time_completed': fields.DateTime(dt_format='iso8601')
         }
 
@@ -223,7 +224,7 @@ class MappingList(Resource):
 
         app.logger.debug("Getting list of all mappings")
         for mapping in db.query_db(get_db(),
-                                   'select resource_id, ready, time_added, time_completed from mappings'):
+                                   'select resource_id, ready, time_added, time_started, time_completed from mappings'):
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
