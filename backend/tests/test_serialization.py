@@ -1,7 +1,9 @@
 import unittest
 import random
 from bitarray import bitarray
-from serialization import *
+from serialization import deserialize_bitarray
+from .util import serialize_bitarray
+
 
 def random_bitarray(l=1024):
     return bitarray(
@@ -11,9 +13,7 @@ def random_bitarray(l=1024):
 
 class SerializationTest(unittest.TestCase):
 
-
     def test_bitarray(self):
-
         ba = bitarray('1110110011011101010101010101010101010101010101010101111001100110')
 
         serialized_bitarray1 = serialize_bitarray(ba)
@@ -24,7 +24,6 @@ class SerializationTest(unittest.TestCase):
 
 
     def test_random_bitarray(self):
-
         ba = random_bitarray(2048)
         sba = serialize_bitarray(ba)
 

@@ -27,12 +27,6 @@ def deserialize_bitarray(bytes_data):
     return ba
 
 
-def serialize_bitarray(ba):
-    """ Serialize a bitarray (bloomfilter)
-
-    """
-    return base64.encodebytes(ba.tobytes()).decode('utf8')
-
 """
 The binary format used:
 
