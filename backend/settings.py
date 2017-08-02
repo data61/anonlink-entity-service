@@ -38,8 +38,9 @@ class Config(object):
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }
-    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '2'))
+    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
+    CELERY_ACKS_LATE = 'CELERY_ACKS_LATE' in os.environ
 
     ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
 
