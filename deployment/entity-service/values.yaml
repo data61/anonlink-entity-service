@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1024Mi
-    tag: "v1.5.4"
+    tag: "v1.5.5"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.5.3"
+  tag: "v1.5.5"
   replicas: 1
   debug: "false"
 # Single core should do 10 M/s
