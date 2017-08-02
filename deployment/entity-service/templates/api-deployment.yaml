@@ -72,8 +72,9 @@ spec:
         livenessProbe:
           httpGet:
             path: /status
-            port: {{ .Values.api.app.containerPort }}
+            port: entity-flask
           initialDelaySeconds: 10
-          periodSeconds: 30
+          periodSeconds: 300
+          timeoutSeconds: 30
       imagePullSecrets:
         - name: n1analytics-coreos-pull-secret
