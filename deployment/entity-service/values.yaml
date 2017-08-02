@@ -85,8 +85,8 @@ postgresql:
   nameOverride: "db"
   postgresPassword: "x925SvzX6cuH"
   persistence:
-    persistence.enabled: false
-    persistence.storageClass: "slow"
+    enabled: false
+    storageClass: "slow"
     size: 20Gi
   imageTag: 9.5.4
   imagePullPolicy: IfNotPresent
@@ -104,7 +104,7 @@ redis:
   # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
   redisPassword: "gOgRockEPtiN"
   persistence:
-    persistence.storageClass: "slow"
+    storageClass: "slow"
   nameOverride: "redis"
 
 minio:
