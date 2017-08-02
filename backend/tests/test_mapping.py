@@ -53,7 +53,7 @@ class TestMappingTests(MappingTestsBase):
             'threshold': 0.8
         }).json()
         self.log.info("Checking mapping status without authentication token")
-        r = requests.get(self.url + '/mappings/{}'.format(id))
+        r = requests.get(self.url + '/mappings/{}'.format(new_mapping['resource_id']))
         self.assertEqual(r.status_code, 401)
 
         self.mappings.append(new_mapping['resource_id'])
@@ -74,7 +74,7 @@ class TestMappingTests(MappingTestsBase):
     def test_mapping_status_invalid_mapping_id_fake_auth(self):
         r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
                          headers={'Authorization': 'invalid'})
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 403)
 
     def test_mapping_status_invalid_mapping_id_valid_auth(self):
         new_map_response = requests.post(self.url + '/mappings',
