@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: esintegrationtest
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: entityservice
+        tier: aux
+        run: entitytester
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: entitytester
+        image: quay.io/n1analytics/entity-app:v1.5.5
+        imagePullPolicy: Always
+        env:
+          - name: ENTITY_SERVICE_URL
+            value: http://entityservice-api/api/v1
+          - name: LOGGING_LEVEL
+            value: "INFO"
+        command:
+          - "nosetests"
+          - "tests"
+      imagePullSecrets:
+        - name: n1analytics-coreos-pull-secret

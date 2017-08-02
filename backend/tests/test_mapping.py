@@ -1,4 +1,6 @@
 import requests
+import time
+
 from tests.util import generate_serialized_clks, generate_overlapping_clk_data, EntityServiceTestBase
 
 
@@ -86,7 +88,7 @@ class TestMappingTests(MappingTestsBase):
                                          }).json()
         r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
                          headers={'Authorization': new_map_response['result_token']})
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 403)
         self.mappings.append(new_map_response['resource_id'])
 
     def test_mapping_status_no_data_uploaded(self):
@@ -158,9 +160,11 @@ class TestMappingTests(MappingTestsBase):
         self.assertEqual(r1.status_code, 201)
         self.assertEqual(r2.status_code, 201)
 
+        time.sleep(5)
         response = requests.get(self.url + '/mappings/{}'.format(new_map['resource_id']),
                                 headers={'Authorization': new_map['result_token']})
 
+        print(response)
         mapping_result = response.json()['mapping']
         self.assertGreater(len(mapping_result), 70)
         self.assertLess(len(mapping_result), 80)
