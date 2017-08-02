@@ -35,7 +35,7 @@ api:
     containerPort: 8851
   app:
     image: "entity-app"
-    memory: 1024Mi
+    memory: 1Gi
     tag: "v1.5.5"
     debug: "true"
     containerPort: 8000
