@@ -19,6 +19,13 @@ def serialize_bitarray(ba):
     """
     return base64.encodebytes(ba.tobytes()).decode('utf8')
 
+
+def serialize_filters(filters):
+    """Serialize filters as clients are required to."""
+    return [
+        serialize_bitarray(f[0]) for f in filters
+    ]
+
 def generate_serialized_clks(size):
     clks = generate_clks(size)
     return [serialize_bitarray(clk) for clk,_ ,_ in clks]

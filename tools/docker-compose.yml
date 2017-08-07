@@ -8,8 +8,6 @@ services:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
       - psql:/var/lib/postgresql/data
-    networks:
-      es_network:
 
 
   minio:
@@ -20,16 +18,12 @@ services:
     environment:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    networks:
-      es_network:
     volumes:
       - minio:/export
 
 
   redis:
     image: redis:3.2
-    networks:
-      es_network:
 
 
   # The flask application server
@@ -44,8 +38,6 @@ services:
       - db
       - db_init
       - redis
-    networks:
-      es_network:
 
 
   # The application server can also setup the database
@@ -58,8 +50,7 @@ services:
     entrypoint: flask initdb
     depends_on:
       - db
-    networks:
-      es_network:
+
 
   # A celery worker
   worker:
@@ -79,8 +70,7 @@ services:
       - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    networks:
-      es_network:
+
 
   nginx:
     image: quay.io/n1analytics/entity-nginx:v1.3.0
@@ -93,24 +83,17 @@ services:
       ETCD_URL:
       PUBLIC_PORT: 8851
       PUBLIC_IP:
-    networks:
-      es_network:
+
 
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
-#  celery_monitor:
-#    image: quay.io/n1analytics/entity-app:v1.4.9
-#    depends_on:
-#      - redis
-#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
-#    networks:
-#      es_network:
+  celery_monitor:
+    image: quay.io/n1analytics/entity-app:v1.5.5
+    depends_on:
+      - redis
+    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
 
-
-networks:
-  es_network:
-    driver: bridge
 
 volumes:
   psql:
