@@ -75,13 +75,6 @@ def binary_unpack_filters(streamable_data):
     return filters
 
 
-def serialize_filters(filters):
-    """Serialize filters as clients are required to."""
-    return [
-        serialize_bitarray(f[0]) for f in filters
-    ]
-
-
 def deserialize_filters(filters):
     """
     Deserialize iterable of base64 encoded clks.

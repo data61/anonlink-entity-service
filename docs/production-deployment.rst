@@ -135,16 +135,17 @@ Install the whole system
 
 ::
 
-    cd entity-service
-    helm install . --name="n1entityservice"
+    cd deployment
+    helm install entityservice --namespace=es --name="n1entityservice"
 
 This can take around 10 minutes the first time you deploy to a new cluster.
 
-Run an end to end test
-----------------------
+Run integration tests and an end to end test
+--------------------------------------------
 
 ::
 
+    kubectl create -f jobs/integration-test-job.yaml
     kubectl create -f jobs/e2e-test-job.yaml
 
 To view the celery monitor:
@@ -156,25 +157,14 @@ Find the pod that the monitor is running on then forward the port:
 
     kubectl port-forward entityservice-monitor-4045544268-s34zl 8888:8888
 
-To add the Route53 DNS record
------------------------------
 
-Find out the Amazon Load Balancer address:
+Upgrade Deployment with Helm
+----------------------------
 
-::
-
-    kubectl describe service entityservice-api
-
-Add a CNAME record to aws.
-
-Helm bits and bobs:
--------------------
-
-Updating a running chart is usually straight forward. For example if the
-release is called ``eerie-gecko`` and you are in the
-``deployment/entity-service`` directory:
+Updating a running chart is usually straight forward. For example if the release is called ``es`` in namespace
+``testing`` execute the following to increase the number of workers:
 
 ::
 
-    helm upgrade eerie-gecko .
+    helm upgrade es entityservice --namespace=testing --set workers.replicas="20"
 
