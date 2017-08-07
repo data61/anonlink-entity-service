@@ -3,7 +3,7 @@ Name: "entityservice"
 api:
   ingress:
     enabled: true
-  domain: "es.data61.xyz"
+  domain: "beta.es.data61.xyz"
   domainProvider: "route53"
 
   imageRegistery: "quay.io/n1analytics"
