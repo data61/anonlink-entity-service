@@ -4,9 +4,9 @@ Production deployment
 Production deployment assumes a multi node `Kubernetes <https://kubernetes.io/docs/home/>`__
 cluster.
 
-The entity service has been deployed to kubernetes clusters on GCE and
-AWS. The system has been designed to scale across multiple nodes
-and handle node failure without data loss.
+The entity service has been deployed to kubernetes clusters on GCE, minikube and
+AWS. The system has been designed to scale across multiple nodes and handle node
+failure without data loss.
 
 
 .. figure:: _static/deployment.png
@@ -30,7 +30,7 @@ The components that are used in support are:
 The rest of this document goes into how to deploy in a production setting.
 
 
-Bring up a Kubernetes cluster:
+Provision a Kubernetes cluster
 ------------------------------
 
 Creating a Kubernetes cluster is out of scope for this documentation.
@@ -51,17 +51,13 @@ You will need to install the `kubectl <https://kubernetes.io/docs/tasks/kubectl/
 command line tool, and `helm <https://github.com/kubernetes/helm>`__
 
 
-Provision cluster resources
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cluster Storage
+~~~~~~~~~~~~~~~
 
-Note ``kubectl`` uses the same interface to provision all types of
-resource. Before deploying the entity service we need to provision a few other
-things on the cluster. An existing kubernetes cluster may already have
-these.
+An existing kubernetes cluster may already have dynamically provisioned storage. If not,
+create a ``slow`` storage class. For AWS execute::
 
-::
-
-    kubectl create -f aws-storage.yaml -f n1-coreos-secret.yaml
+    kubectl create -f aws-storage.yaml
 
 
 **Dynamically provisioned storage**
@@ -73,17 +69,11 @@ assumes the existence of a ``"slow"`` ``storageClass``.
 For a cluster on AWS the ``aws-storage.yaml`` resource will dynamically
 provision elastic block store volumes.
 
-**Docker login credentials**
 
-This secret allows nodes to pull from our private quay.io repository:
+Install Helm
+~~~~~~~~~~~~
 
-``n1-coreos-secret.yaml``
-
-
-Helm
-~~~~
-
-The system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
+The entity service system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
 there is a program that needs to be `installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
 
 At the very least you will need to install tiller into the cluster::
@@ -99,17 +89,11 @@ we will have to add one. We suggest using `Traefik <https://traefik.io/>`__.
 
 Deploy the `traefik ingress
 controller <https://docs.traefik.io/user-guide/kubernetes/>`__ into the
-kube-system namespace with:
+``kube-system`` namespace with:
 
 ::
 
     helm install --name traefik --namespace kube-system --values traefik.yaml stable/traefik
-
-Note you can update the traefik.yaml file and upgrade in place with:
-
-::
-
-    helm upgrade traefik --namespace kube-system --values traefik.yaml stable/traefik
 
 
 
@@ -126,14 +110,11 @@ From the `deployment/entity-service` directory pull the dependencies:
 
 Carefully read through and adjust the ``values.yaml`` file to your deployment.
 
-For example set the domain by changing ``api.domain``, change the workers' cpu \
+At a minimum consider setting the domain by changing ``api.domain``, change the workers' cpu
 and memory limits in ``workers.resources``.
 
 
-
-Install the whole system
-
-::
+To install the whole system execute::
 
     cd deployment
     helm install entityservice --namespace=es --name="n1entityservice"
@@ -142,6 +123,7 @@ This can take around 10 minutes the first time you deploy to a new cluster.
 
 Run integration tests and an end to end test
 --------------------------------------------
+
 
 ::
 
@@ -166,5 +148,26 @@ Updating a running chart is usually straight forward. For example if the release
 
 ::
 
-    helm upgrade es entityservice --namespace=testing --set workers.replicas="20"
+    helm upgrade es entity-service --namespace=testing --set workers.replicas="20"
 
+
+Minimal Deployment
+------------------
+
+To run with minikube for local testing we have provided a ``minimal.yaml`` file that will
+set very small resource limits. Install the minimal system with::
+
+    helm install entity-service --name="mini-es" --values entity-service/minimal-values.yaml
+
+Uninstalling
+------------
+
+
+To uninstall a release called ``es``::
+
+    helm del es
+
+
+If it has been installed into its own namespace you can simple delete the whole namespace with kubectl::
+
+    kubectl delete namespace miniestest

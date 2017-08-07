@@ -302,10 +302,11 @@ paths:
           description: Not Authenticated
           schema:
             $ref: '#/definitions/AuthError'
-            
+        '403':
+          description: Invalid authentication or mapping not found.
         '503':
           description: |
-            Mapping is not yet ready. Includes progress report.
+            Mapping is not yet ready. Includes progress object
           schema:
             $ref: '#/definitions/MappingProgress'
         '200':
@@ -343,7 +344,7 @@ paths:
         '401':
           description: If the authentication token is not provided
         '403':
-          description: If the authentication token is not valid
+          description: If the authentication token is not valid, or the mapping isn't found.
     
     delete:
       description: Remove the mapping and associated data from the service.
@@ -352,8 +353,8 @@ paths:
       responses:
         '204':
           description: Successfully deleted
-        '404':
-          description: Mapping not present
+        '403':
+          description: Mapping not present or invalid auth
   '/mapping/{mapping-id}/status':
     get:
       description: A status update on a particular mapping
