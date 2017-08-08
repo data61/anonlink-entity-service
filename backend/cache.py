@@ -20,13 +20,14 @@ def connect_to_redis():
 
 
 def set_deserialized_filter(dp_id, python_filters):
-    logger.debug("Pickling filters and storing in redis")
-    key = 'clk-pkl-{}'.format(dp_id)
-    r = connect_to_redis()
-    pickled_filters = pickle.dumps(python_filters)
-    r.set(key, pickled_filters)
-
-    return pickled_filters
+    if len(python_filters) <= config.MAX_CACHE_SIZE:
+        logger.debug("Pickling filters and storing in redis")
+        key = 'clk-pkl-{}'.format(dp_id)
+        pickled_filters = pickle.dumps(python_filters)
+        r = connect_to_redis()
+        r.set(key, pickled_filters)
+    else:
+        logger.info("Skipping storing filters in redis cache due to size")
 
 
 def get_deserialized_filter(dp_id):

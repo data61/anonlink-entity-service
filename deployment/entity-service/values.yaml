@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.6.0"
+  tag: "v1.6.1"
   replicas: 1
   debug: "false"
 
@@ -58,6 +58,9 @@ workers:
 
   # Default threshold for considering something a match
   MATCH_THRESHOLD: "0.95"
+
+  # More than this many entities and we skip caching in redis
+  MAX_CACHE_SIZE: "1000000"
 
   celery:
     PREFETCH_MULTIPLIER: "4"

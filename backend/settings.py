@@ -53,6 +53,9 @@ class Config(object):
     # And a minimum size of 20M. Note larger jobs will favor larger chunks.
     COMPARISON_CHUNK_SIZE = int(os.environ.get('COMPARISON_CHUNK_SIZE', '200000000'))
 
+    # If there are more than 1M CLKS, don't cache them in redis
+    MAX_CACHE_SIZE = int(os.environ.get('MAX_CACHE_SIZE', '1000000'))
+
     MIN_GREEDY_CHUNK_SIZE = int(os.environ.get('MIN_CHUNK_SIZE', '20000000'))
 
     # Anything above this threshold is considered a match. Note each mapping job can override this
