@@ -146,5 +146,5 @@ CREATE TABLE metrics (
   ts  TIMESTAMP DEFAULT current_timestamp,
 
   -- Comparisons per second
-  rate INT
+  rate BIGINT
 );
