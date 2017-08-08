@@ -54,11 +54,11 @@ workers:
   # will only be split into 2 or 3 jobs. So for demos and testing we have a small job
   # setup - shouldn't be used for production with very large jobs:
   # Small job max 500M
-  MAX_CHUNK_SIZE: "500000000"
+#  MAX_CHUNK_SIZE: "500000000"
   # Large job setup:
   # ~120 seconds per job
   # 120s x 30 M/s = 3600 M
-#  MAX_CHUNK_SIZE: "3600000000"
+  MAX_CHUNK_SIZE: "3600000000"
 
   # A minimum of say 50M because any smaller than
   # this isn't worth splitting across nodes.
@@ -91,7 +91,7 @@ postgresql:
   imageTag: 9.5.4
   imagePullPolicy: IfNotPresent
   metrics:
-    enabled: true
+    enabled: false
   resources:
     limits:
       memory: 8Gi
@@ -104,7 +104,18 @@ redis:
   # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
   redisPassword: "gOgRockEPtiN"
   persistence:
+    enabled: true
     storageClass: "slow"
+    size: "50Gi"
+  metrics:
+    enabled: false
+  resources:
+    requests:
+      memory: 8Gi
+      cpu: 200m
+    limits:
+      memory: 20Gi
+      cpu: 1
   nameOverride: "redis"
 
 minio:
