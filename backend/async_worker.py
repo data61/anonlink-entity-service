@@ -242,27 +242,42 @@ def compute_similarity(resource_id, dp_ids, threshold):
         logger.info("Computing similarity using greedy method")
         db = connect_db()
         filters1_object_filename = get_filter_metadata(db, dp_ids[0])
+        filters2_object_filename = get_filter_metadata(db, dp_ids[1])
 
         logger.debug("Chunking computation task")
 
         if size <= config.MIN_GREEDY_CHUNK_SIZE:
-            logger.info("Small job, one node should do")
+            logger.info("Small number of comparisons, one job should be okay")
             chunk_size = lenf1
         else:
-            logger.info("Large job, chunking")
-            chunk_size = min(lenf1, int(config.MAX_GREEDY_CHUNK_SIZE / lenf2))
+            logger.info("Large job... chunking into multiple parts")
+            # Aiming for about chunks to have this many comparisons comparisons
+            chunk_size = math.ceil(math.sqrt(config.COMPARISON_CHUNK_SIZE))
 
-        filter1_job_chunks = []
-        for chunk_start_index in range(0, lenf1, chunk_size):
-            filter1_job_chunks.append(
-                (filters1_object_filename, chunk_start_index, min(chunk_start_index + chunk_size, lenf1))
+
+        job_chunks = []
+
+        dp1_chunks = []
+        dp2_chunks = []
+
+        for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
+            dp1_chunks.append(
+                (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
+            )
+        for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
+            dp2_chunks.append(
+                (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
             )
 
-        logger.info("Chunking org 1's {} entities into {} computation tasks each with {} entities.".format(
-            lenf1, len(filter1_job_chunks), chunk_size))
+        for dp1_chunk in dp1_chunks:
+            for dp2_chunk in dp2_chunks:
+                job_chunks.append((dp1_chunk, dp2_chunk, ))
+
+        logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
+            len(job_chunks), chunk_size))
 
         mapping_future = chord(
-            (compute_filter_similarity.s(chunk, dp_ids[1], chunk_number, resource_id, threshold) for chunk_number, chunk in enumerate(filter1_job_chunks)),
+            (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
             aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
         ).apply_async()
 
@@ -509,19 +524,18 @@ def mark_mapping_complete(resource_id):
 
 
 @celery.task()
-def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id, threshold):
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, threshold):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
-    and all the filters in dataprovider 2.
+    and a chunk of filters in dataprovider 2.
 
-    :param chunk_info:
-        An iterable of tuples containing:
-            - (object store filename
+    :param chunk_info_dp1:
+        A tuple containing:
+            - object store filename
             - Chunk start index
             - Chunk stop index
-    :param dp2_id:
-        The database identifier for dataprovider 2.
-    :param chunk_number:
+    :param chunk_info_dp2:
     :param resource_id:
+    :param threshold:
     :return:
     """
     logger.debug("Computing similarity for a chunk of filters")
@@ -533,32 +547,23 @@ def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id, thr
             return None
 
     t0 = time.time()
-    logger.debug("Fetching and deserializing filters for dataprovider 2")
-    filters2 = cache.get_deserialized_filter(dp2_id)
-    t1 = time.time()
     logger.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+    chunk_dp1, chunk_dp1_size = get_chunk_from_object_store(chunk_info_dp1)
 
-    mc = connect_to_object_store()
-
-    bit_packed_element_size = 134
-    raw_data_response = mc.get_partial_object(
-        config.MINIO_BUCKET,
-        chunk_info[0],
-        bit_packed_element_size * chunk_info[1],
-        bit_packed_element_size * chunk_info[2]
-    )
-
-    chunk = binary_unpack_filters(raw_data_response)
-    chunk_size = chunk_info[2] - chunk_info[1]
+    t1 = time.time()
+    logger.debug("Fetching and deserializing chunk of filters for dataprovider 2")
+    chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
     t2 = time.time()
+
     logger.debug("Calculating filter similarity")
-    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk, filters2,
+    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
                                                                      threshold=threshold,
-                                                                     k=5)
+                                                                     k=5,
+                                                                     use_python=False)
     t3 = time.time()
 
     # Update the number of comparisons completed
-    comparisons_computed = len(filters2) * chunk_size
+    comparisons_computed = chunk_dp1_size * chunk_dp2_size
     logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}  Comparisons: {}".format(
         t1-t0, t2-t1, t3-t2, t3-t0, comparisons_computed)
     )
@@ -566,13 +571,27 @@ def compute_filter_similarity(chunk_info, dp2_id, chunk_number, resource_id, thr
     save_current_progress(comparisons_computed, resource_id)
 
     partial_sparse_result = []
-    # offset chunk's A index by chunk_size * chunk_number
-    offset = chunk_size * chunk_number
-    logger.debug("Offset by {}".format(offset))
+    # offset chunk's index
+    offset_dp1 = chunk_info_dp1[1]
+    offset_dp2 = chunk_info_dp2[1]
+
+    logger.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
     for (ia, score, ib) in chunk_results:
-        partial_sparse_result.append((ia + offset, score, ib))
+        partial_sparse_result.append((ia + offset_dp1, score, ib + offset_dp2))
 
     return partial_sparse_result
+
+
+def get_chunk_from_object_store(chunk_info):
+    mc = connect_to_object_store()
+    assert bit_packed_element_size == 134, "bit packed size doesn't match expectations"
+    chunk_length = chunk_info[2] - chunk_info[1]
+    chunk_bytes = bit_packed_element_size * chunk_length
+    chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
+
+    chunk_dp1 = binary_unpack_filters(chunk_stream, chunk_bytes)
+
+    return chunk_dp1, chunk_length
 
 
 def save_current_progress(comparisons, resource_id):

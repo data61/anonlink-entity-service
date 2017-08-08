@@ -101,7 +101,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
         'result_type': 'mapping',
-        'threshold': 0.8
+        'threshold': 0.995
     }).json()
     logger.debug(new_map_response)
 
@@ -204,7 +204,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     # Now actually check the results
     for i in mapping_result:
         j = mapping_result[i]
-        logger.debug(i, j, s1[int(i)], s2[int(j)])
+        #print(i, j, s1[int(i)], s2[int(j)])
         assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
 
     # Delete a mapping

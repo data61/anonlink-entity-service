@@ -38,7 +38,7 @@ class Config(object):
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }
-    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '2'))
+    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '10'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
 
     ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
@@ -51,7 +51,8 @@ class Config(object):
 
     # Number of comparisons to match per chunk. Default is a max size of 200M.
     # And a minimum size of 20M. Note larger jobs will favor larger chunks.
-    MAX_GREEDY_CHUNK_SIZE = int(os.environ.get('MAX_CHUNK_SIZE', '200000000'))
+    COMPARISON_CHUNK_SIZE = int(os.environ.get('COMPARISON_CHUNK_SIZE', '200000000'))
+
     MIN_GREEDY_CHUNK_SIZE = int(os.environ.get('MIN_CHUNK_SIZE', '20000000'))
 
     # Anything above this threshold is considered a match. Note each mapping job can override this

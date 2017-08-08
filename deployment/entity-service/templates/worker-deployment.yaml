@@ -36,10 +36,10 @@ spec:
             value: {{ .Values.workers.debug | quote }}
           - name: ENTITY_MATCH_THRESHOLD
             value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
+          - name: COMPARISON_CHUNK_SIZE
+            value: {{ .Values.workers.COMPARISON_CHUNK_SIZE | quote }}
           - name: MIN_CHUNK_SIZE
             value: {{ .Values.workers.MIN_CHUNK_SIZE | quote }}
-          - name: MAX_CHUNK_SIZE
-            value: {{ .Values.workers.MAX_CHUNK_SIZE | quote }}
           - name: CELERYD_PREFETCH_MULTIPLIER
             value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
           - name: CELERYD_MAX_TASKS_PER_CHILD
