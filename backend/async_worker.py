@@ -208,7 +208,7 @@ def compute_similarity(resource_id, dp_ids, threshold):
 
     """
 
-    logger.debug("Pulling CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+    logger.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
 
     # Prime the redis cache
     filters1 = cache.get_deserialized_filter(dp_ids[0])
@@ -269,6 +269,7 @@ def compute_similarity(resource_id, dp_ids, threshold):
                 (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
             )
 
+        # Every chunk in dp1 has to be run against every chunk in dp2
         for dp1_chunk in dp1_chunks:
             for dp2_chunk in dp2_chunks:
                 job_chunks.append((dp1_chunk, dp2_chunk, ))
@@ -589,9 +590,9 @@ def get_chunk_from_object_store(chunk_info):
     chunk_bytes = bit_packed_element_size * chunk_length
     chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
 
-    chunk_dp1 = binary_unpack_filters(chunk_stream, chunk_bytes)
+    chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes)
 
-    return chunk_dp1, chunk_length
+    return chunk_data, chunk_length
 
 
 def save_current_progress(comparisons, resource_id):

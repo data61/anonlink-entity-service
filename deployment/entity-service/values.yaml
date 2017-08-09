@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.6.0"
+    tag: "v1.6.2"
     debug: "true"
     containerPort: 8000
   Replicas: 1
@@ -44,13 +44,13 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.6.1"
+  tag: "v1.6.2"
   replicas: 1
   debug: "false"
 
-  # 500 M comparisons per comparison job
+  # 1B comparisons per comparison job
   # Make larger for longer jobs, at the expense of updates
-  COMPARISON_CHUNK_SIZE: "500000000"
+  COMPARISON_CHUNK_SIZE: "1000000000"
 
   # A minimum of say 50M because any smaller than
   # this isn't worth splitting across nodes.
@@ -63,7 +63,7 @@ workers:
   MAX_CACHE_SIZE: "1000000"
 
   celery:
-    PREFETCH_MULTIPLIER: "4"
+    PREFETCH_MULTIPLIER: "1"
     MAX_TASKS_PER_CHILD: "10"
 
   ## https://kubernetes.io/docs/user-guide/compute-resources
