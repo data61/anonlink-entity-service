@@ -245,15 +245,10 @@ def compute_similarity(resource_id, dp_ids, threshold):
         filters2_object_filename = get_filter_metadata(db, dp_ids[1])
 
         logger.debug("Chunking computation task")
-
-        if size <= config.MIN_GREEDY_CHUNK_SIZE:
-            logger.info("Small number of comparisons, one job should be okay")
+        chunk_size = config.get_task_chunk_size(size)
+        if chunk_size is None:
             chunk_size = lenf1
-        else:
-            logger.info("Large job... chunking into multiple parts")
-            # Aiming for about chunks to have this many comparisons comparisons
-            chunk_size = math.ceil(math.sqrt(config.COMPARISON_CHUNK_SIZE))
-
+        logger.info("Chunks will contain {} entities per task")
 
         job_chunks = []
 

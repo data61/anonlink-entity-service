@@ -3,6 +3,7 @@
 Config shared between the application backend and the celery workers.
 """
 import os
+import math
 import logging
 
 
@@ -51,7 +52,11 @@ class Config(object):
 
     # Number of comparisons to match per chunk. Default is a max size of 200M.
     # And a minimum size of 20M. Note larger jobs will favor larger chunks.
-    COMPARISON_CHUNK_SIZE = int(os.environ.get('COMPARISON_CHUNK_SIZE', '200000000'))
+    SMALL_COMPARISON_CHUNK_SIZE = int(os.environ.get('SMALL_COMPARISON_CHUNK_SIZE', '200000000'))
+    LARGE_COMPARISON_CHUNK_SIZE = int(os.environ.get('LARGE_COMPARISON_CHUNK_SIZE', '1000000000'))
+
+    SMALL_JOB_SIZE = int(os.environ.get('SMALL_JOB_SIZE', '20000000'))
+    LARGE_JOB_SIZE = int(os.environ.get('LARGE_JOB_SIZE', '100000000000'))
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.environ.get('MAX_CACHE_SIZE', '1000000'))
@@ -66,3 +71,15 @@ class Config(object):
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
 
+    @classmethod
+    def get_task_chunk_size(cls, size):
+        if size <= cls.MIN_GREEDY_CHUNK_SIZE:
+            return None
+        elif size >= cls.LARGE_JOB_SIZE:
+            chunk_size = cls.LARGE_COMPARISON_CHUNK_SIZE
+        else:
+            # Interpolate
+            gradient = (cls.LARGE_COMPARISON_CHUNK_SIZE - cls.SMALL_COMPARISON_CHUNK_SIZE) / (cls.LARGE_JOB_SIZE - cls.SMALL_JOB_SIZE)
+            chunk_size = cls.SMALL_COMPARISON_CHUNK_SIZE + size * gradient
+
+        return math.ceil(math.sqrt(chunk_size))

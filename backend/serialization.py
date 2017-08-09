@@ -32,7 +32,7 @@ The binary format used:
 
 - "!" Use network byte order (big-endian).
 - "1I" Store the index in 4 bytes as an unsigned int.
-- "128p" Store the 128 raw bytes of the bitarray
+- "128s" Store the 128 raw bytes of the bitarray
 - "1H" The popcount stored in 2 bytes (unsigned short)
 
 https://docs.python.org/3/library/struct.html#format-strings
