@@ -6,16 +6,16 @@ ssl:
 acme:
   enabled: true
   staging: false
-  email: "support@n1analytics.com"
+  email: "certificates@n1analytics.com"
   persistence:
     enabled: true
     storageClass: slow
     accessMode: ReadWriteOnce
-    size: 1Gi
+    size: 100Mi
 
 dashboard:
   enabled: true
-  domain: "traefik.es.data61.xyz"
+  domain: "traefik.n1.data61.xyz"
   auth:
     basic:
       # Use n1: "paillier" as password:
@@ -23,3 +23,6 @@ dashboard:
 
 gzip:
   enabled: false
+
+#accessLogs:
+#  enabled: true

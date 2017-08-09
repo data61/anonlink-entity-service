@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: entityservice-api
+  name: {{ .Release.Name }}-api
 spec:
   replicas: {{ .Values.api.Replicas }}
   template:
@@ -19,7 +19,6 @@ spec:
         resources:
           requests:
             memory: {{ .Values.api.www.memory }}
-
         ports:
         - containerPort: {{ .Values.api.www.containerPort }}
           name: entity-nginx
@@ -43,14 +42,14 @@ spec:
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: redisPassword
           - name: DATABASE_SERVER
             value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: postgresPassword
           - name: DEBUG
             value: {{default "false" .Values.api.app.debug | quote }}
@@ -59,12 +58,12 @@ spec:
           - name: MINIO_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: minioAccessKey
           - name: MINIO_SECRET_KEY
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: minioSecretKey
         ports:
           - containerPort: {{ .Values.api.app.containerPort }}
@@ -77,4 +76,4 @@ spec:
           periodSeconds: 300
           timeoutSeconds: 30
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: {{ template "name" . }}-pull-secret

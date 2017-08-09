@@ -247,9 +247,9 @@ def compute_similarity(resource_id, dp_ids, threshold):
         logger.debug("Chunking computation task")
         chunk_size = config.get_task_chunk_size(size)
         if chunk_size is None:
-            chunk_size = lenf1
-        logger.info("Chunks will contain {} entities per task")
-
+            chunk_size = max(lenf1, lenf2)
+        logger.info("Chunks will contain {} entities per task".format(chunk_size))
+        update_mapping_chunk(db, resource_id, chunk_size)
         job_chunks = []
 
         dp1_chunks = []

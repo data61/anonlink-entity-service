@@ -1,13 +1,13 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: entityservice-monitor
+  name: {{ template "name" . }}-monitor
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: entityservice
+        app: {{ template "fullname" . }}
         tier: aux
         run: celery-monitor
     spec:
@@ -25,6 +25,5 @@ spec:
           - "flower"
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
-#          - "--url_prefix=monitor"
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: {{ template "name" . }}-pull-secret

@@ -36,25 +36,25 @@ api:
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.6.2"
-    debug: "true"
+    tag: "v1.6.6"
+    debug: "false"
     containerPort: 8000
   Replicas: 1
 
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.6.2"
+  tag: "v1.6.6"
   replicas: 1
   debug: "false"
 
-  # 1B comparisons per comparison job
-  # Make larger for longer jobs, at the expense of updates
-  COMPARISON_CHUNK_SIZE: "1000000000"
+  SMALL_COMPARISON_CHUNK_SIZE: "100000000"
+  LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
 
-  # A minimum of say 50M because any smaller than
+  # A minimum of say 20M because any smaller than
   # this isn't worth splitting across nodes.
-  MIN_CHUNK_SIZE: "50000000"
+  SMALL_JOB_SIZE: "100000000"
+  LARGE_JOB_SIZE: "100000000000"
 
   # Default threshold for considering something a match
   MATCH_THRESHOLD: "0.95"
@@ -84,7 +84,7 @@ postgresql:
     enabled: false
     storageClass: "slow"
     size: 20Gi
-  imageTag: 9.5.4
+  imageTag: 9.6.2
   imagePullPolicy: IfNotPresent
   metrics:
     enabled: false
@@ -94,7 +94,6 @@ postgresql:
     requests:
       memory: 1Gi
       cpu: 100m
-
 
 redis:
   # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration

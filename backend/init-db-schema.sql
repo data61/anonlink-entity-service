@@ -36,7 +36,9 @@ CREATE TABLE mappings (
 
   threshold      double precision NOT NULL,
 
-  result_type    MAPPINGRESULT NOT NULL
+  result_type    MAPPINGRESULT NOT NULL,
+
+  chunk_size      BIGINT NOT NULL DEFAULT -1
 );
 
 CREATE TABLE dataproviders (
