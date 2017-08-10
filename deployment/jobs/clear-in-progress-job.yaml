@@ -13,11 +13,11 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:v1.6.0
+        image: quay.io/n1analytics/entity-app
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
-            value: <redis-service-here>
+            value: es160-redis
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:

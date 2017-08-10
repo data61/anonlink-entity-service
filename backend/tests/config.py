@@ -1,11 +1,10 @@
 import logging
 import os
 
+
 rate_limit_delay = float(os.environ.get("RATE_LIMIT_DELAY", "0.25"))
-initial_delay = float(os.environ.get("INITIAL_DELAY", "2"))
 LOGLEVEL = getattr(logging, os.environ.get("LOGGING_LEVEL", "INFO"))
 url = os.environ.get("ENTITY_SERVICE_URL", "https://es.data61.xyz/api/v1")
-
 
 logger = logging.getLogger('n1')
 logger.setLevel(LOGLEVEL)
@@ -15,5 +14,4 @@ ch.setFormatter(formatter)
 logger.propagate = False
 logger.addHandler(ch)
 
-logger.info("Entity Service URL: {}".format(url))
-
+logger.info("Testing Entity Service at URL: {}".format(url))

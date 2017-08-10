@@ -58,7 +58,7 @@ services:
     depends_on:
       - redis
       - db
-    entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
+    entrypoint: celery -A async_worker worker --loglevel=debug
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.98
@@ -67,7 +67,7 @@ services:
       - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
+      - CELERY_ACKS_LATE=true
 
   nginx:
     image: quay.io/n1analytics/entity-nginx:v1.3.0
@@ -85,11 +85,11 @@ services:
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
-  celery_monitor:
-    image: quay.io/n1analytics/entity-app:v1.6.7
-    depends_on:
-      - redis
-    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
+#  celery_monitor:
+#    image: quay.io/n1analytics/entity-app:v1.6.7
+#    depends_on:
+#      - redis
+#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
 
 
 volumes:

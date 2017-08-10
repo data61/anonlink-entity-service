@@ -41,7 +41,7 @@ class Config(object):
     }
     CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
-    CELERY_ACKS_LATE = 'CELERY_ACKS_LATE' in os.environ
+    CELERY_ACKS_LATE = os.environ.get('CELERY_ACKS_LATE', 'false') == 'true'
 
     ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
 
