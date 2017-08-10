@@ -1,3 +1,4 @@
+{{- if .Values.workers.monitor.enabled }}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -27,3 +28,4 @@ spec:
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
       imagePullSecrets:
         - name: {{ template "name" . }}-pull-secret
+{{- end }}
