@@ -50,6 +50,8 @@ spec:
             value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
           - name: CELERYD_MAX_TASKS_PER_CHILD
             value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
+          - name: CELERY_ACKS_LATE
+            value: "true"
           - name: ENCRYPTION_MIN_KEY_LENGTH
             value: "1024"
           - name: MINIO_SERVER
