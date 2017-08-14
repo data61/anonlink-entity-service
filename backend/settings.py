@@ -39,6 +39,13 @@ class Config(object):
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }
+    CELERY_ROUTES = {
+        'async_worker.calculate_mapping': {'queue': 'celery'},
+        'async_worker.compute_similarity': {'queue': 'compute'},
+        'async_worker.save_and_permute': {'queue': 'celery'},
+        'async_worker.handle_raw_upload': {'queue': 'celery'}
+    }
+
     CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
     CELERY_ACKS_LATE = os.environ.get('CELERY_ACKS_LATE', 'false') == 'true'

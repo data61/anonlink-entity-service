@@ -3,7 +3,7 @@ services:
 
   # The integration test
   ci:
-    image: quay.io/n1analytics/entity-app:v1.6.7
+    image: quay.io/n1analytics/entity-app:v1.6.8
     environment:
       - DEBUG=true
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
@@ -18,7 +18,7 @@ services:
       - nginx
 
   tests:
-    image: quay.io/n1analytics/entity-app:v1.6.7
+    image: quay.io/n1analytics/entity-app:v1.6.8
     environment:
       - DEBUG=true
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1

@@ -28,7 +28,7 @@ services:
 
   # The flask application server
   backend:
-    image: quay.io/n1analytics/entity-app:v1.6.7
+    image: quay.io/n1analytics/entity-app:v1.6.8
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -54,11 +54,11 @@ services:
 
   # A celery worker
   worker:
-    image: quay.io/n1analytics/entity-app:v1.6.7
+    image: quay.io/n1analytics/entity-app:v1.6.8
     depends_on:
       - redis
       - db
-    entrypoint: celery -A async_worker worker --loglevel=debug
+    entrypoint: celery -A async_worker worker --loglevel=debug -Q celery,compute
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.98
@@ -68,7 +68,10 @@ services:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
-
+      - SMALL_COMPARISON_CHUNK_SIZE=1000
+      - LARGE_COMPARISON_CHUNK_SIZE=10000
+      - SMALL_JOB_SIZE=1000
+      - LARGE_JOB_SIZE=10000
   nginx:
     image: quay.io/n1analytics/entity-nginx:v1.3.0
     ports:

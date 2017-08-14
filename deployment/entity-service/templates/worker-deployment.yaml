@@ -74,5 +74,8 @@ spec:
           - "worker"
           - "--loglevel=info"
           - "-Ofair"
+          - "-Q"
+          - "celery,compute"
+
       imagePullSecrets:
         - name: {{ template "name" . }}-pull-secret

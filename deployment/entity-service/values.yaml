@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.6.7"
+  tag: "v1.6.8"
   replicas: 1
   debug: "false"
 

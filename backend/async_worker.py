@@ -31,6 +31,7 @@ celery.conf.CELERYD_PREFETCH_MULTIPLIER = config.CELERYD_PREFETCH_MULTIPLIER
 celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
 celery.conf.CELERY_ACKS_LATE = config.CELERY_ACKS_LATE
 
+celery.conf.CELERY_ROUTES = config.CELERY_ROUTES
 
 @after_setup_logger.connect
 @after_setup_task_logger.connect
@@ -600,10 +601,15 @@ def save_current_progress(comparisons, resource_id):
 def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     sparse_matrix = []
 
-    for partial_sparse_result in sparse_result_groups:
-        sparse_matrix.extend(partial_sparse_result)
+    if len(sparse_result_groups[0]) == 3:
+        logger.debug("Possible that we only had one task chunk")
+        sparse_matrix = sparse_result_groups
+    else:
+        logger.debug("Aggregating chunks")
+        for partial_sparse_result in sparse_result_groups:
+            sparse_matrix.extend(partial_sparse_result)
 
-    logger.debug("Calculating the optimal mapping from similarity matrix")
+    logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
     mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
     logger.debug("Converting all indicies to strings")
