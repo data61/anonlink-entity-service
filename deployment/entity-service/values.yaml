@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.6.7"
+    tag: "v1.6.8"
     debug: "false"
     containerPort: 8000
   Replicas: 1
@@ -51,7 +51,7 @@ workers:
   SMALL_COMPARISON_CHUNK_SIZE: "100000000"
   LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
 
-  # A minimum of say 20M because any smaller than
+  # A minimum of say 100M because any smaller than
   # this isn't worth splitting across nodes.
   SMALL_JOB_SIZE: "100000000"
   LARGE_JOB_SIZE: "100000000000"
