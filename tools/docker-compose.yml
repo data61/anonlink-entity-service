@@ -2,7 +2,7 @@ version: '2'
 services:
 
   db:
-    image: postgres:9.5
+    image: postgres:9.6
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
@@ -28,7 +28,7 @@ services:
 
   # The flask application server
   backend:
-    image: quay.io/n1analytics/entity-app:v1.5.5
+    image: quay.io/n1analytics/entity-app:v1.6.8
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -42,7 +42,7 @@ services:
 
   # The application server can also setup the database
   db_init:
-    image: quay.io/n1analytics/entity-app:v1.5.5
+    image: quay.io/n1analytics/entity-app:v1.6.8
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -54,24 +54,24 @@ services:
 
   # A celery worker
   worker:
-    image: quay.io/n1analytics/entity-app:v1.5.5
+    image: quay.io/n1analytics/entity-app:v1.6.8
     depends_on:
       - redis
       - db
-    entrypoint: celery -A async_worker worker --loglevel=info --concurrency=10
+    entrypoint: celery -A async_worker worker --loglevel=debug -Q celery,compute
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.98
       - ENCRYPTION_MIN_KEY_LENGTH=1024
-      # Trade off between more fine grained progress updates & fast processing of small jobs
-      # versus incurring additional task overhead too many times.
-      - GREEDY_CHUNK_SIZE=100000000
       - DEBUG=false
       - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-
-
+      - CELERY_ACKS_LATE=true
+      - SMALL_COMPARISON_CHUNK_SIZE=1000
+      - LARGE_COMPARISON_CHUNK_SIZE=10000
+      - SMALL_JOB_SIZE=1000
+      - LARGE_JOB_SIZE=10000
   nginx:
     image: quay.io/n1analytics/entity-nginx:v1.3.0
     ports:
@@ -88,11 +88,11 @@ services:
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
-  celery_monitor:
-    image: quay.io/n1analytics/entity-app:v1.5.5
-    depends_on:
-      - redis
-    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=monitor
+#  celery_monitor:
+#    image: quay.io/n1analytics/entity-app:v1.6.7
+#    depends_on:
+#      - redis
+#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
 
 
 volumes:

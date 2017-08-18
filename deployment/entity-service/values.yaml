@@ -36,39 +36,39 @@ api:
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.5.5"
-    debug: "true"
+    tag: "v1.6.8"
+    debug: "false"
     containerPort: 8000
   Replicas: 1
 
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.5.5"
+  tag: "v1.6.8"
   replicas: 1
   debug: "false"
-# Single core should do 10 M/s
-  # A worker with ~3 cores should do 30 M/s
-  # There is some overhead for fetching data for each task - ~15s per 100K entities
-  # The trade off is that intermediate jobs won't scale much. For instance 100k x 100k
-  # will only be split into 2 or 3 jobs. So for demos and testing we have a small job
-  # setup - shouldn't be used for production with very large jobs:
-  # Small job max 500M
-#  MAX_CHUNK_SIZE: "500000000"
-  # Large job setup:
-  # ~120 seconds per job
-  # 120s x 30 M/s = 3600 M
-  MAX_CHUNK_SIZE: "3600000000"
 
-  # A minimum of say 50M because any smaller than
+  SMALL_COMPARISON_CHUNK_SIZE: "100000000"
+  LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
+
+  # A minimum of say 100M because any smaller than
   # this isn't worth splitting across nodes.
-  MIN_CHUNK_SIZE: "50000000"
+  SMALL_JOB_SIZE: "100000000"
+  LARGE_JOB_SIZE: "100000000000"
 
+  # Default threshold for considering something a match
   MATCH_THRESHOLD: "0.95"
+
+  # More than this many entities and we skip caching in redis
+  MAX_CACHE_SIZE: "1000000"
 
   celery:
     PREFETCH_MULTIPLIER: "1"
     MAX_TASKS_PER_CHILD: "10"
+    ACKS_LATE: "true"
+
+  monitor:
+    enabled: false
 
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
@@ -88,7 +88,7 @@ postgresql:
     enabled: false
     storageClass: "slow"
     size: 20Gi
-  imageTag: 9.5.4
+  imageTag: 9.6.2
   imagePullPolicy: IfNotPresent
   metrics:
     enabled: false
@@ -98,7 +98,6 @@ postgresql:
     requests:
       memory: 1Gi
       cpu: 100m
-
 
 redis:
   # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration

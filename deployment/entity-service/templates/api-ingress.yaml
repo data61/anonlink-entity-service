@@ -2,7 +2,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: entityservice-api-ingress
+  name: {{ template "fullname" . }}
   labels:
     app: {{ template "fullname" . }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
@@ -15,7 +15,7 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: entityservice-api
+          serviceName: {{ .Release.Name }}-api
           servicePort: {{ .Values.api.servicePort }}
 {{- end }}
 

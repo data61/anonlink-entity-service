@@ -47,11 +47,11 @@ we will have to add one.
 Deploy the [traefik ingress controller](https://docs.traefik.io/user-guide/kubernetes/) 
 into the kube-system namespace with:
 
-    helm install --name traefik --namespace kube-system --values traefik.yaml stable/traefik
+    helm install stable/traefik --name=traefik --namespace=kube-system --values=traefik.yaml
 
 Note you can update the traefik.yaml file and upgrade in place with:
 
-    helm upgrade traefik --namespace kube-system --values traefik.yaml stable/traefik
+    helm upgrade traefik --namespace=kube-system --values=traefik.yaml stable/traefik
 
 
 # Deploy the entity service

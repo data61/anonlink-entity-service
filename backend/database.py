@@ -493,7 +493,6 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
 
 
 def update_filter_data(db, clks_filename, dp_id, state='ready'):
-
     with db.cursor() as cur:
         logger.info("Updating database with info about hashes")
         cur.execute("""
@@ -509,8 +508,20 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
                 clks_filename,
                 dp_id,
              ])
-
-
     db.commit()
 
 
+def update_mapping_chunk(db, resource_id, chunk_size):
+    with db.cursor() as cur:
+        cur.execute("""
+            UPDATE mappings
+            SET
+              chunk_size = %s
+            WHERE
+              resource_id = %s
+            """,
+            [
+                chunk_size,
+                resource_id
+             ])
+    db.commit()

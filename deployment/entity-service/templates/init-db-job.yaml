@@ -6,7 +6,8 @@ spec:
   template:
     metadata:
       labels:
-        app: entityservice
+        app: {{ template "fullname" . }}
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
         tier: aux
       annotations:
         # This job only gets executed on install, not after an upgrade.
@@ -24,7 +25,7 @@ spec:
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: postgresPassword
           - name: DEBUG
             value: {{default "false" .Values.api.app.debug | quote }}
@@ -34,4 +35,4 @@ spec:
           - "flask"
           - "initdb"
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: {{ template "name" . }}-pull-secret

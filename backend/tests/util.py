@@ -30,6 +30,7 @@ def generate_serialized_clks(size):
     clks = generate_clks(size)
     return [serialize_bitarray(clk) for clk,_ ,_ in clks]
 
+
 def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
 
     datasets = []

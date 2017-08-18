@@ -1,16 +1,22 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  namespace: "kube-system"
   name: kubernetes-api-ingress
-  labels:
-    dns: "n1-aws-cluster.data61.xyz"
+  namespace: "kube-system"
+  annotations:
+    # type of authentication
+    ingress.kubernetes.io/auth-type: basic
+    # name of the secret that contains the user/password definitions
+    ingress.kubernetes.io/auth-secret: "n1-basic-auth"
+    # A bug in traefik means we can't provide a auth-realm
+    # message to display with an appropriate context why the authentication is required
+    #ingress.kubernetes.io/auth-realm: "Authentication Required - N1 Analytics"
 spec:
   rules:
-  - host: {{ .Values.api.domain }}
+  - host: "k8s.n1.data61.xyz"
     http:
       paths:
       - backend:
-          serviceName: kubernetes-dashboard
+          serviceName: k8s-dash-kubernetes-dashboard
           servicePort: 80
 
