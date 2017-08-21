@@ -602,7 +602,7 @@ def save_current_progress(comparisons, resource_id):
 def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     sparse_matrix = []
 
-    if len(sparse_result_groups[0]) == 3:
+    if all(len(sparse_result_group) == 3 for sparse_result_group in sparse_result_groups):
         logger.debug("Possible that we only had one task chunk")
         sparse_matrix = sparse_result_groups
     else:

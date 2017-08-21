@@ -202,9 +202,10 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     mapping_result = response.json()["mapping"]
 
     # Now actually check the results
-    for i in mapping_result:
+    for indx, i in enumerate(mapping_result):
         j = mapping_result[i]
-        print(i, j, s1[int(i)], s2[int(j)])
+        if indx < 10:
+            print(i, j, s1[int(i)], s2[int(j)])
         assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
 
     # Delete a mapping
