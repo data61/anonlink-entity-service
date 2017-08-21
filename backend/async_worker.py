@@ -9,11 +9,12 @@ from celery import Celery, chord
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery.utils.log import get_task_logger
 from phe import paillier
+from phe.util import int_to_base64
 
 import cache
 from database import *
 from object_store import connect_to_object_store
-from serialization import load_public_key, int_to_base64, binary_unpack_filters, \
+from serialization import load_public_key, binary_unpack_filters, \
     binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
 from settings import Config as config
 from utils import chunks, iterable_to_stream, fmt_bytes
