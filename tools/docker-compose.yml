@@ -89,7 +89,7 @@ services:
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
 #  celery_monitor:
-#    image: quay.io/n1analytics/entity-app:v1.6.7
+#    image: quay.io/n1analytics/entity-app
 #    depends_on:
 #      - redis
 #    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
