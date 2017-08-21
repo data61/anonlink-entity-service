@@ -1,13 +1,15 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: entityservice-worker
+  name: {{ template "name" . }}-worker
 spec:
   replicas: {{ .Values.workers.replicas }}
   template:
     metadata:
       labels:
-        app: entityservice
+        release: {{ .Release.Name }}
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+        app: {{ template "fullname" . }}
         tier: backend
         run: entityservice-worker
     spec:
@@ -23,27 +25,33 @@ spec:
           - name: REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: redisPassword
           - name: DATABASE_SERVER
             value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: postgresPassword
           - name: DEBUG
             value: {{ .Values.workers.debug | quote }}
           - name: ENTITY_MATCH_THRESHOLD
             value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
-          - name: MIN_CHUNK_SIZE
-            value: {{ .Values.workers.MIN_CHUNK_SIZE | quote }}
-          - name: MAX_CHUNK_SIZE
-            value: {{ .Values.workers.MAX_CHUNK_SIZE | quote }}
+          - name: SMALL_COMPARISON_CHUNK_SIZE
+            value: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
+          - name: LARGE_COMPARISON_CHUNK_SIZE
+            value: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
+          - name: SMALL_JOB_SIZE
+            value: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
+          - name: LARGE_JOB_SIZE
+            value: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
           - name: CELERYD_PREFETCH_MULTIPLIER
             value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
           - name: CELERYD_MAX_TASKS_PER_CHILD
             value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
+          - name: CELERY_ACKS_LATE
+            value: {{ .Values.workers.celery.ACKS_LATE | quote }}
           - name: ENCRYPTION_MIN_KEY_LENGTH
             value: "1024"
           - name: MINIO_SERVER
@@ -51,12 +59,12 @@ spec:
           - name: MINIO_ACCESS_KEY
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: minioAccessKey
           - name: MINIO_SECRET_KEY
             valueFrom:
               secretKeyRef:
-                name: es-credentials
+                name: {{ template "fullname" . }}
                 key: minioSecretKey
 
         command:
@@ -65,5 +73,9 @@ spec:
           - "async_worker"
           - "worker"
           - "--loglevel=info"
+          - "-Ofair"
+          - "-Q"
+          - "celery,compute"
+
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: {{ template "name" . }}-pull-secret

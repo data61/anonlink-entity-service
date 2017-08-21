@@ -6,7 +6,6 @@ import concurrent.futures
 import phe.util
 from phe import paillier
 
-from phe.util import int_to_base64, base64_to_int
 
 def bytes_to_list(python_object):
     if isinstance(python_object, bytes):
@@ -27,23 +26,17 @@ def deserialize_bitarray(bytes_data):
     return ba
 
 
-def serialize_bitarray(ba):
-    """ Serialize a bitarray (bloomfilter)
-
-    """
-    return base64.encodebytes(ba.tobytes()).decode('utf8')
-
 """
 The binary format used:
 
 - "!" Use network byte order (big-endian).
 - "1I" Store the index in 4 bytes as an unsigned int.
-- "128p" Store the 128 raw bytes of the bitarray
+- "128s" Store the 128 raw bytes of the bitarray
 - "1H" The popcount stored in 2 bytes (unsigned short)
 
 https://docs.python.org/3/library/struct.html#format-strings
 """
-bit_packing_fmt = "!1I128p1H"
+bit_packing_fmt = "!1I128s1H"
 bit_packed_element_size = struct.calcsize(bit_packing_fmt)
 
 
@@ -67,25 +60,25 @@ def binary_pack_filters(filters):
 
 def binary_unpack_one(data):
     index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
+    assert len(clk_bytes) == 128
 
     ba = bitarray(endian="big")
     ba.frombytes(clk_bytes)
     return ba, index, count
 
 
-def binary_unpack_filters(streamable_data):
+def binary_unpack_filters(streamable_data, max_bytes=None):
     filters = []
+    bytes_consumed = 0
     for raw_bytes in streamable_data.stream(bit_packed_element_size):
+        assert len(raw_bytes) == 134
         filters.append(binary_unpack_one(raw_bytes))
 
+        bytes_consumed += bit_packed_element_size
+        if max_bytes is not None and bytes_consumed >= max_bytes:
+            break
+
     return filters
-
-
-def serialize_filters(filters):
-    """Serialize filters as clients are required to."""
-    return [
-        serialize_bitarray(f[0]) for f in filters
-    ]
 
 
 def deserialize_filters(filters):

@@ -3,6 +3,7 @@
 Config shared between the application backend and the celery workers.
 """
 import os
+import math
 import logging
 
 
@@ -38,8 +39,16 @@ class Config(object):
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }
-    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '2'))
+    CELERY_ROUTES = {
+        'async_worker.calculate_mapping': {'queue': 'celery'},
+        'async_worker.compute_similarity': {'queue': 'compute'},
+        'async_worker.save_and_permute': {'queue': 'celery'},
+        'async_worker.handle_raw_upload': {'queue': 'celery'}
+    }
+
+    CELERYD_PREFETCH_MULTIPLIER = int(os.environ.get('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
+    CELERY_ACKS_LATE = os.environ.get('CELERY_ACKS_LATE', 'false') == 'true'
 
     ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
 
@@ -49,9 +58,19 @@ class Config(object):
     # faster greedy solver
     GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000000'))
 
-    # Number of comparisons to match per chunk. Default is a max size of 200M.
-    # And a minimum size of 20M. Note larger jobs will favor larger chunks.
-    MAX_GREEDY_CHUNK_SIZE = int(os.environ.get('MAX_CHUNK_SIZE', '200000000'))
+    # Number of comparisons per chunk. Default is to interpolate between the min
+    # of 100M and the max size of 1B based on the JOB_SIZE parameters.
+    SMALL_COMPARISON_CHUNK_SIZE = int(os.environ.get('SMALL_COMPARISON_CHUNK_SIZE', '100000000'))
+    LARGE_COMPARISON_CHUNK_SIZE = int(os.environ.get('LARGE_COMPARISON_CHUNK_SIZE', '1000000000'))
+
+    # Anything smaller that this will use SMALL_COMPARISON_CHUNK_SIZE
+    SMALL_JOB_SIZE = int(os.environ.get('SMALL_JOB_SIZE', '100000000'))
+    # Anything greater than this will use LARGE_COMPARISON_CHUNK_SIZE
+    LARGE_JOB_SIZE = int(os.environ.get('LARGE_JOB_SIZE', '100000000000'))
+
+    # If there are more than 1M CLKS, don't cache them in redis
+    MAX_CACHE_SIZE = int(os.environ.get('MAX_CACHE_SIZE', '1000000'))
+
     MIN_GREEDY_CHUNK_SIZE = int(os.environ.get('MIN_CHUNK_SIZE', '20000000'))
 
     # Anything above this threshold is considered a match. Note each mapping job can override this
@@ -62,3 +81,15 @@ class Config(object):
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
 
+    @classmethod
+    def get_task_chunk_size(cls, size):
+        if size <= cls.SMALL_JOB_SIZE:
+            return None
+        elif size >= cls.LARGE_JOB_SIZE:
+            chunk_size = cls.LARGE_COMPARISON_CHUNK_SIZE
+        else:
+            # Interpolate
+            gradient = (cls.LARGE_COMPARISON_CHUNK_SIZE - cls.SMALL_COMPARISON_CHUNK_SIZE) / (cls.LARGE_JOB_SIZE - cls.SMALL_JOB_SIZE)
+            chunk_size = cls.SMALL_COMPARISON_CHUNK_SIZE + size * gradient
+
+        return math.ceil(math.sqrt(chunk_size))

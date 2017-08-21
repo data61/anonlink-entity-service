@@ -1,8 +1,10 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: raw-pii-gen-10k
+  name: esintegrationtest
 spec:
+  completions: 1
+  parallelism: 1
   template:
     metadata:
       labels:
@@ -16,21 +18,12 @@ spec:
         image: quay.io/n1analytics/entity-app
         imagePullPolicy: Always
         env:
+          - name: ENTITY_SERVICE_URL
+            value: http://entityservice-api/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
-          - "python"
-          - "-m"
-          - "anonlink.cli"
-          - "generate"
-          - "10000"
-          - "/data/pii-raw-10k.csv"
-        volumeMounts:
-          - mountPath: "/data"
-            name: data-volume
+          - "nosetests"
+          - "tests"
       imagePullSecrets:
         - name: n1analytics-coreos-pull-secret
-      volumes:
-      - name: data-volume
-        persistentVolumeClaim:
-          claimName: es-job-data

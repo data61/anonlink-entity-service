@@ -17,6 +17,7 @@ from anonlink import randomnames, entitymatch, bloomfilter
 
 from phe import paillier, util
 from serialization import *
+from tests.util import serialize_bitarray, serialize_filters
 
 rate_limit_delay = float(os.environ.get("RATE_LIMIT_DELAY", "0.25"))
 initial_delay = float(os.environ.get("INITIAL_DELAY", "2"))
@@ -100,7 +101,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
         'result_type': 'mapping',
-        'threshold': 0.8
+        'threshold': 0.995
     }).json()
     logger.debug(new_map_response)
 
@@ -130,7 +131,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
     logger.debug(response.status_code)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
     time.sleep(rate_limit_delay)
 
@@ -203,7 +204,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     # Now actually check the results
     for i in mapping_result:
         j = mapping_result[i]
-        logger.debug(i, j, s1[int(i)], s2[int(j)])
+        print(i, j, s1[int(i)], s2[int(j)])
         assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
 
     # Delete a mapping
@@ -270,7 +271,7 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
     logger.debug(response.status_code)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
     time.sleep(rate_limit_delay)
 
@@ -427,7 +428,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
         url + '/mappings/NOT_A_REAL_MAPPING',
         headers={'Authorization': new_map_response['result_token']})
     logger.debug(response.status_code)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
     time.sleep(rate_limit_delay)
 

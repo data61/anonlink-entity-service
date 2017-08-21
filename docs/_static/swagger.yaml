@@ -134,10 +134,11 @@ paths:
   /mappings:
     get:
       description: |
-        List all mapping jobs.
+        List of all mappings with their completion status.
         
-        `'time_added'` and `'time_completed'` are represented in
+        `'time_added'`, `'time_started'` and `'time_completed'` are represented in
         [ISO 8601 format](https://docs.python.org/3/library/datetime.html#datetime.datetime.isoformat).
+        Note that the value will be `null` if the mapping has not yet started or completed.
       responses:
         '200':
           description: Successful response
@@ -301,10 +302,11 @@ paths:
           description: Not Authenticated
           schema:
             $ref: '#/definitions/AuthError'
-            
+        '403':
+          description: Invalid authentication or mapping not found.
         '503':
           description: |
-            Mapping is not yet ready. Includes progress report.
+            Mapping is not yet ready. Includes progress object
           schema:
             $ref: '#/definitions/MappingProgress'
         '200':
@@ -342,7 +344,7 @@ paths:
         '401':
           description: If the authentication token is not provided
         '403':
-          description: If the authentication token is not valid
+          description: If the authentication token is not valid, or the mapping isn't found.
     
     delete:
       description: Remove the mapping and associated data from the service.
@@ -351,8 +353,8 @@ paths:
       responses:
         '204':
           description: Successfully deleted
-        '404':
-          description: Mapping not present
+        '403':
+          description: Mapping not present or invalid auth
   '/mapping/{mapping-id}/status':
     get:
       description: A status update on a particular mapping
@@ -393,6 +395,10 @@ definitions:
         ready:
           type: boolean
         time_added:
+          type: string
+          description: ISO8601 formated datetime
+          format: 'date-time'
+        time_started:
           type: string
           description: ISO8601 formated datetime
           format: 'date-time'

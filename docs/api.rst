@@ -69,16 +69,17 @@ List of all mappings with their completion status.
                 'resource_id': '4e10f79e899cbdeb1b2999730c19279ffd62e2895fcd3d39',
                 'ready': True,
                 'time_added': '2016-05-10T07:12:13.501194',
+                'time_started': '2016-05-10T07:12:14.00000',
                 'time_completed': '2016-05-10T07:12:16.300494'
             }, ...
         ]
     }
 
--  ``'time_added'`` and ``'time_completed'`` are represented in `ISO
+-  ``'time_added'``, ``'time_started'`` and ``'time_completed'`` are represented in `ISO
    8601
    format <https://docs.python.org/3/library/datetime.html#datetime.datetime.isoformat>`__.
-   ``'time_completed'`` will be null if the matching hasn't yet
-   completed.
+    and will be null if the matching hasn't yet
+   started/completed.
 -  ``ready`` indicates if the entity matching has been completed
 
 ``/mappings`` (POST)

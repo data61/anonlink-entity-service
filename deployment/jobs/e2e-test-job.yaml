@@ -15,7 +15,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:v1.5.3
+        image: quay.io/n1analytics/entity-app
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL

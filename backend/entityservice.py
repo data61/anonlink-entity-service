@@ -26,6 +26,8 @@ from utils import fmt_bytes
 
 __version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
 
+INVALID_ACCESS_MSG = "Invalid access token or mapping doesn't exist"
+
 app = Flask(__name__)
 
 # Logging setup
@@ -127,14 +129,14 @@ def abort_if_mapping_doesnt_exist(resource_id):
     resource_exists = db.check_mapping_exists(get_db(), resource_id)
     if not resource_exists:
         app.logger.warning("Requested resource with invalid identifier token")
-        safe_fail_request(404, message="Mapping {} doesn't exist".format(resource_id))
+        safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
 def abort_if_invalid_dataprovider_token(update_token):
     app.logger.debug("checking authorization token to update data")
     resource_exists = db.check_update_auth(get_db(), update_token)
     if not resource_exists:
-        safe_fail_request(403, message="Invalid update token")
+        safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
 def is_results_token_valid(resource_id, results_token):
@@ -155,13 +157,13 @@ def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
     if not is_results_token_valid(resource_id, results_token):
         app.logger.debug("Auth invalid")
-        safe_fail_request(403, message="Invalid access token")
+        safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
 def dataprovider_id_if_authorize(resource_id, receipt_token):
     app.logger.debug("checking authorization token to fetch mask data")
     if not is_receipt_token_valid(resource_id, receipt_token):
-        safe_fail_request(403, message="Invalid access token")
+        safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
     dp_id = db.select_dataprovider_id(get_db(), resource_id, receipt_token)
     return dp_id
@@ -180,7 +182,7 @@ def node_id_if_authorize(resource_id, token):
         app.logger.debug("checking authorization token to fetch permutation data")
         # If the token is not a valid receipt token, we abort.
         if not is_receipt_token_valid(resource_id, token):
-            safe_fail_request(403, message="Invalid access token")
+            safe_fail_request(403, message=INVALID_ACCESS_MSG)
         dp_id = db.select_dataprovider_id(get_db(), resource_id, token)
     else:
         dp_id = "Coordinator"
@@ -216,6 +218,7 @@ class MappingList(Resource):
             'resource_id': fields.String,
             'ready': fields.Boolean,
             'time_added': fields.DateTime(dt_format='iso8601'),
+            'time_started': fields.DateTime(dt_format='iso8601'),
             'time_completed': fields.DateTime(dt_format='iso8601')
         }
 
@@ -223,7 +226,7 @@ class MappingList(Resource):
 
         app.logger.debug("Getting list of all mappings")
         for mapping in db.query_db(get_db(),
-                                   'select resource_id, ready, time_added, time_completed from mappings'):
+                                   'select resource_id, ready, time_added, time_started, time_completed from mappings'):
             marshaled_mappings.append(marshal(mapping, mapping_resource_fields))
 
         return {"mappings": marshaled_mappings}
