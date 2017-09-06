@@ -94,6 +94,19 @@ CREATE TABLE mapping_results (
 );
 
 
+-- Store the CSV file name containing the similarity scores
+CREATE TABLE similarity_scores (
+  -- Just the table index
+  id          SERIAL PRIMARY KEY,
+
+  mapping     CHAR(48) REFERENCES mappings (resource_id),
+
+  -- The name of CSV file containing the score results
+  -- TODO Probably use a more suitable type than VarChar
+  score       VARCHAR(255)
+);
+
+
 -- For now there will be only 1 permutation per mapping
 CREATE TABLE permutations (
   id  SERIAL PRIMARY KEY,
