@@ -613,7 +613,7 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
     mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
-    logger.debug("Converting all indicies to strings")
+    logger.debug("Converting all indices to strings")
     for key in mapping:
         mapping[key] = str(mapping[key])
 
@@ -625,6 +625,32 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
         "lenf2": lenf2
     }
     save_and_permute.delay(res, resource_id)
+
+
+@celery.task()
+def store_similarity_score(sparse_matrix, resource_id):
+    # Generate a CSV-like string from sparse_matrix
+    # Also need to make sure this can handle very large list
+    def csv_generator():
+        for row in sparse_matrix:
+            content = ','.join(map(str, row)).encode() + b'\n'
+            yield content
+
+    filename = config.SIMILARITY_SCORE_FILENAME_FMT.format(resource_id)
+
+    data = b''.join(csv_generator())
+    buffer = io.BytesIO(data)
+
+    mc = connect_to_object_store()
+    mc.put_object(
+        config.MINIO_BUCKET,
+        filename,
+        data=buffer,
+        length=len(data),
+        content_type='application/csv'
+    )
+
+    # TODO Add the CSV filename to 'similarity_scores' table
 
 
 @celery.task()
