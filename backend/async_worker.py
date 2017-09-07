@@ -610,33 +610,40 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
         for partial_sparse_result in sparse_result_groups:
             sparse_matrix.extend(partial_sparse_result)
 
-    logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
-    mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+    db = connect_db()
+    _, _, result_type = check_mapping_ready(db, resource_id)
 
-    logger.debug("Converting all indices to strings")
-    for key in mapping:
-        mapping[key] = str(mapping[key])
+    if result_type == "similarity_score":
+        logger.info("Store the similarity score in a CSV file".format(len(sparse_matrix)))
+        store_similarity_score.delay(sparse_matrix, resource_id)
+    else:
+        logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
+        mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
-    logger.info("Entity mapping has been computed")
+        logger.debug("Converting all indices to strings")
+        for key in mapping:
+            mapping[key] = str(mapping[key])
 
-    res = {
-        "mapping": mapping,
-        "lenf1": lenf1,
-        "lenf2": lenf2
-    }
-    save_and_permute.delay(res, resource_id)
+        logger.info("Entity mapping has been computed")
+
+        res = {
+            "mapping": mapping,
+            "lenf1": lenf1,
+            "lenf2": lenf2
+        }
+        save_and_permute.delay(res, resource_id)
 
 
 @celery.task()
-def store_similarity_score(sparse_matrix, resource_id):
+def store_similarity_score(aggregated_chunks, resource_id):
+    filename = config.SIMILARITY_SCORE_FILENAME_FMT.format(resource_id)
+
     # Generate a CSV-like string from sparse_matrix
     # Also need to make sure this can handle very large list
     def csv_generator():
-        for row in sparse_matrix:
+        for row in aggregated_chunks:
             content = ','.join(map(str, row)).encode() + b'\n'
             yield content
-
-    filename = config.SIMILARITY_SCORE_FILENAME_FMT.format(resource_id)
 
     data = b''.join(csv_generator())
     buffer = io.BytesIO(data)
@@ -650,7 +657,34 @@ def store_similarity_score(sparse_matrix, resource_id):
         content_type='application/csv'
     )
 
-    # TODO Add the CSV filename to 'similarity_scores' table
+    # Save the CSV filename to 'similarity_scores' table
+    db = connect_db()
+
+    logger.debug("Saving the CSV filename to the db")
+    with db.cursor() as cur:
+        # TODO Should return id?
+        result_id = execute_returning_id(cur, """
+            INSERT into similarity_scores
+              (mapping, score)
+            VALUES
+              (%s, %s)
+            RETURNING id;
+            """,
+            [
+                resource_id, filename
+            ])
+
+    db.commit()
+    logger.info("Mapping result saved to db with id {}".format(result_id))
+
+    # Post similarity computation cleanup
+    logger.debug("Removing clk filters from redis cache")
+
+    dp_ids = get_dataprovider_ids(db, resource_id)
+    cache.remove_from_cache(dp_ids[0])
+    cache.remove_from_cache(dp_ids[1])
+    calculate_comparison_rate.delay()
+
 
 
 @celery.task()

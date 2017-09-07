@@ -252,7 +252,8 @@ class MappingList(Resource):
             safe_fail_request(400, message="Schema information required")
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
-                                                                    'permutation_unencrypted_mask'}:
+                                                                    'permutation_unencrypted_mask',
+                                                                    'similarity_score'}:
             safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
                                '"permutation_unencrypted_mask"')
 

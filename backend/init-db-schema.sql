@@ -3,7 +3,8 @@ DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
   'permutation',
-  'permutation_unencrypted_mask');
+  'permutation_unencrypted_mask',
+  'similarity_score');
 
 
 -- The table of entity matching jobs
