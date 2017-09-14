@@ -662,7 +662,6 @@ def store_similarity_score(aggregated_chunks, resource_id):
 
     logger.debug("Saving the CSV filename to the db")
     with db.cursor() as cur:
-        # TODO Should return id?
         result_id = execute_returning_id(cur, """
             INSERT into similarity_scores
               (mapping, score)
@@ -673,9 +672,12 @@ def store_similarity_score(aggregated_chunks, resource_id):
             [
                 resource_id, filename
             ])
-
     db.commit()
-    logger.info("Mapping result saved to db with id {}".format(result_id))
+    logger.info("Similarity scores saved to db with id {}".format(result_id))
+
+    # Complete mapping job
+    logger.debug("Mark mapping job as complete")
+    mark_mapping_complete.delay(resource_id)
 
     # Post similarity computation cleanup
     logger.debug("Removing clk filters from redis cache")
