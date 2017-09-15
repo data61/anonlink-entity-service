@@ -213,7 +213,7 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
 
 
 def similarity_score_test(party1_filters, party2_filters, s1, s2):
-    logger.info('Test similarity score view')
+    # print('Test similarity score view')
 
     dataset_size = len(party1_filters)
     server_status_test()
@@ -229,52 +229,50 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
         {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
         {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
     ]
+    threshold = 0.995
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
-        'result_type': 'similarity_score',
-        'threshold': 0.995
+        'result_type': 'similarity_scores',
+        'threshold': threshold
     }).json()
     logger.info(new_map_response)
 
     id = new_map_response['resource_id']
     logger.debug("New mapping request created with id: {}".format(id))
 
-    # Print mapping request's requestID
-    print("New mapping request created with id: {}".format(id))
+    logger.debug("Servers mappings:")
+    logger.debug(requests.get(url + '/mappings').json())
 
-    # logger.debug("Servers mappings:")
-    # logger.debug(requests.get(url + '/mappings').json())
-    #
-    # logger.info("Checking mapping status without authentication token")
-    # r = requests.get(url + '/mappings/{}'.format(id))
-    # logger.debug(r.status_code, r.json())
-    # assert r.status_code == 401
-    #
-    # time.sleep(rate_limit_delay)
+    logger.info("Checking mapping status without authentication token")
+    r = requests.get(url + '/mappings/{}'.format(id))
+    logger.debug(r.status_code, r.json())
+    assert r.status_code == 401
 
-    # logger.info("Checking status with invalid token")
-    # r = requests.get(url + '/mappings/{}'.format(id),
-    #                  headers={'Authorization': 'invalid'})
-    # logger.debug(r.status_code, r.json())
-    # assert r.status_code == 403
-    #
-    # time.sleep(rate_limit_delay)
+    time.sleep(rate_limit_delay)
 
-    # logger.info("Test a mapping that doesn't exist with valid token")
-    # response = requests.get(
-    #     url + '/mappings/NOT_A_REAL_MAPPING',
-    #     headers={'Authorization': new_map_response['result_token']})
-    # logger.debug(response.status_code)
-    # assert response.status_code == 403
-    #
-    # time.sleep(rate_limit_delay)
+    logger.info("Checking status with invalid token")
+    r = requests.get(url + '/mappings/{}'.format(id),
+                     headers={'Authorization': 'invalid'})
+    logger.debug(r.status_code, r.json())
+    assert r.status_code == 403
 
-    # logger.info("Checking status with valid token (before adding data)")
-    # r = requests.get(
-    #     url + '/mappings/{}'.format(id),
-    #     headers={'Authorization': new_map_response['result_token']})
-    # logger.debug(r.status_code, r.json())
-    # assert r.status_code == 503
+    time.sleep(rate_limit_delay)
+
+    logger.info("Test a mapping that doesn't exist with valid token")
+    response = requests.get(
+        url + '/mappings/NOT_A_REAL_MAPPING',
+        headers={'Authorization': new_map_response['result_token']})
+    logger.debug(response.status_code)
+    assert response.status_code == 403
+
+    time.sleep(rate_limit_delay)
+
+    logger.info("Checking status with valid token (before adding data)")
+    r = requests.get(
+        url + '/mappings/{}'.format(id),
+        headers={'Authorization': new_map_response['result_token']})
+    logger.debug(r.status_code, r.json())
+    assert r.status_code == 503
 
     logger.info("Adding first party's filter data")
 
@@ -295,12 +293,12 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
     logger.info("Check the server hasn't died")
     server_status_test()
 
-    # logger.info("Adding second party's data - without authentication")
-    # party2_data = {'clks': party2_filters}
-    # resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
-    # assert resp.status_code == 401
-    # logger.debug(resp.text)
-    # assert 'token required' in resp.json()['message']
+    logger.info("Adding second party's data - without authentication")
+    party2_data = {'clks': party2_filters}
+    resp = requests.put(url + '/mappings/{}'.format(id), json=party2_data)
+    assert resp.status_code == 401
+    logger.debug(resp.text)
+    assert 'token required' in resp.json()['message']
 
     logger.info("Adding second party's data - without clk data")
     resp = requests.put(url + '/mappings/{}'.format(id),
@@ -320,7 +318,7 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
     logger.debug("Going to sleep to give the server some processing time...")
     time.sleep(1)
 
-    logger.debug("Retrieve similarity scores")
+    logger.debug("Retrieving similarity scores")
     response = retrieve_result(id, new_map_response['result_token'])
 
     while not response.status_code == 200:
@@ -334,18 +332,16 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
 
     assert response.status_code == 200
 
-    # logger.info("Success")
-    # mapping_result = response.json()["mapping"]
-    #
-    # # Now actually check the results
-    # for indx, i in enumerate(mapping_result):
-    #     j = mapping_result[i]
-    #     if indx < 10:
-    #         print(i, j, s1[int(i)], s2[int(j)])
-    #     assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
-    #
-    # # Delete a mapping
-    # #delete_mapping(id)
+    logger.info("Success")
+
+    similarity_scores = response.json()["similarity_scores"]
+
+    # Check the scores in the results are correct
+    for score in similarity_scores:
+        assert score[2] >= threshold
+
+    # Delete a mapping
+    #delete_mapping(id)
 
 
 def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
@@ -774,11 +770,9 @@ if __name__ == "__main__":
         print("---> Number of entities: {}".format(size))
         party1_filters, party2_filters, s1, s2 = generate_test_data(size)
 
+        similarity_score_times = []
         mapping_times = []
         permutation_times = []
-
-        # Testing similarity score
-        similarity_score_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
 
         for i in range(repeats):
             with Timer() as mapping_timer:
@@ -798,5 +792,12 @@ if __name__ == "__main__":
         with Timer() as t:
             permutation_unencrypted_mask_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
         print("---> Permutation (unencrypted) test took {:.3f} seconds".format(t.interval))
+
+        # Testing similarity score
+        for i in range(repeats):
+            with Timer() as similarity_score_timer:
+                similarity_score_test(party1_filters[:size], party2_filters[:size], s1[:size], s2[:size])
+            similarity_score_times.append(similarity_score_timer.interval)
+        print("---> Similarity scores test took an average of {:.3f} seconds".format(sum(similarity_score_times)/repeats))
 
         print("Tests are done!")
