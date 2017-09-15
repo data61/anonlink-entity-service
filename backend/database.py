@@ -393,6 +393,17 @@ def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
         [dp_id, mapping_resource_id], one=True)
 
 
+def get_similarity_scores_filename(db, resource_id):
+    return query_db(db,
+        """
+        SELECT score FROM similarity_scores
+        WHERE
+          mapping = %s
+
+        """,
+        [resource_id], one=True)
+
+
 # Insertion Queries
 
 

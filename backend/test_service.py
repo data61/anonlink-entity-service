@@ -317,21 +317,23 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
 
     assert resp2.status_code == 201
 
-    # logger.debug("Going to sleep to give the server some processing time...")
-    # time.sleep(1)
-    #
-    # response = retrieve_result(id, new_map_response['result_token'])
-    # while not response.status_code == 200:
-    #     snooze = 5 + dataset_size/20000
-    #     #logger.debug("Sleeping for another {} seconds".format(snooze))
-    #     time.sleep(snooze + rate_limit_delay)
-    #     response = retrieve_result(id, new_map_response['result_token'])
-    #
-    #     if response.status_code == 503:
-    #         logger.debug(response.json())
-    #
-    # assert response.status_code == 200
-    #
+    logger.debug("Going to sleep to give the server some processing time...")
+    time.sleep(1)
+
+    logger.debug("Retrieve similarity scores")
+    response = retrieve_result(id, new_map_response['result_token'])
+
+    while not response.status_code == 200:
+        snooze = 5 + dataset_size/20000
+        #logger.debug("Sleeping for another {} seconds".format(snooze))
+        time.sleep(snooze + rate_limit_delay)
+        response = retrieve_result(id, new_map_response['result_token'])
+
+        if response.status_code == 503:
+            logger.debug(response.json())
+
+    assert response.status_code == 200
+
     # logger.info("Success")
     # mapping_result = response.json()["mapping"]
     #

@@ -23,6 +23,8 @@ from object_store import connect_to_object_store
 from settings import Config as config
 from utils import fmt_bytes
 
+import urllib3
+
 
 __version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
 
@@ -336,7 +338,7 @@ class Mapping(Resource):
 
         app.logger.info("Checking credentials")
 
-        if mapping['result_type'] == 'mapping':
+        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_score':
             # Check the caller has a valid results token if we are including results
             abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation':
@@ -396,6 +398,28 @@ class Mapping(Resource):
                 }
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
+
+        elif mapping['result_type'] == 'similarity_score':
+            app.logger.info("Similarity scores being returned")
+            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['score']
+            mc = connect_to_object_store()
+            content = []
+            try:
+                csv_data = mc.get_object(config.MINIO_BUCKET, filename)
+
+                for d in csv_data.stream():
+                    csv_content = d.decode()
+                    for line in csv_content.split("\n"):
+                        if len(line) > 0:
+                            row_e1, score, row_e2 = line.split(",")
+                            content.append([int(row_e1), int(row_e2), float(score)])
+            except urllib3.exceptions.ResponseError:
+                app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
+                return
+
+            return json.dumps({
+                "similarity_scores": content
+            })
 
         else:
             app.logger.warning("Unimplemented result type")
