@@ -80,7 +80,7 @@ class Config(object):
 
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
-    SIMILARITY_SCORE_FILENAME_FMT = "similarity-scores/{}.csv"
+    SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
     @classmethod
     def get_task_chunk_size(cls, size):

@@ -338,7 +338,7 @@ class Mapping(Resource):
 
         app.logger.info("Checking credentials")
 
-        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_score':
+        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_scores':
             # Check the caller has a valid results token if we are including results
             abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
         elif mapping['result_type'] == 'permutation':
@@ -399,7 +399,7 @@ class Mapping(Resource):
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
 
-        elif mapping['result_type'] == 'similarity_score':
+        elif mapping['result_type'] == 'similarity_scores':
             app.logger.info("Similarity scores being returned")
             filename = db.get_similarity_scores_filename(dbinstance, resource_id)['score']
             mc = connect_to_object_store()
@@ -417,9 +417,9 @@ class Mapping(Resource):
                 app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
                 return
 
-            return json.dumps({
+            return {
                 "similarity_scores": content
-            })
+            }
 
         else:
             app.logger.warning("Unimplemented result type")

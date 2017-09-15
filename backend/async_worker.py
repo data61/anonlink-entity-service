@@ -613,9 +613,9 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     db = connect_db()
     _, _, result_type = check_mapping_ready(db, resource_id)
 
-    if result_type == "similarity_score":
-        logger.info("Store the similarity score in a CSV file".format(len(sparse_matrix)))
-        store_similarity_score.delay(sparse_matrix, resource_id)
+    if result_type == "similarity_scores":
+        logger.info("Store the similarity scores in a CSV file".format(len(sparse_matrix)))
+        store_similarity_scores.delay(sparse_matrix, resource_id)
     else:
         logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
         mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
@@ -635,8 +635,8 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
 
 
 @celery.task()
-def store_similarity_score(aggregated_chunks, resource_id):
-    filename = config.SIMILARITY_SCORE_FILENAME_FMT.format(resource_id)
+def store_similarity_scores(aggregated_chunks, resource_id):
+    filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(resource_id)
 
     # Generate a CSV-like string from sparse_matrix
     # Also need to make sure this can handle very large list
