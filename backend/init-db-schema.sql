@@ -4,7 +4,7 @@ CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
   'permutation',
   'permutation_unencrypted_mask',
-  'similarity_score');
+  'similarity_scores');
 
 
 -- The table of entity matching jobs
