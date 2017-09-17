@@ -182,8 +182,10 @@ paths:
         The options are:
       
           * `"permutation"` - Create a random permutation and Paillier encrypted mask.
-          * `"mapping"` - Directly output a lookup table of `indexA = indexB`
+          * `"mapping"` - Directly output a lookup table of `indexA = indexB`.
           * `"permutation_unencrypted_mask"` - Create a random permutation and an unencrypted mask.
+          * `"similarity_scores"` - Output a list of similarity scores of `[indexA, indexB, score]`, where `score`
+            represents the likelihood that `indexA = indexB`.
 
         
         
@@ -213,7 +215,7 @@ paths:
         
         Token source depends on the mapping's `result_type`.
         
-        - if the `result_type` is `"mapping"` then `token` is provided when initially
+        - if the `result_type` is `"mapping"` or `"similarity_scores"` then `token` is provided when initially
           creating the mapping (as `result-token`).
         - if the `result_type` is `"permutation"` then `token` is obtained when organisations
           add data to the mapping (as `receipt-token`)
@@ -242,6 +244,19 @@ paths:
             }
 
         
+        ### result_type = "similarity_scores"
+
+        The list of the indices of potential matches and their similarity score. Data is returned as `json` object e.g,
+
+            {
+                "similarity_scores":
+                    [
+                        [5, 27, 1.0],
+                        [14, 10, 1.0]
+                    ]
+            }
+
+
         ### result_type = "permutation"
         
         The permutation, and mask specific for the calling organisation.
