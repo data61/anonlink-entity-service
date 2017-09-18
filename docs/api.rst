@@ -100,9 +100,12 @@ Parameters
    -  ``"permutation"`` - Create a random permutation and Paillier
       encrypted mask.
    -  ``"mapping"`` - Directly output a lookup table of
-      ``indexA = indexB``
+      ``indexA = indexB``.
    -  ``"permutation_unencrypted_mask"`` - Create a random permutation
       and an unencrypted mask.
+   -  ``"similarity_scores"`` - Output a list of similarity scores of
+      ``[indexA, indexB, score]``, where ``score`` represents the likelihood
+      that ``indexA = indexB``.
 
 -  ``public_key`` A Paillier public key serialized as the `JWK
    format <https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation>`__.
@@ -195,6 +198,21 @@ Returns when result\_type = "mapping":
             "0": "5",
             "2": "0"
         }
+    }
+
+
+Returns when result\_type = "similarity_scores":
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**200** The list of the indices of potential matches and their similarity score.
+Data is returned as ``json`` object e.g.,::
+
+    {
+        "similarity_scores":
+            [
+                [5, 27, 1.0],
+                [14, 10, 1.0]
+            ]
     }
 
 
