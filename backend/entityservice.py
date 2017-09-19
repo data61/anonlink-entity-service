@@ -401,24 +401,38 @@ class Mapping(Resource):
 
         elif mapping['result_type'] == 'similarity_scores':
             app.logger.info("Similarity scores being returned")
+
+            # TODO What happen if the `resource_id` is valid but it is not in the similarity scores table?
             filename = db.get_similarity_scores_filename(dbinstance, resource_id)['score']
             mc = connect_to_object_store()
-            content = []
+
+            similarity_scores = []
             try:
                 csv_data = mc.get_object(config.MINIO_BUCKET, filename)
 
-                for d in csv_data.stream():
-                    csv_content = d.decode()
-                    for line in csv_content.split("\n"):
-                        if len(line) > 0:
-                            row_e1, score, row_e2 = line.split(",")
-                            content.append([int(row_e1), int(row_e2), float(score)])
+                # Read the entire CSV into a string
+                combined_csv_data = ""
+                for read_data in csv_data.stream():
+                    combined_csv_data += read_data.decode()
+                combined_csv_data.strip()
+
+                # Process each line in the CSV file
+                # Then rearrange the values from
+                #   `entity_1`, `score`, `entity_2`
+                # to
+                #   `entity_1`, `entity_2`, `score`
+                for line in combined_csv_data.splitlines():
+                    try:
+                        entity_1, score, entity_2 = line.split(",")
+                        similarity_scores.append([int(entity_1), int(entity_2), float(score)])
+                    except ValueError:
+                        app.logger.warning("Similarity scores file is corrupted")
             except urllib3.exceptions.ResponseError:
                 app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
                 return
 
             return {
-                "similarity_scores": content
+                "similarity_scores": similarity_scores
             }
 
         else:
