@@ -314,7 +314,17 @@ class Mapping(Resource):
         app.logger.info("Deleting a mapping resource and all data")
         # First get the filenames of everything in the object store
 
+        dbinstance = get_db()
+
         mc = connect_to_object_store()
+
+        mapping = db.get_mapping(dbinstance, resource_id)
+
+        # If result_type is similarity_scores, delete the corresponding similarity_scores file
+        if mapping['result_type'] == 'similarity_scores':
+            app.logger.info("Deleting the similarity scores file")
+            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
+            mc.remove_object(config.MINIO_BUCKET, filename)
 
         db.delete_mapping(get_db(), resource_id)
 
@@ -403,7 +413,7 @@ class Mapping(Resource):
             app.logger.info("Similarity scores being returned")
 
             # TODO What happen if the `resource_id` is valid but it is not in the similarity scores table?
-            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['score']
+            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
             mc = connect_to_object_store()
 
             similarity_scores = []

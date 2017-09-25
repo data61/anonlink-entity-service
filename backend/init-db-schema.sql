@@ -103,8 +103,7 @@ CREATE TABLE similarity_scores (
   mapping     CHAR(48) REFERENCES mappings (resource_id),
 
   -- The name of CSV file containing the score results
-  -- TODO Probably use a more suitable type than VarChar
-  score       VARCHAR(255)
+  file        CHAR(70) NOT NULL
 );
 
 

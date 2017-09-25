@@ -614,7 +614,7 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     _, _, result_type = check_mapping_ready(db, resource_id)
 
     if result_type == "similarity_scores":
-        logger.info("Store the similarity scores in a CSV file".format(len(sparse_matrix)))
+        logger.info("Store the similarity scores in a CSV file")
         store_similarity_scores.delay(sparse_matrix, resource_id)
     else:
         logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
@@ -635,19 +635,29 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
 
 
 @celery.task()
-def store_similarity_scores(aggregated_chunks, resource_id):
+def store_similarity_scores(similarity_scores, resource_id):
+    """
+    Stores the similarity scores above a similarity threshold as a CSV in minio.
+
+    :param similarity_scores: a list of tuples consisting of:
+                                - the index of an entity from dataprovider 1
+                                - the similarity score between 0 and 1 of the best match
+                                - the index of an entity from dataprovider 1
+    :param resource_id: the resource ID of the mapping
+    """
     filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(resource_id)
 
-    # Generate a CSV-like string from sparse_matrix
+    # Generate a CSV-like string from aggregated chunks
     # Also need to make sure this can handle very large list
     def csv_generator():
-        for row in aggregated_chunks:
+        for row in similarity_scores:
             content = ','.join(map(str, row)).encode() + b'\n'
             yield content
 
     data = b''.join(csv_generator())
     buffer = io.BytesIO(data)
 
+    logger.debug("Store the the aggregated chunks")
     mc = connect_to_object_store()
     mc.put_object(
         config.MINIO_BUCKET,
@@ -664,7 +674,7 @@ def store_similarity_scores(aggregated_chunks, resource_id):
     with db.cursor() as cur:
         result_id = execute_returning_id(cur, """
             INSERT into similarity_scores
-              (mapping, score)
+              (mapping, file)
             VALUES
               (%s, %s)
             RETURNING id;
@@ -673,7 +683,7 @@ def store_similarity_scores(aggregated_chunks, resource_id):
                 resource_id, filename
             ])
     db.commit()
-    logger.info("Similarity scores saved to db with id {}".format(result_id))
+    logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
 
     # Complete mapping job
     logger.debug("Mark mapping job as complete")
