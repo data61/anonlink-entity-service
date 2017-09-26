@@ -617,6 +617,8 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
         logger.info("Store the similarity scores in a CSV file")
         store_similarity_scores.delay(sparse_matrix, resource_id)
     else:
+        # As we have the entire sparse matrix in memory at this point we directly compute the mapping
+        # instead of re-serializing and calling another task
         logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
         mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
@@ -651,6 +653,12 @@ def store_similarity_scores(similarity_scores, resource_id):
     # Also need to make sure this can handle very large list
     def csv_generator():
         for row in similarity_scores:
+            # Rearrange the elements in the row from
+            #   `entity_1`, `score`, `entity_2`
+            # to
+            #   `entity_1`, `entity_2`, `score`
+            # before storing the row in a CSV file
+            row[0], row[1], row[2] = row[0], row[2], row[1]
             content = ','.join(map(str, row)).encode() + b'\n'
             yield content
 

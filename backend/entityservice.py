@@ -412,38 +412,39 @@ class Mapping(Resource):
         elif mapping['result_type'] == 'similarity_scores':
             app.logger.info("Similarity scores being returned")
 
-            # TODO What happen if the `resource_id` is valid but it is not in the similarity scores table?
-            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
-            mc = connect_to_object_store()
-
-            similarity_scores = []
             try:
-                csv_data = mc.get_object(config.MINIO_BUCKET, filename)
+                filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
+                mc = connect_to_object_store()
 
-                # Read the entire CSV into a string
-                combined_csv_data = ""
-                for read_data in csv_data.stream():
-                    combined_csv_data += read_data.decode()
-                combined_csv_data.strip()
+                similarity_scores = []
+                try:
+                    csv_data = mc.get_object(config.MINIO_BUCKET, filename)
 
-                # Process each line in the CSV file
-                # Then rearrange the values from
-                #   `entity_1`, `score`, `entity_2`
-                # to
-                #   `entity_1`, `entity_2`, `score`
-                for line in combined_csv_data.splitlines():
-                    try:
-                        entity_1, score, entity_2 = line.split(",")
-                        similarity_scores.append([int(entity_1), int(entity_2), float(score)])
-                    except ValueError:
-                        app.logger.warning("Similarity scores file is corrupted")
-            except urllib3.exceptions.ResponseError:
-                app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
-                return
+                    # Read the entire CSV into a string
+                    combined_csv_data = ""
+                    for read_data in csv_data.stream():
+                        combined_csv_data += read_data.decode()
+                    combined_csv_data.strip()
 
-            return {
-                "similarity_scores": similarity_scores
-            }
+                    # Process each line in the CSV file
+                    for line in combined_csv_data.splitlines():
+                        try:
+                            entity_1, entity_2, score = line.split(",")
+                            similarity_scores.append([int(entity_1), int(entity_2), float(score)])
+                        except ValueError:
+                            app.logger.warning("Similarity scores file is corrupted")
+
+                except urllib3.exceptions.ResponseError:
+                    app.logger.warning("Attempt to retrieve the similarity scores file failed with an error response.")
+                    safe_fail_request(500, "Fail to retrieve similarity scores")
+
+                return {
+                    "similarity_scores": similarity_scores
+                }
+
+            except TypeError:
+                app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
+                safe_fail_request(500, "Fail to retrieve similarity scores")
 
         else:
             app.logger.warning("Unimplemented result type")
@@ -662,4 +663,4 @@ def generate_name_data():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8851)
+    app.run(debug=True, port=8852)
