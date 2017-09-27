@@ -6,7 +6,7 @@ import platform
 import logging
 import binascii
 
-from flask import Flask, g, request
+from flask import Flask, g, request, Response
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 
 try:
@@ -416,31 +416,29 @@ class Mapping(Resource):
                 filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
                 mc = connect_to_object_store()
 
-                similarity_scores = []
                 try:
                     csv_data = mc.get_object(config.MINIO_BUCKET, filename)
 
-                    # Read the entire CSV into a string
                     combined_csv_data = ""
+                    # Read the entire CSV into a string
                     for read_data in csv_data.stream():
                         combined_csv_data += read_data.decode()
                     combined_csv_data.strip()
 
-                    # Process each line in the CSV file
-                    for line in combined_csv_data.splitlines():
-                        try:
-                            entity_1, entity_2, score = line.split(",")
-                            similarity_scores.append([int(entity_1), int(entity_2), float(score)])
-                        except ValueError:
-                            app.logger.warning("Similarity scores file is corrupted")
+                    def generate_scores():
+                        yield '{"similarity_scores": ['
+                        for idx, line in enumerate(combined_csv_data.splitlines()):
+                            if idx == 0:
+                                yield '[{}]'.format(line)
+                            else:
+                                yield ',[{}]'.format(line)
+                        yield ']}'
+
+                    return Response(generate_scores(), mimetype='application/json')
 
                 except urllib3.exceptions.ResponseError:
-                    app.logger.warning("Attempt to retrieve the similarity scores file failed with an error response.")
+                    app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
                     safe_fail_request(500, "Fail to retrieve similarity scores")
-
-                return {
-                    "similarity_scores": similarity_scores
-                }
 
             except TypeError:
                 app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")

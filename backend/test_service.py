@@ -229,7 +229,7 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
         {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
         {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
     ]
-    threshold = 0.995
+    threshold = 0.99
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
         'result_type': 'similarity_scores',
@@ -338,7 +338,7 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
 
     # Check the scores in the results are correct
     for score in similarity_scores:
-        assert score[2] >= threshold
+        assert score[2] > threshold
 
     # Delete a mapping
     #delete_mapping(id)
