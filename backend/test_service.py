@@ -229,7 +229,7 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
         {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
         {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
     ]
-    threshold = 0.99
+    threshold = 0.995
     new_map_response = requests.post(url + '/mappings', json={
         'schema': schema,
         'result_type': 'similarity_scores',

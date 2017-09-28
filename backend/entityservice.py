@@ -209,6 +209,41 @@ new_mapping_fields = {
 }
 
 
+def get_similarity_scores(filename):
+    """
+    Read a CSV file containing the similarity scores and return the similarity scores
+
+    :param filename: name of the CSV file, obtained from the `similarity_scores` table
+    :return: the similarity scores in a JSON format
+    """
+
+    mc = connect_to_object_store()
+
+    try:
+        csv_data = mc.get_object(config.MINIO_BUCKET, filename)
+
+        combined_csv_data = ""
+        # Read the entire CSV into a string
+        for read_data in csv_data.stream():
+            combined_csv_data += read_data.decode()
+        combined_csv_data.strip()
+
+        def generate_scores():
+            yield '{"similarity_scores": ['
+            for idx, line in enumerate(combined_csv_data.splitlines()):
+                if idx == 0:
+                    yield '[{}]'.format(line)
+                else:
+                    yield ',[{}]'.format(line)
+            yield ']}'
+
+        return Response(generate_scores(), mimetype='application/json')
+
+    except urllib3.exceptions.ResponseError:
+        app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
+        safe_fail_request(500, "Fail to retrieve similarity scores")
+
+
 class MappingList(Resource):
 
     """
@@ -414,31 +449,7 @@ class Mapping(Resource):
 
             try:
                 filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
-                mc = connect_to_object_store()
-
-                try:
-                    csv_data = mc.get_object(config.MINIO_BUCKET, filename)
-
-                    combined_csv_data = ""
-                    # Read the entire CSV into a string
-                    for read_data in csv_data.stream():
-                        combined_csv_data += read_data.decode()
-                    combined_csv_data.strip()
-
-                    def generate_scores():
-                        yield '{"similarity_scores": ['
-                        for idx, line in enumerate(combined_csv_data.splitlines()):
-                            if idx == 0:
-                                yield '[{}]'.format(line)
-                            else:
-                                yield ',[{}]'.format(line)
-                        yield ']}'
-
-                    return Response(generate_scores(), mimetype='application/json')
-
-                except urllib3.exceptions.ResponseError:
-                    app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
-                    safe_fail_request(500, "Fail to retrieve similarity scores")
+                return get_similarity_scores(filename)
 
             except TypeError:
                 app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
@@ -661,4 +672,4 @@ def generate_name_data():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8852)
+    app.run(debug=True, port=8851)
