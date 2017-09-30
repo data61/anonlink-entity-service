@@ -101,7 +101,7 @@ Then use the previous command with `-e ENTITY_SERVICE_URL=http://<container-ip-o
 An additional docker-compose config file can be found in `./tools/ci.yml`,
 this can be added in to run along with the rest of the service:
 
-    docker-compose -f tools/docker-compose.yml -f ci.yml -p entityservicetest up -d
+    docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
 
 
 # Data generation

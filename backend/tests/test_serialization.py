@@ -1,7 +1,8 @@
+import io
 import unittest
 import random
 from bitarray import bitarray
-from serialization import deserialize_bitarray
+from serialization import deserialize_bitarray, generate_scores
 from .util import serialize_bitarray
 
 
@@ -30,6 +31,12 @@ class SerializationTest(unittest.TestCase):
         dsba = deserialize_bitarray(sba)
 
         self.assertEqual(dsba, ba)
+
+
+    def test_csv_to_json(self):
+        csv_byte_stream = io.BytesIO("1,2,3\n1,2,3\n,5,5,5".encode("utf-8"))
+        csv_text_stream = io.TextIOWrapper(csv_byte_stream, encoding="utf-8")
+        response = generate_scores(csv_text_stream)
 
 
 if __name__ == "__main__":

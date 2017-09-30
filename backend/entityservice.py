@@ -1,10 +1,10 @@
+import binascii
+import io
 import json
+import logging
 import os
 import os.path
-import io
 import platform
-import logging
-import binascii
 
 from flask import Flask, g, request, Response
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
@@ -17,11 +17,11 @@ except ImportError:
 import anonlink
 import cache
 import database as db
-from serialization import load_public_key, deserialize_filters, binary_pack_filters
-from async_worker import calculate_mapping, handle_raw_upload
+from serialization import load_public_key, generate_scores
+from async_worker import handle_raw_upload
 from object_store import connect_to_object_store
 from settings import Config as config
-from utils import fmt_bytes
+from utils import fmt_bytes, iterable_to_stream
 
 import urllib3
 
@@ -214,38 +214,25 @@ def get_similarity_scores(filename):
     Read a CSV file containing the similarity scores and return the similarity scores
 
     :param filename: name of the CSV file, obtained from the `similarity_scores` table
-    :return: the similarity scores in a JSON format
+    :return: the similarity scores in a streaming JSON response.
     """
 
     mc = connect_to_object_store()
 
     try:
-        csv_data = mc.get_object(config.MINIO_BUCKET, filename)
+        csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
 
-        combined_csv_data = ""
-        # Read the entire CSV into a string
-        for read_data in csv_data.stream():
-            combined_csv_data += read_data.decode()
-        combined_csv_data.strip()
+        # Process the CSV into JSON
+        csv_text_stream = io.TextIOWrapper(csv_data_stream, encoding="utf-8")
 
-        def generate_scores():
-            yield '{"similarity_scores": ['
-            for idx, line in enumerate(combined_csv_data.splitlines()):
-                if idx == 0:
-                    yield '[{}]'.format(line)
-                else:
-                    yield ',[{}]'.format(line)
-            yield ']}'
-
-        return Response(generate_scores(), mimetype='application/json')
+        return Response(generate_scores(csv_text_stream), mimetype='application/json')
 
     except urllib3.exceptions.ResponseError:
         app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
-        safe_fail_request(500, "Fail to retrieve similarity scores")
+        safe_fail_request(500, "Failed to retrieve similarity scores")
 
 
 class MappingList(Resource):
-
     """
     A list of all mappings along with their status.
     """
