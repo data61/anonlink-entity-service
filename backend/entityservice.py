@@ -357,46 +357,16 @@ class Mapping(Resource):
         This endpoint reveals the results of the calculation.
         What you're allowed to know depends on who you are.
         """
-        headers = request.headers
 
-        if headers is None or 'Authorization' not in headers:
-            safe_fail_request(401, message="Authentication token required")
-
-        # Check the resource exists
-        abort_if_mapping_doesnt_exist(resource_id)
-
-        dbinstance = get_db()
-        mapping = db.get_mapping(dbinstance, resource_id)
-
-        app.logger.info("Checking credentials")
-
-        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_scores':
-            # Check the caller has a valid results token if we are including results
-            abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
-        elif mapping['result_type'] == 'permutation':
-            dp_id = dataprovider_id_if_authorize(resource_id, headers.get('Authorization'))
-        elif mapping['result_type'] == 'permutation_unencrypted_mask':
-            dp_id = node_id_if_authorize(resource_id, headers.get('Authorization'))
-        else:
-            safe_fail_request(500, "Unknown error")
+        dp_id, mapping = self.authorise_get_request(resource_id)
 
         app.logger.info("Checking for results")
+        dbinstance = get_db()
+
         # Check that the mapping is ready
         if not mapping['ready']:
-            # return compute time elapsed and number of comparisons here
-            time_elapsed = db.get_mapping_time(dbinstance, resource_id)
-            app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
-
-            comparisons = cache.get_progress(resource_id)
-            total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
-
-            return {
-                       "message": "Mapping isn't ready.",
-                       "elapsed": time_elapsed.total_seconds(),
-                       "total": str(total_comparisons),
-                       "current": str(comparisons),
-                       "progress": (comparisons/total_comparisons) if total_comparisons is not 'NA' else 0.0
-                   }, 503
+            progress = self.get_mapping_progress(dbinstance, resource_id)
+            return progress, 503
 
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
@@ -444,6 +414,42 @@ class Mapping(Resource):
 
         else:
             app.logger.warning("Unimplemented result type")
+
+    def get_mapping_progress(self, dbinstance, resource_id):
+        # return compute time elapsed and number of comparisons here
+        time_elapsed = db.get_mapping_time(dbinstance, resource_id)
+        app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
+        comparisons = cache.get_progress(resource_id)
+        total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
+        progress = {
+            "message": "Mapping isn't ready.",
+            "elapsed": time_elapsed.total_seconds(),
+            "total": str(total_comparisons),
+            "current": str(comparisons),
+            "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
+        }
+        return progress
+
+    def authorise_get_request(self, resource_id):
+        if request.headers is None or 'Authorization' not in request.headers:
+            safe_fail_request(401, message="Authentication token required")
+        auth_header = request.headers.get('Authorization')
+        dp_id = None
+        # Check the resource exists
+        abort_if_mapping_doesnt_exist(resource_id)
+        dbinstance = get_db()
+        mapping = db.get_mapping(dbinstance, resource_id)
+        app.logger.info("Checking credentials")
+        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_scores':
+            # Check the caller has a valid results token if we are including results
+            abort_if_invalid_results_token(resource_id, auth_header)
+        elif mapping['result_type'] == 'permutation':
+            dp_id = dataprovider_id_if_authorize(resource_id, auth_header)
+        elif mapping['result_type'] == 'permutation_unencrypted_mask':
+            dp_id = node_id_if_authorize(resource_id, auth_header)
+        else:
+            safe_fail_request(500, "Unknown error")
+        return dp_id, mapping
 
     def put(self, resource_id):
         """
