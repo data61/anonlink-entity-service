@@ -137,9 +137,9 @@ def generate_scores(csv_text_stream):
     try:
         prev_line = next(line_iter)
     except StopIteration:
-        # Must have been an empty file, so close json object and stop
+        # Must have been an empty file, so close json object and stop iteration
         yield "]}"
-        raise
+        return
 
     for line in line_iter:
         yield '[{}],'.format(prev_line.strip())

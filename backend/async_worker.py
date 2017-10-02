@@ -601,9 +601,11 @@ def save_current_progress(comparisons, resource_id):
 @celery.task()
 def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     sparse_matrix = []
-
+    # Need to handle a single result group because 'chord(array_of_tasks, next_task)' won't wrap the
+    # result in a list when there is only one task in the array.
+    # (See https://github.com/celery/celery/issues/3597)
     if all(len(sparse_result_group) == 3 for sparse_result_group in sparse_result_groups):
-        logger.debug("Possible that we only had one task chunk")
+        logger.debug("Only received one task chunk")
         sparse_matrix = sparse_result_groups
     else:
         logger.debug("Aggregating chunks")
@@ -675,10 +677,8 @@ def store_similarity_scores(similarity_scores, resource_id):
         content_type='application/csv'
     )
 
-    # Save the CSV filename to 'similarity_scores' table
     db = connect_db()
-
-    logger.debug("Saving the CSV filename to the db")
+    logger.debug("Storing the CSV filename: {}".format(filename))
     with db.cursor() as cur:
         result_id = execute_returning_id(cur, """
             INSERT into similarity_scores
