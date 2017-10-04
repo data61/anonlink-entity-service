@@ -47,6 +47,21 @@ output is produced, and who may see the output.
    participating in the agreed mode.
 
 
+Similarity Score
+~~~~~~~~~~~~~~~~
+
+Calculated similarities above a given threshold between entities are returned.
+The ``result_token`` (generated when creating the mapping) is required. The
+``result_type`` should be set to ``"similarity_scores"``.
+
+Results are a simple JSON array in the form:
+
+   index_a, index_b, score
+
+Where the index values will be 0 based row index from the uploaded CLKS, and
+the score will be a double between 0.0 and 1.0 where 1.0 means the CLKS were
+identical.
+
 Direct Mapping Table
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -54,6 +69,7 @@ This outputs a lookup table using original indices from the two
 organizations. The ``result_token`` (generated when creating the
 mapping) is required. The ``result_type`` should be set to
 ``"mapping"``.
+
 
 Permutation and Mask
 ~~~~~~~~~~~~~~~~~~~~
