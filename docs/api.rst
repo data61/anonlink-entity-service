@@ -100,9 +100,12 @@ Parameters
    -  ``"permutation"`` - Create a random permutation and Paillier
       encrypted mask.
    -  ``"mapping"`` - Directly output a lookup table of
-      ``indexA = indexB``
+      ``indexA = indexB``.
    -  ``"permutation_unencrypted_mask"`` - Create a random permutation
       and an unencrypted mask.
+   -  ``"similarity_scores"`` - Output a list of similarity scores of
+      ``[indexA, indexB, score]``, where ``score`` represents the likelihood
+      that ``indexA = indexB``.
 
 -  ``public_key`` A Paillier public key serialized as the `JWK
    format <https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation>`__.
@@ -198,6 +201,33 @@ Returns when result\_type = "mapping":
     }
 
 
+Returns when result\_type = "similarity_scores":
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**200** The list of the indices of potential matches and their similarity score
+where the similarity score is greater than the mapping threshold.
+Data is returned as `json` object e.g.,:
+
+    {
+        "similarity_scores":
+            [
+                [5, 27, 1.0],
+                [14, 10, 1.0]
+            ]
+    }
+
+
+The returned data is a list of list with the following format `[indexA, indexB, score]`,
+where `indexA` refers to the index of entity from data provider 1, `indexB` is the index of entity
+from data provider 2 that is a potential match to entity in `indexA`, and `score` is the similarity score
+representing the likelihood that entity in `indexA` and entity in `indexB` is a match.
+
+`indexA` and `indexB` starts from 0.
+
+The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
+and 1.0 corresponds to total match.
+
+
 Returns when result\_type = "permutation":
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -251,6 +281,8 @@ Error cases are also JSON, and all have a ``message`` attribute
 **403** If the token is not valid.
 
 **404** If the mapping doesn't exist
+
+**500** If the CSV file containing the similarirt file cannot be found or is corrupted.
 
 **503** If the mapping isn't yet ready. This will include an indication
 of the current progress::

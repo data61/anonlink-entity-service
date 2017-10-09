@@ -256,6 +256,12 @@ def delete_mapping(db, resource_id):
                 WHERE id = %s
                 """, [paillier_id])
 
+        if result_type == "similarity_scores":
+            cur.execute("""
+                DELETE FROM similarity_scores
+                WHERE mapping = %s
+                """, [resource_id])
+
         cur.execute("""
             DELETE FROM dataproviders
             WHERE mapping = %s
@@ -391,6 +397,17 @@ def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
 
         """,
         [dp_id, mapping_resource_id], one=True)
+
+
+def get_similarity_scores_filename(db, resource_id):
+    return query_db(db,
+        """
+        SELECT file FROM similarity_scores
+        WHERE
+          mapping = %s
+
+        """,
+        [resource_id], one=True)
 
 
 # Insertion Queries

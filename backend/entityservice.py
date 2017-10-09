@@ -1,12 +1,12 @@
+import binascii
+import io
 import json
+import logging
 import os
 import os.path
-import io
 import platform
-import logging
-import binascii
 
-from flask import Flask, g, request
+from flask import Flask, g, request, Response
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 
 try:
@@ -17,11 +17,13 @@ except ImportError:
 import anonlink
 import cache
 import database as db
-from serialization import load_public_key, deserialize_filters, binary_pack_filters
-from async_worker import calculate_mapping, handle_raw_upload
+from serialization import load_public_key, generate_scores
+from async_worker import handle_raw_upload
 from object_store import connect_to_object_store
 from settings import Config as config
-from utils import fmt_bytes
+from utils import fmt_bytes, iterable_to_stream
+
+import urllib3
 
 
 __version__ = open(os.path.join(os.path.dirname(__file__), 'VERSION')).read().strip()
@@ -207,8 +209,30 @@ new_mapping_fields = {
 }
 
 
-class MappingList(Resource):
+def get_similarity_scores(filename):
+    """
+    Read a CSV file containing the similarity scores and return the similarity scores
 
+    :param filename: name of the CSV file, obtained from the `similarity_scores` table
+    :return: the similarity scores in a streaming JSON response.
+    """
+
+    mc = connect_to_object_store()
+
+    try:
+        csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
+
+        # Process the CSV into JSON
+        csv_text_stream = io.TextIOWrapper(csv_data_stream, encoding="utf-8")
+
+        return Response(generate_scores(csv_text_stream), mimetype='application/json')
+
+    except urllib3.exceptions.ResponseError:
+        app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
+        safe_fail_request(500, "Failed to retrieve similarity scores")
+
+
+class MappingList(Resource):
     """
     A list of all mappings along with their status.
     """
@@ -252,7 +276,8 @@ class MappingList(Resource):
             safe_fail_request(400, message="Schema information required")
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
-                                                                    'permutation_unencrypted_mask'}:
+                                                                    'permutation_unencrypted_mask',
+                                                                    'similarity_scores'}:
             safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
                                '"permutation_unencrypted_mask"')
 
@@ -311,7 +336,17 @@ class Mapping(Resource):
         app.logger.info("Deleting a mapping resource and all data")
         # First get the filenames of everything in the object store
 
+        dbinstance = get_db()
+
         mc = connect_to_object_store()
+
+        mapping = db.get_mapping(dbinstance, resource_id)
+
+        # If result_type is similarity_scores, delete the corresponding similarity_scores file
+        if mapping['result_type'] == 'similarity_scores':
+            app.logger.info("Deleting the similarity scores file")
+            filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
+            mc.remove_object(config.MINIO_BUCKET, filename)
 
         db.delete_mapping(get_db(), resource_id)
 
@@ -322,46 +357,16 @@ class Mapping(Resource):
         This endpoint reveals the results of the calculation.
         What you're allowed to know depends on who you are.
         """
-        headers = request.headers
 
-        if headers is None or 'Authorization' not in headers:
-            safe_fail_request(401, message="Authentication token required")
-
-        # Check the resource exists
-        abort_if_mapping_doesnt_exist(resource_id)
-
-        dbinstance = get_db()
-        mapping = db.get_mapping(dbinstance, resource_id)
-
-        app.logger.info("Checking credentials")
-
-        if mapping['result_type'] == 'mapping':
-            # Check the caller has a valid results token if we are including results
-            abort_if_invalid_results_token(resource_id, headers.get('Authorization'))
-        elif mapping['result_type'] == 'permutation':
-            dp_id = dataprovider_id_if_authorize(resource_id, headers.get('Authorization'))
-        elif mapping['result_type'] == 'permutation_unencrypted_mask':
-            dp_id = node_id_if_authorize(resource_id, headers.get('Authorization'))
-        else:
-            safe_fail_request(500, "Unknown error")
+        dp_id, mapping = self.authorise_get_request(resource_id)
 
         app.logger.info("Checking for results")
+        dbinstance = get_db()
+
         # Check that the mapping is ready
         if not mapping['ready']:
-            # return compute time elapsed and number of comparisons here
-            time_elapsed = db.get_mapping_time(dbinstance, resource_id)
-            app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
-
-            comparisons = cache.get_progress(resource_id)
-            total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
-
-            return {
-                       "message": "Mapping isn't ready.",
-                       "elapsed": time_elapsed.total_seconds(),
-                       "total": str(total_comparisons),
-                       "current": str(comparisons),
-                       "progress": (comparisons/total_comparisons) if total_comparisons is not 'NA' else 0.0
-                   }, 503
+            progress = self.get_mapping_progress(dbinstance, resource_id)
+            return progress, 503
 
         if mapping['result_type'] == 'mapping':
             app.logger.info("Mapping result being returned")
@@ -396,8 +401,55 @@ class Mapping(Resource):
             # The result in this case is either a permutation, or the encrypted mask.
             # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
 
+        elif mapping['result_type'] == 'similarity_scores':
+            app.logger.info("Similarity scores being returned")
+
+            try:
+                filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
+                return get_similarity_scores(filename)
+
+            except TypeError:
+                app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
+                safe_fail_request(500, "Fail to retrieve similarity scores")
+
         else:
             app.logger.warning("Unimplemented result type")
+
+    def get_mapping_progress(self, dbinstance, resource_id):
+        # return compute time elapsed and number of comparisons here
+        time_elapsed = db.get_mapping_time(dbinstance, resource_id)
+        app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
+        comparisons = cache.get_progress(resource_id)
+        total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
+        progress = {
+            "message": "Mapping isn't ready.",
+            "elapsed": time_elapsed.total_seconds(),
+            "total": str(total_comparisons),
+            "current": str(comparisons),
+            "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
+        }
+        return progress
+
+    def authorise_get_request(self, resource_id):
+        if request.headers is None or 'Authorization' not in request.headers:
+            safe_fail_request(401, message="Authentication token required")
+        auth_header = request.headers.get('Authorization')
+        dp_id = None
+        # Check the resource exists
+        abort_if_mapping_doesnt_exist(resource_id)
+        dbinstance = get_db()
+        mapping = db.get_mapping(dbinstance, resource_id)
+        app.logger.info("Checking credentials")
+        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_scores':
+            # Check the caller has a valid results token if we are including results
+            abort_if_invalid_results_token(resource_id, auth_header)
+        elif mapping['result_type'] == 'permutation':
+            dp_id = dataprovider_id_if_authorize(resource_id, auth_header)
+        elif mapping['result_type'] == 'permutation_unencrypted_mask':
+            dp_id = node_id_if_authorize(resource_id, auth_header)
+        else:
+            safe_fail_request(500, "Unknown error")
+        return dp_id, mapping
 
     def put(self, resource_id):
         """
