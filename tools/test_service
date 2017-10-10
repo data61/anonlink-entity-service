@@ -17,10 +17,3 @@ docker run -it \
         -e ENTITY_SERVICE_TEST_REPEATS=10 \
         quay.io/n1analytics/entity-app python test_service.py
 
-# Local Variables:
-# mode: sh
-# tab-width: 2
-# sh-basic-offset: 2
-# sh-indentation: 2
-# indent-tabs-mode: nil
-# End:
