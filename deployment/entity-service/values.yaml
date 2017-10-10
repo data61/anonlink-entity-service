@@ -36,7 +36,7 @@ api:
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.6.8"
+    tag: "v1.7.0"
     debug: "false"
     containerPort: 8000
   Replicas: 1
@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.6.8"
+  tag: "v1.7.0"
   replicas: 1
   debug: "false"
 
