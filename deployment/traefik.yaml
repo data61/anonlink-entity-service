@@ -6,6 +6,11 @@ ssl:
   enabled: true
   enforced: false
 
+[entryPoints]
+  [entryPoints.http]
+    [entryPoints.http.redirect]
+    entryPoint = "https"
+    
 acme:
   enabled: true
   staging: false
