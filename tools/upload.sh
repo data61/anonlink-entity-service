@@ -15,12 +15,12 @@ if [ "$BRANCH_NAME" = "master" ];
 then
     echo "Pushing images to quay.io";
     docker push quay.io/n1analytics/entity-app:${APPVERSION};
-    docker push quay.io/n1analytics/entity-nginx:v1.3.0;
+    docker push quay.io/n1analytics/entity-nginx:v1.3.1;
 else
     echo "Uploading with label: ${BRANCH_NAME}";
 
     docker tag quay.io/n1analytics/entity-app:${APPVERSION} quay.io/n1analytics/entity-app:${BRANCH_NAME};
-    docker tag quay.io/n1analytics/entity-nginx:v1.3.0 quay.io/n1analytics/entity-nginx:${BRANCH_NAME};
+    docker tag quay.io/n1analytics/entity-nginx:v1.3.1 quay.io/n1analytics/entity-nginx:${BRANCH_NAME};
 
     docker push quay.io/n1analytics/entity-app:${BRANCH_NAME};
     docker push quay.io/n1analytics/entity-nginx:${BRANCH_NAME};
