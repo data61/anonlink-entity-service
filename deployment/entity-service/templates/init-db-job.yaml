@@ -11,7 +11,7 @@ spec:
         tier: aux
       annotations:
         # This job only gets executed on install, not after an upgrade.
-        # Manual intervention (or a job with a post-ugrade hook) is required to migrate a
+        # Manual intervention (or a job with a post-upgrade hook) is required to migrate a
         # production database.
         "helm.sh/hook": post-install
     spec:
