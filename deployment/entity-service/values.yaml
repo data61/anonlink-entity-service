@@ -29,7 +29,7 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.3.0"
+    tag: "v1.3.1"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
@@ -85,10 +85,10 @@ postgresql:
   nameOverride: "db"
   postgresPassword: "x925SvzX6cuH"
   persistence:
-    enabled: false
-    storageClass: "slow"
-    size: 20Gi
-  imageTag: 9.6.2
+    enabled: true
+    storageClass: "default"
+    size: 8Gi
+  imageTag: 9.6.5
   imagePullPolicy: IfNotPresent
   metrics:
     enabled: false
@@ -104,7 +104,7 @@ redis:
   redisPassword: "gOgRockEPtiN"
   persistence:
     enabled: true
-    storageClass: "slow"
+    storageClass: "default"
     size: "50Gi"
   metrics:
     enabled: false
@@ -124,7 +124,7 @@ minio:
   serviceType: "ClusterIP"
   persistence:
     size: 100Gi
-    storageClass: "slow"
+    storageClass: "default"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
