@@ -44,15 +44,7 @@ Add secret to enable pulling from private quay.io repository:
 We assume the cluster has an ingress controller, if this isn't the case 
 we will have to add one.
 
-Deploy the [traefik ingress controller](https://docs.traefik.io/user-guide/kubernetes/) 
-into the kube-system namespace with:
-
-    helm install stable/traefik --name=traefik --namespace=kube-system --values=traefik.yaml
-
-Note you can update the traefik.yaml file and upgrade in place with:
-
-    helm upgrade traefik --namespace=kube-system --values=traefik.yaml stable/traefik
-
+See https://github.com/n1analytics/n1-dev-tools/helm on how to install or upgrade traefik.yaml.
 
 # Deploy the entity service
 
