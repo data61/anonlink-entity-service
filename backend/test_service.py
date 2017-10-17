@@ -12,7 +12,7 @@ import logging
 import requests
 import unittest
 
-import anonlink.concurrent
+import anonlink.distributed_processing
 from anonlink import randomnames, entitymatch, bloomfilter
 
 from phe import paillier, util

@@ -10,11 +10,15 @@ RUN (pip install --upgrade pip setuptools; \
      apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2 libstdc++6)
 
 ADD requirements.txt /var/www/requirements.txt
-ADD AnonymousLinking AnonymousLinking
+ADD lib /var/src
 
-RUN cd AnonymousLinking && pip install -U -r requirements.txt && pip install -e . && cd ..
+RUN cd /var/src/AnonymousLinking && pip install -U -r requirements.txt && pip install -e .
+RUN cd /var/src/clkhash && pip install -U -r requirements.txt && pip install -e .
+
 RUN pip install -U -r requirements.txt
 RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)"
+RUN python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
+
 RUN groupadd user && useradd --home-dir /var/www -g user user
 RUN chown user:user /var/www; chown user:user /var/log
 USER user
