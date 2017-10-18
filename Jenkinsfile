@@ -10,6 +10,11 @@ node {
       checkout scm
   }
 
+  // Login to quay.io
+  withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
+    sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
+  }
+
   //stage('Server Unittests') {
   //  try {
   //    sh '''
@@ -32,13 +37,15 @@ node {
 
   stage('Docker Build') {
     try {
-      sh '''
-        docker info
-        #docker build -t quay.io/n1analytics/n1-webserver .
-      '''
+      sh """
+        cd backend
+        docker build -t quay.io/n1analytics/entity-app:${env.BUILD_TAG} .
+        cd ../frontend
+        docker build -t quay.io/n1analytics/entity-nginx:${env.BUILD_TAG} .
+      """
 
-      def app = docker.build "quay.io/n1analytics/entity-app:${env.BUILD_TAG}"
-      def frontend = docker.build "quay.io/n1analytics/entity-nginx:{$env.BUILD_TAG}"
+      //def app = docker.build "quay.io/n1analytics/entity-app:${env.BUILD_TAG}"
+      //def frontend = docker.build "quay.io/n1analytics/entity-nginx:{$env.BUILD_TAG}"
 
       //app.push() // Record this build
       //frontend.push() // Record this build
