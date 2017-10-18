@@ -10,25 +10,25 @@ node {
       checkout scm
   }
 
-  stage('Server Unittests') {
-    try {
-      sh '''
-        cd backend
-        python3.5 -m venv testenv
-        testenv/bin/python --version
-        testenv/bin/python testenv/bin/pip install --upgrade pip
-        testenv/bin/python testenv/bin/pip install --upgrade -r requirements.txt
-        testenv/bin/python testenv/bin/pip list --format=columns
-        testenv/bin/python -m unittest discover -s .
-        rm -rf testenv
-      '''
-      currentBuild.result = 'SUCCESS'
-      setBuildStatus("Unit tests passed", "SUCCESS");
-    } catch (Exception err) {
-      currentBuild.result = 'FAILURE'
-      setBuildStatus("Tests failed", "FAILURE");
-    }
-  }
+  //stage('Server Unittests') {
+  //  try {
+  //    sh '''
+  //      cd backend
+  //      python3.5 -m venv testenv
+  //      testenv/bin/python --version
+  //      testenv/bin/python testenv/bin/pip install --upgrade pip
+  //      testenv/bin/python testenv/bin/pip install --upgrade -r requirements.txt
+  //      testenv/bin/python testenv/bin/pip list --format=columns
+  //      testenv/bin/python -m unittest discover -s .
+  //      rm -rf testenv
+  //    '''
+  //    currentBuild.result = 'SUCCESS'
+  //    setBuildStatus("Unit tests passed", "SUCCESS");
+  //  } catch (Exception err) {
+  //    currentBuild.result = 'FAILURE'
+  //    setBuildStatus("Tests failed", "FAILURE");
+  //  }
+  //}
 
   stage('Docker Build') {
     try {
