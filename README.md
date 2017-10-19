@@ -23,7 +23,7 @@ can be served using Python's built in webserver:
 
 To build and serve the html docs run:
 
-    pip install -f docs/doc-requirements.txt
+    pip install -r docs/doc-requirements.txt
     sphinx-build -b html docs n1esdocs
     cd n1esdocs
     python -m http.server
