@@ -1,6 +1,0 @@
-[submodule "backend/AnonymousLinking"]
-	path = backend/lib/AnonymousLinking
-	url = git@github.com:n1analytics/anonlink.git
-[submodule "backend/lib/clkhash"]
-	path = backend/lib/clkhash
-	url = git@github.com:n1analytics/clkhash.git

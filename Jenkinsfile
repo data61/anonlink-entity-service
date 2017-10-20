@@ -8,7 +8,6 @@ void setBuildStatus(String message, String state) {
 node('docker') {
   stage('Checkout') {
       checkout scm
-      sh 'git submodule update --init --recursive'
   }
 
   // Login to quay.io
