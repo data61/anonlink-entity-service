@@ -5,9 +5,10 @@ void setBuildStatus(String message, String state) {
   ]);
 }
 
-node {
+node('docker') {
   stage('Checkout') {
       checkout scm
+      sh 'git submodule update --init --recursive'
   }
 
   // Login to quay.io
@@ -15,25 +16,6 @@ node {
     sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
   }
 
-  //stage('Server Unittests') {
-  //  try {
-  //    sh '''
-  //      cd backend
-  //      python3.5 -m venv testenv
-  //      testenv/bin/python --version
-  //      testenv/bin/python testenv/bin/pip install --upgrade pip
-  //      testenv/bin/python testenv/bin/pip install --upgrade -r requirements.txt
-  //      testenv/bin/python testenv/bin/pip list --format=columns
-  //      testenv/bin/python -m unittest discover -s .
-  //      rm -rf testenv
-  //    '''
-  //    currentBuild.result = 'SUCCESS'
-  //    setBuildStatus("Unit tests passed", "SUCCESS");
-  //  } catch (Exception err) {
-  //    currentBuild.result = 'FAILURE'
-  //    setBuildStatus("Tests failed", "FAILURE");
-  //  }
-  //}
 
   stage('Docker Build') {
     try {
@@ -43,12 +25,6 @@ node {
         cd ../frontend
         docker build -t quay.io/n1analytics/entity-nginx:${env.BUILD_TAG} .
       """
-
-      //def app = docker.build "quay.io/n1analytics/entity-app:${env.BUILD_TAG}"
-      //def frontend = docker.build "quay.io/n1analytics/entity-nginx:{$env.BUILD_TAG}"
-
-      //app.push() // Record this build
-      //frontend.push() // Record this build
 
       currentBuild.result = 'SUCCESS'
       setBuildStatus("Docker build complete", "SUCCESS");
