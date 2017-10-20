@@ -115,22 +115,9 @@ Note: the folder in which the generated data will be stored need to be existing.
 
 ## Development Tips
 
-### Checking out the code
-
-This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
-use `git clone --recursive git@github.com:n1analytics/entity-service.git` or you will have to run either
-`tools/update.sh` or:
-
-```
-git submodule init
-git submodule update
-```
-
-Note to update the submodule's repo, you can update to the latest master with:
-
-```
-git submodule foreach git pull origin master
-```
+There are two libraries `anonlink` and `clkhash` which should be installed in your 
+virtual environment for local development. Building the Docker container will pull
+these libraries from the CSIRO internal jenkins.  
 
 
 ### Volumes

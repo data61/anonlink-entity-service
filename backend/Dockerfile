@@ -10,7 +10,7 @@ RUN (pip install --upgrade pip setuptools; \
 
 ADD requirements.txt /var/www/requirements.txt
 
-# There are two internal libraries that can be installed from a Python wheel
+# There are two internal libraries that are installed from Python wheels:
 RUN pip install https://magic-ci-atp.it.csiro.au/job/clkhash/job/master/lastSuccessfulBuild/artifact/dist/clkhash-0.7.3-py3-none-any.whl
 RUN pip install https://magic-ci-atp.it.csiro.au/job/anonlink/job/master/lastSuccessfulBuild/artifact/dist/anonlink-0.5.0-cp35-cp35m-linux_x86_64.whl
 
