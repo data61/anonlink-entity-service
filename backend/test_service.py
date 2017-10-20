@@ -13,7 +13,9 @@ import requests
 import unittest
 
 import anonlink.distributed_processing
-from anonlink import randomnames, entitymatch, bloomfilter
+from anonlink import entitymatch
+from clkhash import randomnames, bloomfilter
+from clkhash.schema import get_schema_types
 
 from phe import paillier, util
 from serialization import *
@@ -688,10 +690,10 @@ def generate_test_data(dataset_size=1000):
 
     logger.info("Locally hashing party A identity data to create bloom filters")
     keys = ('something', 'secret')
-    filters1 = anonlink.concurrent.bloom_filters(s1, nl.schema, keys)
+    filters1 = anonlink.distributed_processing.bloom_filters(s1, get_schema_types(nl.schema), keys)
 
     logger.info("Locally hashing party B identity data to create bloom filters")
-    filters2 = anonlink.concurrent.bloom_filters(s2, nl.schema, keys)
+    filters2 = anonlink.distributed_processing.bloom_filters(s2, get_schema_types(nl.schema), keys)
 
     logger.info("Serialising bloom filters")
     party1_filters = serialize_filters(filters1)

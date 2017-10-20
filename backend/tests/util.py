@@ -3,7 +3,7 @@ import time
 import unittest
 
 import anonlink
-from anonlink import randomnames
+from clkhash import randomnames
 from anonlink.util import generate_clks
 
 import math

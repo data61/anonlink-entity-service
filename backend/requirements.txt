@@ -13,5 +13,5 @@ setproctitle
 minio==2.0.6
 ijson==2.3
 bitmath
-#-e ./AnonymousLinking
-#-e git+ssh://git@github.csiro.au/magic/AnonymousLinking.git#egg=anonlink
+https://magic-ci-atp.it.csiro.au/job/clkhash/job/master/lastSuccessfulBuild/artifact/dist/clkhash-0.7.3-py3-none-any.whl
+https://magic-ci-atp.it.csiro.au/job/anonlink/job/feature-remove-clkhash-code/lastSuccessfulBuild/artifact/dist/anonlink-0.6.0-cp35-cp35m-linux_x86_64.whl
