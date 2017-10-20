@@ -2,7 +2,6 @@ FROM python:3.5
 
 MAINTAINER "Brian Thorne <brian@thorne.link>"
 EXPOSE 8000
-WORKDIR /var/www
 
 # libmpc-dev is necessary to setup gmpy2
 RUN (pip install --upgrade pip setuptools; \
@@ -14,6 +13,8 @@ ADD lib /var/src
 
 RUN cd /var/src/AnonymousLinking && pip install -U -r requirements.txt && pip install -e .
 RUN cd /var/src/clkhash && pip install -U -r requirements.txt && pip install -e .
+
+WORKDIR /var/www
 
 RUN pip install -U -r requirements.txt
 RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)"
