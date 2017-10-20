@@ -1,6 +1,8 @@
 void setBuildStatus(String message, String state) {
   step([
     $class: "GitHubCommitStatusSetter",
+    reposSource: [$class: "ManuallyEnteredRepositorySource", url: "https://github.com/n1analytics/entity-service"],
+    contextSource: [$class: 'ManuallyEnteredCommitContextSource', context: 'jenkins'],
     statusResultSource: [ $class: "ConditionalStatusResultSource", results: [[$class: "AnyBuildResult", message: message, state: state]] ]
   ]);
 }
@@ -20,9 +22,9 @@ node('docker') {
     try {
       sh """
         cd backend
-        docker build -t quay.io/n1analytics/entity-app:${env.BUILD_TAG} .
+        docker build -t quay.io/n1analytics/entity-app .
         cd ../frontend
-        docker build -t quay.io/n1analytics/entity-nginx:${env.BUILD_TAG} .
+        docker build -t quay.io/n1analytics/entity-nginx .
       """
 
       currentBuild.result = 'SUCCESS'
@@ -33,31 +35,41 @@ node('docker') {
     }
   }
 
-  stage('Compose Deploy') {
-    try {
+  try {
+
+    stage('Compose Deploy') {
+
         sh '''
-          docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p n1webtest up -d
+        # Stop and remove any existing entity service
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down -v
+
+        # Start all the containers (including tests)
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
         '''
+
         currentBuild.result = 'SUCCESS'
         setBuildStatus("Build complete", "SUCCESS");
-    } catch (Exception err) {
-        currentBuild.result = 'FAILURE'
-        setBuildStatus("Tests failed", "FAILURE");
-    }
-  }
 
-  stage('Integration Tests') {
-    try {
+      }
+
+      stage('Integration Tests') {
+
         sh '''
+          sleep 2
           docker logs -t -f entityservicetest_ci_1
           exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci_1`
         '''
         currentBuild.result = 'SUCCESS'
         setBuildStatus("Integration tests complete", "SUCCESS");
-    } catch (Exception err) {
+
+      }
+
+  } catch (Exception err) {
         currentBuild.result = 'FAILURE'
         setBuildStatus("Tests failed", "FAILURE");
-    }
+  } finally {
+    sh './tools/ci_cleanup.sh'
   }
+
 
 }
