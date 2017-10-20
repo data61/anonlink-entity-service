@@ -9,10 +9,10 @@ RUN (pip install --upgrade pip setuptools; \
      apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2 libstdc++6)
 
 ADD requirements.txt /var/www/requirements.txt
-ADD lib /var/src
 
-RUN cd /var/src/AnonymousLinking && pip install -U -r requirements.txt && pip install -e .
-RUN cd /var/src/clkhash && pip install -U -r requirements.txt && pip install -e .
+# There are two internal libraries that can be installed from a Python wheel
+RUN pip install https://magic-ci-atp.it.csiro.au/job/clkhash/job/master/lastSuccessfulBuild/artifact/dist/clkhash-0.7.3-py3-none-any.whl
+RUN pip install https://magic-ci-atp.it.csiro.au/job/anonlink/job/master/lastSuccessfulBuild/artifact/dist/anonlink-0.5.0-cp35-cp35m-linux_x86_64.whl
 
 WORKDIR /var/www
 
