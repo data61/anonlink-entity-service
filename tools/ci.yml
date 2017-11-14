@@ -10,7 +10,7 @@ services:
       - ENTITY_SERVICE_TEST_SIZE=1000
       - ENTITY_SERVICE_PERMUTATION=true
       - ENTITY_SERVICE_TEST_REPEATS=1
-      - INITIAL_DELAY=30
+      - INITIAL_DELAY=60
     entrypoint: python test_service.py
     depends_on:
       - db
