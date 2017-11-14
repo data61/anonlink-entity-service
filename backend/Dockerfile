@@ -10,7 +10,6 @@ RUN (pip install --upgrade pip setuptools; \
 
 ADD requirements.txt /var/www/requirements.txt
 
-
 WORKDIR /var/www
 
 RUN pip install -U -r requirements.txt
