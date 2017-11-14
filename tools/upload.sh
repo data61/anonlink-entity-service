@@ -29,3 +29,5 @@ docker tag quay.io/n1analytics/entity-nginx:latest quay.io/n1analytics/entity-ng
 echo "Pushing images to quay.io";
 docker push quay.io/n1analytics/entity-app:${ENTITY_APP_LABEL};
 docker push quay.io/n1analytics/entity-nginx:${ENTITY_NGINX_LABEL};
+
+echo "Images uploaded";

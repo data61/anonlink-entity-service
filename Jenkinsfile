@@ -76,7 +76,6 @@ node('docker') {
             sh '''
               ./tools/upload.sh
             '''
-          }
         } catch (Exception err) {
           currentBuild.result = 'FAILURE'
           setBuildStatus("Build failed", "FAILURE");
@@ -85,6 +84,7 @@ node('docker') {
 
         sh 'docker logout quay.io'
       }
+    }
 
   } catch (err) {
         currentBuild.result = 'FAILURE'
