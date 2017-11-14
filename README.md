@@ -5,18 +5,13 @@
 Allows two organizations to carry out private record linkage - without
 disclosing personally identifiable information.
 
-- Deployed to https://es.data61.xyz
+- Deployed to https://es.data61.xyz/api/v1/status
 - Jupyter notebook with tutorial available at: https://jupyter.es.data61.xyz
 
 
 ## Documentation
 
-The [docs](./docs) folder contains the services
-documentation. In a release this will be html documents. These
-can be served using Python's built in webserver:
-
-    cd docs
-    python -m http.server
+The [docs](./docs) folder contains the service's documentation. 
 
 
 ### Building the docs
