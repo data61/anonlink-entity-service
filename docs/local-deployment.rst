@@ -32,39 +32,23 @@ This will start the following containers:
 -  redis job queue (named ``n1es_redis_1``)
 -  minio object store
 
-The service can be accessed by connecting to port ``8851`` of the nginx container.
-The local ip of the nginx container can be found with::
+The REST api for the service is exposed on port ``8851`` of the nginx container, which docker
+will map to a high numbered port on your host.
 
-    docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' n1es_nginx_1
+The address of the nginx endpoint can be found with::
+
+    docker port n1es_nginx_1 "8851"
 
 For example to `GET` the service status::
 
-    $ export ES_NGINX_IP=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' n1es_nginx_1`
-    $ curl $ES_NGINX_IP:8851/api/v1/status
+    $ export ENTITY_SERVICE=`docker port n1es_nginx_1 "8851"`
+    $ curl $ENTITY_SERVICE/api/v1/status
     {
         "status": "ok",
         "number_mappings": 0,
         "rate": 1
     }
 
-
-To expose the service on the host simply modify the ``docker-compose.yml`` file from::
-
-      nginx:
-        image: quay.io/n1analytics/entity-nginx
-        ports:
-          - 8851
-
-
-to::
-
-      nginx:
-        image: quay.io/n1analytics/entity-nginx
-        ports:
-          - "8851:8851"
-
-
-Which will bind to the host's port.
 
 Testing with docker-compose
 ---------------------------
