@@ -16,10 +16,10 @@ node('docker') {
   withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
     sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
   }
+  try {
 
+    stage('Docker Build') {
 
-  stage('Docker Build') {
-    try {
       sh """
         cd backend
         docker build -t quay.io/n1analytics/entity-app .
@@ -28,14 +28,9 @@ node('docker') {
       """
 
       currentBuild.result = 'SUCCESS'
-      setBuildStatus("Docker build complete", "SUCCESS");
-    } catch (Exception err) {
-      currentBuild.result = 'FAILURE'
-      setBuildStatus("Docker build failed", "FAILURE");
-    }
-  }
+      setBuildStatus("Docker build complete", "PENDING");
 
-  try {
+    }
 
     stage('Compose Deploy') {
 
@@ -48,8 +43,7 @@ node('docker') {
         '''
 
         currentBuild.result = 'SUCCESS'
-        setBuildStatus("Build complete", "SUCCESS");
-
+        setBuildStatus("Integration test in progress", "PENDING");
       }
 
       stage('Integration Tests') {
@@ -66,10 +60,9 @@ node('docker') {
 
   } catch (Exception err) {
         currentBuild.result = 'FAILURE'
-        setBuildStatus("Tests failed", "FAILURE");
+        setBuildStatus("Integration tests failed", "FAILURE");
   } finally {
     sh './tools/ci_cleanup.sh'
   }
-
 
 }

@@ -76,7 +76,7 @@ services:
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - "8851:8851"
+      - 8851
     depends_on:
       - backend
     environment:
