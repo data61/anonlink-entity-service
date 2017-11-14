@@ -14,7 +14,7 @@ From the project folder, run::
 
     ./tools/build.sh
 
-The will create the images used by ``docker-compose``.
+The will create the docker images tagged with `latest` which are used by ``docker-compose``.
 
 Run
 ~~~~
@@ -32,9 +32,39 @@ This will start the following containers:
 -  redis job queue (named ``n1es_redis_1``)
 -  minio object store
 
-All these containers will be on the docker network ``n1es_es_network``.
+The service can be accessed by connecting to port ``8851`` of the nginx container.
+The local ip of the nginx container can be found with::
 
-The service should be exposed on port ``8851`` of the host machine.
+    docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' n1es_nginx_1
+
+For example to `GET` the service status::
+
+    $ export ES_NGINX_IP=`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' n1es_nginx_1`
+    $ curl $ES_NGINX_IP:8851/api/v1/status
+    {
+        "status": "ok",
+        "number_mappings": 0,
+        "rate": 1
+    }
+
+
+To expose the service on the host simply modify the ``docker-compose.yml`` file from::
+
+      nginx:
+        image: quay.io/n1analytics/entity-nginx
+        ports:
+          - 8851
+
+
+to::
+
+      nginx:
+        image: quay.io/n1analytics/entity-nginx
+        ports:
+          - "8851:8851"
+
+
+Which will bind to the host's port.
 
 Testing with docker-compose
 ---------------------------
@@ -48,7 +78,8 @@ this can be added in to run along with the rest of the service::
 
     docker-compose -p n1estest -f tools/docker-compose.yml -f tools/ci.yml down
 
-# Data generation
+Data generation
+---------------
 
 ::
 
