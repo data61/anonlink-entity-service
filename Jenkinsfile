@@ -67,6 +67,24 @@ node('docker') {
       }
     }
 
+    stage('Publish') {
+      // Login to quay.io
+      withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
+        sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
+
+        try {
+            sh '''
+              ./tools/upload.sh
+            '''
+        } catch (Exception err) {
+          errorMsg = "Publishing docker images to quay.io failed", "FAILURE";
+          throw err
+        }
+
+        sh 'docker logout quay.io'
+      }
+    }
+
   } catch (err) {
         currentBuild.result = 'FAILURE'
         setBuildStatus(errorMsg,  "FAILURE");
