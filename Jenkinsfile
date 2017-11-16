@@ -77,8 +77,7 @@ node('docker') {
               ./tools/upload.sh
             '''
         } catch (Exception err) {
-          currentBuild.result = 'FAILURE'
-          setBuildStatus("Build failed", "FAILURE");
+          errorMsg = "Publishing docker images to quay.io failed", "FAILURE";
           throw err
         }
 
