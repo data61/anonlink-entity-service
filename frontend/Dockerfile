@@ -1,4 +1,4 @@
-FROM nginx
+FROM nginx:1.13
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
 

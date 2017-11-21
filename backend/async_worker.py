@@ -601,30 +601,110 @@ def save_current_progress(comparisons, resource_id):
 @celery.task()
 def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
     sparse_matrix = []
-
+    # Need to handle a single result group because 'chord(array_of_tasks, next_task)' won't wrap the
+    # result in a list when there is only one task in the array.
+    # (See https://github.com/celery/celery/issues/3597)
     if all(len(sparse_result_group) == 3 for sparse_result_group in sparse_result_groups):
-        logger.debug("Possible that we only had one task chunk")
+        logger.debug("Only received one task chunk")
         sparse_matrix = sparse_result_groups
     else:
         logger.debug("Aggregating chunks")
         for partial_sparse_result in sparse_result_groups:
             sparse_matrix.extend(partial_sparse_result)
 
-    logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
-    mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+    db = connect_db()
+    _, _, result_type = check_mapping_ready(db, resource_id)
 
-    logger.debug("Converting all indicies to strings")
-    for key in mapping:
-        mapping[key] = str(mapping[key])
+    if result_type == "similarity_scores":
+        logger.info("Store the similarity scores in a CSV file")
+        store_similarity_scores.delay(sparse_matrix, resource_id)
+    else:
+        # As we have the entire sparse matrix in memory at this point we directly compute the mapping
+        # instead of re-serializing and calling another task
+        logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
+        mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
-    logger.info("Entity mapping has been computed")
+        logger.debug("Converting all indices to strings")
+        for key in mapping:
+            mapping[key] = str(mapping[key])
 
-    res = {
-        "mapping": mapping,
-        "lenf1": lenf1,
-        "lenf2": lenf2
-    }
-    save_and_permute.delay(res, resource_id)
+        logger.info("Entity mapping has been computed")
+
+        res = {
+            "mapping": mapping,
+            "lenf1": lenf1,
+            "lenf2": lenf2
+        }
+        save_and_permute.delay(res, resource_id)
+
+
+@celery.task()
+def store_similarity_scores(similarity_scores, resource_id):
+    """
+    Stores the similarity scores above a similarity threshold as a CSV in minio.
+
+    :param similarity_scores: a list of tuples consisting of:
+                                - the index of an entity from dataprovider 1
+                                - the similarity score between 0 and 1 of the best match
+                                - the index of an entity from dataprovider 1
+    :param resource_id: the resource ID of the mapping
+    """
+    filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(resource_id)
+
+    # Generate a CSV-like string from aggregated chunks
+    # Also need to make sure this can handle very large list
+    def csv_generator():
+        for row in similarity_scores:
+            # Rearrange the elements in the row from
+            #   `entity_1`, `score`, `entity_2`
+            # to
+            #   `entity_1`, `entity_2`, `score`
+            # before storing the row in a CSV file
+            row[0], row[1], row[2] = row[0], row[2], row[1]
+            content = ','.join(map(str, row)).encode() + b'\n'
+            yield content
+
+    data = b''.join(csv_generator())
+    buffer = io.BytesIO(data)
+
+    logger.debug("Store the the aggregated chunks")
+    mc = connect_to_object_store()
+    mc.put_object(
+        config.MINIO_BUCKET,
+        filename,
+        data=buffer,
+        length=len(data),
+        content_type='application/csv'
+    )
+
+    db = connect_db()
+    logger.debug("Storing the CSV filename: {}".format(filename))
+    with db.cursor() as cur:
+        result_id = execute_returning_id(cur, """
+            INSERT into similarity_scores
+              (mapping, file)
+            VALUES
+              (%s, %s)
+            RETURNING id;
+            """,
+            [
+                resource_id, filename
+            ])
+    db.commit()
+    logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
+
+    # Complete mapping job
+    logger.debug("Mark mapping job as complete")
+    mark_mapping_complete.delay(resource_id)
+
+    # Post similarity computation cleanup
+    logger.debug("Removing clk filters from redis cache")
+
+    dp_ids = get_dataprovider_ids(db, resource_id)
+    cache.remove_from_cache(dp_ids[0])
+    cache.remove_from_cache(dp_ids[1])
+    calculate_comparison_rate.delay()
+
 
 
 @celery.task()

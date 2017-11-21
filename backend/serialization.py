@@ -123,3 +123,28 @@ def load_public_key(pk):
     assert 'n' in pk, MALFORMED_ERROR
     n = phe.util.base64_to_int(pk['n'])
     return paillier.PaillierPublicKey(n+1, n)
+
+
+def generate_scores(csv_text_stream):
+    """
+    Processes a TextIO stream of csv similarity scores into
+    a json generator.
+
+    """
+    yield '{"similarity_scores": ['
+    line_iter = csv_text_stream.__iter__()
+
+    try:
+        prev_line = next(line_iter)
+    except StopIteration:
+        # Must have been an empty file, so close json object and stop iteration
+        yield "]}"
+        return
+
+    for line in line_iter:
+        yield '[{}],'.format(prev_line.strip())
+        prev_line = line
+
+    # Yield the last line without a trailing comma, instead close the json object
+    yield '[{}]'.format(prev_line.strip())
+    yield ']}'

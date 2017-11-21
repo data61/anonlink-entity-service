@@ -5,6 +5,12 @@ Changelog
 =========
 
 
+Version 1.7.0 (2017-10-10)
+--------------------------
+
+Added a view type that returns similarity scores of potential matches.
+
+
 Version 1.6.8 (2017-08-21)
 --------------------------
 

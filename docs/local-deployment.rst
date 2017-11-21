@@ -14,7 +14,7 @@ From the project folder, run::
 
     ./tools/build.sh
 
-The will create the images used by ``docker-compose``.
+The will create the docker images tagged with `latest` which are used by ``docker-compose``.
 
 Run
 ~~~~
@@ -32,9 +32,23 @@ This will start the following containers:
 -  redis job queue (named ``n1es_redis_1``)
 -  minio object store
 
-All these containers will be on the docker network ``n1es_es_network``.
+The REST api for the service is exposed on port ``8851`` of the nginx container, which docker
+will map to a high numbered port on your host.
 
-The service should be exposed on port ``8851`` of the host machine.
+The address of the nginx endpoint can be found with::
+
+    docker port n1es_nginx_1 "8851"
+
+For example to `GET` the service status::
+
+    $ export ENTITY_SERVICE=`docker port n1es_nginx_1 "8851"`
+    $ curl $ENTITY_SERVICE/api/v1/status
+    {
+        "status": "ok",
+        "number_mappings": 0,
+        "rate": 1
+    }
+
 
 Testing with docker-compose
 ---------------------------
@@ -48,7 +62,8 @@ this can be added in to run along with the rest of the service::
 
     docker-compose -p n1estest -f tools/docker-compose.yml -f tools/ci.yml down
 
-# Data generation
+Data generation
+---------------
 
 ::
 

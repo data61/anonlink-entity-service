@@ -1,3 +1,0 @@
-[submodule "backend/AnonymousLinking"]
-	path = backend/AnonymousLinking
-	url = git@github.com:n1analytics/anonlink.git

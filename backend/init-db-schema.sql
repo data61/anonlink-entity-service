@@ -3,7 +3,8 @@ DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
   'permutation',
-  'permutation_unencrypted_mask');
+  'permutation_unencrypted_mask',
+  'similarity_scores');
 
 
 -- The table of entity matching jobs
@@ -91,6 +92,18 @@ CREATE TABLE mapping_results (
 
   -- the mapping result as json blob
   result      JSONB
+);
+
+
+-- Store the CSV file name containing the similarity scores
+CREATE TABLE similarity_scores (
+  -- Just the table index
+  id          SERIAL PRIMARY KEY,
+
+  mapping     CHAR(48) REFERENCES mappings (resource_id),
+
+  -- The name of CSV file containing the score results
+  file        CHAR(70) NOT NULL
 );
 
 

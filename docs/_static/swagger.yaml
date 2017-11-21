@@ -182,8 +182,10 @@ paths:
         The options are:
       
           * `"permutation"` - Create a random permutation and Paillier encrypted mask.
-          * `"mapping"` - Directly output a lookup table of `indexA = indexB`
+          * `"mapping"` - Directly output a lookup table of `indexA = indexB`.
           * `"permutation_unencrypted_mask"` - Create a random permutation and an unencrypted mask.
+          * `"similarity_scores"` - Output a list of similarity scores of `[indexA, indexB, score]`, where `score`
+            represents the likelihood that `indexA = indexB`.
 
         
         
@@ -213,7 +215,7 @@ paths:
         
         Token source depends on the mapping's `result_type`.
         
-        - if the `result_type` is `"mapping"` then `token` is provided when initially
+        - if the `result_type` is `"mapping"` or `"similarity_scores"` then `token` is provided when initially
           creating the mapping (as `result-token`).
         - if the `result_type` is `"permutation"` then `token` is obtained when organisations
           add data to the mapping (as `receipt-token`)
@@ -242,6 +244,31 @@ paths:
             }
 
         
+        ### result_type = "similarity_scores"
+
+        The list of the indices of potential matches and their similarity score
+        where the similarity score is greater than the mapping threshold.
+        Data is returned as `json` object e.g.,
+
+            {
+                "similarity_scores":
+                    [
+                        [5, 27, 1.0],
+                        [14, 10, 1.0]
+                    ]
+            }
+
+
+        The element in the list is of the following format `[indexA, indexB, score]`,
+        where `indexA` refers to the index of entity from data provider 1, `indexB` is the index of entity
+        from data provider 2 that is a potential match to entity in `indexA`, and `score` is the similarity score
+        representing the likelihood that entity in `indexA` and entity in `indexB` is a match.
+
+        `indexA` and `indexB` starts from 0.
+
+        The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
+        and 1.0 corresponds to total match.
+
         ### result_type = "permutation"
         
         The permutation, and mask specific for the calling organisation.
@@ -304,6 +331,9 @@ paths:
             $ref: '#/definitions/AuthError'
         '403':
           description: Invalid authentication or mapping not found.
+        '500':
+          description: |
+            Fail to return similarity scores either because the corresponding CSV file cannot be found or is corrupted.
         '503':
           description: |
             Mapping is not yet ready. Includes progress object

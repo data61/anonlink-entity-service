@@ -5,25 +5,20 @@
 Allows two organizations to carry out private record linkage - without
 disclosing personally identifiable information.
 
-- Deployed to https://es.data61.xyz
+- Deployed to https://es.data61.xyz/api/v1/status
 - Jupyter notebook with tutorial available at: https://jupyter.es.data61.xyz
 
 
 ## Documentation
 
-The [docs](./docs) folder contains the services
-documentation. In a release this will be html documents. These
-can be served using Python's built in webserver:
-
-    cd docs
-    python -m http.server
+The [docs](./docs) folder contains the service's documentation. 
 
 
 ### Building the docs
 
 To build and serve the html docs run:
 
-    pip install -f docs/doc-requirements.txt
+    pip install -r docs/doc-requirements.txt
     sphinx-build -b html docs n1esdocs
     cd n1esdocs
     python -m http.server
@@ -101,7 +96,7 @@ Then use the previous command with `-e ENTITY_SERVICE_URL=http://<container-ip-o
 An additional docker-compose config file can be found in `./tools/ci.yml`,
 this can be added in to run along with the rest of the service:
 
-    docker-compose -f tools/docker-compose.yml -f ci.yml -p entityservicetest up -d
+    docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
 
 
 # Data generation
@@ -115,22 +110,9 @@ Note: the folder in which the generated data will be stored need to be existing.
 
 ## Development Tips
 
-### Checking out the code
-
-This repository uses [git submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules), so to clone
-use `git clone --recursive git@github.com:n1analytics/entity-service.git` or you will have to run either
-`tools/update.sh` or:
-
-```
-git submodule init
-git submodule update
-```
-
-Note to update the submodule's repo, you can update to the latest master with:
-
-```
-git submodule foreach git pull origin master
-```
+There are two libraries `anonlink` and `clkhash` which should be installed in your 
+virtual environment for local development. Building the Docker container will pull
+these libraries from the CSIRO internal jenkins.  
 
 
 ### Volumes
