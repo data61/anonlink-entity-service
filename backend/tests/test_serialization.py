@@ -5,7 +5,7 @@ import random
 import json
 from bitarray import bitarray
 from serialization import deserialize_bitarray, generate_scores
-from .util import serialize_bitarray
+from tests.util import serialize_bitarray
 
 
 def random_bitarray(l=1024):
@@ -24,7 +24,6 @@ class SerializationTest(unittest.TestCase):
         banew = deserialize_bitarray(serialized_bitarray1)
 
         self.assertEqual(banew, ba)
-
 
     def test_random_bitarray(self):
         ba = random_bitarray(2048)

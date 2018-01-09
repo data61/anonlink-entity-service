@@ -164,7 +164,6 @@ class TestMappingTests(MappingTestsBase):
         response = requests.get(self.url + '/mappings/{}'.format(new_map['resource_id']),
                                 headers={'Authorization': new_map['result_token']})
 
-        print(response)
         mapping_result = response.json()['mapping']
         self.assertGreater(len(mapping_result), 70)
         self.assertLess(len(mapping_result), 80)
