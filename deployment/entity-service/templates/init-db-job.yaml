@@ -2,37 +2,47 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: entityservice-init-db
+  labels:
+    # The "heritage" label is used to track which tool deployed a given chart.
+    # It is useful for admins who want to see what releases a particular tool
+    # is responsible for.
+    heritage: {{ .Release.Service }}
+    # The "release" convention makes it easy to tie a release to all of the
+    # Kubernetes resources that were created as part of that release.
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    app: {{ template "fullname" . }}
+    tier: aux
+  annotations:
+    # This job only gets executed on install, not after an upgrade.
+    # Manual intervention (or a job with a post-upgrade hook) is required to migrate a
+    # production database.
+    "helm.sh/hook": post-install
 spec:
   template:
     metadata:
+      name: {{ template "fullname" . }}
       labels:
+        release: {{ .Release.Name }}
         app: {{ template "fullname" . }}
-        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-        tier: aux
-      annotations:
-        # This job only gets executed on install, not after an upgrade.
-        # Manual intervention (or a job with a post-upgrade hook) is required to migrate a
-        # production database.
-        "helm.sh/hook": post-install
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: db-init
-        image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
-        env:
-          - name: DATABASE_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: postgresPassword
-          - name: DEBUG
-            value: {{default "false" .Values.api.app.debug | quote }}
-          - name: FLASK_APP
-            value: entityservice.py
-        command:
-          - "flask"
-          - "initdb"
-      imagePullSecrets:
-        - name: {{ template "name" . }}-pull-secret
+    restartPolicy: Never
+    containers:
+    - name: db-init
+      image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
+      env:
+        - name: DATABASE_SERVER
+          value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: postgresPassword
+        - name: DEBUG
+          value: {{default "false" .Values.api.app.debug | quote }}
+        - name: FLASK_APP
+          value: entityservice.py
+      command:
+        - "flask"
+        - "initdb"
+    imagePullSecrets:
+      - name: {{ template "name" . }}-pull-secret
