@@ -13,8 +13,10 @@ import requests
 import unittest
 
 import anonlink.distributed_processing
-from anonlink import entitymatch
-from clkhash import randomnames, bloomfilter
+
+from clkhash import randomnames, clk
+from clkhash.bloomfilter import calculate_bloom_filters
+from clkhash.key_derivation import generate_key_lists
 from clkhash.schema import get_schema_types
 
 from phe import paillier, util
@@ -690,14 +692,15 @@ def generate_test_data(dataset_size=1000):
 
     logger.info("Locally hashing party A identity data to create bloom filters")
     keys = ('something', 'secret')
-    filters1 = anonlink.distributed_processing.bloom_filters(s1, get_schema_types(nl.schema), keys)
+    filters1 = calculate_bloom_filters(s1, nl.schema_types, generate_key_lists(keys, len(nl.schema_types)))
 
     logger.info("Locally hashing party B identity data to create bloom filters")
-    filters2 = anonlink.distributed_processing.bloom_filters(s2, get_schema_types(nl.schema), keys)
+    filters2 = calculate_bloom_filters(s2, nl.schema_types, generate_key_lists(keys, len(nl.schema_types)))
 
     logger.info("Serialising bloom filters")
     party1_filters = serialize_filters(filters1)
     party2_filters = serialize_filters(filters2)
+
     logger.info("Data generation complete")
     return party1_filters, party2_filters, s1, s2
 
@@ -758,8 +761,6 @@ if __name__ == "__main__":
 
     logger.info("Waiting for {} seconds.".format(initial_delay))
     time.sleep(initial_delay)
-
-    # server_status_test()
 
     if do_timing:
         logger.info("Carrying out timing benchmark")
