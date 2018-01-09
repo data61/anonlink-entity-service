@@ -29,14 +29,14 @@ api:
 
   www:
     image: "entity-nginx"
-    tag: "v1.3.1"
+    tag: "v1.3.2"
     memory: 256Mi
     cpu: 200m
     containerPort: 8851
   app:
     image: "entity-app"
     memory: 1Gi
-    tag: "v1.7.0"
+    tag: "v1.7.1"
     debug: "false"
     containerPort: 8000
   Replicas: 1
@@ -44,7 +44,7 @@ api:
 workers:
   imageRegistery: "quay.io/n1analytics"
   image: "entity-app"
-  tag: "v1.7.0"
+  tag: "v1.7.1"
   replicas: 1
   debug: "false"
 
