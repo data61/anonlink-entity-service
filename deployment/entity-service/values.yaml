@@ -88,10 +88,10 @@ postgresql:
     enabled: true
     storageClass: "default"
     size: 8Gi
-  imageTag: 9.6.5
+  imageTag: 10
   imagePullPolicy: IfNotPresent
   metrics:
-    enabled: false
+    enabled: true
   resources:
     limits:
       memory: 8Gi
@@ -107,7 +107,7 @@ redis:
     storageClass: "default"
     size: "50Gi"
   metrics:
-    enabled: false
+    enabled: true
   resources:
     requests:
       memory: 8Gi
