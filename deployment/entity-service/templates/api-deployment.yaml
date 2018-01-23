@@ -2,78 +2,94 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-api
+  labels:
+    app: {{ template "fullname" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Values.api.name }}"
+    heritage: {{ .Release.Service }}
+    tier: frontend
+    release: {{ .Release.Name }}
 spec:
-  replicas: {{ .Values.api.Replicas }}
+  replicas: {{ .Values.api.replicaCount }}
+  {{- if .Values.api.strategy }}
+  strategy:
+{{ toYaml .Values.api.strategy | indent 4 }}
+  {{- end }}
   template:
     metadata:
+    {{- if .Values.api.podAnnotations }}
+      annotations:
+{{ toYaml .Values.api.podAnnotations | indent 8 }}
+    {{- end }}
       labels:
         app: {{ template "fullname" . }}
+        component: "{{ .Values.api.name }}"
+        release: {{ .Release.Name }}
         tier: frontend
-        run: entityservice-api
-        chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     spec:
+      serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}
+
       containers:
-      - name: entityservice-nginx
-        image: {{ .Values.api.imageRegistery}}/{{ .Values.api.www.image }}:{{ .Values.api.www.tag }}
-        imagePullPolicy: {{ .Values.api.imagePullPolicy }}
-        resources:
-          requests:
-            memory: {{ .Values.api.www.memory }}
-        ports:
-        - containerPort: {{ .Values.api.www.containerPort }}
-          name: entity-nginx
-        env:
-          - name: TARGET_SERVICE
-            value: localhost
-        lifecycle:
-          preStop:
-            exec:
-              # SIGTERM triggers a quick exit; gracefully terminate instead
-              command: ["/usr/sbin/nginx","-s","quit"]
-      - name: entityservice-flask
-        image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
-        imagePullPolicy: {{ .Values.api.imagePullPolicy }}
-        resources:
-          requests:
-            memory: {{ .Values.api.app.memory }}
-        env:
-          - name: REDIS_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: redisPassword
-          - name: DATABASE_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: postgresPassword
-          - name: DEBUG
-            value: {{default "false" .Values.api.app.debug | quote }}
-          - name: MINIO_SERVER
-            value: "{{ .Release.Name }}-minio-svc:9000"
-          - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: minioAccessKey
-          - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: minioSecretKey
-        ports:
-          - containerPort: {{ .Values.api.app.containerPort }}
-            name: entity-flask
-        livenessProbe:
-          httpGet:
-            path: /status
-            port: entity-flask
-          initialDelaySeconds: 10
-          periodSeconds: 300
-          timeoutSeconds: 30
+        # TODO add hash of config e.g. .Values.configmapReload.name
+        - name: entityservice-nginx
+          image: {{ .Values.api.www.image.repository}}:{{ .Values.api.www.image.tag }}
+          imagePullPolicy: {{ .Values.api.www.pullPolicy }}
+          resources:
+{{ toYaml .Values.api.www.resources | indent 12 }}
+          ports:
+            - containerPort: 8851
+              name: entity-nginx
+          env:
+            - name: TARGET_SERVICE
+              value: localhost
+          lifecycle:
+            preStop:
+              exec:
+                # SIGTERM triggers a quick exit; gracefully terminate instead
+                command: ["/usr/sbin/nginx","-s","quit"]
+        - name: entityservice-flask
+          image: {{ .Values.api.app.image.repository}}:{{ .Values.api.app.image.tag }}
+          imagePullPolicy: {{ .Values.api.app.pullPolicy }}
+          resources:
+{{ toYaml .Values.api.app.resources | indent 12 }}
+          env:
+            - name: REDIS_SERVER
+              value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: redisPassword
+            - name: DATABASE_SERVER
+              value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: postgresPassword
+            - name: DEBUG
+              value: {{default "false" .Values.api.app.debug | quote }}
+            - name: MINIO_SERVER
+              value: "{{ .Release.Name }}-minio-svc:9000"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: minioAccessKey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: minioSecretKey
+          ports:
+            - containerPort: 8000
+              name: entity-flask
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: entity-flask
+            initialDelaySeconds: 10
+            periodSeconds: 300
+            timeoutSeconds: 30
       imagePullSecrets:
         - name: {{ template "name" . }}-pull-secret

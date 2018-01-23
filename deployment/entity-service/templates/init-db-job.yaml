@@ -28,7 +28,7 @@ spec:
     restartPolicy: Never
     containers:
     - name: db-init
-      image: {{ .Values.api.imageRegistery }}/{{ .Values.api.app.image }}:{{ .Values.api.app.tag }}
+      image: {{ .Values.api.image.repository }}:{{ .Values.api.app.tag }}
       env:
         - name: DATABASE_SERVER
           value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"

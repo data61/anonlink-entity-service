@@ -1,81 +1,98 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
+  labels:
+    app: {{ template "fullname" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: "{{ .Values.workers.name }}"
+    heritage: {{ .Release.Service }}
+    tier: backend
+    release: {{ .Release.Name }}
   name: {{ template "name" . }}-worker
 spec:
-  replicas: {{ .Values.workers.replicas }}
+  replicas: {{ .Values.workers.replicaCount }}
+  {{- if .Values.workers.strategy }}
+  strategy:
+{{ toYaml .Values.workers.strategy | indent 4 }}
+  {{- end }}
   template:
     metadata:
+    {{- if .Values.workers.podAnnotations }}
+      annotations:
+{{ toYaml .Values.workers.podAnnotations | indent 8 }}
+    {{- end }}
       labels:
-        release: {{ .Release.Name }}
-        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
         app: {{ template "fullname" . }}
+        component: "{{ .Values.workers.name }}"
+        release: {{ .Release.Name }}
         tier: backend
-        run: entityservice-worker
     spec:
       containers:
-      - name: celery-worker
-        image: {{ .Values.workers.imageRegistery }}/{{ .Values.workers.image }}:{{ .Values.workers.tag }}
-        imagePullPolicy: Always
-        resources:
-{{ toYaml .Values.workers.resources | indent 10 }}
-        env:
-          - name: REDIS_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: redisPassword
-          - name: DATABASE_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: postgresPassword
-          - name: DEBUG
-            value: {{ .Values.workers.debug | quote }}
-          - name: ENTITY_MATCH_THRESHOLD
-            value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
-          - name: SMALL_COMPARISON_CHUNK_SIZE
-            value: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
-          - name: LARGE_COMPARISON_CHUNK_SIZE
-            value: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
-          - name: SMALL_JOB_SIZE
-            value: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
-          - name: LARGE_JOB_SIZE
-            value: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
-          - name: CELERYD_PREFETCH_MULTIPLIER
-            value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
-          - name: CELERYD_MAX_TASKS_PER_CHILD
-            value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
-          - name: CELERY_ACKS_LATE
-            value: {{ .Values.workers.celery.ACKS_LATE | quote }}
-          - name: ENCRYPTION_MIN_KEY_LENGTH
-            value: "1024"
-          - name: MINIO_SERVER
-            value: "{{ .Release.Name }}-minio-svc:9000"
-          - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: minioAccessKey
-          - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "fullname" . }}
-                key: minioSecretKey
+        - name: celery-worker
+          image: {{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}
+          imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
+          resources:
+{{ toYaml .Values.workers.resources | indent 12 }}
+          env:
+            - name: REDIS_SERVER
+              value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: redisPassword
+            - name: DATABASE_SERVER
+              value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: postgresPassword
+            - name: DEBUG
+              value: {{ .Values.workers.debug | quote }}
+            - name: ENTITY_MATCH_THRESHOLD
+              value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
+            - name: SMALL_COMPARISON_CHUNK_SIZE
+              value: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
+            - name: LARGE_COMPARISON_CHUNK_SIZE
+              value: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
+            - name: SMALL_JOB_SIZE
+              value: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
+            - name: LARGE_JOB_SIZE
+              value: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
+            - name: CELERYD_PREFETCH_MULTIPLIER
+              value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
+            - name: CELERYD_MAX_TASKS_PER_CHILD
+              value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
+            - name: CELERY_ACKS_LATE
+              value: {{ .Values.workers.celery.ACKS_LATE | quote }}
+            - name: ENCRYPTION_MIN_KEY_LENGTH
+              value: "1024"
+            - name: MINIO_SERVER
+              value: "{{ .Release.Name }}-minio-svc:9000"
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: minioAccessKey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "fullname" . }}
+                  key: minioSecretKey
 
-        command:
-          - "/usr/local/bin/celery"
-          - "-A"
-          - "async_worker"
-          - "worker"
-          - "--loglevel=info"
-          - "-Ofair"
-          - "-Q"
-          - "celery,compute"
-
+          command:
+            - "/usr/local/bin/celery"
+            - "-A"
+            - "async_worker"
+            - "worker"
+            - "--loglevel=info"
+            - "-Ofair"
+            - "-Q"
+            - "celery,compute"
+          args:
+          {{- range $key, $value := .Values.workers.extraArgs }}
+            - --{{ $key }}={{ $value }}
+          {{- end }}
       imagePullSecrets:
         - name: {{ template "name" . }}-pull-secret

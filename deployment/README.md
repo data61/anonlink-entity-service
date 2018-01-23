@@ -12,39 +12,34 @@ tutorial [here](https://github.com/coreos/kube-aws).
 Recommended AWS worker instance type is `r3.4xlarge` - spot instances are 
 fine as we handle node failure.
 
-# Provision cluster resources
-
-Note `kubectl` uses the same interface to provision all types of resource:
-
-    kubectl create -f some-resource.yaml
+## Provision cluster resources
 
 Before deploying the entity service we need to provision a few other
 things on the cluster. An existing N1 cluster may already have these.
-
-    kubectl create -f aws-storage.yaml -f n1-coreos-secret.yaml
-
 
 ### Dynamically provisioned storage:
 
 When pods require persistent storage this can either be manually provided,
 or dynamically.
 
-For a cluster on AWS the `aws-storage.yaml` resource will dynamically
+For a cluster on AWS we want to use a `StorageClass` that will dynamically 
 provision elastic block store volumes. The default `values.yaml` assumes
-the existence of a `"slow"` `storageClass`.
+the existence of a `"gp2"` `storageClass` - change this to suit your cluster. 
 
-### Docker login credentials
+Note a default storageclass is usually already part of the cluster:
 
-Add secret to enable pulling from private quay.io repository:
+    kubectl get storageclass
 
-`n1-coreos-secret.yaml`
+If this is an empty list; on AWS try this:
+
+    kubectl create -f aws-storage.yaml
+
 
 ### Ingress Controller
 
 We assume the cluster has an ingress controller, if this isn't the case 
-we will have to add one.
+we will have to add one. The chart has been tested with nginx and treafik.
 
-See https://github.com/n1analytics/n1-dev-tools/helm on how to install or upgrade traefik.yaml.
 
 # Deploy the entity service
 
@@ -57,7 +52,9 @@ Pull the dependencies:
     
     helm dependency update
 
-Adjust the `values.yaml` file to your liking.
+Open the `values.yaml` file in a text editor and adjust to your configuration.
+
+In particular note the domain and tls settings for configuring an ingress.
 
 Install the whole system
 
@@ -65,10 +62,12 @@ Install the whole system
     helm install . --name="n1entityservice"
 
 
+
 ## Run an e2e test
 
     kubectl create -f jobs/e2e-test-job.yaml
 
+TODO - https://github.com/kubernetes/helm/blob/master/docs/chart_tests.md
 
 ## To view the celery monitor:
 

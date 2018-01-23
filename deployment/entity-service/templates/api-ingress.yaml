@@ -1,21 +1,31 @@
 {{- if .Values.api.ingress.enabled }}
+{{- $serviceName := include "api.fullname" . }}
+{{- $servicePort := .Values.api.service.servicePort -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
+{{- if .Values.api.ingress.annotations }}
+  annotations:
+{{ toYaml .Values.api.ingress.annotations | indent 4 }}
+{{- end }}
   name: {{ template "fullname" . }}
   labels:
     app: {{ template "fullname" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
     heritage: "{{ .Release.Service }}"
-    dns: {{ .Values.api.domainProvider }}
 spec:
   rules:
-  - host: {{ .Values.api.domain }}
+  {{- range .Values.api.ingress.hosts }}
+  - host: {{ . }}
     http:
       paths:
       - backend:
-          serviceName: {{ .Release.Name }}-api
-          servicePort: {{ .Values.api.servicePort }}
-{{- end }}
-
+          serviceName: {{ $serviceName }}
+          servicePort: {{ $servicePort }}
+  {{- end -}}
+  {{- if .Values.api.ingress.tls }}
+  tls:
+{{ toYaml .Values.api.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}

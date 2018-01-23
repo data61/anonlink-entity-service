@@ -1,52 +1,134 @@
+rbac:
+  # TODO
+  create: false
+
+# TODO keep?
 Name: "entityservice"
 
 api:
+
+  ## Deployment component name
+  name: server
+  # Defines the serviceAccountName to use when `rbac.create=false`
+  serviceAccountName: default
+
+  replicaCount: 1
+
+  ## api Deployment Strategy type
+  # strategy:
+  #   type: Recreate
+
+  ## Annotations to be added to api pods
+  ##
+  podAnnotations: {}
+    # iam.amazonaws.com/role: linkage
+
+  # Settings for the nginx proxy
+  www:
+
+    image:
+      repository: quay.io/n1analytics/entity-nginx
+      tag: "v1.3.2"
+      ## "IfNotPresent" or "Always"
+      pullPolicy: IfNotPresent
+
+    ## Nginx proxy server resource requests and limits
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+
+  app:
+
+    image:
+      repository: quay.io/n1analytics/entity-app
+      tag: "v1.7.2"
+      ## "IfNotPresent" or "Always"
+      pullPolicy: IfNotPresent
+
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      limits:
+        cpu: 1
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+    debug: "false"
+
+
   ingress:
     enabled: true
-  domain: "beta.es.data61.xyz"
-  domainProvider: "route53"
 
-  imageRegistery: "quay.io/n1analytics"
+    ## Prometheus server Ingress annotations
+    ##
+    annotations: []
+    #  kubernetes.io/ingress.class: nginx
 
-  ## "IfNotPresent" or "Always"
-  imagePullPolicy: "IfNotPresent"
+    ## Entity Service API Ingress hostnames
+    ## Must be provided if Ingress is enabled
+    hosts:
+     - beta.entityservice.edn.io
 
-  ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
-  ## or access it from within the cluster (ClusterIP service).
-  ## Set the service type and the port to serve it.
-  ## ref: http://kubernetes.io/docs/user-guide/services/
-  ## Most likely if ingress is enabled, this should be ClusterIP,
-  ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
-  ## an AWS ELB to 300+ seconds (from the default of 60).
-  serviceType: "ClusterIP"
-  servicePort: 80
+    ## Entity Service API Ingress TLS configuration
+    ## Secrets must be manually created in the namespace
+    ##
+    tls: []
+    #   - secretName: entity-service-tls
+    #     hosts:
+    #       - beta.entityservice.edn.io
 
-  ## If using a load balancer on AWS you can optionally lock down access
-  ## to a given IP range. Provide a list of IPs that are allowed via a
-  ## security group.
-  #serviceSourceRanges:
-  #  - 130.155.157.0/24
+  service:
+    annotations: []
+    labels:
+      tier: frontend
+    clusterIp: ""
 
-  www:
-    image: "entity-nginx"
-    tag: "v1.3.2"
-    memory: 256Mi
-    cpu: 200m
-    containerPort: 8851
-  app:
-    image: "entity-app"
-    memory: 1Gi
-    tag: "v1.7.2"
-    debug: "false"
-    containerPort: 8000
-  Replicas: 1
+    ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
+    ## or access it from within the cluster (ClusterIP service).
+    ## Set the service type and the port to serve it.
+    ## ref: http://kubernetes.io/docs/user-guide/services/
+    ## Most likely if ingress is enabled, this should be ClusterIP,
+    ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
+    ## an AWS ELB to 300+ seconds (from the default of 60).
+    type: ClusterIP
+
+    servicePort: 80
+
+    ## If using a load balancer on AWS you can optionally lock down access
+    ## to a given IP range. Provide a list of IPs that are allowed via a
+    ## security group.
+    loadBalancerSourceRanges: []
+    ##  - 130.155.157.0/24
 
 workers:
-  imageRegistery: "quay.io/n1analytics"
-  image: "entity-app"
-  tag: "v1.7.2"
-  replicas: 1
+  name: "matcher"
+
+  image:
+    repository: "quay.io/n1analytics/entity-app"
+    tag: "v1.7.2"
+    pullPolicy: IfNotPresent
+
+  ## Usually this is set to 1 per compute node
+  replicaCount: 1
   debug: "false"
+
+  podAnnotations: {}
+
+  #strategy: ""
+
+  ## Additional Entity Service Worker container arguments
+  ##
+  extraArgs: {}
+
+  # TODO move these settings into a config file
 
   SMALL_COMPARISON_CHUNK_SIZE: "100000000"
   LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
