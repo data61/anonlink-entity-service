@@ -100,6 +100,14 @@ api:
      #  hosts:
      #    - beta.entityservice.edn.io
 
+  # Configure a cert-manager (caution experimental!)
+  certManager:
+    enabled: true
+    issuer: letsencrypt
+    secretName: entity-service-tls
+    certName: entity-service-tls
+    commonName: beta.entityservice.edn.io
+
   service:
     annotations: []
     labels:
