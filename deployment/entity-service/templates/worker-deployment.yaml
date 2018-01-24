@@ -33,43 +33,20 @@ spec:
           imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
+          envFrom:
+          - configMapRef:
+              name: linkage-config
           env:
-            - name: REDIS_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ template "fullname" . }}
                   key: redisPassword
-            - name: DATABASE_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ template "fullname" . }}
                   key: postgresPassword
-            - name: DEBUG
-              value: {{ .Values.workers.debug | quote }}
-            - name: ENTITY_MATCH_THRESHOLD
-              value: {{ .Values.workers.MATCH_THRESHOLD | quote }}
-            - name: SMALL_COMPARISON_CHUNK_SIZE
-              value: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
-            - name: LARGE_COMPARISON_CHUNK_SIZE
-              value: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
-            - name: SMALL_JOB_SIZE
-              value: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
-            - name: LARGE_JOB_SIZE
-              value: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
-            - name: CELERYD_PREFETCH_MULTIPLIER
-              value: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
-            - name: CELERYD_MAX_TASKS_PER_CHILD
-              value: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
-            - name: CELERY_ACKS_LATE
-              value: {{ .Values.workers.celery.ACKS_LATE | quote }}
-            - name: ENCRYPTION_MIN_KEY_LENGTH
-              value: "1024"
-            - name: MINIO_SERVER
-              value: "{{ .Release.Name }}-minio-svc:9000"
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
