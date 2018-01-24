@@ -62,7 +62,6 @@ Install the whole system
     helm install . --name="n1entityservice"
 
 
-
 ## Run an e2e test
 
     kubectl create -f jobs/e2e-test-job.yaml

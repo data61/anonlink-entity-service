@@ -81,9 +81,9 @@ api:
     ## Secrets must be manually created in the namespace
     ##
     tls: []
-    #   - secretName: entity-service-tls
-    #     hosts:
-    #       - beta.entityservice.edn.io
+    #  - secretName: entity-service-tls
+    #    hosts:
+    #      - beta.entityservice.edn.io
 
   service:
     annotations: []
@@ -117,7 +117,7 @@ workers:
     pullPolicy: IfNotPresent
 
   ## Usually this is set to 1 per compute node
-  replicaCount: 1
+  replicaCount: 3
   debug: "false"
 
   podAnnotations: {}
@@ -155,11 +155,11 @@ workers:
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 8Gi
-      cpu: 2
+      memory: 1Gi
+      cpu: 100m
     limits:
-      memory: 32Gi
-      cpu: 8
+      memory: 2Gi
+      cpu: 200m
 
 postgresql:
   # See available settings and defaults at:
@@ -169,16 +169,16 @@ postgresql:
   persistence:
     enabled: true
     storageClass: "default"
-    size: 8Gi
+    size: 4Gi
   imageTag: 10
   imagePullPolicy: IfNotPresent
   metrics:
     enabled: true
   resources:
     limits:
-      memory: 8Gi
+      #memory: 8Gi
     requests:
-      memory: 1Gi
+      #memory: 1Gi
       cpu: 100m
 
 redis:
@@ -187,16 +187,16 @@ redis:
   persistence:
     enabled: true
     storageClass: "default"
-    size: "50Gi"
+    size: "10Gi"
   metrics:
     enabled: true
   resources:
     requests:
-      memory: 8Gi
+      #memory: 8Gi
       cpu: 200m
     limits:
-      memory: 20Gi
-      cpu: 1
+      #memory: 20Gi
+      cpu: 300m
   nameOverride: "redis"
 
 minio:
