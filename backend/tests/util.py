@@ -10,7 +10,7 @@ import math
 
 import base64
 
-from tests.config import url, logger, rate_limit_delay
+from tests.config import url, logger, rate_limit_delay, initial_delay
 
 
 def serialize_bitarray(ba):
@@ -25,6 +25,7 @@ def serialize_filters(filters):
     return [
         serialize_bitarray(f[0]) for f in filters
     ]
+
 
 def generate_serialized_clks(size):
     clks = generate_clks(size)
@@ -47,6 +48,10 @@ def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
 
 
 class EntityServiceTestBase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        time.sleep(initial_delay)
 
     def setUp(self):
         self.url = url
