@@ -155,8 +155,11 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
     resp1 = requests.put(url + '/mappings/{}'.format(id),
                          json=party1_data,
                          headers={'Authorization': new_map_response['update_tokens'][0]})
+
     # status code should be 201 if a resource was created
-    assert resp1.status_code == 201
+    logger.debug("Response code {}".format(resp1.status_code))
+    logger.debug("Response\n{}".format(resp1.text))
+    assert resp1.status_code == 201, resp1.text
 
     r1 = resp1.json()
     assert 'receipt-token' in r1

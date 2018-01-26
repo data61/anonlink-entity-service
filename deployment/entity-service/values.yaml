@@ -80,11 +80,12 @@ api:
   ingress:
     enabled: true
 
-    ## Prometheus server Ingress annotations
+    ## Ingress annotations
     ##
-    annotations: []
-    #  kubernetes.io/ingress.class: nginx
-    #  certmanager.k8s.io/issuer: letsencrypt-staging
+    annotations: #[]
+     kubernetes.io/ingress.class: nginx
+     certmanager.k8s.io/issuer: letsencrypt
+     nginx.org/client-max-body-size: "4096m"
 
 
     ## Entity Service API Ingress hostnames
@@ -95,10 +96,10 @@ api:
     ## Entity Service API Ingress TLS configuration
     ## Secrets must be manually created in the namespace
     ##
-    tls: []
-    #  - secretName: entity-service-tls
-    #    hosts:
-    #      - beta.entityservice.edn.io
+    tls: #[]
+     - secretName: entity-service-tls
+       hosts:
+         - beta.entityservice.edn.io
 
   service:
     annotations: []
