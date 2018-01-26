@@ -8,13 +8,14 @@ spec:
   template:
     metadata:
       labels:
-        app: entityservice
-        tier: aux
+        app: {{ template "fullname" . }}
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+        release: {{ .Release.Name }}
+        heritage: "{{ .Release.Service }}"
     spec:
-      restartPolicy: Never
       containers:
       - name: init-es-db
-        image: quay.io/n1analytics/entity-db-server:v1.1
+        image: {{ .Values.api.dbinit.image.repository }}:{{ .Values.api.dbinit.image.tag }}
         env:
           - name: DATABASE_SERVER
             value: {{ .Release.Name }}-postgres
@@ -31,4 +32,4 @@ spec:
           - "docker-entrypoint-initdb.d/schema.sql"
 
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: {{ .Values.api.pullSecret }}

@@ -61,17 +61,17 @@ services:
     entrypoint: celery -A async_worker worker --loglevel=debug -Q celery,compute
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - ENTITY_MATCH_THRESHOLD=0.98
+      - ENTITY_MATCH_THRESHOLD=0.90
       - ENCRYPTION_MIN_KEY_LENGTH=1024
       - DEBUG=false
       - LOGGING_LEVEL=DEBUG
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
-      - SMALL_COMPARISON_CHUNK_SIZE=1000
-      - LARGE_COMPARISON_CHUNK_SIZE=10000
-      - SMALL_JOB_SIZE=1000
-      - LARGE_JOB_SIZE=10000
+      - SMALL_COMPARISON_CHUNK_SIZE=100000
+      - LARGE_COMPARISON_CHUNK_SIZE=1000000
+      - SMALL_JOB_SIZE=10000
+      - LARGE_JOB_SIZE=100000
 
   nginx:
     image: quay.io/n1analytics/entity-nginx

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: celery-monitor
-        image: quay.io/n1analytics/entity-app:{{ .Values.api.www.tag }}
+        image: {{ .Values.api.app.image.repository}}:{{ .Values.api.app.image.tag }}
         imagePullPolicy: Always
         ports:
           - containerPort: 8888
@@ -27,5 +27,5 @@ spec:
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
       imagePullSecrets:
-        - name: {{ template "name" . }}-pull-secret
+      - name: {{ .Values.api.pullSecret }}
 {{- end }}

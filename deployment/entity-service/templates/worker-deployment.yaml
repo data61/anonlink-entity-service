@@ -72,4 +72,4 @@ spec:
             - --{{ $key }}={{ $value }}
           {{- end }}
       imagePullSecrets:
-        - name: {{ template "name" . }}-pull-secret
+      - name: {{ .Values.api.pullSecret }}

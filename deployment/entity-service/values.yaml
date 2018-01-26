@@ -28,7 +28,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.3.2"
+      tag: "v1.3.2-feature-helm-refactor"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -47,9 +47,10 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.7.2"
+      tag: "v1.7.2-feature-helm-refactor"
       ## "IfNotPresent" or "Always"
-      pullPolicy: IfNotPresent
+      pullPolicy: Always
+
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     ##
@@ -61,8 +62,20 @@ api:
         cpu: 500m
         memory: 1Gi
 
-    debug: "false"
+    debug: "true"
 
+  dbinit:
+    ## Database init can only run during chart install
+    ## It cannot be updated! So we have a separate image
+    image:
+      #repository: quay.io/n1analytics/entity-db-server
+      repository: quay.io/n1analytics/entity-app
+      tag: "v1.7.2-feature-helm-refactor"
+      #tag: "v1.1"
+
+  ## A shared pull secret for obtaining docker images
+  ## Needs to be pushed into the namespace prior to installation
+  pullSecret: n1-coreos-pull-secret
 
   ingress:
     enabled: true
@@ -71,6 +84,8 @@ api:
     ##
     annotations: []
     #  kubernetes.io/ingress.class: nginx
+    #  certmanager.k8s.io/issuer: letsencrypt-staging
+
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
@@ -113,12 +128,13 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.7.2"
-    pullPolicy: IfNotPresent
+    tag: "v1.7.2-feature-helm-refactor"
+    pullPolicy: Always
+    pullSecret: "n1-coreos-pull-secret"
 
   ## Usually this is set to 1 per compute node
-  replicaCount: 3
-  debug: "false"
+  replicaCount: 2
+  debug: "true"
 
   podAnnotations: {}
 
@@ -139,7 +155,7 @@ workers:
   LARGE_JOB_SIZE: "100000000000"
 
   # Default threshold for considering something a match
-  MATCH_THRESHOLD: "0.95"
+  MATCH_THRESHOLD: "0.9"
 
   # More than this many entities and we skip caching in redis
   MAX_CACHE_SIZE: "1000000"

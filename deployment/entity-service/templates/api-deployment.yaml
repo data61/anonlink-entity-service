@@ -92,4 +92,4 @@ spec:
             periodSeconds: 300
             timeoutSeconds: 30
       imagePullSecrets:
-        - name: {{ template "name" . }}-pull-secret
+        - name: {{ .Values.api.pullSecret }}
