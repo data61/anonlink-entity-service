@@ -557,7 +557,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
     logger.debug("Calculating filter similarity")
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
                                                                      threshold=threshold,
-                                                                     k=5,
+                                                                     k=min(chunk_dp1_size, chunk_dp2_size),
                                                                      use_python=False)
     t3 = time.time()
 

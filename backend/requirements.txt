@@ -14,4 +14,4 @@ minio==2.0.6
 ijson==2.3
 bitmath
 clkhash==0.8.0
-anonlink==0.6.2
+anonlink==0.6.3
