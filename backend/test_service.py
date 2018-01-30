@@ -374,14 +374,15 @@ def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
         {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes": ""},
         {"identifier": "GENDER M or F",  "weight": 1, "notes": ""}
     ]
-    new_map_response = requests.post(url + '/mappings', json={
+    r = requests.post(url + '/mappings', json={
         'schema': schema,
         'threshold': 0.6,
         'result_type': 'permutation',
         'public_key': public_key,
         'paillier_context': {'base': base, 'encoded': True}
-    }).json()
-    logger.debug(new_map_response)
+    })
+    logger.debug(r.text)
+    new_map_response = r.json()
 
     id = new_map_response['resource_id']
     logger.info("New mapping request created with id: {}".format(id))
