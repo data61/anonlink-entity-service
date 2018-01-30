@@ -221,12 +221,13 @@ def mapping_test(party1_filters, party2_filters, s1, s2):
             else:
                 incorrect_matches += 1
 
-
-        # assert all(a == b for a,b in zip(s1[int(i)], s2[int(j)]))
     print("Number matches correct: {}".format(correct_matches))
     print("Number matches incorrect: {}".format(incorrect_matches))
+    assert correct_matches > len(s1)//2
+    assert incorrect_matches == 0
+
     # Delete a mapping
-    #delete_mapping(id)
+    delete_mapping(id)
 
 
 def similarity_score_test(party1_filters, party2_filters, s1, s2):
@@ -358,7 +359,7 @@ def similarity_score_test(party1_filters, party2_filters, s1, s2):
         assert score[2] > threshold
 
     # Delete a mapping
-    #delete_mapping(id)
+    delete_mapping(id)
 
 
 def permutation_test(party1_filters, party2_filters, s1, s2, base=2):
