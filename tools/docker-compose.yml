@@ -2,7 +2,7 @@ version: '2'
 services:
 
   db:
-    image: postgres:10.1-alpine
+    image: postgres:10
     mem_limit: 6000m
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
@@ -63,15 +63,17 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
       - ENCRYPTION_MIN_KEY_LENGTH=1024
-      - DEBUG=false
+      - DEBUG=true
       - LOGGING_LEVEL=DEBUG
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
-      - SMALL_COMPARISON_CHUNK_SIZE=100000
-      - LARGE_COMPARISON_CHUNK_SIZE=1000000
-      - SMALL_JOB_SIZE=10000
-      - LARGE_JOB_SIZE=100000
+      - CELERYD_MAX_TASKS_PER_CHILD=10
+      - SMALL_COMPARISON_CHUNK_SIZE=100000000
+      - LARGE_COMPARISON_CHUNK_SIZE=1000000000
+      - SMALL_JOB_SIZE=100000000
+      - LARGE_JOB_SIZE=100000000000
+      - MATCH_THRESHOLD=0.98
 
   nginx:
     image: quay.io/n1analytics/entity-nginx
