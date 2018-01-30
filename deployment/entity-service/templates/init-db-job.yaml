@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ template "name" . }}-init-db
+  name: {{ template "fullname" . }}-init-db
   labels:
     # The "heritage" label is used to track which tool deployed a given chart.
     # It is useful for admins who want to see what releases a particular tool

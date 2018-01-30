@@ -35,7 +35,7 @@ spec:
 {{ toYaml .Values.workers.resources | indent 12 }}
           envFrom:
           - configMapRef:
-              name: linkage-config
+              name: {{ template "fullname" . }}
           env:
             - name: REDIS_PASSWORD
               valueFrom:

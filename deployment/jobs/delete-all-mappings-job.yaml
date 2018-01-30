@@ -17,11 +17,13 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: http://entityservice-api/api/v1
+            value: https://beta.entityservice.edn.io/api/v1
           - name: ENTITY_SERVICE_DELETE_ALL
             value: "true"
         command:
           - "python"
           - "test_service.py"
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+      - name: n1-coreos-pull-secret
+
+

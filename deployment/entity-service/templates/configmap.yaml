@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: linkage-config
+  name: {{ template "fullname" . }}
   namespace: default
 data:
   REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
