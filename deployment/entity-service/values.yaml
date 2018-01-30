@@ -1,9 +1,7 @@
 rbac:
-  # TODO
+  # TODO still needs work to fully lock down scope etc
+  # See https://github.com/n1analytics/entity-service/issues/88
   create: false
-
-# TODO keep?
-Name: "entityservice"
 
 api:
 

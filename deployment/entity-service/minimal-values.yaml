@@ -1,3 +1,11 @@
+
+api:
+  app:
+    resources:
+      limits:
+        memory: 128Mi
+        cpu: 100m
+
 workers:
   replicas: 1
   ## https://kubernetes.io/docs/user-guide/compute-resources
@@ -16,3 +24,20 @@ postgresql:
     requests:
       memory: 100Mi
       cpu: 100m
+
+  persistence:
+    size: 1Gi
+
+redis:
+  persistence:
+    size: 1Gi
+  resources:
+    limits:
+      memory: 200Mi
+    requests:
+      memory: 100Mi
+      cpu: 100m
+
+minio:
+  persistence:
+    size: 1Gi

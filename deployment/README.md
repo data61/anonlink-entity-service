@@ -1,33 +1,3 @@
-# ConfigMap Plan
-
-Could switch to using environment variables from a config map.
-But probably not for secrets?
-
-      envFrom:
-          - configMapRef:
-              name: config-map-name
-
-Or use the volume mounted approach:
-
-    podspec
-      volumeMounts:
-        - name: config-volume
-          mountPath: /etc/config
-
-
-    volumes:
-        - name: config-volume
-          configMap:
-            name: config-map-name-here 
-
-
-Env vars are easier (because it is closer to what we currently do).
-But I think full file based config is better overall.
-
-I'll do both...
-
-Also need to do full reload on configmap changes
-
 # Production Deployment 
 
 The entity service has been deployed to Kubernetes clusters on GCE and
