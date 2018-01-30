@@ -1,3 +1,4 @@
+## https://kubernetes.io/docs/user-guide/compute-resources
 
 api:
   app:
@@ -5,10 +6,13 @@ api:
       limits:
         memory: 128Mi
         cpu: 100m
+      requests:
+        cpu: 50m
+        memory: 128Mi
 
 workers:
-  replicas: 1
-  ## https://kubernetes.io/docs/user-guide/compute-resources
+  replicaCount: 1
+
   resources:
     requests:
       memory: 128Mi

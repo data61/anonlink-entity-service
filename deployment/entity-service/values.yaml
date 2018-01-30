@@ -191,8 +191,8 @@ postgresql:
   metrics:
     enabled: true
   resources:
-    limits:
-      #memory: 8Gi
+    #limits:
+    #  memory: 8Gi
     requests:
       #memory: 1Gi
       cpu: 100m
