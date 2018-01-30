@@ -52,21 +52,68 @@ Pull the dependencies:
     
     helm dependency update
 
-Open the `values.yaml` file in a text editor and adjust to your configuration.
+## Configuring the deployment
 
-In particular note the domain and tls settings for configuring an ingress.
+Open the `values.yaml` file in a text editor and adjust to suit your cluster's 
+configuration. A better approach is to create a new `your-es-site.yaml` file to
+override the values. For example to use the specific version docker images and 
+set the hostname to my-site.es.data61.xyz:
 
-Install the whole system
+```
+api:
+  ingress:
+    hosts:
+      - my-site.es.data61.xyz
 
-    cd entity-service
-    helm install . --name="n1entityservice"
+  www:
+    image:
+      tag: "v1.3.2-develop"
+
+  app:
+    image:
+      tag: "v1.7.2-develop"
+
+workers:
+  image:
+    tag: "v1.7.2-develop"
+```
+
+All settings in `values.yaml` can be overridden but take particular note of the 
+domain and tls settings for configuring an ingress for a particular cluster.
+
+Also note there is a `minimal-values.yaml` configuration which is a tested deployment
+that requires a very small memory and cpu overhead - but of course will only work for
+very small testing jobs.
+
+### Private Docker Repository
+
+If you are deploying from a private docker repository remember to push the image
+pull secret to the appropriate namespace:
+    
+    $ kubectl create namespace my-es-site
+    $ kubectl create -f n1-coreos-secret.yaml --namespace my-es-site
+
+Note you can have multiple deployments in the same namespace.
+
+
+### Installation
+
+Assuming you want a minimal resource deployment with custom values from `your-es-site.yaml`
+configuration:
+
+    $ helm install --name="your-es-site" entity-service \
+        --values values.yaml
+        --values minimal-values.yaml \
+        --values your-es-site.yaml
 
 
 ## Run an e2e test
 
+There are a few example jobs in `deployment/jobs` which can be tweaked to point
+to your ingress and run:
+
     kubectl create -f jobs/e2e-test-job.yaml
 
-TODO - https://github.com/kubernetes/helm/blob/master/docs/chart_tests.md
 
 ## To view the celery monitor:
 
