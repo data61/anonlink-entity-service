@@ -16,4 +16,3 @@ data:
   CELERY_ACKS_LATE: {{ .Values.workers.celery.ACKS_LATE | quote }}
   ENCRYPTION_MIN_KEY_LENGTH: "1024"
   MINIO_SERVER: "{{ .Release.Name }}-minio-svc:9000"
-
