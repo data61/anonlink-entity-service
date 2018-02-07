@@ -90,22 +90,27 @@ api:
     ## Must be provided if Ingress is enabled
     hosts:
      - beta.entityservice.edn.io
+     - www.beta.entityservice.edn.io
 
     ## Entity Service API Ingress TLS configuration
     ## This example setup is for nginx-ingress. We use certificate manager.
     ## to create the TLS secret in the namespace with the name
     ## below.
-    tls: []
-     #- secretName: es-tls
-     #  hosts:
-     #    - beta.entityservice.edn.io
+    tls: #[]
+    - secretName: es-tls
+      hosts:
+      - beta.entityservice.edn.io
+      - www.beta.entityservice.edn.io
 
-  # Configure a cert-manager (caution experimental!)
+  # Configure a cert-manager Certificate (caution experimental!)
   certManager:
     enabled: true
-    issuer: letsencrypt
-    secretName: entity-service-tls
-    certName: entity-service-tls
+    secretName: es-tls
+    issuerRef:
+      #name: letsencrypt
+      name: letsencrypt-cluster-issuer
+      kind: ClusterIssuer
+    # Must be in api.ingress.hosts
     commonName: beta.entityservice.edn.io
 
   service:
