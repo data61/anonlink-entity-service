@@ -4,6 +4,12 @@
 Changelog
 =========
 
+Version 1.7.2 (2018-01-09)
+--------------------------
+
+Dependency and deployment updates.
+We now pin versions of Python, anonlink, clkhash, phe and docker images nginx and postgres.
+
 
 Version 1.7.0 (2017-10-10)
 --------------------------
