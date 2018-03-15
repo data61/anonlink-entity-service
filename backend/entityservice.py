@@ -487,7 +487,6 @@ class Mapping(Resource):
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
 
 
-
 class MappingStatus(Resource):
 
     """
