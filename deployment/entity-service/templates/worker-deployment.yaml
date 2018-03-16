@@ -8,7 +8,7 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: backend
     release: {{ .Release.Name }}
-  name: {{ template "name" . }}-worker
+  name: {{ .Release.Name }}-api
 spec:
   replicas: {{ .Values.workers.replicaCount }}
   {{- if .Values.workers.strategy }}

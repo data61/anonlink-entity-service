@@ -11,6 +11,7 @@ services:
       - ENTITY_SERVICE_TEST_REPEATS=1
       - INITIAL_DELAY=20
       - LOGGING_LEVEL=INFO
+      - LOGGING_FILE=/var/log/es-test.log
     entrypoint: python test_service.py
     depends_on:
       - db

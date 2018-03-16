@@ -14,7 +14,7 @@ class Config(object):
 
     DEBUG = os.environ.get("DEBUG", "false") == "true"
 
-    LOGFILE = os.environ.get("LOGFILE", None)
+    LOGFILE = os.environ.get("LOGFILE", 'entity-service.log')
     fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
     consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
                                       datefmt="%H:%M:%S")
