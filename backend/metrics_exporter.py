@@ -14,7 +14,7 @@ import time
 import requests
 
 from prometheus_client import start_http_server
-from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, REGISTRY
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Summary, REGISTRY
 
 
 class EntityServiceRestAPICollector(object):
@@ -25,6 +25,7 @@ class EntityServiceRestAPICollector(object):
     def collect(self):
         rate_gauge = GaugeMetricFamily('mapping_rate', 'Max number of comparisons per second')
         mappings_gauge = CounterMetricFamily('mapping_counter_total', 'Number of mappings')
+        ready_mappings_counter = CounterMetricFamily('ready_mapping_counter', 'Number of ready mappings')
 
         # Request the information we need from the api
         status = requests.get(self.target + '/status').json()
@@ -36,6 +37,11 @@ class EntityServiceRestAPICollector(object):
 
         yield rate_gauge
         yield mappings_gauge
+
+        # More detailed mapping info
+        mappings = requests.get(self.target + '/mappings').json()['mappings']
+        ready_mappings_counter.add_metric(['ready'], sum(1 for m in mappings if m['ready']))
+        yield ready_mappings_counter
 
 
 if __name__ == "__main__":
