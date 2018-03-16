@@ -3,6 +3,7 @@ from structlog import get_logger
 import opentracing
 
 from entityservice import database as db, cache as cache
+from entityservice.metrics import RUN_STATUS_COUNT
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 from entityservice.views.serialization import completed, running, error
 from entityservice.models.run import RUN_TYPES
@@ -27,7 +28,7 @@ def get(project_id, run_id):
             run_status = db.get_run_status(conn, run_id)
             project_in_error = db.get_encoding_error_count(conn, project_id) > 0
         span.set_tag('stage', run_status['stage'])
-
+    RUN_STATUS_COUNT.labels(run=run_id).inc()
     run_type = RUN_TYPES[run_status['type']]
     state = 'error' if project_in_error else run_status['state']
     stage = run_status['stage']

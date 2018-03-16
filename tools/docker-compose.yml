@@ -40,7 +40,6 @@ services:
       - db_init
       - redis
 
-
   # The application server can also setup the database
   db_init:
     image: data61/anonlink-app:${TAG:-latest}
@@ -95,6 +94,13 @@ services:
 #    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=/ --port=8888 -Q celery,compute
 #    ports:
 #      - 8888:8888
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ${PWD}/prometheus-config.yml:/etc/prometheus/prometheus.yml
 
   jaeger:
     image: jaegertracing/all-in-one:latest

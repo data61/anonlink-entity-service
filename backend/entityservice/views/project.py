@@ -7,6 +7,7 @@ from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
+from entityservice.metrics import UPLOAD_REQUEST_LATENCY
 from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
@@ -98,6 +99,7 @@ def project_get(project_id):
     return ProjectDescription().dump(project_object)
 
 
+@UPLOAD_REQUEST_LATENCY.time()
 def project_clks_post(project_id):
     """
     Update a project to provide encoded PII data.

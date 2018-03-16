@@ -34,9 +34,11 @@ USER user
 ADD . /var/www
 
 # Serve using gunicorn. Ideally this has nginx in front of it!
-CMD gunicorn entityservice:app \
+# Note we only use one process - otherwise our metrics get much
+# more complicated.
+CMD gunicorn entityservice:app_dispatch \
     -n entityservice-web \
-    -w 4 \
+    -w 1 \
     -b 0.0.0.0:8000 \
     --timeout 600 \
     --keep-alive 300 \
