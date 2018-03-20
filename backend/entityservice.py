@@ -9,6 +9,8 @@ import platform
 from flask import Flask, g, request, Response
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 
+from metrics_exporter import FLASK_UPLOAD_REQUEST_LATENCY
+
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
@@ -451,6 +453,7 @@ class Mapping(Resource):
             safe_fail_request(500, "Unknown error")
         return dp_id, mapping
 
+    @FLASK_UPLOAD_REQUEST_LATENCY.time()
     def put(self, resource_id):
         """
         Update a mapping to provide data

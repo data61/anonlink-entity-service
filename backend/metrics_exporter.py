@@ -14,7 +14,10 @@ import time
 import requests
 
 from prometheus_client import start_http_server
-from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Summary, REGISTRY
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Summary, REGISTRY, Histogram
+
+
+FLASK_UPLOAD_REQUEST_LATENCY = Histogram(__name__.replace('.', '_') + '_request_latency_seconds', 'Flask Request Latency')
 
 
 class EntityServiceRestAPICollector(object):
