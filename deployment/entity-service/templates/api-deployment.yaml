@@ -30,6 +30,19 @@ spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}
 
       containers:
+{{- if .Values.api.metrics.enabled }}
+        - name: metrics
+          image: {{ .Values.api.metrics.image.repository}}:{{ .Values.api.metrics.image.tag }}
+          imagePullPolicy: {{ default "" .Values.api.metrics.image.pullPolicy | quote }}
+          ports:
+          - name: metrics
+            containerPort: 8080
+          command:
+          - "/usr/local/bin/python"
+          - "metrics_exporter.py"
+          - "localhost"
+          - "8080"
+{{- end }}
         # TODO add hash of config e.g. .Values.configmapReload.name
         - name: entityservice-nginx
           image: {{ .Values.api.www.image.repository}}:{{ .Values.api.www.image.tag }}
