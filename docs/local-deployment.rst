@@ -49,6 +49,14 @@ For example to `GET` the service status::
         "rate": 1
     }
 
+The service can be taken down by hitting CTRL+C. This doesn't clear
+the DB volumes, which will persist and conflict with the next call to
+`docker-compose ... up` unless they are removed.  Removing these
+volumes is easy, just run::
+
+    docker-compose -p n1es -f tools/docker-compose.yml down -v
+
+in between calls to `docker-compose ... up`.
 
 Testing with docker-compose
 ---------------------------
