@@ -9,7 +9,9 @@ import platform
 from flask import Flask, g, request, Response
 from flask_restful import Resource, Api, abort, fields, marshal_with, marshal
 
-from metrics_exporter import FLASK_UPLOAD_REQUEST_LATENCY
+from prometheus_client import generate_latest
+from metrics import UPLOAD_REQUEST_LATENCY, STATUS_REQUEST_LATENCY, MAPPING_RATE_GAUGE, \
+    MAPPING_COUNT, READY_MAPPING_COUNT
 
 try:
     import ijson.backends.yajl2_cffi as ijson
@@ -325,7 +327,13 @@ class MappingList(Resource):
             app.logger.debug("Added data providers")
 
             app.logger.debug("Committing transaction")
+
             conn.commit()
+
+        # Update metrics
+        total_mappings, ready_mappings = db.get_mapping_counts(conn)
+        MAPPING_COUNT.add_metric(['mapping'], total_mappings)
+        READY_MAPPING_COUNT.add_metric(['mapping'], ready_mappings)
 
         return mapping
 
@@ -453,7 +461,7 @@ class Mapping(Resource):
             safe_fail_request(500, "Unknown error")
         return dp_id, mapping
 
-    @FLASK_UPLOAD_REQUEST_LATENCY.time()
+    @UPLOAD_REQUEST_LATENCY.time()
     def put(self, resource_id):
         """
         Update a mapping to provide data
@@ -519,6 +527,7 @@ class MappingStatus(Resource):
 
 class Status(Resource):
 
+    @STATUS_REQUEST_LATENCY.time()
     def get(self):
         """Displays the latest mapping statistics"""
 
@@ -528,15 +537,16 @@ class Status(Resource):
             # We ensure we can connect to the database during the status check
             db1 = get_db()
 
-            number_of_mappings = db.query_db(db1, '''
-                        SELECT COUNT(*) FROM mappings
-                        ''', one=True)['count']
+            number_of_mappings, number_of_ready_mappings = db.get_mapping_counts(db1)
 
             current_rate = db.get_latest_rate(db1)
+
+            MAPPING_RATE_GAUGE.add_metric(['status'], current_rate)
 
             status = {
                 'status': 'ok',
                 'number_mappings': number_of_mappings,
+                'number_mappings_ready': number_of_ready_mappings,
                 'rate': current_rate
             }
 
@@ -664,6 +674,12 @@ def generate_name_data():
     nl = anonlink.randomnames.NameList(samples * 2)
     s1, s2 = nl.generate_subsets(samples, proportion)
     return json.dumps({"A": s1, "B": s2})
+
+
+@app.route('/metrics/', methods=['GET'])
+def metrics():
+
+    return generate_latest(), 200
 
 
 if __name__ == '__main__':

@@ -7,8 +7,7 @@ Version 1 could just collect metrics via the REST api:
 - mapping_rate gauge
 
 """
-import json
-import re
+
 import sys
 import time
 import requests
@@ -17,10 +16,21 @@ from prometheus_client import start_http_server
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Summary, REGISTRY, Histogram
 
 
-FLASK_UPLOAD_REQUEST_LATENCY = Histogram(__name__.replace('.', '_') + '_request_latency_seconds', 'Flask Request Latency')
+UPLOAD_REQUEST_LATENCY = Histogram('es_upload_request_latency_seconds', 'CLK upload request latency')
+
+STATUS_REQUEST_LATENCY = Histogram('es_status_request_latency_seconds', 'Status Request Latency')
+STATUS_REQUEST_COUNT = CounterMetricFamily('es_status_counter_total', 'Number of Status Requests')
+
+MAPPING_RATE_GAUGE = GaugeMetricFamily('es_mapping_rate', 'Max number of comparisons per second')
+MAPPING_COUNT = CounterMetricFamily('es_mapping_counter_total', 'Number of mappings')
+READY_MAPPING_COUNT = CounterMetricFamily('es_mapping_counter_ready', 'Number of ready mappings')
 
 
 class EntityServiceRestAPICollector(object):
+    """
+    This is a metrics collector that uses the REST API.
+
+    """
 
     def __init__(self, target):
         self.target = target
