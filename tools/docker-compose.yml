@@ -39,6 +39,13 @@ services:
       - db_init
       - redis
 
+#  # The metrics side app
+  metrics:
+    image: quay.io/n1analytics/entity-app
+    depends_on:
+      - nginx
+      - backend
+    entrypoint: python metrics.py http://nginx:8851/api/v1 8080
 
   # The application server can also setup the database
   db_init:

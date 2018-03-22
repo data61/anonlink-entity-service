@@ -39,8 +39,8 @@ spec:
             containerPort: 8080
           command:
           - "/usr/local/bin/python"
-          - "metrics_exporter.py"
-          - "localhost"
+          - "metrics.py"
+          - "http://entityservice-nginx:8851/api/v1"
           - "8080"
 {{- end }}
         # TODO add hash of config e.g. .Values.configmapReload.name

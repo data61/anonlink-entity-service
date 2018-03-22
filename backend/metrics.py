@@ -61,6 +61,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.stderr.write("Usage: metrics_exporter.py ES_API_ADDRESS LOCAL_SERVER_PORT\n")
         sys.exit(1)
+
+    time.sleep(10)
+
     REGISTRY.register(EntityServiceRestAPICollector(sys.argv[1]))
 
     start_http_server(int(sys.argv[2]))
