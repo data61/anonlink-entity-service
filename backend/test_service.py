@@ -716,7 +716,7 @@ def permutation_unencrypted_mask_test(party1_filters, party2_filters, s1, s2, ba
 
 def generate_test_data(dataset_size=1000):
     logger.info("Generating local PII data")
-    nl = randomnames.NameList(math.floor(dataset_size * 1.2))
+    nl = randomnames.NameList(math.floor(dataset_size * 1.3))
     s1, s2 = nl.generate_subsets(dataset_size, 0.8)
 
     logger.info("Locally hashing party A identity data to create bloom filters")
