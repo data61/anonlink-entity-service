@@ -152,7 +152,7 @@ This protocol creates a random reordering for both organizations; and creates a 
 the reordered rows line up.
 
 Accessing the mask requires the ``result_token``, and accessing the permutation requires a
-``receipt-token`` (provided to each organization that uploads data).
+``receipt-token`` (provided to each organization when they upload data).
 
 Note the mask will be the length of the smaller data set and is applied after permuting the entities.
 This means the owner of the larger data set learns a subset of her rows which are not in the smaller
