@@ -38,7 +38,8 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.imgmath',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages'
+    'sphinx.ext.githubpages',
+    'sphinxcontrib.redoc'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -165,4 +166,16 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3/': None}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+    'clkhash': ('http://clkhash.readthedocs.io/en/latest/', None)
+}
+
+
+redoc = [
+    {
+        'name': 'Entity Service API',
+        'page': 'api',
+        'spec': '_static/swagger.yaml',
+    }
+]

@@ -1,6 +1,14 @@
+# A Swagger 2.0 (a.k.a. OpenAPI) definition of the Entity Service API.
+#
+# This is used for generating API documentation and the types used by the
+# server.
+#
+# Some style notes:
+# - This file is used by ReDoc, which allows GitHub Flavored Markdown in
+#   descriptions.
 swagger: '2.0'
 info:
-  version: '1.1'
+  version: '1.7.3'
   title: Entity Matching API
   contact:
     name: 'Confidential Computing, Data61 | CSIRO'
@@ -8,6 +16,8 @@ info:
   description: >-
     Allows two organisations to carry out private record linkage -
     without disclosing personally identifiable information.
+
+    In general:
 
     * All parameters and returned objects are JSON with content-type set to
     application/json.
@@ -19,83 +29,66 @@ info:
     * HTTP status codes are used to distinguish server outcomes.
 
 
-    ## Introduction
+    **Note:** Several important concepts including security considerations are described in
+    separate documentation.
 
-    This is a service that computes record matches between providers. Data to be 
+    ### Introduction
+
+    This is a service that computes record matches between providers. Data to be
     linked is locally hashed into cryptographic longterm keys (CLKs). This hashed 
     data is uploaded to the service for matching. The result is a permutation, or
     reordering, for each providers' data. Data to be linked must be locally
     transformed into cryptographic longterm keys following a particular schema
     before being uploaded.
-    
+
+
+    ### Security
+
+    See the linked [security documentation](./security.html).
+
+    __Warning__: anyone can use this service, however only the participants in a linkage are
+    allowed to see the results.
+
+
+    ### Hashing Data
+
+    See the [clkhash](https://github.com/n1analytics/clkhash) project for details and a command line
+    tool to locally hash the data to upload.
+
+
+
     ## Matching Protocols
     
     The Entity Service supports different **result types** which effect what output is produced,
     and who may see the output.
-    
-    ### Direct Mapping Table
-    
-    This outputs a lookup table using original indices from the two organizations. The
-    `result_token` (generated when creating the mapping) is required. The `result_type`
-    should be set to `"mapping"`.
-    
-    
-    ### Permutation and Mask
-    
-    This protocol creates a random reordering for both organizations; and creates a mask revealing
-    where the reordered rows line up. Accessing the mask requires the `result_token`, and accessing
-    the permutation requires a `receipt-token` (provided to each organization when they upload data).
-    
-    ### Permutation and Encrypted Mask
-    
-    Similar to **Permutation and Mask**, except the mask is encrypted using a Paillier Public Key
-    given when creating the mapping. The mask is provided along with the unenencrypted permutation
-    to each organization with a valid `receipt-token`.
+
+    See the documentation section on [output types](./concepts.html#result-types).
+
+    The options are:
+
+      * `"permutation"` - Create a random permutation and Paillier encrypted mask.
+      * `"mapping"` - Directly output a lookup table of `indexA = indexB`.
+      * `"permutation_unencrypted_mask"` - Create a random permutation and an unencrypted mask.
+      * `"similarity_scores"` - Output a list of similarity scores of `[indexA, indexB, score]`, where `score`
+        represents the likelihood that `indexA = indexB`.
 
 
-
-    ## Security
-
-    Full details on the security of the privacy preserving 
-    record linkage are available in the paper:
-    [A Novel Error-Tolerant Anonymous Linking Code](http://www.record-linkage.de/-download=wp-grlc-2011-02.pdf)
-    by Rainer Schnell, Tobias Bachteler, and Jörg Reiher.
-    Essentially this guarantees the privacy of all individual records, however the
-    relationship between records is, of course, exposed by this api.
-    
-    
-    __Warning__: anyone can use this service, however only the
-    participants in a mapping are allowed to see the results.
-    
-
-    ## Identifier Types
-
-    Types of personally identifiable information that can be used to create
-    Bloom Filters to compute CLKs. Both sides must agree on the exact schema,
-    however due to the one way nature of the CLKs this service can't 
-    enforce that the schema was followed.
-
-    See additional documentation for valid identifier types.
-    
-    ## Hashing Data
-    
-    See the `anonlink` project for details and a command line tool to locally
-    hash the data to upload.
-    
 host: es.data61.xyz
 schemes:
-  - https
+  - "https"
 basePath: /api/v1
 produces:
+  - application/json
+consumes:
   - application/json
 paths:
   /status:
     get:
+      summary: Service status
       description: |
-        Check that the service is up and responding. 
-        
         Suitable for using as load balancer health check. Checks that
-        redis cache and database are operational.
+        redis cache and database are operational. Provides very high level system wide
+        metrics.
       responses:
         '200':
           description: Service status.
@@ -109,12 +102,19 @@ paths:
                 type: integer
               rate:
                 type: integer
+                description: The most recent reported comparison rate of the system (comparisons per second).
+          examples:
+            application/json:
+              - status: "ok"
+                number_mappings: 3118
+                rate: 1793757
         '500':
           description: | 
             System is experiencing difficulties. 
             E.g. application can't connect to database.
   /version:
     get:
+      summary: Version
       description: |
         Return version numbers of libraries used.
       responses:
@@ -131,8 +131,12 @@ paths:
                 type: string
               python:
                 type: string
+          examples:
+            application/json:
+              {"anonlink": "0.6.3", "entityservice": "v1.7.2", "libc": "glibc2.2.5", "python": "3.6.4"}
   /mappings:
     get:
+      summary: List of mappings.
       description: |
         List of all mappings with their completion status.
         
@@ -145,11 +149,8 @@ paths:
           schema:
             $ref: '#/definitions/mappings'
     post:
-
+      summary: Create and configure a new linkage project.
       description: |
-        Create and configure a new entity matching task.
-        
-        
         Prepare resources and endpoints to accept updates from data providers.
         Provides the caller with credentials that will be required when adding
         data to the mapping and accessing the results.
@@ -163,32 +164,15 @@ paths:
         
         Each participant will be able to see the schema to verify it is
         what they expect. Schema details should have been determined and agreed 
-        on by each party before starting a mapping task.
-      
-      
-            [
-              {"identifier": "NAME freetext",  "weight": 1, "notes":""},
-              {"identifier": "DOB YYYY/MM/DD", "weight": 1, "notes":""}
-            ]
+        on by each party before starting a mapping task. This is documented
+        in [schema](./concepts.html#schema).
         
         ### Result Type
         
         The result type specifies what information is available after the entity
-        resolving process has completed.  See the documentation section on 
-        [matching protocols](#matching-protocols).
+        resolving process has completed.
         
-        
-          
-        The options are:
-      
-          * `"permutation"` - Create a random permutation and Paillier encrypted mask.
-          * `"mapping"` - Directly output a lookup table of `indexA = indexB`.
-          * `"permutation_unencrypted_mask"` - Create a random permutation and an unencrypted mask.
-          * `"similarity_scores"` - Output a list of similarity scores of `[indexA, indexB, score]`, where `score`
-            represents the likelihood that `indexA = indexB`.
-
-        
-        
+        Note
         `public_key` and `paillier_context` are only required if `result_type = "permutation"`.
         
         
@@ -206,17 +190,20 @@ paths:
  
   '/mapping/{mapping-id}':
     get:
+      summary: Linkage Progress and Results
       description: |
-        Gets a detailed description of a `Match` object by id.
-        The response body for completed matchings depends on the mappings's `result_type`.
-        
-        
+        Gets a detailed description of a `linkage` object by id. Note that when called **before**
+        all data providers have uploaded their data a 503 will be returned.
+
+        The response body for completed linkages depends on the `result_type`.
+
         ## Authentication Token
         
-        Token source depends on the mapping's `result_type`.
+        A header with the name `Authorization` must be set to access this API. The token's value
+        depends on the mapping's `result_type`:
         
-        - if the `result_type` is `"mapping"` or `"similarity_scores"` then `token` is provided when initially
-          creating the mapping (as `result-token`).
+        - if the `result_type` is `"mapping"` or `"similarity_scores"` then `token` is provided when
+          initially creating the mapping (as `result-token`).
         - if the `result_type` is `"permutation"` then `token` is obtained when organisations
           add data to the mapping (as `receipt-token`)
         - if the `result_type` is `permutation_unenecrypted_mask`, the `token` to access the
@@ -228,7 +215,7 @@ paths:
         ## Response
         
         The response schema depends on the mapping's `result_type`. OpenAPI doesn't
-        allow different schemas so these are documented here.
+        allow different schemas (in v2) so these are documented here:
         
         
         ### result_type = "mapping"
@@ -342,23 +329,26 @@ paths:
         '200':
           description: Successful response
     put:
+      summary: Upload CLK data.
       description: |
         Called by each of the data providers with their calculated `CLK` vectors.
         The mapping must have been created, and the caller must have both the
         `mapping-id` and `token` in order to contribute data.
-        
+
+        This endpoint supports `Transfer-Encoding =  chunked` (streaming uploads).
         
         When the second party successfully adds data the matching task is queued;
         although it is worth noting there is no indication to the caller that this
         has occurred.
         
-        
-        One per entity/row.
-        Note maximum request size is currently set to `~10 GB`, which __should__
-        translate to over 20 million entities.
+        The data uploaded is one [CLK](./concepts.html#cryptographic-longterm-keys) per entity/row.
+
+        Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
+        translate to just over 20 million entities.
         
       parameters:
         - $ref: '#/parameters/resource'
+        - $ref: '#/parameters/token'
         - in: body
           name: clks
           required: true
@@ -377,6 +367,7 @@ paths:
           description: If the authentication token is not valid, or the mapping isn't found.
     
     delete:
+      summary: Delete linkage project.
       description: Remove the mapping and associated data from the service.
       parameters:
         - $ref: '#/parameters/resource'
@@ -387,6 +378,7 @@ paths:
           description: Mapping not present or invalid auth
   '/mapping/{mapping-id}/status':
     get:
+      summary: Linkage Status
       description: A status update on a particular mapping
       responses:
         '200':
@@ -397,7 +389,7 @@ parameters:
   token:
     required: true
     type: string
-    name: token
+    name: Authorization
     in: header
   resource:
     in: path
@@ -443,6 +435,8 @@ definitions:
         type: boolean
       threshold:
         type: number
+        minimum: 0.0
+        maximum: 1.0
       time_added:
         type: string
         format: 'date-time'
@@ -492,6 +486,8 @@ definitions:
         type: string
     
   NewMapping:
+    description: Configuration for a new mapping.
+    type: object
     properties:
       schema:
         type: array
@@ -503,8 +499,9 @@ definitions:
         type: string
         description: Output types and authentication protocol
         enum:
-          - permutation
+          - similarity_scores
           - mapping
+          - permutation
           - permutation_unencrypted_mask
 
       public_key:
