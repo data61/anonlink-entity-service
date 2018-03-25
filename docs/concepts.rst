@@ -3,47 +3,32 @@ Concepts
 
 .. _cryptographic-longterm-keys:
 
-Cryptographic Longterm Keys
+Cryptographic Longterm Key
 ---------------------------
 
-A Cryptographic Longterm Key must be created for each entity; this
-process is briefly documented here. Full details are available in the
-paper: `A Novel Error-Tolerant Anonymous Linking
-Code <http://www.record-linkage.de/-download=wp-grlc-2011-02.pdf>`__ by
-Rainer Schnell, Tobias Bachteler, and Jörg Reiher.
+A Cryptographic Longterm Key is the name given to a
+`bloom filter <https://en.wikipedia.org/wiki/Bloom_filter>`_ used as a privacy
+preserving representation of an entity. Unlike a cryptographic hash function, a CLK preserves
+similarity - meaning two similar entities will have similar CLKs. This property is necessary
+for probabilistic record linkage.
 
-The identifiers to use for record linkage are first preprocessed by
-splitting into n-grams. String based features, such as name, address,
-email will be split into Bigrams, and numerical values such as year of
-birth will be split into Unigrams. See the section on `Identifier
-Types <#identifier-types>`__ for details on how each feature might be
-preprocessed - this must be agreed on between participating parties.
+:abbr:`CLK (Cryptographic Longterm Key)`\ s are created independent of the entity service following
+a *keyed hashing* process.
 
-For example the name *John O'Shea* is split into the Bigrams: JO OH HN
-OS SH HE EA.
-
-Each n-gram for each identifier is hashed with two independent hash
-functions to create the CLK. We use the two HMACs proposed in the above
-paper namely HMAC-SHA1 and HMAC-MD5.
-
-.. danger::
-
-   Both of these HMACs take a key - it is essential that two independent
-   keys are used, and that these keys are not available to any other party
-   which has access to the CLK data. For instance this Entity Service.
-
-The two HMAC results are added\* together modulo 1024, and this index in
-the resulting bit array is set to 1. This is repeated 30 times per
-identifier. This entire process is repeated for each entity in the
-dataset.
-
-See the `next <#bloom-filter-format>`__ section for information on how
-to serialize each CLK.
+A CLK is created by hashing multiple identifying fields (e.g., name, date of birth, phone number)
+for each entity. The :ref:`schema <schema>` section details how to capture the configuration for
+creating CLKs from PII, and the :ref:`next <bloom-filter-format>` section outlines how to serialize
+CLKs for use with this service's :ref:`api`.
 
 .. note::
 
-   Slightly more complex than laid out here - see the paper for
-   details.
+   The Cryptographic Longterm Key was introduced in
+   `A Novel Error-Tolerant Anonymous Linking Code
+   <http://www.record-linkage.de/-download=wp-grlc-2011-02.pdf>`__ by
+   Rainer Schnell, Tobias Bachteler, and Jörg Reiher.
+
+
+.. _bloom-filter-format:
 
 Bloom Filter Format
 -------------------
@@ -69,78 +54,114 @@ An example with a 64 bit filter::
 As with standard Base64 encodings, a newline is introduced every 76
 characters.
 
+.. _schema:
 
 Schema
 ------
 
-Types of personally identifiable information that can be used to create
-Bloom Filters to compute CLKs. Both sides must agree on the exact
-schema, however due to the one way nature of the CLKs this service can't
-actually enforce that the schema was followed. The concept of a linkage
-schema is documented in `clkhash <http://clkhash.readthedocs.io/en/latest/schema.html>`_
+It is important that participating organisations agree on how personally identifiable information is
+hashed to create the :ref:`clks <cryptographic-longterm-keys>` that are matched together. We call the configuration of how to create CLKs
+a linkage schema. The organisations agree on the schema configuration to ensure their CLKs are
+comparable.
 
+The linkage schema is documented in `clkhash <http://clkhash.readthedocs.io/en/latest/schema.html>`_
+our reference implementation written in Python.
+
+.. note::
+
+    Due to the *one way nature* of hashing, the entity service can't determine
+    whether the linkage schema was followed when clients generated CLKs.
+
+
+.. _comparing-clks:
+
+Comparing Cryptograhpic Longterm Keys
+-------------------------------------
+
+The similarity metric used is the
+`Sørensen–Dice index <https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient>`_ -
+although this may become a configurable option in the future.
 
 .. _result-types:
 
 Output Types
 ------------
 
-The Entity Service supports different **result types** which effect what
-output is produced, and who may see the output.
+The Entity Service supports different **result types** which effect what output is produced, and
+who may see the output.
 
 .. warning::
 
-   The matching protocol cannot always be enforced by the Entity Service,
-   so it is important that all participants trust and verify that they are
-   participating in the agreed mode.
-
    **The security guarantees differ substantially for each output type.**
+   See the :ref:`security` document for a treatment of these concerns.
 
 
 Similarity Score
 ~~~~~~~~~~~~~~~~
 
-Calculated similarities above a given threshold between entities are returned.
-The ``result_token`` (generated when creating the mapping) is required. The
-``result_type`` should be set to ``"similarity_scores"``.
+Similarities scores are computed between all CLKs in each organisation - the scores above a given
+threshold are returned. This output type is currently the only way to work with 1 to many
+relationships.
 
-Results are a simple JSON array in the form:
+The ``result_token`` (generated when creating the mapping) is required. The ``result_type`` should
+be set to ``"similarity_scores"``.
 
-   index_a, index_b, score
+Results are a simple JSON array of arrays::
 
-Where the index values will be 0 based row index from the uploaded CLKS, and
-the score will be a double between 0.0 and 1.0 where 1.0 means the CLKS were
-identical.
+   [
+       [index_a, index_b, score],
+       ...
+   ]
+
+Where the index values will be the 0 based row index from the uploaded CLKs, and
+the score will be a Number between the provided threshold and ``1.0``.
+
+A score of ``1.0`` means the CLKs were identical. Threshold values are usually between
+``0.5`` and ``1.0``.
+
+.. note::
+
+    The maximum number of results returned is the product of the two data set lengths.
+
+    For example:
+
+        Comparing two data sets each containing 1 million records with a threshold
+        of ``0.0`` will return 1 trillion results (``1e+12``).
 
 Direct Mapping Table
 ~~~~~~~~~~~~~~~~~~~~
 
-This outputs a lookup table using original indices from the two
-organizations. The ``result_token`` (generated when creating the
-mapping) is required. The ``result_type`` should be set to
-``"mapping"``.
+The direct mapping takes the similarity scores and simply assigns the highest scores as links.
+
+The links are exposed as a lookup table using indices from the two organizations::
+
+    {
+        index_a: index_b,
+        ...
+    }
+
+
+The ``result_token`` (generated when creating the mapping) is required to retrieve the results. The
+``result_type`` should be set to ``"mapping"``.
 
 
 Permutation and Mask
 ~~~~~~~~~~~~~~~~~~~~
 
-This protocol creates a random reordering for both organizations; and
-creates a mask revealing where the reordered rows line up. Accessing the
-mask requires the ``result_token``, and accessing the permutation
-requires a ``receipt-token`` (provided to each organization when they
-upload data).
+This protocol creates a random reordering for both organizations; and creates a mask revealing where
+the reordered rows line up.
 
-The security in this result type relies on the mask remaining secret
-from the data providers. Ensure the creator of the mapping can be trusted
-by both data providers for this task.
+Accessing the mask requires the ``result_token``, and accessing the permutation requires a
+``receipt-token`` (provided to each organization that uploads data).
 
-Note the mask will be the length of the smaller dataset and is applied after
-permuting the entities.
+Note the mask will be the length of the smaller data set and is applied after permuting the entities.
+This means the owner of the larger data set learns a subset of her rows which are not in the smaller
+data set.
 
 Permutation and Encrypted Mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Similar to **Permutation and Mask**, except the mask is encrypted using
-a Paillier Public Key given when creating the mapping. The mask is
+a Paillier Public Key given when creating the mapping. The encrypted mask is
 provided along with the unenencrypted permutation to each organization
 with a valid ``receipt-token``.
