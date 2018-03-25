@@ -18,7 +18,7 @@ a *keyed hashing* process.
 A CLK is created by hashing multiple identifying fields (e.g., name, date of birth, phone number)
 for each entity. The :ref:`schema <schema>` section details how to capture the configuration for
 creating CLKs from PII, and the :ref:`next <bloom-filter-format>` section outlines how to serialize
-CLKs for use with this service's :ref:`api`.
+CLKs for use with this service's `api <./api.html>`_.
 
 .. note::
 

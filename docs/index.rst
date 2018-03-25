@@ -7,7 +7,6 @@ Entity Service - v\ |release|
 
    concepts
    security
-   api
    deployment
    development
 
@@ -30,3 +29,7 @@ for computing entity similarity by comparing Cryptographic Longterm Keys
    :alt: Entity Service Overview
    :width: 600 px
 
+API
+----
+
+`Open API <./api.html>`_
