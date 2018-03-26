@@ -1,3 +1,5 @@
+.. _security:
+
 Security
 ========
 
@@ -60,6 +62,9 @@ rows line up. This output is designed for use in multi-party computation algorit
 This mitigates the **Knowledge about set intersection** problem from the direct
 mapping output - assuming the mask is not made available to the data providers.
 
+Note the mask will be the length of the smaller data set and is applied after permuting
+the entities. This means the owner of the larger data set learns a subset of her rows
+which are not in the smaller data set.
 
 Permutation and Encrypted Mask
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
