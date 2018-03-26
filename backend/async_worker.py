@@ -222,63 +222,44 @@ def compute_similarity(resource_id, dp_ids, threshold):
     size = lenf1 * lenf2
 
     logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-    if size < config.GREEDY_SIZE:
-        logger.info("Computing similarity using more accurate method")
 
-        #filters1 = deserialize_filters(serialized_filters1)
-        #filters2 = deserialize_filters(serialized_filters2)
+    logger.info("Computing similarity using greedy method")
+    db = connect_db()
+    filters1_object_filename = get_filter_metadata(db, dp_ids[0])
+    filters2_object_filename = get_filter_metadata(db, dp_ids[1])
 
-        similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
-        logger.debug("Calculating optimal connections for entire network")
-        # The method here makes a big difference in running time
-        mapping = anonlink.network_flow.map_entities(similarity,
-                                                     threshold=threshold,
-                                                     method='bipartite')
-        res = {
-            "mapping": mapping,
-            "lenf1": lenf1,
-            "lenf2": lenf2
-        }
-        save_and_permute.delay(res, resource_id)
+    logger.debug("Chunking computation task")
+    chunk_size = config.get_task_chunk_size(size)
+    if chunk_size is None:
+        chunk_size = max(lenf1, lenf2)
+    logger.info("Chunks will contain {} entities per task".format(chunk_size))
+    update_mapping_chunk(db, resource_id, chunk_size)
+    job_chunks = []
 
-    else:
-        logger.info("Computing similarity using greedy method")
-        db = connect_db()
-        filters1_object_filename = get_filter_metadata(db, dp_ids[0])
-        filters2_object_filename = get_filter_metadata(db, dp_ids[1])
+    dp1_chunks = []
+    dp2_chunks = []
 
-        logger.debug("Chunking computation task")
-        chunk_size = config.get_task_chunk_size(size)
-        if chunk_size is None:
-            chunk_size = max(lenf1, lenf2)
-        logger.info("Chunks will contain {} entities per task".format(chunk_size))
-        update_mapping_chunk(db, resource_id, chunk_size)
-        job_chunks = []
+    for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
+        dp1_chunks.append(
+            (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
+        )
+    for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
+        dp2_chunks.append(
+            (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
+        )
 
-        dp1_chunks = []
-        dp2_chunks = []
+    # Every chunk in dp1 has to be run against every chunk in dp2
+    for dp1_chunk in dp1_chunks:
+        for dp2_chunk in dp2_chunks:
+            job_chunks.append((dp1_chunk, dp2_chunk, ))
 
-        for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
-            dp1_chunks.append(
-                (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
-            )
-        for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
-            dp2_chunks.append(
-                (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
-            )
+    logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
+        len(job_chunks), chunk_size))
 
-        # Every chunk in dp1 has to be run against every chunk in dp2
-        for dp1_chunk in dp1_chunks:
-            for dp2_chunk in dp2_chunks:
-                job_chunks.append((dp1_chunk, dp2_chunk, ))
-
-        logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
-            len(job_chunks), chunk_size))
-
-        mapping_future = chord(
-            (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
-            aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
-        ).apply_async()
+    mapping_future = chord(
+        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
+        aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
+    ).apply_async()
 
 
 @celery.task()
