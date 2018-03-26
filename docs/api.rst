@@ -1,5 +1,7 @@
-API
-===
+.. _api:
+
+REST API
+========
 
 Open API Specification
 ----------------------
