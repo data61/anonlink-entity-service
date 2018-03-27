@@ -44,6 +44,7 @@ Table Of Contents
 .. toctree::
    :maxdepth: 2
 
+   tutorial/index
    concepts
    security
    api
