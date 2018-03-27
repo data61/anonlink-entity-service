@@ -7,8 +7,6 @@ rm -fr /tmp/n1-es
 mkdir /tmp/n1-es
 
 cp -r .. /tmp/n1-es
-rm -fr /tmp/n1-es/backend/AnonymousLinking/build
-rm -fr /tmp/n1-es/backend/AnonymousLinking/.eggs
 rm -fr /tmp/n1-es/.git*
 rm -fr /tmp/n1-es/.idea
 rm -fr /tmp/n1-es/*.iml
