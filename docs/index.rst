@@ -37,6 +37,12 @@ Private record linkage - using the *Entity Service* - is a two stage process:
   as :ref:`a mapping, permutations and mask, or similarity scores <result-types>`.
 
 
+API
+----
+
+`Open API <./api.html>`_
+
+
 
 Table Of Contents
 -----------------
