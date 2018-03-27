@@ -455,11 +455,11 @@ def paillier_encrypt_mask(resource_id):
 
         # Subtasks will encrypt the mask in chunks
         logger.info("Chunking mask")
-        encrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
+        unencrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
         # calling .apply_async will create a dedicated task so that the
         # individual tasks are applied in a worker instead
         encrypted_mask_future = chord(
-            (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+            (encrypt_mask.s(chunk, pk, base) for chunk in unencrypted_chunks),
             persist_encrypted_mask.s(
                 paillier_context=cntx,
                 resource_id=resource_id)
