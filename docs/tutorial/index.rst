@@ -2,9 +2,11 @@ Tutorials
 =========
 
 .. toctree::
+   :maxdepth: 1
 
-   Unencrypted Masked Matchmaking - All in one.ipynb
-   Matchmaking - Expose Sparse Similarity Scores.ipynb
+   Tutorial 01 - Mapping.ipynb
+   Tutorial 02 - Unencrypted Masked.ipynb
+   Tutorial 03 - Similarity Scores.ipynb
 
 
 Command line example
