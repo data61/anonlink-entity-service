@@ -690,7 +690,14 @@ def store_similarity_scores(similarity_scores, resource_id):
 
 @celery.task()
 def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
-    encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    # NB: This business with types is to circumvent Celery issue 3597:
+    # We're given either a single chunk (not in a list) or a list of chunks.
+    assert len(encrypted_mask_chunks) > 0, 'Got empty encrypted mask'
+    if isinstance(encrypted_mask_chunks[0], list):
+        # Flatten encrypted_mask_chunks
+        encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    else:
+        encrypted_mask = encrypted_mask_chunks
 
     db = connect_db()
     with db.cursor() as cur:
