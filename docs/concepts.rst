@@ -7,7 +7,7 @@ Cryptographic Longterm Key
 ---------------------------
 
 A Cryptographic Longterm Key is the name given to a
-`bloom filter <https://en.wikipedia.org/wiki/Bloom_filter>`_ used as a privacy
+`Bloom filter <https://en.wikipedia.org/wiki/Bloom_filter>`_ used as a privacy
 preserving representation of an entity. Unlike a cryptographic hash function, a CLK preserves
 similarity - meaning two similar entities will have similar CLKs. This property is necessary
 for probabilistic record linkage.
@@ -15,7 +15,7 @@ for probabilistic record linkage.
 :abbr:`CLK (Cryptographic Longterm Key)`\ s are created independent of the entity service following
 a *keyed hashing* process.
 
-A CLK is created by hashing multiple identifying fields (e.g., name, date of birth, phone number)
+A CLK incorporates information from multiple identifying fields (e.g., name, date of birth, phone number)
 for each entity. The :ref:`schema <schema>` section details how to capture the configuration for
 creating CLKs from PII, and the :ref:`next <bloom-filter-format>` section outlines how to serialize
 CLKs for use with this service's :ref:`api`.
@@ -33,7 +33,7 @@ CLKs for use with this service's :ref:`api`.
 Bloom Filter Format
 -------------------
 
-The bloom filter is simply a `bitarray` - currently this of fixed length 1024 bit.
+A Bloom filter is simply a `bitarray` - currently the length is fixed to 1024 bit.
 
 This can easily be represented as 128 bytes (each being an 8 bit number between 0 and 255).
 We serialize by `base64` encoding the raw bytes of the bit array.
@@ -60,11 +60,11 @@ Schema
 ------
 
 It is important that participating organisations agree on how personally identifiable information is
-hashed to create the :ref:`clks <cryptographic-longterm-keys>` that are matched together. We call the configuration of how to create CLKs
-a linkage schema. The organisations agree on the schema configuration to ensure their CLKs are
+processed to create the :ref:`clks <cryptographic-longterm-keys>`. We call the configuration for creating CLKs
+a *linkage schema*. The organisations have to agree on a schema to ensure their CLKs are
 comparable.
 
-The linkage schema is documented in `clkhash <http://clkhash.readthedocs.io/en/latest/schema.html>`_
+The linkage schema is documented in `clkhash <http://clkhash.readthedocs.io/en/latest/schema.html>`_,
 our reference implementation written in Python.
 
 .. note::
@@ -152,7 +152,7 @@ This protocol creates a random reordering for both organizations; and creates a 
 the reordered rows line up.
 
 Accessing the mask requires the ``result_token``, and accessing the permutation requires a
-``receipt-token`` (provided to each organization that uploads data).
+``receipt-token`` (provided to each organization when they upload data).
 
 Note the mask will be the length of the smaller data set and is applied after permuting the entities.
 This means the owner of the larger data set learns a subset of her rows which are not in the smaller
