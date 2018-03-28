@@ -455,11 +455,11 @@ def paillier_encrypt_mask(resource_id):
 
         # Subtasks will encrypt the mask in chunks
         logger.info("Chunking mask")
-        encrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
+        unencrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
         # calling .apply_async will create a dedicated task so that the
         # individual tasks are applied in a worker instead
         encrypted_mask_future = chord(
-            (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+            (encrypt_mask.s(chunk, pk, base) for chunk in unencrypted_chunks),
             persist_encrypted_mask.s(
                 paillier_context=cntx,
                 resource_id=resource_id)
@@ -690,7 +690,14 @@ def store_similarity_scores(similarity_scores, resource_id):
 
 @celery.task()
 def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
-    encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    # NB: This business with types is to circumvent Celery issue 3597:
+    # We're given either a single chunk (not in a list) or a list of chunks.
+    assert len(encrypted_mask_chunks) > 0, 'Got empty encrypted mask'
+    if isinstance(encrypted_mask_chunks[0], list):
+        # Flatten encrypted_mask_chunks
+        encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    else:
+        encrypted_mask = encrypted_mask_chunks
 
     db = connect_db()
     with db.cursor() as cur:
