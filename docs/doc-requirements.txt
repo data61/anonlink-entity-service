@@ -1,1 +1,4 @@
 sphinx
+sphinxcontrib-redoc
+nbsphinx
+ipython
