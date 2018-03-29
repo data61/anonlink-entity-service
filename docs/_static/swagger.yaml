@@ -8,7 +8,7 @@
 #   descriptions.
 swagger: '2.0'
 info:
-  version: '1.7.3'
+  version: '1.1'
   title: Entity Matching API
   x-logo:
     url: http://clkhash.readthedocs.io/en/latest/_static/logo.svg
