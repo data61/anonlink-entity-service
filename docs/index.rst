@@ -53,6 +53,5 @@ Table Of Contents
    tutorial/index
    concepts
    security
-   api
    deployment
    development
