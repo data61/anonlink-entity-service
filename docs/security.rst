@@ -75,6 +75,30 @@ provided along with the unenencrypted permutation to each organization
 with a valid ``receipt-token``.
 
 
+.. _auth:
+
+Authentication / Authorization
+------------------------------
+
+The entity service does not support authentication, yet. This is planned for a future version.
+
+All sensitive data is protected by token-based authorization. That is, you need to provide the correct token to access
+different resources. A token is a unique random 192 bit string.
+
+There are three different types of tokens:
+
+- *update-token*: required to upload a party's CLKs.
+- *result_token*: required to access the result of the entity resolution process. This is, depending on the
+  :ref:`output type <result-types>`, either similarity scores, a direct mapping table, or a mask.
+- *receipt_token*: this token is returned to either party after uploading their respective CLKs. With this
+  *receipt-token* they can then access their respective permutations, if the output type of the mapping is set to
+  permutation and (encrypted) mask.
+
+.. important::
+   These tokens are the only artifacts that protect the sensitive data. Therefore it is paramount to make sure that only
+   authorized parties have access to these tokens!
+
+
 Attack Vectors
 --------------
 
