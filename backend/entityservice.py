@@ -487,7 +487,6 @@ class Mapping(Resource):
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
 
 
-
 class MappingStatus(Resource):
 
     """
@@ -585,7 +584,6 @@ def add_mapping_data(dp_id, raw_stream):
 
     if store['count'] == 0:
         abort(400, message="Missing information")
-
 
     app.logger.info("Processed {} CLKS".format(store['count']))
     app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))

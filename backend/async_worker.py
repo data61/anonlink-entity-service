@@ -222,63 +222,44 @@ def compute_similarity(resource_id, dp_ids, threshold):
     size = lenf1 * lenf2
 
     logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-    if size < config.GREEDY_SIZE:
-        logger.info("Computing similarity using more accurate method")
 
-        #filters1 = deserialize_filters(serialized_filters1)
-        #filters2 = deserialize_filters(serialized_filters2)
+    logger.info("Computing similarity using greedy method")
+    db = connect_db()
+    filters1_object_filename = get_filter_metadata(db, dp_ids[0])
+    filters2_object_filename = get_filter_metadata(db, dp_ids[1])
 
-        similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
-        logger.debug("Calculating optimal connections for entire network")
-        # The method here makes a big difference in running time
-        mapping = anonlink.network_flow.map_entities(similarity,
-                                                     threshold=threshold,
-                                                     method='bipartite')
-        res = {
-            "mapping": mapping,
-            "lenf1": lenf1,
-            "lenf2": lenf2
-        }
-        save_and_permute.delay(res, resource_id)
+    logger.debug("Chunking computation task")
+    chunk_size = config.get_task_chunk_size(size)
+    if chunk_size is None:
+        chunk_size = max(lenf1, lenf2)
+    logger.info("Chunks will contain {} entities per task".format(chunk_size))
+    update_mapping_chunk(db, resource_id, chunk_size)
+    job_chunks = []
 
-    else:
-        logger.info("Computing similarity using greedy method")
-        db = connect_db()
-        filters1_object_filename = get_filter_metadata(db, dp_ids[0])
-        filters2_object_filename = get_filter_metadata(db, dp_ids[1])
+    dp1_chunks = []
+    dp2_chunks = []
 
-        logger.debug("Chunking computation task")
-        chunk_size = config.get_task_chunk_size(size)
-        if chunk_size is None:
-            chunk_size = max(lenf1, lenf2)
-        logger.info("Chunks will contain {} entities per task".format(chunk_size))
-        update_mapping_chunk(db, resource_id, chunk_size)
-        job_chunks = []
+    for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
+        dp1_chunks.append(
+            (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
+        )
+    for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
+        dp2_chunks.append(
+            (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
+        )
 
-        dp1_chunks = []
-        dp2_chunks = []
+    # Every chunk in dp1 has to be run against every chunk in dp2
+    for dp1_chunk in dp1_chunks:
+        for dp2_chunk in dp2_chunks:
+            job_chunks.append((dp1_chunk, dp2_chunk, ))
 
-        for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
-            dp1_chunks.append(
-                (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
-            )
-        for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
-            dp2_chunks.append(
-                (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
-            )
+    logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
+        len(job_chunks), chunk_size))
 
-        # Every chunk in dp1 has to be run against every chunk in dp2
-        for dp1_chunk in dp1_chunks:
-            for dp2_chunk in dp2_chunks:
-                job_chunks.append((dp1_chunk, dp2_chunk, ))
-
-        logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
-            len(job_chunks), chunk_size))
-
-        mapping_future = chord(
-            (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
-            aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
-        ).apply_async()
+    mapping_future = chord(
+        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
+        aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
+    ).apply_async()
 
 
 @celery.task()
@@ -474,11 +455,11 @@ def paillier_encrypt_mask(resource_id):
 
         # Subtasks will encrypt the mask in chunks
         logger.info("Chunking mask")
-        encrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
+        unencrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
         # calling .apply_async will create a dedicated task so that the
         # individual tasks are applied in a worker instead
         encrypted_mask_future = chord(
-            (encrypt_mask.s(chunk, pk, base) for chunk in encrypted_chunks),
+            (encrypt_mask.s(chunk, pk, base) for chunk in unencrypted_chunks),
             persist_encrypted_mask.s(
                 paillier_context=cntx,
                 resource_id=resource_id)
@@ -557,7 +538,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
     logger.debug("Calculating filter similarity")
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
                                                                      threshold=threshold,
-                                                                     k=5,
+                                                                     k=min(chunk_dp1_size, chunk_dp2_size),
                                                                      use_python=False)
     t3 = time.time()
 
@@ -709,7 +690,14 @@ def store_similarity_scores(similarity_scores, resource_id):
 
 @celery.task()
 def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
-    encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    # NB: This business with types is to circumvent Celery issue 3597:
+    # We're given either a single chunk (not in a list) or a list of chunks.
+    assert len(encrypted_mask_chunks) > 0, 'Got empty encrypted mask'
+    if isinstance(encrypted_mask_chunks[0], list):
+        # Flatten encrypted_mask_chunks
+        encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
+    else:
+        encrypted_mask = encrypted_mask_chunks
 
     db = connect_db()
     with db.cursor() as cur:

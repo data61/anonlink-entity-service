@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" . }}
+data:
+  REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
+  DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+  DEBUG: {{ .Values.workers.debug | quote }}
+  ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
+  SMALL_COMPARISON_CHUNK_SIZE: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
+  LARGE_COMPARISON_CHUNK_SIZE: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
+  SMALL_JOB_SIZE: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
+  LARGE_JOB_SIZE: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
+  CELERYD_PREFETCH_MULTIPLIER: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
+  CELERYD_MAX_TASKS_PER_CHILD: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
+  CELERY_ACKS_LATE: {{ .Values.workers.celery.ACKS_LATE | quote }}
+  ENCRYPTION_MIN_KEY_LENGTH: "1024"
+  MINIO_SERVER: "{{ .Release.Name }}-minio-svc:9000"

@@ -1,52 +1,163 @@
-Name: "entityservice"
+rbac:
+  # TODO still needs work to fully lock down scope etc
+  # See https://github.com/n1analytics/entity-service/issues/88
+  create: false
 
 api:
+
+  ## Deployment component name
+  name: server
+  # Defines the serviceAccountName to use when `rbac.create=false`
+  serviceAccountName: default
+
+  replicaCount: 1
+
+  ## api Deployment Strategy type
+  strategy:
+    type: RollingUpdate
+  #   type: Recreate
+
+  ## Annotations to be added to api pods
+  ##
+  podAnnotations: {}
+    # iam.amazonaws.com/role: linkage
+
+  # Settings for the nginx proxy
+  www:
+
+    image:
+      repository: quay.io/n1analytics/entity-nginx
+      tag: "v1.3.2"
+      ## "IfNotPresent" or "Always"
+      pullPolicy: IfNotPresent
+
+    ## Nginx proxy server resource requests and limits
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+
+  app:
+
+    image:
+      repository: quay.io/n1analytics/entity-app
+      tag: "v1.7.2"
+      ## Options: "IfNotPresent" or "Always"
+      pullPolicy: Always
+
+
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+    ##
+    resources:
+      limits:
+        cpu: 1
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
+
+    debug: "false"
+
+  dbinit:
+    ## Database init can only run during chart install
+    ## It cannot be updated! So we have a separate image + tag
+    image:
+      repository: quay.io/n1analytics/entity-app
+      tag: "v1.7.2"
+
+  ## A shared pull secret for obtaining docker images
+  ## Needs to be pushed into the namespace prior to installation
+  pullSecret: n1-coreos-pull-secret
+
   ingress:
     enabled: true
-  domain: "beta.es.data61.xyz"
-  domainProvider: "route53"
 
-  imageRegistery: "quay.io/n1analytics"
+    ## Ingress annotations
+    ##
+    annotations: []
+     # kubernetes.io/ingress.class: nginx
+     # certmanager.k8s.io/issuer: letsencrypt
+     ## To handle large uploads we increase the nginx buffer size
+     # nginx.org/client-max-body-size: 4096m
+     # ingress.kubernetes.io/proxy-body-size: 4096m
 
-  ## "IfNotPresent" or "Always"
-  imagePullPolicy: "IfNotPresent"
+    ## Entity Service API Ingress hostnames
+    ## Must be provided if Ingress is enabled
+    hosts:
+     - beta.entityservice.edn.io
+     - www.beta.entityservice.edn.io
 
-  ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
-  ## or access it from within the cluster (ClusterIP service).
-  ## Set the service type and the port to serve it.
-  ## ref: http://kubernetes.io/docs/user-guide/services/
-  ## Most likely if ingress is enabled, this should be ClusterIP,
-  ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
-  ## an AWS ELB to 300+ seconds (from the default of 60).
-  serviceType: "ClusterIP"
-  servicePort: 80
+    ## Entity Service API Ingress TLS configuration
+    ## This example setup is for nginx-ingress. We use certificate manager.
+    ## to create the TLS secret in the namespace with the name
+    ## below.
+    tls: #[]
+    - secretName: es-tls
+      hosts:
+      - beta.entityservice.edn.io
+      - www.beta.entityservice.edn.io
 
-  ## If using a load balancer on AWS you can optionally lock down access
-  ## to a given IP range. Provide a list of IPs that are allowed via a
-  ## security group.
-  #serviceSourceRanges:
-  #  - 130.155.157.0/24
+  # Configure a cert-manager Certificate (caution experimental!)
+  certManager:
+    enabled: true
+    secretName: es-tls
+    issuerRef:
+      #name: letsencrypt
+      name: letsencrypt-cluster-issuer
+      kind: ClusterIssuer
+    # Must be in api.ingress.hosts
+    commonName: beta.entityservice.edn.io
 
-  www:
-    image: "entity-nginx"
-    tag: "v1.3.1"
-    memory: 256Mi
-    cpu: 200m
-    containerPort: 8851
-  app:
-    image: "entity-app"
-    memory: 1Gi
-    tag: "v1.7.0"
-    debug: "false"
-    containerPort: 8000
-  Replicas: 1
+  service:
+    annotations: []
+    labels:
+      tier: frontend
+    clusterIp: ""
+
+    ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
+    ## or access it from within the cluster (ClusterIP service).
+    ## Set the service type and the port to serve it.
+    ## ref: http://kubernetes.io/docs/user-guide/services/
+    ## Most likely if ingress is enabled, this should be ClusterIP,
+    ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
+    ## an AWS ELB to 300+ seconds (from the default of 60).
+    type: ClusterIP
+
+    servicePort: 80
+
+    ## If using a load balancer on AWS you can optionally lock down access
+    ## to a given IP range. Provide a list of IPs that are allowed via a
+    ## security group.
+    loadBalancerSourceRanges: []
+    ##  - 130.155.157.0/24
 
 workers:
-  imageRegistery: "quay.io/n1analytics"
-  image: "entity-app"
-  tag: "v1.7.0"
-  replicas: 1
-  debug: "false"
+  name: "matcher"
+
+  image:
+    repository: "quay.io/n1analytics/entity-app"
+    tag: "v1.7.2"
+    pullPolicy: Always
+    pullSecret: "n1-coreos-pull-secret"
+
+  ## Usually this is set to 1 per compute node
+  replicaCount: 6
+  debug: "true"
+
+  podAnnotations: {}
+
+  #strategy: ""
+
+  ## Additional Entity Service Worker container arguments
+  ##
+  extraArgs: {}
+
+  # TODO move these settings into a config file
 
   SMALL_COMPARISON_CHUNK_SIZE: "100000000"
   LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
@@ -57,7 +168,7 @@ workers:
   LARGE_JOB_SIZE: "100000000000"
 
   # Default threshold for considering something a match
-  MATCH_THRESHOLD: "0.95"
+  MATCH_THRESHOLD: "0.90"
 
   # More than this many entities and we skip caching in redis
   MAX_CACHE_SIZE: "1000000"
@@ -73,11 +184,11 @@ workers:
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 8Gi
-      cpu: 2
-    limits:
-      memory: 32Gi
-      cpu: 8
+      memory: 2Gi
+      cpu: 800m
+#    limits:
+#      memory: 2Gi
+#      cpu: 200m
 
 postgresql:
   # See available settings and defaults at:
@@ -87,16 +198,16 @@ postgresql:
   persistence:
     enabled: true
     storageClass: "default"
-    size: 8Gi
-  imageTag: 9.6.5
+    size: 4Gi
+  imageTag: 10
   imagePullPolicy: IfNotPresent
   metrics:
-    enabled: false
+    enabled: true
   resources:
-    limits:
-      memory: 8Gi
+    #limits:
+    #  memory: 8Gi
     requests:
-      memory: 1Gi
+      #memory: 1Gi
       cpu: 100m
 
 redis:
@@ -105,16 +216,16 @@ redis:
   persistence:
     enabled: true
     storageClass: "default"
-    size: "50Gi"
+    size: "10Gi"
   metrics:
-    enabled: false
+    enabled: true
   resources:
     requests:
-      memory: 8Gi
+      #memory: 8Gi
       cpu: 200m
     limits:
-      memory: 20Gi
-      cpu: 1
+      #memory: 20Gi
+      cpu: 300m
   nameOverride: "redis"
 
 minio:

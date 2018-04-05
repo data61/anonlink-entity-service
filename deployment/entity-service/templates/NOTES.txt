@@ -5,13 +5,13 @@ Soon you should be able to visit the entity service.
 
 1. Get the entity service URL by running:
 
-{{- if contains "NodePort" .Values.api.serviceType }}
+{{- if contains "NodePort" .Values.api.service.type }}
 
   export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "fullname" . }})
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
   echo http://$NODE_IP:$NODE_PORT/
 
-{{- else if contains "LoadBalancer" .Values.api.serviceType }}
+{{- else if contains "LoadBalancer" .Values.api.service.type }}
 
   It may take a few minutes for the LoadBalancer IP to be available.
   Watch the status with:
@@ -21,13 +21,10 @@ Soon you should be able to visit the entity service.
       export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} entityservice-api -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
       echo http://$SERVICE_IP/
 
-{{- else if contains "ClusterIP"  .Values.api.serviceType }}
+{{- else if contains "ClusterIP"  .Values.api.service.type }}
 
-If you're using an ingress controller (the default) you will have to manually
-add the DNS entry for {{ .Values.api.domain }} now. If you're using traefik the
-service address can be obtained with:
-
-  kubectl describe svc traefik-traefik --namespace kube-system | grep Ingress | awk '{print $3}'
+If you're using an ingress controller (the default) you may have to manually
+add the DNS entry for {{ .Values.api.ingress.hosts }} now.
 
 Alternatively you can forward the port of the entity service's nginx server to your
 local machine:

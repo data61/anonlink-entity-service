@@ -122,7 +122,7 @@ def load_public_key(pk):
     assert pk['alg'] == "PAI-GN1", "Unsupported algorithm type"
     assert 'n' in pk, MALFORMED_ERROR
     n = phe.util.base64_to_int(pk['n'])
-    return paillier.PaillierPublicKey(n+1, n)
+    return paillier.PaillierPublicKey(n)
 
 
 def generate_scores(csv_text_stream):

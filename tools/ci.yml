@@ -5,12 +5,13 @@ services:
   ci:
     image: quay.io/n1analytics/entity-app
     environment:
-      - DEBUG=true
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
-      - ENTITY_SERVICE_TEST_SIZE=1000
+      - ENTITY_SERVICE_TEST_SIZE=5000
       - ENTITY_SERVICE_PERMUTATION=true
       - ENTITY_SERVICE_TEST_REPEATS=1
-      - INITIAL_DELAY=60
+      - INITIAL_DELAY=20
+      - LOGGING_LEVEL=INFO
+      - LOGGING_FILE=/var/log/es-test.log
     entrypoint: python test_service.py
     depends_on:
       - db
@@ -21,12 +22,11 @@ services:
   tests:
     image: quay.io/n1analytics/entity-app
     environment:
-      - DEBUG=true
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
-    entrypoint: /bin/sh -c "sleep 10; nosetests tests"
+      - INITIAL_DELAY=20
+    entrypoint: /bin/sh -c "sleep 10; python -m unittest discover -s tests -t tests"
     depends_on:
       - db
       - redis
       - worker
       - nginx
-

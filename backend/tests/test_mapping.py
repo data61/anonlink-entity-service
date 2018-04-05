@@ -133,6 +133,25 @@ class TestMappingTests(MappingTestsBase):
         self.mappings.append(new_map['resource_id'])
 
 
+    def test_mapping_single_party_empty_data_upload(self):
+        new_map = requests.post(self.url + '/mappings',
+                                         headers={'Authorization': 'invalid'},
+                                         json={
+                                             'schema': TestMappingTests.schema,
+                                             'result_type': 'mapping',
+                                             'threshold': 0.8
+                                         }).json()
+        self.log.info("Testing uploading 0 clks")
+        r = requests.put(
+            self.url + '/mappings/{}'.format(new_map['resource_id']),
+            headers={'Authorization': new_map['update_tokens'][0]},
+            json={
+                'clks': []
+            }
+        )
+        self.assertEqual(r.status_code, 400)
+
+
     def test_mapping_2_party_data_uploaded(self):
         new_map = requests.post(self.url + '/mappings',
                                          headers={'Authorization': 'invalid'},
@@ -164,7 +183,6 @@ class TestMappingTests(MappingTestsBase):
         response = requests.get(self.url + '/mappings/{}'.format(new_map['resource_id']),
                                 headers={'Authorization': new_map['result_token']})
 
-        print(response)
         mapping_result = response.json()['mapping']
         self.assertGreater(len(mapping_result), 70)
         self.assertLess(len(mapping_result), 80)

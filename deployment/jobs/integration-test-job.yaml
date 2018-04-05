@@ -2,15 +2,16 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: esintegrationtest
+  labels:
+    jobgroup: linkage-integration
 spec:
-  completions: 1
-  parallelism: 1
+  completions: 10
+  parallelism: 3
   template:
     metadata:
       labels:
-        app: entityservice
+        jobgroup: linkage-integration
         tier: aux
-        run: entitytester
     spec:
       restartPolicy: Never
       containers:
@@ -19,11 +20,11 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: http://entityservice-api/api/v1
+            value: https://beta.entityservice.edn.io/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
           - "nosetests"
           - "tests"
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+      - name: n1-coreos-pull-secret
