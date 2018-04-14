@@ -8,7 +8,7 @@
 #   descriptions.
 swagger: '2.0'
 info:
-  version: '1.1'
+  version: '1.2'
   title: Entity Matching API
   x-logo:
     url: http://clkhash.readthedocs.io/en/latest/_static/logo.svg
@@ -141,15 +141,13 @@ paths:
           examples:
             application/json:
               {"anonlink": "0.6.3", "entityservice": "v1.7.2", "libc": "glibc2.2.5", "python": "3.6.4"}
-  /mappings:
+  /projects:
     get:
-      summary: List of mappings.
+      summary: List of record linkage projects.
       description: |
-        List of all mappings with their completion status.
+        List of all privacy preserving record linkage projects.
 
-        **Note**: *Mapping* in this context denotes a linkage project -- the process of entity matching. Do not confuse with the
-        [output type](concepts.html#result-types) `"mapping"`.
-        
+        TODO MOVE TO /runs
         `'time_added'`, `'time_started'` and `'time_completed'` are represented in
         [ISO 8601 format](https://docs.python.org/3/library/datetime.html#datetime.datetime.isoformat).
         Note that the value will be `null` if the mapping has not yet started or completed.
@@ -157,7 +155,7 @@ paths:
         '200':
           description: Successful response
           schema:
-            $ref: '#/definitions/mappings'
+            $ref: '#/definitions/ProjectList'
     post:
       summary: Create and configure a new linkage project.
       description: |
@@ -185,23 +183,23 @@ paths:
         Note
         `public_key` and `paillier_context` are only required if `result_type = "permutation"`.
         
-        
       parameters:
         - in: body
-          name: mapping
+          name: project
           required: true
           schema:
-            $ref: '#/definitions/NewMapping'
+            $ref: '#/definitions/NewProject'
       responses:
         '200':
           description: Success
           schema:
-            $ref: '#/definitions/NewMappingResponse'
+            $ref: '#/definitions/NewProjectResponse'
  
-  '/mapping/{mapping-id}':
+  '/projects/{project_id}':
     get:
-      summary: Linkage Project Progress and Results
+      summary: Description of a particular linkage project
       description: |
+        TODO edit
         Depending on the completion of the entity matching process, the response contains either
         information about the current progress (503), or the result (200) of the mapping with the provided mapping-id.
 
@@ -318,10 +316,9 @@ paths:
         
         The mask is an array of 0/1 numbers.
 
-        
       parameters:
         - $ref: '#/parameters/token'
-        - $ref: '#/parameters/resource'
+        - $ref: '#/parameters/project_id'
         
       responses:
         '401':
@@ -332,20 +329,32 @@ paths:
           description: Invalid authentication or mapping not found.
         '500':
           description: |
-            Fail to return similarity scores either because the corresponding CSV file cannot be found or is corrupted.
+            Fail to return description because the server has had a problem.
         '503':
           description: |
-            Mapping is not yet ready. Includes progress object
-          schema:
-            $ref: '#/definitions/MappingProgress'
+            Client is rate limited. Try requesting less frequently.
         '200':
-          description: Successful response
-    put:
-      summary: Upload CLK data.
+          description: Project description
+          schema:
+            $ref: '#/definitions/ProjectDescription'
+    delete:
+      summary: Delete linkage project.
+      description: Remove the project and all associated data from the service.
+      parameters:
+        - $ref: '#/parameters/project_id'
+      responses:
+        '204':
+          description: Successfully deleted
+        '403':
+          description: Project not present or invalid authorization
+
+  '/projects/{project_id}/clks':
+    post:
+      summary: Upload CLK data to a linkage project.
       description: |
         Called by each of the data providers with their calculated `CLK` vectors.
-        The mapping must have been created, and the caller must have both the
-        `mapping-id` and `token` in order to contribute data.
+        The project must have been created, and the caller must have both the
+        `project_id` and a valid `upload_token` in order to contribute data.
 
         This endpoint supports `Transfer-Encoding =  chunked` (streaming uploads).
         
@@ -359,7 +368,7 @@ paths:
         translate to just over 20 million entities.
         
       parameters:
-        - $ref: '#/parameters/resource'
+        - $ref: '#/parameters/project_id'
         - $ref: '#/parameters/token'
         - in: body
           name: clks
@@ -376,37 +385,80 @@ paths:
         '401':
           description: If the authentication token is not provided
         '403':
-          description: If the authentication token is not valid, or the mapping isn't found.
-    
+          description: If the authentication token is not valid, or the project isn't found.
+
+  '/projects/{project_id}/runs':
+    get:
+      summary: List runs
+      description: |
+        List of run summaries.
+        Requires auth(?)
+      responses:
+        200:
+          description: List of runs
+          schema:
+            $ref: '#/definitions/RunList'
+    post:
+      summary: Create a new run
+      description: |
+        Queue up a computation to compare entities.
+      parameters:
+        - in: body
+          name: run
+          required: true
+          schema:
+            $ref: '#/definitions/NewRun'
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/NewRunResponse'
+
+
+  '/projects/{project_id}/runs/{run_id}':
+    get:
+      summary: TODO
+
     delete:
       summary: Delete linkage project.
-      description: Remove the mapping and associated data from the service.
+      description: Remove the project and all associated data from the service.
       parameters:
-        - $ref: '#/parameters/resource'
+        - $ref: '#/parameters/project_id'
       responses:
         '204':
           description: Successfully deleted
         '403':
-          description: Mapping not present or invalid auth
-  '/mapping/{mapping-id}/status':
+          description: Project not present or invalid authorization
+
+  '/projects/{project_id}/runs/{run_id}/status':
+    parameters:
+    - $ref: '#/parameters/project_id'
+    - $ref: '#/parameters/run_id'
     get:
-      summary: Linkage Status
-      description: A status update on a particular mapping
+      summary: Run status
+      description: A status update on a particular record linkage run.
       responses:
         '200':
           description: Successful response
           schema:
-            $ref: '#/definitions/MappingStatus'
+            $ref: '#/definitions/RunStatus'
+
 parameters:
   token:
     required: true
     type: string
     name: Authorization
     in: header
-  resource:
+  project_id:
     in: path
-    name: "mapping-id"
-    description: Resource identifier of the mapping
+    name: "project_id"
+    description: Resource identifier of the record linkage project
+    required: true
+    type: string
+  run_id:
+    in: path
+    name: "run_id"
+    description: Resource identifier of a particular run in a record linkage project
     required: true
     type: string
 
@@ -418,46 +470,61 @@ definitions:
       message:
         type: string
       
-  mappings:
+  ProjectList:
     type: array
     items:
       type: object
-      description: Listing information about a mapping.
+      description: Listing of projects.
       properties:
-        resource_id:
+        project_id:
           type: string
-        ready:
-          type: boolean
         time_added:
           type: string
           description: ISO8601 formated datetime
           format: 'date-time'
-        time_started:
-          type: string
-          description: ISO8601 formated datetime
-          format: 'date-time'
-        time_completed:
-          type: string
-          description: ISO8601 formated datetime
-          format: 'date-time'
 
-  MappingStatus:
+  Schema:
+    type: object
+    description: |
+      The `schema` is described at in the [clkhash](http://clkhash.readthedocs.io/en/latest/schema.html)
+      documentation.
+    #$ref: 'http://clkhash.readthedocs.io/en/latest/_static/schema.json#hashing-schema'
+
+  ResultType:
+    type: string
+    description: defines the output type of the mapping
+    enum:
+      - similarity_scores
+      - mapping
+      - permutation
+      - permutation_unencrypted_mask
+
+  RunState:
+    type: string
+    description: What state is the run in
+    enum:
+      - queued
+      - running
+      - completed
+      - error
+
+  RunProgress:
+    description: Details how far completed the run is.
+    type: object
     properties:
-      ready:
-        type: boolean
-      threshold:
+      total:
+        description: Number of comparisons required for this Match
         type: number
-        minimum: 0.0
-        maximum: 1.0
-      time_added:
-        type: string
-        format: 'date-time'
-      time_started:
-        type: string
-        format: 'date-time'
-      time_completed:
-        type: string
-        format: 'date-time'
+        format: int
+      current:
+        type: number
+        format: int
+        description: How many comparisons have been carried out.
+      progress:
+        type: number
+        description: |
+          Decimal between 0.0 and 1.0 indicating progress. For now equal to
+          current/total.
 
   PaillierPublicKey:
     description: https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation
@@ -487,34 +554,15 @@ definitions:
       base:
         type: integer
 
-  FeatureDescription:
-    description: Feature description
-    properties:
-      identifier:
-        type: string
-      weight:
-        type: number
-      notes:
-        type: string
-    
-  NewMapping:
-    description: Configuration for a new mapping.
+  NewProject:
+    description: Configuration for a new linkage project.
     type: object
     properties:
       schema:
-        type: array
-        description: The `schema` is an array of feature descriptions
-        items:
-          $ref: '#/definitions/FeatureDescription'
-            
+        $ref: '#/definitions/Schema'
+
       result_type:
-        type: string
-        description: defines the output type of the mapping
-        enum:
-          - similarity_scores
-          - mapping
-          - permutation
-          - permutation_unencrypted_mask
+        $ref: '#/definitions/ResultType'
 
       public_key:
         $ref: "#/definitions/PaillierPublicKey"
@@ -522,20 +570,19 @@ definitions:
       paillier_context:
         $ref: "#/definitions/PaillierContext"
 
-      threshold:
-        type: number
-        format: double
-        default: 0.95
-        description: |
-          The similarity threshold (a number between 0 and 1) above which two entites will be considered a match.
-
-          Note the default can be changed at deployment time.
-      
     required:
       - schema
       - result_type
-      
-  NewMappingResponse:
+
+  ProjectDescription:
+    allOf:
+      - $ref: '#/definitions/NewProject'
+      - type: object
+        properties:
+          resource_id:
+            type: string
+
+  NewProjectResponse:
     properties:
       resource_id:
         type: string
@@ -547,29 +594,70 @@ definitions:
       result_token:
         description: A token required to access mapping results.
         type: string
-  
-  MappingProgress:
+
+  NewRun:
+    description: Configuration for a new linkage calculation (run)
+    type: object
     properties:
-      message:
-        type: string
-      elapsed:
-        description: The number of seconds spent on computing this matching.
+      threshold:
         type: number
         format: double
-      total:
-        description: Number of comparisons required for this Match
-        type: number
-        format: int
-      current:
-        type: number
-        format: int
-        description: How many comparisons have been carried out.
+        default: 0.95
+        description: |
+          The similarity threshold (a number between 0 and 1) above which two entites will be considered a match.
+
+  RunDescription:
+    allOf:
+      - $ref: '#/definitions/NewRun'
+      - type: object
+        properties:
+          run_id:
+            type: string
+
+  NewRunResponse:
+    allOf:
+      - $ref: '#/definitions/NewRun'
+      - type: object
+        properties:
+          run_id:
+            type: string
+
+  RunList:
+    type: array
+    items:
+      type: object
+      description: Listing of runs.
+      properties:
+        run_id:
+          type: string
+        time_added:
+          type: string
+          description: ISO8601 formated datetime
+          format: 'date-time'
+        state:
+          type: string
+          $ref: '#/definitions/RunState'
+
+  RunStatus:
+    properties:
+      state:
+        type: string
+        $ref: '#/definitions/RunState'
+      message:
+        type: string
       progress:
-        type: number
-        description: >-
-          Decimal between 0.0 and 1.0 indicating progress. For now equal to
-          current/total.
-  
+        type: object
+        $ref: '#/definitions/RunProgress'
+      time_added:
+        type: string
+        format: 'date-time'
+      time_started:
+        type: string
+        format: 'date-time'
+      time_completed:
+        type: string
+        format: 'date-time'
+
   CLKUpload:
     description: Array of this party's Bloom Filters
     type: array
