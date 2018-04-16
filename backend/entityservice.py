@@ -659,7 +659,7 @@ def generate_name_data():
     data = request.args
     samples = int(data.get("n", "200"))
     proportion = float(data.get("p", "0.75"))
-    nl = anonlink.randomnames.NameList(samples * 2)
+    nl = randomnames.NameList(samples * 2)
     s1, s2 = nl.generate_subsets(samples, proportion)
     return json.dumps({"A": s1, "B": s2})
 
