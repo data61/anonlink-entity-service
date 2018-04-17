@@ -114,6 +114,7 @@ def get_dataprovider_ids(db, mapping_resource_id):
               mappings.resource_id = %s AND
               dataproviders.uploaded = TRUE AND
               mappings.id = dataproviders.mapping
+            ORDER BY dataproviders.id ASC
             """, [mapping_resource_id])))
     return dp_ids
 
