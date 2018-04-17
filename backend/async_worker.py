@@ -177,7 +177,7 @@ def calculate_mapping(resource_id):
 
     db = connect_db()
     res = get_mapping(db, resource_id)
-    threshold =  res['threshold']
+    threshold = res['threshold']
     if res['ready']:
         logger.info("Mapping '{}' is already computed. Skipping".format(resource_id))
         return
