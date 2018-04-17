@@ -2,8 +2,7 @@ version: '2'
 services:
 
   db:
-    image: postgres:10
-    mem_limit: 6000m
+    image: postgres:10.3
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
