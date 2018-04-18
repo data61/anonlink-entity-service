@@ -133,11 +133,14 @@ Run integration tests and an end to end test
 To view the celery monitor:
 ---------------------------
 
-Find the pod that the monitor is running on then forward the port:
+Find the pod that the monitor is running on then create an ingress.
+The target is port 8888, with `/monitor` as part of the path.
 
-::
+Prometheus Metrics
+------------------
 
-    kubectl port-forward entityservice-monitor-4045544268-s34zl 8888:8888
+The flask application exposes metrics for prometheus on `/metrics` and a sidecar
+application creates further metrics from scraping the entity service's REST api.
 
 
 Upgrade Deployment with Helm

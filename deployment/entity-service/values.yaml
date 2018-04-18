@@ -42,6 +42,19 @@ api:
         cpu: 200m
         memory: 256Mi
 
+  metrics:
+    enabled: true
+    image:
+      repository: quay.io/n1analytics/entity-app
+      tag: "v1.7.4-develop"
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
   app:
 
     image:

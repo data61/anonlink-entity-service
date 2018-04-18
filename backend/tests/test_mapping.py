@@ -151,7 +151,6 @@ class TestMappingTests(MappingTestsBase):
         )
         self.assertEqual(r.status_code, 400)
 
-
     def test_mapping_2_party_data_uploaded(self):
         new_map = requests.post(self.url + '/mappings',
                                          headers={'Authorization': 'invalid'},
@@ -186,3 +185,4 @@ class TestMappingTests(MappingTestsBase):
         mapping_result = response.json()['mapping']
         self.assertGreater(len(mapping_result), 70)
         self.assertLess(len(mapping_result), 80)
+

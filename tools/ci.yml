@@ -24,6 +24,7 @@ services:
     environment:
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
       - INITIAL_DELAY=20
+      - LOGGING_FILE=/var/log/es-unit-test.log
     entrypoint: /bin/sh -c "sleep 10; python -m unittest discover -s tests -t tests"
     depends_on:
       - db

@@ -3,6 +3,8 @@ import logging
 from datetime import timedelta
 import psycopg2
 from flask import current_app
+
+from metrics import MAPPING_RATE_GAUGE
 from settings import Config as config
 logger = logging.getLogger('db')
 
@@ -165,6 +167,20 @@ def check_mapping_ready(db, resource_id):
     logger.info("Database mapping with id={} is ready: {}".format(res['id'], is_ready))
 
     return is_ready, res['id'], res['result_type']
+
+
+def get_mapping_counts(db):
+    """Return the total number of mappings and the number of ready mappings.
+    """
+    result = query_db(db,
+        """
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN ready = TRUE THEN 1 ELSE NULL END) as ready 
+        from mappings
+        """,
+        one=True)
+    return result['total'], result['ready']
 
 
 def get_mapping(db, resource_id):
