@@ -77,7 +77,7 @@ services:
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - 8851
+      - 8851:8851
     depends_on:
       - backend
     environment:
@@ -87,15 +87,15 @@ services:
       PUBLIC_IP:
 
 
-
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment
-#  celery_monitor:
-#    image: quay.io/n1analytics/entity-app
-#    depends_on:
-#      - redis
-#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
-
+  celery_monitor:
+    image: quay.io/n1analytics/entity-app
+    ports:
+      - 8888:8888
+    depends_on:
+      - redis
+    entrypoint: celery flower -A async_worker --basic_auth=n1:paillier --url_prefix=monitor --port=8888 -Q celery,compute
 
 volumes:
   psql:
