@@ -648,8 +648,10 @@ def test():
     keys = ('test1', 'test2')
     filters1 = bloomfilter.calculate_bloom_filters(s1, nl.schema, keys)
     filters2 = bloomfilter.calculate_bloom_filters(s2, nl.schema, keys)
-    similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
-    mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
+    threshold = 0.95
+    similarity = anonlink.entitymatch.calculate_filter_similarity(
+        filters1, filters2, k=min(len(filters1), len(filters2)), threshold=threshold)
+    mapping = anonlink.network_flow.map_entities(similarity, threshold=threshold, method='weighted')
     return json.dumps(mapping)
 
 
