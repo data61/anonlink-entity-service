@@ -38,7 +38,7 @@ services:
       - db_init
       - redis
 
-#  # The metrics side app
+  # The prometheus metrics side app
   metrics:
     image: quay.io/n1analytics/entity-app
     depends_on:
@@ -84,7 +84,7 @@ services:
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - 8851
+      - "8851:8851"
     depends_on:
       - backend
     environment:
