@@ -1,7 +1,7 @@
 import minio
 import logging
 
-from settings import Config as config
+from entityservice.settings import Config as config
 
 logger = logging.getLogger('objectstore')
 

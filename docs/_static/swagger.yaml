@@ -110,7 +110,8 @@ paths:
               status:
                 type: string
                 description: Will be "ok" if everything is working.
-              number_mappings:
+              project_count:
+                description: Number of projects created on this server.
                 type: integer
               rate:
                 type: integer
@@ -877,6 +878,18 @@ definitions:
 
       result_type:
         $ref: '#/definitions/ResultType'
+
+      number_parties:
+        description: How many data providers will participate in this project. Default value is 2.
+        type: number
+
+      name:
+        description: Any free text name for this project.
+        type: string
+
+      notes:
+        description: Any free text to store with this project.
+        type: string
 
       public_key:
         $ref: "#/definitions/PaillierPublicKey"

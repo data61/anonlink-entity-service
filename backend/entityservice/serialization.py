@@ -1,7 +1,9 @@
 from bitarray import bitarray
 import base64
 import struct
-from utils import chunks
+
+from entityservice.settings import Config as config
+from entityservice.utils import chunks
 import concurrent.futures
 import phe.util
 from phe import paillier
@@ -148,3 +150,11 @@ def generate_scores(csv_text_stream):
     # Yield the last line without a trailing comma, instead close the json object
     yield '[{}]'.format(prev_line.strip())
     yield ']}'
+
+
+def check_public_key(pk):
+    """
+    Check we can unmarshal the public key, and that it has sufficient length.
+    """
+    publickey = load_public_key(pk)
+    return publickey.max_int >= 2 ** config.ENCRYPTION_MIN_KEY_LENGTH
