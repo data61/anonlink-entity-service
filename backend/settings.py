@@ -54,10 +54,6 @@ class Config(object):
 
     ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
 
-    # Matches that have more than this number of possible comparisons will use the
-    # faster greedy solver
-    GREEDY_SIZE = int(os.environ.get('GREEDY_SIZE', '1000000'))
-
     # Number of comparisons per chunk. Default is to interpolate between the min
     # of 100M and the max size of 1B based on the JOB_SIZE parameters.
     SMALL_COMPARISON_CHUNK_SIZE = int(os.environ.get('SMALL_COMPARISON_CHUNK_SIZE', '100000000'))
@@ -70,8 +66,6 @@ class Config(object):
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.environ.get('MAX_CACHE_SIZE', '1000000'))
-
-    MIN_GREEDY_CHUNK_SIZE = int(os.environ.get('MIN_CHUNK_SIZE', '20000000'))
 
     # Anything above this threshold is considered a match. Note each mapping job can override this
     ENTITY_MATCH_THRESHOLD = float(os.environ.get('ENTITY_MATCH_THRESHOLD', '0.95'))

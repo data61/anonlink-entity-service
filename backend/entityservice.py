@@ -21,6 +21,7 @@ except ImportError:
 import anonlink
 import cache
 import database as db
+from clkhash import randomnames, bloomfilter
 from serialization import load_public_key, generate_scores
 from async_worker import handle_raw_upload
 from object_store import connect_to_object_store
@@ -598,7 +599,6 @@ def add_mapping_data(dp_id, raw_stream):
     if store['count'] == 0:
         abort(400, message="Missing information")
 
-
     app.logger.info("Processed {} CLKS".format(store['count']))
     app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
     mc = connect_to_object_store()
@@ -656,11 +656,11 @@ def teardown_request(exception):
 @app.route('/danger/test')
 def test():
     samples = 200
-    nl = anonlink.randomnames.NameList(samples * 2)
+    nl = randomnames.NameList(samples * 2)
     s1, s2 = nl.generate_subsets(samples, 0.75)
     keys = ('test1', 'test2')
-    filters1 = anonlink.bloomfilter.calculate_bloom_filters(s1, nl.schema, keys)
-    filters2 = anonlink.bloomfilter.calculate_bloom_filters(s2, nl.schema, keys)
+    filters1 = bloomfilter.calculate_bloom_filters(s1, nl.schema, keys)
+    filters2 = bloomfilter.calculate_bloom_filters(s2, nl.schema, keys)
     similarity = anonlink.entitymatch.calculate_filter_similarity(filters1, filters2)
     mapping = anonlink.network_flow.map_entities(similarity, threshold=0.95, method='weighted')
     return json.dumps(mapping)
@@ -671,7 +671,7 @@ def generate_name_data():
     data = request.args
     samples = int(data.get("n", "200"))
     proportion = float(data.get("p", "0.75"))
-    nl = anonlink.randomnames.NameList(samples * 2)
+    nl = randomnames.NameList(samples * 2)
     s1, s2 = nl.generate_subsets(samples, proportion)
     return json.dumps({"A": s1, "B": s2})
 

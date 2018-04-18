@@ -8,8 +8,9 @@ void setBuildStatus(String message, String state) {
 }
 
 node('docker') {
-  stage('Checkout') {
-      checkout scm
+
+  stage ('Checkout') {
+    checkout scm
   }
 
   // Login to quay.io
@@ -29,6 +30,8 @@ node('docker') {
             docker build -t quay.io/n1analytics/entity-app .
             cd ../frontend
             docker build -t quay.io/n1analytics/entity-nginx .
+            cd ../docs
+            docker build -t quay.io/n1analytics/entity-app:doc-builder .
           """
           setBuildStatus("Docker build complete", "PENDING");
       } catch (err) {
@@ -67,6 +70,28 @@ node('docker') {
       }
     }
 
+    stage('Documentation') {
+      try {
+        sh '''
+          mkdir -p html
+          chmod 777 html
+
+          docker run -v `pwd`/docs:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
+
+          cd html
+          zip -q -r n1-docs.zip *
+          mv n1-docs.zip ../
+        '''
+
+        archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
+        setBuildStatus("Documentation Built", "SUCCESS");
+
+      } catch (err) {
+        errorMsg = "Couldn't build docs";
+        throw err;
+      }
+    }
+
     stage('Publish') {
       // Login to quay.io
       withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
@@ -76,6 +101,7 @@ node('docker') {
             sh '''
               ./tools/upload.sh
             '''
+            setBuildStatus("Published Docker Images", "SUCCESS");
         } catch (Exception err) {
           errorMsg = "Publishing docker images to quay.io failed";
           throw err
@@ -86,8 +112,8 @@ node('docker') {
     }
 
   } catch (err) {
-        currentBuild.result = 'FAILURE'
-        setBuildStatus(errorMsg,  "FAILURE");
+    currentBuild.result = 'FAILURE'
+    setBuildStatus(errorMsg,  "FAILURE");
   } finally {
     sh './tools/ci_cleanup.sh'
   }

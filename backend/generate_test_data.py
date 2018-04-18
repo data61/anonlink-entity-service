@@ -1,6 +1,6 @@
 import os
 import json
-from anonlink import randomnames, entitymatch
+from clkhash import randomnames, bloomfilter
 
 from serialization import *
 
@@ -54,10 +54,10 @@ def create_test_data(entities, crossover=0.8, save_raw=True):
 
     # Save serialized filters
     with open("data/e1_{}.json".format(entities), 'w') as f1:
-        save_filter_data(entitymatch.calculate_bloom_filters(s1, nl.schema, keys), f1)
+        save_filter_data(bloomfilter.calculate_bloom_filters(s1, nl.schema, keys), f1)
 
     with open("data/e2_{}.json".format(entities), 'w') as f2:
-        save_filter_data(entitymatch.calculate_bloom_filters(s2, nl.schema, keys), f2)
+        save_filter_data(bloomfilter.calculate_bloom_filters(s2, nl.schema, keys), f2)
 
     t3 = timer()
     print("Hashed and serialized data in {:.3f} s".format(t3-t2))
