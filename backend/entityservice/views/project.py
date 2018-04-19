@@ -18,11 +18,12 @@ from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
-new_mapping_fields = {
+new_project_response_fields = {
     'project_id': fields.String,
     'result_token': fields.String,
     'update_tokens': fields.List(fields.String)
 }
+
 
 class ProjectList(Resource):
     """
@@ -35,7 +36,7 @@ class ProjectList(Resource):
 
     def get(self):
         project_resource_fields = {
-            'resource_id': fields.String,
+            'project_id': fields.String,
             'time_added': fields.DateTime(dt_format='iso8601')
         }
 
@@ -49,7 +50,7 @@ class ProjectList(Resource):
 
         return marshaled_projects
 
-    @marshal_with(new_mapping_fields)
+    @marshal_with(new_project_response_fields)
     def post(self):
         """Create a new project
 
@@ -143,9 +144,8 @@ class Project(Resource):
         This endpoint describes a Project.
         """
         app.logger.info("Getting detail for a project")
-        dp_id, project_id = self.authorise_get_request(project_id)
-
-        project_object = db.get_project(project_id)
+        self.authorise_get_request(project_id)
+        project_object = db.get_project(db.get_db(), project_id)
 
         project_description_fields = {
             'project_id': fields.String,
@@ -179,18 +179,18 @@ class Project(Resource):
         # Check the resource exists
         abort_if_project_doesnt_exist(resource_id)
         dbinstance = get_db()
-        mapping = db.get_project(dbinstance, resource_id)
+        project_object = db.get_project(dbinstance, resource_id)
         app.logger.info("Checking credentials")
-        if mapping['result_type'] == 'mapping' or mapping['result_type'] == 'similarity_scores':
+        if project_object['result_type'] == 'mapping' or project_object['result_type'] == 'similarity_scores':
             # Check the caller has a valid results token if we are including results
             abort_if_invalid_results_token(resource_id, auth_header)
-        elif mapping['result_type'] == 'permutation':
+        elif project_object['result_type'] == 'permutation':
             dp_id = dataprovider_id_if_authorize(resource_id, auth_header)
-        elif mapping['result_type'] == 'permutation_unencrypted_mask':
+        elif project_object['result_type'] == 'permutation_unencrypted_mask':
             dp_id = node_id_if_authorize(resource_id, auth_header)
         else:
             safe_fail_request(500, "Unknown error")
-        return dp_id, mapping
+        return dp_id, project_object
 
 
 class ProjectClks(Resource):
