@@ -1,7 +1,7 @@
 import io
 
 from flask import request
-from flask_restful import Resource, abort
+from flask_restful import Resource, abort, fields, marshal, marshal_with
 from ijson.backends import yajl2_cffi as ijson
 
 import entityservice.cache as cache
@@ -16,9 +16,13 @@ from entityservice.views import abort_if_project_doesnt_exist, abort_if_invalid_
     abort_if_invalid_results_token, dataprovider_id_if_authorize, node_id_if_authorize
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
-from entityservice.schemas import ProjectListSummary, ProjectDescription, ProjectCreationResponse
 from entityservice.settings import Config as config
 
+new_mapping_fields = {
+    'project_id': fields.String,
+    'result_token': fields.String,
+    'update_tokens': fields.List(fields.String)
+}
 
 class ProjectList(Resource):
     """
@@ -30,11 +34,22 @@ class ProjectList(Resource):
     """
 
     def get(self):
-        project_list_schema = ProjectListSummary(many=True)
+        project_resource_fields = {
+            'resource_id': fields.String,
+            'time_added': fields.DateTime(dt_format='iso8601')
+        }
+
         app.logger.info("Getting list of all projects")
         projects = db.query_db(get_db(), 'select project_id, time_added from projects')
-        return project_list_schema.dump(projects)
 
+        marshaled_projects = []
+        app.logger.debug("Getting list of all projects")
+        for project_object in projects:
+            marshaled_projects.append(marshal(project_object, project_resource_fields))
+
+        return marshaled_projects
+
+    @marshal_with(new_mapping_fields)
     def post(self):
         """Create a new project
 
@@ -96,9 +111,7 @@ class ProjectList(Resource):
             app.logger.debug("Committing transaction")
             conn.commit()
 
-        response_schema = ProjectCreationResponse()
-
-        return response_schema.dump(project_dao)
+        return project_dao
 
 
 class Project(Resource):
@@ -134,8 +147,13 @@ class Project(Resource):
 
         project_object = db.get_project(project_id)
 
-        project_description_schema = ProjectDescription()
-        return project_description_schema.dump(project_object)
+        project_description_fields = {
+            'project_id': fields.String,
+            'schema': fields.Raw,
+            'result_type': fields.String
+        }
+
+        return marshal(project_object, project_description_fields)
 
 
     def get_mapping_progress(self, dbinstance, resource_id):
