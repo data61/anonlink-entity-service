@@ -10,7 +10,7 @@ import math
 
 import base64
 
-from tests.config import url, logger, rate_limit_delay, initial_delay
+from entityservice.tests.config import url, logger, rate_limit_delay, initial_delay
 
 
 def serialize_bitarray(ba):
