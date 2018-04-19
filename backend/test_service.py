@@ -12,8 +12,6 @@ import logging
 import requests
 import unittest
 
-import anonlink.distributed_processing
-
 from clkhash import randomnames, clk
 from clkhash.bloomfilter import calculate_bloom_filters
 from clkhash.key_derivation import generate_key_lists
