@@ -7,16 +7,16 @@ def select_dataprovider_id(db, project_id, receipt_token):
 
     Returns None if token is incorrect.
     """
-    res = query_db(db, """
-        select dp from dataproviders, bloomingdata
+    sql_query = """
+        SELECT dp from dataproviders, bloomingdata
         WHERE
           bloomingdata.dp = dataproviders.id AND
           dataproviders.project = %s AND
           bloomingdata.token = %s
-        """, [project_id, receipt_token], one=True)
-
-    logger.debug("Looking up data provider with auth. {}".format(res))
-    return res['dp'] if res is not None else None
+        """
+    query_result = query_db(db, sql_query, [project_id, receipt_token], one=True)
+    logger.debug("Looking up data provider with auth. {}".format(query_result))
+    return query_result['dp'] if query_result is not None else None
 
 
 def get_dataprovider_ids(db, project_id):
@@ -24,24 +24,26 @@ def get_dataprovider_ids(db, project_id):
 
     Only returns dataproviders who have uploaded data
     """
-    dp_ids = list(map(lambda d: d['id'], query_db(db, """
-            SELECT dataproviders.id
-            FROM dataproviders
-            WHERE
-              dataproviders.project = %s AND
-              dataproviders.uploaded = TRUE
-            """, [project_id])))
+    sql_query = """
+        SELECT dataproviders.id
+        FROM dataproviders
+        WHERE
+          dataproviders.project = %s AND
+          dataproviders.uploaded = TRUE
+        """
+    query_result = query_db(db, sql_query, [project_id])
+    dp_ids = list(map(lambda d: d['id'], query_result))
     return dp_ids
 
 
 def check_project_exists(db, resource_id):
-    return query_db(db,
-        'select count(*) from projects WHERE project_id = %s',
-                    [resource_id], one=True)['count'] == 1
+    sql_query = 'select count(*) from projects WHERE project_id = %s'
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    return query_result['count'] == 1
 
 
 def get_number_parties_uploaded(db, resource_id):
-    return query_db(db, """
+    sql_query = """
         SELECT COUNT(*)
         FROM dataproviders, bloomingdata
         WHERE
@@ -49,7 +51,9 @@ def get_number_parties_uploaded(db, resource_id):
           bloomingdata.dp = dataproviders.id AND
           dataproviders.uploaded = TRUE AND
           bloomingdata.state = 'ready'
-        """, [resource_id], one=True)['count']
+        """
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    return query_result['count']
 
 
 def check_run_ready(db, resource_id):
@@ -58,36 +62,33 @@ def check_run_ready(db, resource_id):
     Returns the boolean, and the state
     """
     logger.info("Selecting run")
-    res = query_db(db, """
+    sql_query = """
         SELECT id, ready, state
         FROM runs
         WHERE
           run_id = %s
-        """, [resource_id], one=True)
-    is_ready, state = res['ready'], res['state']
-
-    logger.info("Run with dbid={} is ready: {}".format(res['id'], is_ready))
-
+        """
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    is_ready, state = query_result['ready'], query_result['state']
+    logger.info("Run with dbid={} is ready: {}".format(query_result['id'], is_ready))
     return is_ready, state
 
 
 def get_project(db, resource_id):
-    return query_db(db,
-        """
+    sql_query = """
         SELECT * from projects
         WHERE project_id = %s
-        """,
-        [resource_id], one=True)
+        """
+    return query_db(db, sql_query, [resource_id], one=True)
 
 
 def get_project_column(db, project_id, column):
     assert column in {'notes', 'schema', 'parties', 'result_type'}
-    return query_db(db,
-        """
+    sql_query = """
         SELECT %s from projects
         WHERE project_id = %s
-        """,
-        [column, project_id], one=True)
+        """
+    return query_db(db, sql_query, [column, project_id], one=True)
 
 
 def get_run_result(db, resource_id):
@@ -98,46 +99,53 @@ def get_run_result(db, resource_id):
     Note the response is mapping str -> int as both celery and
     postgres prefer keys to be strings.
     """
-    return query_db(db,
-        """
+    sql_query = """
         SELECT result from run_results
         WHERE run = %s
-        """,
-        [resource_id], one=True)['result']
+        """
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    return query_result['result']
 
 
 def get_paillier(db, run_id):
     """Given a run resource, return
     the Paillier public key and context.
     """
-    paillier_id = query_db(db, """
-                    SELECT paillier
-                    FROM encrypted_permutation_masks
-                    WHERE
-                      run = %s
-                    """, [run_id], one=True)['paillier']
+    sql_paillier_id_query = """
+        SELECT paillier
+        FROM encrypted_permutation_masks
+        WHERE
+          run = %s
+        """
+    paillier_id = query_db(db, sql_paillier_id_query, [run_id], one=True)['paillier']
 
-    res = query_db(db, """
-                    SELECT public_key, context
-                    FROM paillier
-                    WHERE
-                      id = %s
-                    """, [paillier_id], one=True)
-    pk = res['public_key']
-    cntx = res['context']
+    sql_select_paillier_info_query = """
+        SELECT public_key, context
+        FROM paillier
+        WHERE
+          id = %s
+        """
+
+    query_result = query_db(db, sql_select_paillier_info_query, [paillier_id], one=True)
+
+    pk = query_result['public_key']
+    cntx = query_result['context']
 
     return pk, cntx
 
 
 def get_smaller_dataset_size_for_project(db, project_id):
 
-    return query_db(db, """
+    sql_query = """
         SELECT MIN(bloomingdata.size) as smaller
         FROM projects, dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
           dataproviders.project=project.project_id AND
-          projects.project_id=%s""", [project_id], one=True)['smaller']
+          projects.project_id=%s
+        """
+    query_result = query_db(db, sql_query, [project_id], one=True)
+    return query_result['smaller']
 
 
 def get_total_comparisons_for_mapping(db, project_id):
@@ -145,15 +153,17 @@ def get_total_comparisons_for_mapping(db, project_id):
     :return total number of comparisons for this project
     """
 
-    res = query_db(db, """
+    sql_query = """
         SELECT bloomingdata.size as rows
         from dataproviders, bloomingdata
         where
           bloomingdata.dp=dataproviders.id AND
-          dataproviders.project=%s""", [project_id])
+          dataproviders.project=%s
+        """
+    query_result = query_db(db, sql_query, [project_id])
 
-    if len(res) == 2:
-        total_comparisons = res[0]['rows'] * res[1]['rows']
+    if len(query_result) == 2:
+        total_comparisons = query_result[0]['rows'] * query_result[1]['rows']
     else:
         total_comparisons = 'NA'
 
@@ -161,67 +171,71 @@ def get_total_comparisons_for_mapping(db, project_id):
 
 
 def get_dataprovider_id(db, update_token):
-    return query_db(db,
-                    'select id from dataproviders WHERE token = %s',
-                    [update_token], one=True)['id']
+    sql_query = '''
+        SELECT id 
+        FROM dataproviders 
+        WHERE 
+          token = %s
+        '''
+    return query_db(db, sql_query, [update_token], one=True)['id']
 
 
 def get_filter_metadata(db, dp_id):
     """
     :return: The filename of the raw clks.
     """
-    raw_json_filter = query_db(db, """
+    sql_query = """
         SELECT file
         FROM bloomingdata
         WHERE
           dp = %s
-        """, [dp_id], one=True)
+        """
+    query_result = query_db(db, sql_query, [dp_id], one=True)
 
-    return raw_json_filter['file'].strip()
+    return query_result['file'].strip()
 
 
 def get_number_of_hashes(db, dp_id):
     """
     :return: The size of the uploaded raw clks.
     """
-    raw_json_filter = query_db(db, """
+    sql_query = """
         SELECT size
         FROM bloomingdata
         WHERE
           dp = %s
-        """, [dp_id], one=True)
-
-    return raw_json_filter['size']
+        """
+    query_result = query_db(db, sql_query, [dp_id], one=True)
+    return query_result['size']
 
 
 def get_permutation_result(db, dp_id, run_id):
     # Note doesn't include the mask, just the permutation for given dp
-    return query_db(db,
-        """
+    sql_query = """
         SELECT permutation FROM permutations
         WHERE
           dp = %s AND
           run = %s
 
-        """,
-        [dp_id, run_id], one=True)['permutation']
+        """
+    return query_db(db, sql_query, [dp_id, run_id], one=True)['permutation']
 
 
 def get_permutation_unencrypted_mask(db, project_id, run_id):
-    return query_db(db,
-        """SELECT raw from permutation_masks
+    sql_query = """
+        SELECT raw 
+        FROM permutation_masks
         WHERE 
           project = %s AND
           run = %s
-        """,
-                    [project_id, run_id], one=True)['raw']
+        """
+    return query_db(db, sql_query, [project_id, run_id], one=True)['raw']
 
 
 def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
     # Query to fetch the full result for the 'permutation' result type
-    raise NotImplementedError("Sorry. It is late.")
-    return query_db(db,
-        """
+    raise NotImplementedError("Maybe after another coffee.")
+    sql_query = """
         SELECT
           permutations.permutation AS permutation,
           encrypted_permutation_masks.raw AS mask,
@@ -235,16 +249,14 @@ def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
           permutations.dp = %s AND
           mapping = %s
 
-        """,
-                    [dp_id, mapping_resource_id], one=True)
+        """
+    return query_db(db, sql_query, [dp_id, mapping_resource_id], one=True)
 
 
 def get_similarity_scores_filename(db, run_id):
-    return query_db(db,
-        """
+    sql_query = """
         SELECT file FROM similarity_scores
         WHERE
           run = %s
-
-        """,
-        [run_id], one=True)
+        """
+    return query_db(db, sql_query, [run_id], one=True)
