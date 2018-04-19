@@ -3,12 +3,15 @@ from entityservice.database.selections import get_dataprovider_id
 
 
 def check_project_auth(db, resource_id, results_token):
-    return query_db(db, """
+    sql_query = """
         select count(*) from projects
         WHERE
           project_id = %s AND
           access_token = %s
-        """, [resource_id, results_token], one=True)['count'] == 1
+        """
+
+    query_result = query_db(db, sql_query, [resource_id, results_token], one=True)
+    return query_result['count'] == 1
 
 
 def check_update_auth(db, update_token):
