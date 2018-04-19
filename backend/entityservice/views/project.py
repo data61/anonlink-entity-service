@@ -195,9 +195,9 @@ class Project(Resource):
 
 class ProjectClks(Resource):
 
-    def put(self, resource_id):
+    def put(self, project_id):
         """
-        Update a mapping to provide data
+        Update a project to provide data.
         """
 
         # Pass the request.stream to add_mapping_data
@@ -209,7 +209,7 @@ class ProjectClks(Resource):
         # the content length set...
         stream = get_stream()
 
-        abort_if_project_doesnt_exist(resource_id)
+        abort_if_project_doesnt_exist(project_id)
         if headers is None or 'Authorization' not in headers:
             safe_fail_request(401, message="Authentication token required")
 
@@ -225,7 +225,7 @@ class ProjectClks(Resource):
 
         # Schedule a task to deserialize the hashes, and carry
         # out a pop count.
-        handle_raw_upload.delay(resource_id, dp_id, receipt_token)
+        handle_raw_upload.delay(project_id, dp_id, receipt_token)
         app.logger.info("Job scheduled to handle user uploaded hashes")
 
         return {'message': 'Updated', 'receipt-token': receipt_token}, 201
