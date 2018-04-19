@@ -4,8 +4,8 @@ import random
 
 import json
 from bitarray import bitarray
-from serialization import deserialize_bitarray, generate_scores
-from tests.util import serialize_bitarray
+from entityservice.serialization import deserialize_bitarray, generate_scores
+from entityservice.tests.util import serialize_bitarray
 
 
 def random_bitarray(l=1024):
