@@ -66,10 +66,7 @@ def abort_if_invalid_dataprovider_token(update_token):
 
 
 def is_results_token_valid(resource_id, results_token):
-    if not db.check_project_auth(get_db(), resource_id, results_token):
-        return False
-    else:
-        return True
+    return db.check_project_auth(get_db(), resource_id, results_token)
 
 
 def is_receipt_token_valid(resource_id, receipt_token):
