@@ -21,6 +21,7 @@ RUN chown user:user /var/www; chown user:user /var/log
 USER user
 
 ADD . /var/www
+
 # Serve using gunicorn. Ideally this has nginx in front of it!
 CMD gunicorn entityservice:app \
     -n entityservice-web \
