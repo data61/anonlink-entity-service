@@ -5,9 +5,9 @@
 Allows two organizations to carry out private record linkage - without
 disclosing personally identifiable information.
 
-- Deployed to https://es.data61.xyz/api/v1/status
-- Jupyter notebook with tutorial available at: https://jupyter.es.data61.xyz
+Deployed for testing to https://es.data61.xyz/api/v1/status please note this is not a production service.
 
+You can check version at https://es.data61.xyz/api/v1/version
 
 ## Documentation
 
