@@ -12,7 +12,7 @@ from entityservice import app, fmt_bytes
 from entityservice.utils import safe_fail_request, get_stream, get_json, generate_code
 from entityservice.serialization import check_public_key
 from entityservice.database import get_db
-from entityservice.views import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
+from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, dataprovider_id_if_authorize, node_id_if_authorize
 from entityservice import models
 from entityservice.object_store import connect_to_object_store

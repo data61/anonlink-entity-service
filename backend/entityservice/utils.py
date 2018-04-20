@@ -10,6 +10,9 @@ from flask_restful import abort
 
 
 def fmt_bytes(num_bytes):
+    """
+    Displays an integer number of bytes in a human friendly form.
+    """
     n = bitmath.Byte(num_bytes)
     return n.best_prefix().format('{value:.2f} {unit}')
 
