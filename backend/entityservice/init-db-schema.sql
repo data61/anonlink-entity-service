@@ -24,6 +24,8 @@ CREATE TABLE projects (
   -- not required by the server, but is shared to all parties
   schema       JSONB            NOT NULL,
 
+  -- human readable name for display purposes
+  name        TEXT,
   notes        TEXT,
 
   parties      SMALLINT                  DEFAULT 2,
@@ -49,7 +51,10 @@ CREATE TABLE runs (
 
   project        CHAR(48) REFERENCES projects (project_id),
 
+  -- human readable name for display purposes
+  name        TEXT,
   notes        TEXT,
+
   threshold    double precision NOT NULL,
 
   chunk_size   BIGINT           NOT NULL DEFAULT -1,
