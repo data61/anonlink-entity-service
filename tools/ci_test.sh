@@ -17,7 +17,7 @@ docker-compose -f docker-compose.yml -f ci.yml -p entityservicetest up -d
 sleep 5
 
 # Follow the logs of the testing container
-docker logs -t -f entityservicetest_ci_1
+docker logs -t -f entityservicetest_tests_1
 
 echo "Other Logs:"
 
