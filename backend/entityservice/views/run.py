@@ -1,24 +1,30 @@
 import io
 
 import urllib3
-from flask import Response
+from flask import Response, abort
 from flask_restful import Resource, fields, marshal
 
 from entityservice import app, connect_to_object_store, iterable_to_stream, generate_scores
 from entityservice.utils import safe_fail_request
 import entityservice.database as db
+import entityservice.cache as cache
 from entityservice.database import get_db
 from entityservice.settings import Config as config
 
 
-class Run(Resource):
-    """
+class RunList(Resource):
 
-    """
+    def get(self, project_id):
+        app.logger.info("Getting run list for project")
+        if not db.check_project_exists(db.get_db(), project_id):
+            abort(404)
 
-    def post(self):
+        return []
 
-        #TODO
+    def post(self, project_id):
+
+        app.logger.info("request to add a new run")
+
         raise NotImplementedError
         threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
         if threshold <= 0.0 or threshold >= 1.0:
@@ -27,10 +33,11 @@ class Run(Resource):
         app.logger.debug("Threshold for mapping is {}".format(threshold))
 
 
-class RunList(Resource):
+class Run(Resource):
 
-    def get(self):
-        return []
+    def get(self, project_id, run_id):
+        app.logger.info("Describing individual run")
+        raise NotImplementedError
 
 
 class RunStatus(Resource):
@@ -38,11 +45,26 @@ class RunStatus(Resource):
     Status of a particular run
     """
 
-    def get(self, resource_id):
+    def get(self, project_id, run_id):
+        app.logger.info("request to add a new run")
+        raise NotImplementedError
+        dbinstance = get_db()
+        is_ready, state = db.check_run_ready(dbinstance, resource_id)
 
-        is_ready, state = db.check_run_ready(get_db(), resource_id)
+        # return compute time elapsed and number of comparisons here
+        time_elapsed = db.get_run_time(dbinstance, resource_id)
+        app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
+        comparisons = cache.get_progress(resource_id)
+        total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
+        progress = {
+            "message": "Mapping isn't ready.",
+            "elapsed": time_elapsed.total_seconds(),
+            "total": str(total_comparisons),
+            "current": str(comparisons),
+            "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
+        }
+        return progress
 
-        return 'TODO'
 
 
 class RunResult(Resource):
@@ -50,7 +72,7 @@ class RunResult(Resource):
     Result of a particular run
     """
 
-    def get(self, resource_id):
+    def get(self, project_id, run_id):
         # TODO
         raise NotImplementedError
 
