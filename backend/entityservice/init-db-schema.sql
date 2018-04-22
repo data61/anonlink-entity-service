@@ -13,24 +13,24 @@ CREATE TABLE projects (
   id           SERIAL PRIMARY KEY,
 
   -- The resource identifier
-  project_id   CHAR(48)         NOT NULL UNIQUE,
+  project_id   CHAR(48)      NOT NULL UNIQUE,
 
   -- When was this project added
-  time_added   TIMESTAMP                 DEFAULT current_timestamp,
+  time_added   TIMESTAMP DEFAULT current_timestamp,
 
   -- currently 1:1, but this could be own table too
-  access_token TEXT             NOT NULL,
+  access_token TEXT          NOT NULL,
 
   -- not required by the server, but is shared to all parties
-  schema       JSONB            NOT NULL,
+  schema       JSONB         NOT NULL,
 
   -- human readable name for display purposes
-  name        TEXT,
+  name         TEXT,
   notes        TEXT,
 
-  parties      SMALLINT                  DEFAULT 2,
+  parties      SMALLINT  DEFAULT 2,
 
-  result_type  MAPPINGRESULT    NOT NULL
+  result_type  MAPPINGRESULT NOT NULL
 
 
 );
@@ -47,26 +47,26 @@ CREATE TABLE runs (
   id             SERIAL PRIMARY KEY,
 
   -- The run's resource identifier
-  run_id         CHAR(48)  NOT NULL UNIQUE,
+  run_id         CHAR(48)         NOT NULL UNIQUE,
 
   project        CHAR(48) REFERENCES projects (project_id),
 
   -- human readable name for display purposes
-  name        TEXT,
-  notes        TEXT,
+  name           TEXT,
+  notes          TEXT,
 
-  threshold    double precision NOT NULL,
+  threshold      double precision NOT NULL,
 
-  chunk_size   BIGINT           NOT NULL DEFAULT -1,
+  chunk_size     BIGINT           NOT NULL DEFAULT -1,
 
   -- if the entity matching has been completed
-  ready        BOOL             NOT NULL DEFAULT FALSE,
-  state          RUNSTATE  NOT NULL,
+  ready          BOOL             NOT NULL DEFAULT FALSE,
+  state          RUNSTATE         NOT NULL,
 
   -- When was this run started/completed
-  time_added     TIMESTAMP DEFAULT current_timestamp,
-  time_started   TIMESTAMP NULL,
-  time_completed TIMESTAMP NULL
+  time_added     TIMESTAMP                 DEFAULT current_timestamp,
+  time_started   TIMESTAMP        NULL,
+  time_completed TIMESTAMP        NULL
 
 );
 
