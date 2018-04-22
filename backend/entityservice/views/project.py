@@ -92,6 +92,7 @@ class ProjectList(Resource):
                                                project_dao.result_token,
                                                project_id,
                                                data.get('number_parties', 2),
+                                               data.get('name', ''),
                                                data.get('notes', '')
                                                )
 
@@ -149,6 +150,8 @@ class Project(Resource):
 
         project_description_fields = {
             'project_id': fields.String,
+            'name': fields.String,
+            'notes': fields.String,
             'schema': fields.Raw,
             'result_type': fields.String
         }
