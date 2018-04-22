@@ -60,12 +60,12 @@ class ProjectList(Resource):
         data = get_json()
 
         if data is None or 'schema' not in data:
-            safe_fail_request(401, message="Schema information required")
+            safe_fail_request(400, message="Schema information required")
 
         if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
                                                                     'permutation_unencrypted_mask',
                                                                     'similarity_scores'}:
-            safe_fail_request(401, message='result_type must be either "permutation", "mapping" or '
+            safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
                               '"permutation_unencrypted_mask"')
 
         if data['result_type'] == 'permutation' and 'public_key' not in data:
@@ -113,7 +113,7 @@ class ProjectList(Resource):
             app.logger.debug("Committing transaction")
             conn.commit()
 
-        return project_dao
+        return project_dao, 201
 
 
 class Project(Resource):
@@ -145,6 +145,8 @@ class Project(Resource):
         This endpoint describes a Project.
         """
         app.logger.info("Getting detail for a project")
+        if not db.check_project_exists(db.get_db(), project_id):
+            abort(404)
         self.authorise_get_request(project_id)
         project_object = db.get_project(db.get_db(), project_id)
 
@@ -162,22 +164,6 @@ class Project(Resource):
         }
 
         return marshal(project_object, project_description_fields)
-
-
-    def get_mapping_progress(self, dbinstance, resource_id):
-        # return compute time elapsed and number of comparisons here
-        time_elapsed = db.get_run_time(dbinstance, resource_id)
-        app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
-        comparisons = cache.get_progress(resource_id)
-        total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
-        progress = {
-            "message": "Mapping isn't ready.",
-            "elapsed": time_elapsed.total_seconds(),
-            "total": str(total_comparisons),
-            "current": str(comparisons),
-            "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
-        }
-        return progress
 
     def authorise_get_request(self, resource_id):
         if request.headers is None or 'Authorization' not in request.headers:
@@ -203,7 +189,7 @@ class Project(Resource):
 
 class ProjectClks(Resource):
 
-    def put(self, project_id):
+    def post(self, project_id):
         """
         Update a project to provide data.
         """

@@ -32,7 +32,7 @@ def is_receipt_token_valid(resource_id, receipt_token):
 def abort_if_invalid_results_token(resource_id, results_token):
     app.logger.debug("checking authorization token to fetch results data")
     if not is_results_token_valid(resource_id, results_token):
-        app.logger.debug("Auth invalid")
+        app.logger.debug("Authorization denied")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
