@@ -1,41 +1,33 @@
-import time
+
 import pytest
-import requests
 
 from entityservice.tests.config import url
 from entityservice.tests.util import generate_serialized_clks, generate_overlapping_clk_data
 
-#
-# class ProjectTestBase(EntityServiceTestBase):
-#
-#     def setUp(self):
-#         super().setUp()
-#         self.projects = []
-#
-#     def tearDown(self):
-#         for project_id in self.projects:
-#             self.log.debug("Removing project created for testing: {}".format(project_id))
-#             self.delete_project_from_server(project_id)
-#         super().tearDown()
-#
-#     def delete_project_from_server(self, pid):
-#         requests.delete(self.url + 'projects/{}'.format(pid))
-#
 
+def test_simple_create_project(requests):
+    project_name = 'a test project'
+    project_description = 'created by unittest'
 
-def test_create_project():
-    project_creation_response = requests.post(url + '/projects', json={
+    project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
-    }).json()
+        'threshold': 0.95,
+        'number_parties': 2,
+        'name': project_name,
+        'notes': project_description
+    })
 
-    print(project_creation_response)
+    assert project_response.status_code == 201
+    new_project_data = project_response.json()
 
-    # clean up?
-    #projects.append(project_creation_response['project_id'])
+    assert 'project_id' in new_project_data
+    assert 'update_tokens' in new_project_data
+    assert 'result_token' in new_project_data
+    assert len(new_project_data['update_tokens']) == 2
 
-def test_create_then_delete():
+
+def test_create_then_delete(requests):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -46,7 +38,7 @@ def test_create_then_delete():
     requests.delete(url + 'projects/{}'.format(new_project_response['project_id']))
 
 
-def test_create_then_list():
+def test_create_then_list(requests):
     original_project_list_respose = requests.get(url + '/projects').json()
     original_project_ids = [p['project_id'] for p in original_project_list_respose]
 
@@ -56,39 +48,81 @@ def test_create_then_list():
         'threshold': 0.95
     }).json()
 
-    assert new_project_response['project_id'] not in original_project_list_respose
+    assert new_project_response['project_id'] not in original_project_ids
 
     project_list_response = requests.get(url + '/projects').json()
     new_project_ids = [p['project_id'] for p in project_list_response]
 
     assert new_project_response['project_id'] in new_project_ids
 
-    # def test_project_status_noauth(self):
-    #     new_mapping = requests.post(self.url + '/projects', json={
-    #         'schema': {},
-    #         'result_type': 'mapping',
-    #         'threshold': 0.95
-    #     }).json()
-    #
-    #     self.log.info("Checking mapping status without authentication token")
-    #     r = requests.get(self.url + '/mappings/{}'.format(new_mapping['resource_id']))
-    #     self.assertEqual(r.status_code, 401)
-    #
-    #     self.projects.append(new_mapping['resource_id'])
-    #
-    # def test_mapping_status_invalid_auth(self):
-    #     new_map_response = requests.post(self.url + '/mappings',
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     r = requests.get(self.url + '/mappings/{}'.format(new_map_response['resource_id']),
-    #                      headers={'Authorization': 'invalid'},
-    #                      )
-    #     self.assertEqual(r.status_code, 403)
-    #     self.projects.append(new_map_response['resource_id'])
-    #
+
+def test_create_then_describe_noauth(requests):
+    new_project = requests.post(url + '/projects', json={
+        'schema': {},
+        'result_type': 'mapping',
+        'threshold': 0.95
+    }).json()
+
+    print("Checking mapping status without authentication token")
+    r = requests.get(url + '/projects/{}'.format(new_project['project_id']))
+    assert r.status_code == 401
+
+
+def test_create_then_describe_invalid_auth(requests):
+    project_respose = requests.post(url + '/projects', json={
+        'schema': {},
+        'result_type': 'mapping',
+        'threshold': 0.95
+    }).json()
+    r = requests.get(
+        url + '/projects/{}'.format(project_respose['project_id']),
+        headers={'Authorization': 'invalid'}
+    )
+    assert r.status_code == 403
+
+
+def test_create_then_describe_valid_auth(requests):
+    project_respose = requests.post(url + '/projects', json={
+        'schema': {},
+        'result_type': 'mapping',
+        'threshold': 0.95
+    }).json()
+    r = requests.get(
+        url + '/projects/{}'.format(project_respose['project_id']),
+        headers={'Authorization': project_respose['result_token']}
+    )
+    assert r.status_code == 200
+    project_description = r.json()
+
+    assert 'project_id' in project_description
+    assert 'name' in project_description
+    assert 'notes' in project_description
+    assert 'schema' in project_description
+    assert 'public_key' not in project_description
+    assert 'paillier_context' not in project_description
+
+    assert 'mapping' == project_description['result_type']
+    assert 2 == project_description['number_parties'], 'default number of parties should be 2'
+    assert '' == project_description['name'], 'default name should be blank'
+    assert '' == project_description['notes'], 'default notes should be blank'
+
+
+def test_describe_missing_project_with_invalidauth(requests):
+    r = requests.get(
+        url + '/projects/{}'.format('fakeprojectid'),
+        headers={'Authorization': 'invalid'}
+    )
+    assert r.status_code == 404
+
+
+def test_list_runs_of_missing_project_with_invalidauth(requests):
+    r = requests.get(
+        url + '/projects/{}/runs'.format('fakeprojectid'),
+        headers={'Authorization': 'invalid'}
+    )
+    assert r.status_code == 404
+
+
     # def test_mapping_status_invalid_mapping_id_fake_auth(self):
     #     r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
     #                      headers={'Authorization': 'invalid'})
