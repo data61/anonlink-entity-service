@@ -148,12 +148,17 @@ class Project(Resource):
         self.authorise_get_request(project_id)
         project_object = db.get_project(db.get_db(), project_id)
 
+        # hack parties -> number_parties
+        project_object['number_parties'] = project_object['parties']
+        del project_object['parties']
+
         project_description_fields = {
             'project_id': fields.String,
             'name': fields.String,
             'notes': fields.String,
             'schema': fields.Raw,
-            'result_type': fields.String
+            'result_type': fields.String,
+            'number_parties': fields.Integer
         }
 
         return marshal(project_object, project_description_fields)
