@@ -4,16 +4,16 @@ import psycopg2
 from entityservice.database.util import execute_returning_id, logger
 
 
-def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, notes):
+def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes):
     sql_query = """
         INSERT INTO projects
-        (project_id, access_token, schema, notes, parties, result_type)
+        (project_id, name, access_token, schema, notes, parties, result_type)
         VALUES
-        (%s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s, %s)
         RETURNING project_id;
         """
     return execute_returning_id(cur, sql_query,
-                                [project_id, access_token, psycopg2.extras.Json(schema), notes, num_parties,
+                                [project_id, name, access_token, psycopg2.extras.Json(schema), notes, num_parties,
                                  result_type])
 
 
