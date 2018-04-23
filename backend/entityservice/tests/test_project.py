@@ -5,6 +5,13 @@ from entityservice.tests.config import url
 from entityservice.tests.util import generate_serialized_clks, generate_overlapping_clk_data
 
 
+def _check_new_project_response_fields(new_project_data):
+    assert 'project_id' in new_project_data
+    assert 'update_tokens' in new_project_data
+    assert 'result_token' in new_project_data
+    assert len(new_project_data['update_tokens']) == 2
+
+
 def test_simple_create_project(requests):
     project_name = 'a test project'
     project_description = 'created by unittest'
@@ -12,7 +19,6 @@ def test_simple_create_project(requests):
     project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95,
         'number_parties': 2,
         'name': project_name,
         'notes': project_description
@@ -20,22 +26,19 @@ def test_simple_create_project(requests):
 
     assert project_response.status_code == 201
     new_project_data = project_response.json()
-
-    assert 'project_id' in new_project_data
-    assert 'update_tokens' in new_project_data
-    assert 'result_token' in new_project_data
-    assert len(new_project_data['update_tokens']) == 2
+    _check_new_project_response_fields(new_project_data)
 
 
 def test_create_then_delete(requests):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
-    }).json()
+    })
+    assert new_project_response.status_code == 201
+    _check_new_project_response_fields(new_project_response.json())
 
-    print(new_project_response)
-    requests.delete(url + 'projects/{}'.format(new_project_response['project_id']))
+    delete_project_response = requests.delete(url + 'projects/{}'.format(new_project_response['project_id']))
+    assert delete_project_response.status_code == 204
 
 
 def test_create_then_list(requests):
@@ -45,7 +48,6 @@ def test_create_then_list(requests):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
     }).json()
 
     assert new_project_response['project_id'] not in original_project_ids
@@ -60,7 +62,6 @@ def test_create_then_describe_noauth(requests):
     new_project = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
     }).json()
 
     print("Checking mapping status without authentication token")
@@ -72,7 +73,6 @@ def test_create_then_describe_invalid_auth(requests):
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
     }).json()
     r = requests.get(
         url + '/projects/{}'.format(project_respose['project_id']),
@@ -85,7 +85,6 @@ def test_create_then_describe_valid_auth(requests):
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
-        'threshold': 0.95
     }).json()
     r = requests.get(
         url + '/projects/{}'.format(project_respose['project_id']),
