@@ -10,13 +10,14 @@ import entityservice.database as db
 from entityservice.async_worker import handle_raw_upload
 from entityservice import app, fmt_bytes
 from entityservice.utils import safe_fail_request, get_stream, get_json, generate_code
-from entityservice.serialization import check_public_key
+
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, dataprovider_id_if_authorize, node_id_if_authorize
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
+
 
 new_project_response_fields = {
     'project_id': fields.String,
@@ -59,61 +60,21 @@ class ProjectList(Resource):
         """
         data = get_json()
 
-        if data is None or 'schema' not in data:
-            safe_fail_request(400, message="Schema information required")
-
-        if 'result_type' not in data or data['result_type'] not in {'permutation', 'mapping',
-                                                                    'permutation_unencrypted_mask',
-                                                                    'similarity_scores'}:
-            safe_fail_request(400, message='result_type must be either "permutation", "mapping" or '
-                              '"permutation_unencrypted_mask"')
-
-        if data['result_type'] == 'permutation' and 'public_key' not in data:
-            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
-
-        if data['result_type'] == 'permutation' and 'paillier_context' not in data:
-            safe_fail_request(400, message='Paillier context required when result_type="permutation"')
-
-        if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
-            safe_fail_request(400, message='Paillier public key required when result_type="permutation"')
-
-        project_id = generate_code()
-        project_dao = models.Project(project_id)
+        try:
+            project_model = models.Project.from_json(data)
+        except models.InvalidProjectParametersException as e:
+            safe_fail_request(400, message=e.msg)
 
         # Persist the new project
         app.logger.info("Adding new project to database")
 
-        conn = get_db()
-        with conn.cursor() as cur:
-            app.logger.debug("Starting database transaction. Creating project.")
-            project_id = db.insert_new_project(cur,
-                                               data['result_type'],
-                                               data['schema'],
-                                               project_dao.result_token,
-                                               project_id,
-                                               data.get('number_parties', 2),
-                                               data.get('name', ''),
-                                               data.get('notes', '')
-                                               )
+        try:
+            project_model.save(get_db())
+        except Exception as e:
+            app.logger.warn(e)
+            safe_fail_request(500, 'Problem creating new project')
 
-            if data['result_type'] == 'permutation':
-                app.logger.debug("Inserting public key and paillier context into db")
-                paillier_db_id = db.insert_paillier(cur, data['public_key'], data['paillier_context'])
-                db.insert_empty_encrypted_mask(cur, project_id, paillier_db_id)
-
-            app.logger.debug("New project created in DB: {}".format(project_id))
-            app.logger.debug("Creating new data provider entries")
-
-            for auth_token in project_dao.update_tokens:
-                dp_id = db.insert_dataprovider(cur, auth_token, project_id)
-                app.logger.info("Added dataprovider with id = {}".format(dp_id))
-
-            app.logger.debug("Added data providers")
-
-            app.logger.debug("Committing transaction")
-            conn.commit()
-
-        return project_dao, 201
+        return project_model, 201
 
 
 class Project(Resource):
@@ -234,7 +195,6 @@ def upload_clk_data(dp_id, raw_stream):
     setting the state to pending in the bloomingdata table.
     """
     receipt_token = generate_code()
-
 
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     app.logger.info("Storing user {} supplied clks from json".format(dp_id))
