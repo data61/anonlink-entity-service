@@ -132,23 +132,23 @@ class Project(Resource):
 
         return marshal(project_object, project_description_fields)
 
-    def authorise_get_request(self, resource_id):
+    def authorise_get_request(self, project_id):
         if request.headers is None or 'Authorization' not in request.headers:
             safe_fail_request(401, message="Authentication token required")
         auth_header = request.headers.get('Authorization')
         dp_id = None
         # Check the resource exists
-        abort_if_project_doesnt_exist(resource_id)
+        abort_if_project_doesnt_exist(project_id)
         dbinstance = get_db()
-        project_object = db.get_project(dbinstance, resource_id)
+        project_object = db.get_project(dbinstance, project_id)
         app.logger.info("Checking credentials")
         if project_object['result_type'] == 'mapping' or project_object['result_type'] == 'similarity_scores':
             # Check the caller has a valid results token if we are including results
-            abort_if_invalid_results_token(resource_id, auth_header)
+            abort_if_invalid_results_token(project_id, auth_header)
         elif project_object['result_type'] == 'permutation':
-            dp_id = dataprovider_id_if_authorize(resource_id, auth_header)
+            dp_id = dataprovider_id_if_authorize(project_id, auth_header)
         elif project_object['result_type'] == 'permutation_unencrypted_mask':
-            dp_id = node_id_if_authorize(resource_id, auth_header)
+            dp_id = node_id_if_authorize(project_id, auth_header)
         else:
             safe_fail_request(500, "Unknown error")
         return dp_id, project_object
