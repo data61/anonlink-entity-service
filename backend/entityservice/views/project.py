@@ -80,6 +80,7 @@ class ProjectList(Resource):
 class Project(Resource):
 
     def delete(self, project_id):
+        app.logger.debug("Request to delete project with id {}".format(project_id))
         # Check the resource exists
         abort_if_project_doesnt_exist(project_id)
 
@@ -90,15 +91,20 @@ class Project(Resource):
         mc = connect_to_object_store()
         project_from_db = db.get_project(dbinstance, project_id)
 
-        app.logger.info("Deleting a project resource and all data")
+        app.logger.info("Authorized request to delete a project resource and all data")
 
         # If result_type is similarity_scores, delete the corresponding similarity_scores file
         if project_from_db['result_type'] == 'similarity_scores':
-            app.logger.info("Deleting the similarity scores file")
+            app.logger.info("Deleting the similarity scores file from object store")
             filename = db.get_similarity_scores_filename(dbinstance, project_id)['file']
             mc.remove_object(config.MINIO_BUCKET, filename)
 
-        db.delete_project(get_db(), project_id)
+        app.logger.info("Deleting project resourced from database")
+        object_store_files = db.delete_project(get_db(), project_id)
+        app.logger.info("Object store files associated with project:")
+        for filename in object_store_files:
+            app.logger.info("Deleting {}".format(filename))
+            mc.remove_object(config.MINIO_BUCKET, filename)
 
         return '', 204
 
