@@ -4,6 +4,7 @@ from entityservice.utils import generate_code
 from entityservice.serialization import check_public_key
 import entityservice.database as db
 
+
 class InvalidProjectParametersException(ValueError):
 
     def __init__(self, message, *args, **kwargs):
@@ -17,7 +18,7 @@ class Project(object):
 
     Exists before insertion into the database.
     """
-    def __init__(self, result_type, schema, name, notes, parties=2, public_key=None, paillier_context=None):
+    def __init__(self, result_type, schema, name, notes, parties, public_key=None, paillier_context=None):
         app.logger.info("Creating project codes")
         self.result_type = result_type
         self.schema = schema
@@ -27,7 +28,7 @@ class Project(object):
         self.public_key = public_key
         self.paillier_context = paillier_context
 
-        self.project_id = generate_code(8)
+        self.project_id = generate_code()
         self.result_token = generate_code()
 
         # Order is important here
@@ -64,7 +65,7 @@ class Project(object):
         # Get optional fields from JSON data
         name = data.get('name', '')
         notes = data.get('notes', '')
-        parties = data.get('parties')
+        parties = data.get('parties', 2)
 
         return Project(result_type, schema, name, notes, parties)
 
