@@ -3,6 +3,8 @@ services:
 
   db:
     image: postgres:10.3
+    ports:
+      - 5432:5432
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
@@ -55,7 +57,7 @@ services:
     depends_on:
       - redis
       - db
-    entrypoint: celery -A entityservice.async_worker worker --loglevel=debug -Q celery,compute
+    entrypoint: celery -A entityservice.async_worker worker --loglevel=info -Q celery,compute
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
