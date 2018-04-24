@@ -1,13 +1,13 @@
 import redis
 
 import pickle
-import tempfile
+
 import logging
 
-import serialization
-import database
-from object_store import connect_to_object_store
-from settings import Config as config
+from entityservice import serialization
+from entityservice import database
+from entityservice.object_store import connect_to_object_store
+from entityservice.settings import Config as config
 
 logger = logging.getLogger('cache')
 redis_host = config.REDIS_SERVER

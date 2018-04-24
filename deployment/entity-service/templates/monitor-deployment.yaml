@@ -26,6 +26,7 @@ spec:
           - "flower"
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
+          - "-Q celery,compute"
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}
 {{- end }}

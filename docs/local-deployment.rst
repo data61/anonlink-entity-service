@@ -58,6 +58,13 @@ volumes is easy, just run::
 
 in between calls to `docker-compose ... up`.
 
+Monitoring
+----------
+
+A celery monitor tool `flower` is also part of the docker-compose file - this graphical interface
+allows administration and monitoring of the celery tasks and workers. Access this via the nginx
+container - e.g. http://localhost:8851/monitor
+
 Testing with docker-compose
 ---------------------------
 

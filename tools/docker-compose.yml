@@ -2,8 +2,7 @@ version: '2'
 services:
 
   db:
-    image: postgres:10
-    mem_limit: 6000m
+    image: postgres:10.3
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
@@ -13,8 +12,6 @@ services:
   minio:
     image: minio/minio:RELEASE.2017-02-16T01-47-30Z
     command: server /export
-    #ports:
-    #  - "9000:9000"
     environment:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -46,8 +43,8 @@ services:
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - FLASK_APP=entityservice.py
-    entrypoint: flask initdb
+      - FLASK_APP=entityservice
+    entrypoint: python -m flask initdb
     depends_on:
       - db
 
@@ -58,7 +55,7 @@ services:
     depends_on:
       - redis
       - db
-    entrypoint: celery -A async_worker worker --loglevel=debug -Q celery,compute
+    entrypoint: celery -A entityservice.async_worker worker --loglevel=debug -Q celery,compute
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
@@ -78,7 +75,7 @@ services:
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - 8851
+      - 8851:8851
     depends_on:
       - backend
     environment:
@@ -88,15 +85,13 @@ services:
       PUBLIC_IP:
 
 
-
   # A celery monitor. Useful for debugging but okay to remain
-  # commented out for deployment
-#  celery_monitor:
-#    image: quay.io/n1analytics/entity-app
-#    depends_on:
-#      - redis
-#    entrypoint: celery -A async_worker flower --port=8888 --url_prefix=/
-
+  # commented out for deployment. Access via the nginx container with url `/monitor`
+  celery_monitor:
+    image: quay.io/n1analytics/entity-app
+    depends_on:
+      - redis
+    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=monitor --port=8888 -Q celery,compute
 
 volumes:
   psql:
