@@ -1,7 +1,7 @@
 import io
 
 import urllib3
-from flask import Response, abort
+from flask import Response, request
 from flask_restful import Resource, fields, marshal
 
 from entityservice import app, connect_to_object_store, iterable_to_stream, generate_scores
@@ -10,16 +10,13 @@ import entityservice.database as db
 import entityservice.cache as cache
 from entityservice.database import get_db
 from entityservice.settings import Config as config
+from entityservice.views import abort_if_project_doesnt_exist, abort_if_invalid_results_token
 
 
-class RunList(Resource):
+class Run(Resource):
+    """
 
-    def get(self, project_id):
-        app.logger.info("Getting run list for project")
-        if not db.check_project_exists(db.get_db(), project_id):
-            abort(404)
-
-        return []
+    """
 
     def post(self, project_id):
 
@@ -33,11 +30,42 @@ class RunList(Resource):
         app.logger.debug("Threshold for mapping is {}".format(threshold))
 
 
-class Run(Resource):
+class RunList(Resource):
 
-    def get(self, project_id, run_id):
-        app.logger.info("Describing individual run")
-        raise NotImplementedError
+    def get(self, project_id,):
+        app.logger.info("Listing runs for project: {}".format(project_id))
+
+        self.authorize_run_listing(project_id)
+
+        runs = db.query_db(get_db(), 'select run_id, time_added, state from runs')
+
+        run_summary_fields = {
+            'run_id': fields.String,
+            'time_added': fields.DateTime(dt_format='iso8601'),
+            'state': fields.String
+        }
+
+        marshaled_runs = []
+        app.logger.debug("Getting list of all projects")
+        for run_object in runs:
+            marshaled_runs.append(marshal(run_object, run_summary_fields))
+
+        return marshaled_runs
+
+    def authorize_run_listing(self, project_id):
+        app.logger.info("Looking up project")
+        abort_if_project_doesnt_exist(project_id)
+        if request.headers is None or 'Authorization' not in request.headers:
+            safe_fail_request(401, message="Authentication token required")
+        auth_header = request.headers.get('Authorization')
+        # Check the project resource exists
+        abort_if_project_doesnt_exist(project_id)
+        dbinstance = get_db()
+        project_object = db.get_project(dbinstance, project_id)
+        app.logger.info("Checking credentials to list project runs")
+        # Check the caller has a valid results token (analyst token)
+        abort_if_invalid_results_token(project_id, auth_header)
+        app.logger.info("Caller is allowed to list project runs")
 
 
 class RunStatus(Resource):
@@ -64,7 +92,6 @@ class RunStatus(Resource):
             "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
         }
         return progress
-
 
 
 class RunResult(Resource):
