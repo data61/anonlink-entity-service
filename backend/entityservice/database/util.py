@@ -69,8 +69,13 @@ def execute_returning_id(cur, query, args):
 
     """
     cur.execute(query, args)
-    resource_id = cur.fetchone()[0]
-    return resource_id
+    query_result = cur.fetchone()
+    if query_result is None:
+        return None
+    else:
+        resource_id = query_result[0]
+        return resource_id
+
 
 
 logger = logging.getLogger('db')
