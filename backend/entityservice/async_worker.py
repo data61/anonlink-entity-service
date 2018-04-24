@@ -11,13 +11,13 @@ from celery.utils.log import get_task_logger
 from phe import paillier
 from phe.util import int_to_base64
 
-import cache
-from database import *
-from object_store import connect_to_object_store
-from serialization import load_public_key, binary_unpack_filters, \
+import entityservice.cache
+from entityservice.database import *
+from entityservice.object_store import connect_to_object_store
+from entityservice.serialization import load_public_key, binary_unpack_filters, \
     binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
-from settings import Config as config
-from utils import chunks, iterable_to_stream, fmt_bytes
+from entityservice.settings import Config as config
+from entityservice.utils import chunks, iterable_to_stream, fmt_bytes
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -163,7 +163,7 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
     update_filter_data(connect_db(), filename, dp_id)
 
     # Now work out if all parties have added their data
-    mapping = get_mapping(connect_db(), resource_id)
+    mapping = get_project(connect_db(), resource_id)
     logger.debug(str(mapping))
     if check_mapping(mapping):
         logger.debug("All parties data present. Scheduling matching")
@@ -176,8 +176,8 @@ def calculate_mapping(resource_id):
     logger.debug("Checking we need to calculating mapping")
 
     db = connect_db()
-    res = get_mapping(db, resource_id)
-    threshold =  res['threshold']
+    res = get_project(db, resource_id)
+    threshold = res['threshold']
     if res['ready']:
         logger.info("Mapping '{}' is already computed. Skipping".format(resource_id))
         return
@@ -233,7 +233,7 @@ def compute_similarity(resource_id, dp_ids, threshold):
     if chunk_size is None:
         chunk_size = max(lenf1, lenf2)
     logger.info("Chunks will contain {} entities per task".format(chunk_size))
-    update_mapping_chunk(db, resource_id, chunk_size)
+    update_run_chunk(db, resource_id, chunk_size)
     job_chunks = []
 
     dp1_chunks = []
@@ -271,7 +271,7 @@ def save_and_permute(similarity_result, resource_id):
     # Celery actually converts the json arguments in the same way
 
     db = connect_db()
-    _, _, result_type = check_mapping_ready(db, resource_id)
+    result_type = get_project_column(db, resource_id, 'result_type')
 
     # Just save the raw "mapping"
     logger.debug("Saving the resulting map data to the db")
@@ -320,7 +320,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
 
     """
     db = connect_db()
-    mapping_str = get_mapping_result(db, resource_id)
+    mapping_str = get_run_result(db, resource_id)
 
     # Convert to int: int
     mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
@@ -476,7 +476,7 @@ def post_permutation(resource_id):
     # trigger the encryption of the mask
 
     db = connect_db()
-    _, _, result_type = check_mapping_ready(db, resource_id)
+    result_type = get_project_column(db, resource_id, 'result_type')
 
     if result_type == "permutation":
         logger.info("Need to encrypt the mask")
@@ -522,7 +522,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
-        if not check_mapping_exists(db, resource_id):
+        if not check_project_exists(db, resource_id):
             logger.warning("Skipping as resource not found.")
             return None
 
@@ -594,7 +594,7 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
             sparse_matrix.extend(partial_sparse_result)
 
     db = connect_db()
-    _, _, result_type = check_mapping_ready(db, resource_id)
+    result_type = get_project_column(db, resource_id, 'result_type')
 
     if result_type == "similarity_scores":
         logger.info("Store the similarity scores in a CSV file")
