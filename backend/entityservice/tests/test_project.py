@@ -29,7 +29,7 @@ def test_simple_create_project(requests):
     _check_new_project_response_fields(new_project_data)
 
 
-def test_create_then_delete(requests):
+def test_create_then_delete_no_auth(requests):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -37,7 +37,38 @@ def test_create_then_delete(requests):
     assert new_project_response.status_code == 201
     _check_new_project_response_fields(new_project_response.json())
 
-    delete_project_response = requests.delete(url + 'projects/{}'.format(new_project_response['project_id']))
+    delete_project_response = requests.delete(url + '/projects/{}'.format(new_project_response.json()['project_id']))
+    assert delete_project_response.status_code == 403
+
+
+def test_create_then_delete_invalid_auth(requests):
+    new_project_response = requests.post(url + '/projects', json={
+        'schema': {},
+        'result_type': 'mapping',
+    })
+    assert new_project_response.status_code == 201
+    _check_new_project_response_fields(new_project_response.json())
+
+    delete_project_response = requests.delete(
+        url + '/projects/{}'.format(new_project_response.json()['project_id']),
+        headers={'Authorization': 'invalid'}
+    )
+    assert delete_project_response.status_code == 403
+
+
+def test_create_then_delete_valid_auth(requests):
+    new_project_response = requests.post(url + '/projects', json={
+        'schema': {},
+        'result_type': 'mapping',
+    })
+    assert new_project_response.status_code == 201
+    _check_new_project_response_fields(new_project_response.json())
+
+    token = new_project_response.json()['result_token']
+    delete_project_response = requests.delete(
+        url + '/projects/{}'.format(new_project_response.json()['project_id']),
+        headers={'Authorization': token}
+    )
     assert delete_project_response.status_code == 204
 
 
@@ -111,7 +142,7 @@ def test_describe_missing_project_with_invalidauth(requests):
         url + '/projects/{}'.format('fakeprojectid'),
         headers={'Authorization': 'invalid'}
     )
-    assert r.status_code == 404
+    assert r.status_code == 403
 
 
 def test_list_runs_of_missing_project_with_invalidauth(requests):
@@ -119,7 +150,7 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
         url + '/projects/{}/runs'.format('fakeprojectid'),
         headers={'Authorization': 'invalid'}
     )
-    assert r.status_code == 404
+    assert r.status_code == 403
 
 
     # def test_mapping_status_invalid_mapping_id_fake_auth(self):
