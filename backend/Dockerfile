@@ -7,9 +7,10 @@ EXPOSE 8000
 # libffi-dev needed by anonlink
 # g++ needed by anonlink/cffi
 # gmp-dev, mpfr-dev, mpc1-dev needed by gmpy2
+# yajl, yajl-dev needed by ijson
 # shadow needed for groupadd and useradd (NB: shadow package only available in alpine >= 3.6)
 RUN (pip install --upgrade pip setuptools; \
-     apk add --no-cache postgresql-dev libffi-dev g++ gmp-dev mpfr-dev mpc1-dev shadow)
+     apk add --no-cache postgresql-dev libffi-dev g++ gmp-dev mpfr-dev mpc1-dev shadow yajl yajl-dev)
 
 ADD requirements.txt /var/www/requirements.txt
 
