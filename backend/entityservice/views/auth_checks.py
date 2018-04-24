@@ -4,8 +4,8 @@ from entityservice.messages import INVALID_ACCESS_MSG
 from entityservice.utils import safe_fail_request
 
 
-def abort_if_project_doesnt_exist(resource_id):
-    resource_exists = db.check_project_exists(get_db(), resource_id)
+def abort_if_project_doesnt_exist(project_id):
+    resource_exists = db.check_project_exists(get_db(), project_id)
     if not resource_exists:
         app.logger.info("Requested project resource with invalid identifier token")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
@@ -30,7 +30,7 @@ def is_receipt_token_valid(resource_id, receipt_token):
 
 
 def abort_if_invalid_results_token(resource_id, results_token):
-    app.logger.debug("checking authorization token to fetch results data")
+    app.logger.debug("checking authorization of 'result_token'")
     if not is_results_token_valid(resource_id, results_token):
         app.logger.debug("Authorization denied")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)

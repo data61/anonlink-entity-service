@@ -82,14 +82,15 @@ class Project(Resource):
     def delete(self, project_id):
         # Check the resource exists
         abort_if_project_doesnt_exist(project_id)
-        app.logger.info("Deleting a project resource and all data")
-        # First get the filenames of everything in the object store
+
+        # Check the caller has a valid results token. Yes it should be renamed.
+        abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
 
         dbinstance = get_db()
-
         mc = connect_to_object_store()
-
         project_from_db = db.get_project(dbinstance, project_id)
+
+        app.logger.info("Deleting a project resource and all data")
 
         # If result_type is similarity_scores, delete the corresponding similarity_scores file
         if project_from_db['result_type'] == 'similarity_scores':
@@ -106,12 +107,11 @@ class Project(Resource):
         This endpoint describes a Project.
         """
         app.logger.info("Getting detail for a project")
-        if not db.check_project_exists(db.get_db(), project_id):
-            abort(404)
+        abort_if_project_doesnt_exist(project_id)
         self.authorise_get_request(project_id)
         project_object = db.get_project(db.get_db(), project_id)
 
-        # hack parties -> number_parties
+        # hack to rename parties -> number_parties
         project_object['number_parties'] = project_object['parties']
         del project_object['parties']
 
@@ -170,7 +170,7 @@ class ProjectClks(Resource):
 
         token = headers['Authorization']
 
-        # Check the caller has valid token
+        # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
 
         dp_id = db.get_dataprovider_id(get_db(), token)
