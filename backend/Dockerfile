@@ -1,12 +1,15 @@
-FROM python:3.6.5
+FROM python:3.6.5-alpine3.6
 
 MAINTAINER "Brian Thorne <brian@thorne.link>"
 EXPOSE 8000
 
-# libmpc-dev is necessary to setup gmpy2
+# postgresql-dev needed for pg_config
+# libffi-dev needed by anonlink
+# g++ needed by anonlink/cffi
+# gmp-dev, mpfr-dev, mpc1-dev needed by gmpy2
+# shadow needed for groupadd and useradd (NB: shadow package only available in alpine >= 3.6)
 RUN (pip install --upgrade pip setuptools; \
-     apt-get update; \
-     apt-get --assume-yes install libmpc-dev build-essential libyajl-dev libyajl2 libstdc++6)
+     apk add --no-cache postgresql-dev libffi-dev g++ gmp-dev mpfr-dev mpc1-dev shadow)
 
 ADD requirements.txt /var/www/requirements.txt
 

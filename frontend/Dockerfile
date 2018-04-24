@@ -1,11 +1,8 @@
-FROM nginx:1.13.12
+FROM nginx:1.13.12-alpine
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
 
-RUN apt-get update \
-  && apt-get install --no-install-recommends --no-install-suggests -y \
-	curl \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 # Copy the static site assets:
 COPY ./static /usr/share/nginx/html
