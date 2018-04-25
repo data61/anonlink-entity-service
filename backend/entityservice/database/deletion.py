@@ -98,3 +98,4 @@ def delete_project(db, project_id):
 
     logger.info("Committing removal of mapping resource")
     db.commit()
+    return object_store_files
