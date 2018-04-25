@@ -3,7 +3,7 @@ set -e
 script_name=$(basename "$0")
 cd $(dirname "$0")
 
-export APPVERSION=$(cat ../backend/VERSION)
+export APPVERSION=$(cat ../backend/entityservice/VERSION)
 export NGINXVERSION=$(cat ../frontend/VERSION)
 
 if [ -z ${BRANCH_NAME+x} ]; then
