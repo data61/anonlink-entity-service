@@ -1,3 +1,4 @@
+import time
 
 import pytest
 
@@ -153,6 +154,93 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
     assert r.status_code == 403
 
 
+def test_project_single_party_data_uploaded(requests):
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         'result_type': 'mapping',
+                                     }).json()
+    r = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][0]},
+        json={
+            'clks': generate_serialized_clks(100)
+        }
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+    assert 'receipt-token' in upload_response
+
+
+def test_mapping_single_party_empty_data_upload(requests):
+    new_project_data = requests.post(url + '/projects',
+                                     headers={'Authorization': 'invalid'},
+                                     json={
+                                         'schema': {},
+                                         'result_type': 'mapping',
+                                     }).json()
+
+
+    r = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][0]},
+        json={
+            'clks': []
+        }
+    )
+    assert r.status_code == 400
+
+
+def get_project_description(requests, new_project_data):
+    project_description_response = requests.get(url + '/projects/{}'.format(new_project_data['project_id']),
+                            headers={'Authorization': new_project_data['result_token']})
+
+    assert project_description_response.status_code == 200
+    return project_description_response.json()
+
+
+def test_mapping_2_party_data_uploaded(requests):
+    new_project_data = requests.post(url + '/projects',
+                                     headers={'Authorization': 'invalid'},
+                                     json={
+                                         'schema': {},
+                                         'result_type': 'mapping',
+                                     }).json()
+    description_1 = get_project_description(requests, new_project_data)
+    assert description_1['number_parties'] == 2
+    assert description_1['parties_contributed'] == 0
+
+    d1, d2 = generate_overlapping_clk_data([100, 100], overlap=0.75)
+    r1 = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][0]},
+        json={
+            'clks': d1
+        }
+    )
+    time.sleep(0.2)
+    description_2 = get_project_description(requests, new_project_data)
+    assert description_2['number_parties'] == 2
+    assert description_2['parties_contributed'] == 1
+
+    r2 = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][1]},
+        json={
+            'clks': d2
+        }
+    )
+
+    assert r1.status_code == 201
+    assert r2.status_code == 201
+
+    time.sleep(0.2)
+
+    description_3 = get_project_description(requests, new_project_data)
+    assert description_3['number_parties'] == 2
+    assert description_3['parties_contributed'] == 2
+
+
     # def test_mapping_status_invalid_mapping_id_fake_auth(self):
     #     r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
     #                      headers={'Authorization': 'invalid'})
@@ -192,77 +280,3 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
     #
     #     self.projects.append(new_map['resource_id'])
     #
-    # def test_mapping_single_party_data_uploaded(self):
-    #     new_map = requests.post(self.url + '/mappings',
-    #                                      headers={'Authorization': 'invalid'},
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     r = requests.put(
-    #         self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #         headers={'Authorization': new_map['update_tokens'][0]},
-    #         json={
-    #             'clks': generate_serialized_clks(100)
-    #         }
-    #     )
-    #     self.assertEqual(r.status_code, 201)
-    #     upload_response = r.json()
-    #     self.assertIn('receipt-token', upload_response)
-    #     self.projects.append(new_map['resource_id'])
-    #
-    #
-    # def test_mapping_single_party_empty_data_upload(self):
-    #     new_map = requests.post(self.url + '/mappings',
-    #                                      headers={'Authorization': 'invalid'},
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     self.log.info("Testing uploading 0 clks")
-    #     r = requests.put(
-    #         self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #         headers={'Authorization': new_map['update_tokens'][0]},
-    #         json={
-    #             'clks': []
-    #         }
-    #     )
-    #     self.assertEqual(r.status_code, 400)
-    #
-    #
-    # def test_mapping_2_party_data_uploaded(self):
-    #     new_map = requests.post(self.url + '/mappings',
-    #                                      headers={'Authorization': 'invalid'},
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     self.projects.append(new_map['resource_id'])
-    #     d1, d2 = generate_overlapping_clk_data([100, 100], overlap=0.75)
-    #     r1 = requests.put(
-    #         self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #         headers={'Authorization': new_map['update_tokens'][0]},
-    #         json={
-    #             'clks': d1
-    #         }
-    #     )
-    #     r2 = requests.put(
-    #         self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #         headers={'Authorization': new_map['update_tokens'][1]},
-    #         json={
-    #             'clks': d2
-    #         }
-    #     )
-    #     self.assertEqual(r1.status_code, 201)
-    #     self.assertEqual(r2.status_code, 201)
-    #
-    #     time.sleep(5)
-    #     response = requests.get(self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #                             headers={'Authorization': new_map['result_token']})
-    #
-    #     mapping_result = response.json()['mapping']
-    #     self.assertGreater(len(mapping_result), 70)
-    #     self.assertLess(len(mapping_result), 80)
