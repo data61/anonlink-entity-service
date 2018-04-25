@@ -102,6 +102,7 @@ class Project(Resource):
         app.logger.info("Deleting project resourced from database")
         object_store_files = db.delete_project(get_db(), project_id)
         app.logger.info("Object store files associated with project:")
+
         for filename in object_store_files:
             app.logger.info("Deleting {}".format(filename))
             mc.remove_object(config.MINIO_BUCKET, filename)
@@ -115,11 +116,17 @@ class Project(Resource):
         app.logger.info("Getting detail for a project")
         abort_if_project_doesnt_exist(project_id)
         self.authorise_get_request(project_id)
-        project_object = db.get_project(db.get_db(), project_id)
+        db_conn = db.get_db()
+        project_object = db.get_project(db_conn, project_id)
 
         # hack to rename parties -> number_parties
         project_object['number_parties'] = project_object['parties']
         del project_object['parties']
+
+        # Expose the number of data providers who have uploaded clks
+        parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
+        app.logger.info("{} parties have contributed hashes".format(parties_contributed))
+        project_object['parties_contributed'] = parties_contributed
 
         project_description_fields = {
             'project_id': fields.String,
@@ -127,7 +134,8 @@ class Project(Resource):
             'notes': fields.String,
             'schema': fields.Raw,
             'result_type': fields.String,
-            'number_parties': fields.Integer
+            'number_parties': fields.Integer,
+            'parties_contributed': fields.Integer
         }
 
         return marshal(project_object, project_description_fields)

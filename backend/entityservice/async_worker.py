@@ -102,13 +102,13 @@ def encrypt_vector(values, public_key, base):
     return base64_encoded_mask
 
 
-def check_mapping(mapping):
+def check_mapping(project_id, number_parties):
     """ See if the given mapping has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
-    parties_contributed = get_number_parties_uploaded(connect_db(), mapping['id'])
-    logger.info("{} parties have contributed hashes".format(parties_contributed))
-    return parties_contributed == mapping['parties']
+    parties_contributed = get_number_parties_uploaded(connect_db(), project_id)
+    logger.info("{} parties have contributed clks".format(parties_contributed))
+    return parties_contributed == number_parties
 
 
 @celery.task()
