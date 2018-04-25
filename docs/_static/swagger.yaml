@@ -908,6 +908,8 @@ definitions:
         properties:
           project_id:
             type: string
+          parties_contributed:
+            type: number
 
   NewProjectResponse:
     properties:
