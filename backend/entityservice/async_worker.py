@@ -12,6 +12,7 @@ from phe import paillier
 from phe.util import int_to_base64
 
 import entityservice.cache
+from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import load_public_key, binary_unpack_filters, \
@@ -111,7 +112,7 @@ def check_mapping(mapping):
 
 
 @celery.task()
-def handle_raw_upload(resource_id, dp_id, receipt_token):
+def handle_raw_upload(project_id, dp_id, receipt_token):
     logger.info("Handling user uploaded file for dp: {}".format(dp_id))
     expected_size = get_number_of_hashes(connect_db(), dp_id)
     logger.info("Expecting to handle {} hashes".format(expected_size))
@@ -163,12 +164,21 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
     update_filter_data(connect_db(), filename, dp_id)
 
     # Now work out if all parties have added their data
-    mapping = get_project(connect_db(), resource_id)
-    logger.debug(str(mapping))
-    if check_mapping(mapping):
-        logger.debug("All parties data present. Scheduling matching")
-        calculate_mapping.delay(resource_id)
-        logger.info("Matching job scheduled with celery worker")
+    project = get_project(connect_db(), project_id)
+    logger.debug(str(project))
+    if check_mapping(project['project_id'], project['parties']):
+        logger.info("All parties data present. Scheduling any queued runs")
+        check_queued_runs.delay(project_id)
+
+
+
+@celery.task()
+def check_queued_runs(project_id):
+    logger.warning("TODO checking for runs that need to be executed..")
+
+    db = connect_db()
+    res = get_project(db, project_id)
+
 
 
 @celery.task()
