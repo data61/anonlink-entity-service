@@ -122,8 +122,8 @@ paths:
                 number_mappings: 3118
                 rate: 1793757
         '500':
-          description: |
-            System is experiencing difficulties.
+          description: | 
+            System is experiencing difficulties. 
             E.g. application can't connect to database.
   /version:
     get:
@@ -210,8 +210,8 @@ paths:
           schema:
             $ref: '#/definitions/NewProject'
       responses:
-        '200':
-          description: Success
+        '201':
+          description: New project created
           schema:
             $ref: '#/definitions/NewProjectResponse'
         '401':
@@ -360,8 +360,8 @@ paths:
           schema:
             $ref: '#/definitions/NewRun'
       responses:
-        '200':
-          description: Success
+        '201':
+          description: Created new run
           schema:
             $ref: '#/definitions/NewRunResponse'
         400:
