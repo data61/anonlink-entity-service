@@ -1,9 +1,7 @@
 import time
 
-import pytest
-
 from entityservice.tests.config import url
-from entityservice.tests.util import generate_serialized_clks, generate_overlapping_clk_data
+from entityservice.tests.util import generate_serialized_clks, generate_overlapping_clk_data, get_project_description
 
 
 def _check_new_project_response_fields(new_project_data):
@@ -189,14 +187,6 @@ def test_mapping_single_party_empty_data_upload(requests):
         }
     )
     assert r.status_code == 400
-
-
-def get_project_description(requests, new_project_data):
-    project_description_response = requests.get(url + '/projects/{}'.format(new_project_data['project_id']),
-                            headers={'Authorization': new_project_data['result_token']})
-
-    assert project_description_response.status_code == 200
-    return project_description_response.json()
 
 
 def test_mapping_2_party_data_uploaded(requests):
