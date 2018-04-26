@@ -77,7 +77,8 @@ class Config(object):
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
     @classmethod
-    def get_task_chunk_size(cls, size):
+    def get_task_chunk_size(cls, size, threshold):
+        # TODO use threshold to scale chunk size
         if size <= cls.SMALL_JOB_SIZE:
             return None
         elif size >= cls.LARGE_JOB_SIZE:

@@ -17,15 +17,18 @@ def insert_new_project(cur, result_type, schema, access_token, project_id, num_p
                                  result_type])
 
 
-def insert_new_run(cur, run_id, project_id, threshold, notes=''):
+def insert_new_run(db, run_id, project_id, threshold, notes=''):
     sql_query = """
         INSERT INTO runs
         (run_id, project, notes, threshold, state)
         VALUES
         (%s, %s, %s, %s, %s)
-        RETURNING project_id;
+        RETURNING run_id;
         """
-    return execute_returning_id(cur, sql_query, [run_id, project_id, notes, threshold, 'queued'])
+    with db.cursor() as cur:
+        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, notes, threshold, 'queued'])
+    db.commit()
+    return run_id
 
 
 def insert_paillier(cur, public_key, context):
