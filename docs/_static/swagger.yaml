@@ -811,13 +811,11 @@ definitions:
         format: double
         description: |
           The similarity threshold (a number between 0 and 1) above which two entites will be considered a match.
-      k:
-        type: number
+      notes:
+        type: string
         description: |
-          The top k edges per entity (above the threshold) will be included in the similarity score result.
-          Note the entity solver for output type `mapping` will only take the top match.
+          Some optional text that we store along with the run.
 
-          Optional: all results will be returned by default.
     required:
       - threshold
 
