@@ -42,6 +42,18 @@ def check_project_exists(db, resource_id):
     return query_result['count'] == 1
 
 
+def check_run_exists(db, project_id, run_id):
+    sql_query = '''
+        SELECT count(*)
+        FROM runs
+        WHERE 
+          project = %s AND
+          run_id = %s
+        '''
+    query_result = query_db(db, sql_query, [project_id, run_id], one=True)
+    return query_result['count'] == 1
+
+
 def get_number_parties_uploaded(db, resource_id):
     sql_query = """
         SELECT COUNT(*)
