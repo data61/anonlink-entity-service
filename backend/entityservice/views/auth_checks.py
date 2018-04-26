@@ -11,6 +11,13 @@ def abort_if_project_doesnt_exist(project_id):
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
+def abort_if_run_doesnt_exist(project_id, run_id):
+    resource_exists = db.check_run_exists(get_db(), project_id, run_id)
+    if not resource_exists:
+        app.logger.info("Requested project or run resource with invalid identifier token")
+        safe_fail_request(403, message=INVALID_ACCESS_MSG)
+
+
 def abort_if_invalid_dataprovider_token(update_token):
     app.logger.debug("checking authorization token to update data")
     resource_exists = db.check_update_auth(get_db(), update_token)
