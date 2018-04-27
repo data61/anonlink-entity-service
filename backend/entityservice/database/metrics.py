@@ -16,13 +16,16 @@ def get_latest_rate(db):
     return current_rate
 
 
-def get_run_time(db, resource_id):
+def get_run_times(db, resource_id):
     sql_query = """
-        SELECT (now() - time_started) as elapsed
+        SELECT 
+          time_added,
+          time_started,
+          time_completed
         from runs
         WHERE run_id = %s
         """
-    res = query_db(db, sql_query, [resource_id], one=True)['elapsed']
+    res = query_db(db, sql_query, [resource_id], one=True)
 
     return timedelta(seconds=0) if res is None else res
 

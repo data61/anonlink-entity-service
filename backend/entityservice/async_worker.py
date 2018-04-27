@@ -106,9 +106,10 @@ def clks_uploaded_to_project(project_id):
     """ See if the given mapping has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
-    parties_contributed = get_number_parties_uploaded(connect_db(), project_id)
-    number_parties = get_project_column(connect_db(), project_id, 'parties')
-    logger.info("{} parties have contributed clks".format(parties_contributed))
+    conn = connect_db()
+    parties_contributed = get_number_parties_uploaded(conn, project_id)
+    number_parties = get_project_column(conn, project_id, 'parties')
+    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
     return parties_contributed == number_parties
 
 
@@ -290,13 +291,13 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
         len(job_chunks), chunk_size))
 
     mapping_future = chord(
-        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, project_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
+        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
         aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2)
     ).apply_async()
 
 
 @celery.task()
-def save_and_permute(similarity_result, resource_id):
+def save_and_permute(similarity_result, project_id, run_id):
     logger.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
 
@@ -304,56 +305,48 @@ def save_and_permute(similarity_result, resource_id):
     # Celery actually converts the json arguments in the same way
 
     db = connect_db()
-    result_type = get_project_column(db, resource_id, 'result_type')
+    result_type = get_project_column(db, project_id, 'result_type')
 
     # Just save the raw "mapping"
     logger.debug("Saving the resulting map data to the db")
-    with db.cursor() as cur:
-        result_id = execute_returning_id(cur, """
-            INSERT into run_results
-              (mapping, result)
-            VALUES
-              (%s, %s)
-            RETURNING id;
-            """,
-                                         [resource_id, psycopg2.extras.Json(mapping), ])
-    db.commit()
+    result_id = insert_mapping_result(db, run_id, mapping)
     logger.info("Mapping result saved to db with id {}".format(result_id))
 
     if result_type in {"permutation", "permutation_unencrypted_mask"}:
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async(
             (
-                resource_id,
+                project_id,
+                run_id,
                 similarity_result['lenf1'],
                 similarity_result['lenf2']
             )
         )
     else:
         logger.debug("Mark mapping job as complete")
-        mark_mapping_complete.delay(resource_id)
+        mark_mapping_complete.delay(run_id)
 
     # Post similarity computation cleanup
     logger.debug("Removing clk filters from redis cache")
 
-    dp_ids = get_dataprovider_ids(db, resource_id)
+    dp_ids = get_dataprovider_ids(db, project_id)
     cache.remove_from_cache(dp_ids[0])
     cache.remove_from_cache(dp_ids[1])
     calculate_comparison_rate.delay()
 
 
 @celery.task()
-def permute_mapping_data(resource_id, len_filters1, len_filters2):
+def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
     """
     Task which will create a permutation after a mapping has been completed.
 
-    :param resource_id: The mapping resource
+    :param project_id: The project resource
     :param len_filters1:
     :param len_filters2:
 
     """
     db = connect_db()
-    mapping_str = get_run_result(db, resource_id)
+    mapping_str = get_run_result(db, run_id)
 
     # Convert to int: int
     mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
@@ -434,7 +427,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
     logger.debug("Completed creating new permutations for each party")
 
     with db.cursor() as cur:
-        dp_ids = get_dataprovider_ids(db, resource_id)
+        dp_ids = get_dataprovider_ids(db, project_id)
 
         for i, permutation in enumerate([a_permutation, b_permutation]):
             # We convert here because celery and dicts with int keys don't play nice
@@ -442,13 +435,7 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
             perm_list = convert_mapping_to_list(permutation)
             logger.debug("Saving a permutation")
 
-            cur.execute("""INSERT INTO permutations
-                        (dp, permutation)
-                        VALUES
-                        (%s, %s)
-                        """,
-                        [dp_ids[i], psycopg2.extras.Json(perm_list)]
-                        )
+            insert_permutation(cur, dp_ids[i], run_id, perm_list)
 
         logger.debug("Raw permutation data saved. Now saving raw mask")
 
@@ -458,32 +445,26 @@ def permute_mapping_data(resource_id, len_filters1, len_filters2):
                                                 for key, value in mask.items()})
 
         logger.debug("Saving the mask")
-        json_mask = psycopg2.extras.Json(mask_list)
-        cur.execute("""INSERT INTO permutation_masks
-                    (mapping, raw)
-                    VALUES
-                    (%s, %s)
-                    """,
-                    [resource_id, json_mask])
+        insert_permutation_mask(cur, project_id, run_id, mask_list)
         logger.info("Mask saved")
     db.commit()
 
-    post_permutation.apply_async((resource_id,))
+    post_permutation.apply_async((project_id, run_id))
 
 
 @celery.task()
-def paillier_encrypt_mask(resource_id):
+def paillier_encrypt_mask(project_id, run_id):
     """
     The paillier encrypted mask is saved in the encrypted_permutation_masks table.
     """
 
     db = connect_db()
     with db.cursor() as cur:
-        mask_list = get_permutation_unencrypted_mask(db, resource_id)
+        mask_list = get_permutation_unencrypted_mask(db, project_id, run_id)
 
         logger.info("Encrypting mask data")
 
-        pk, cntx = get_paillier(db, resource_id)
+        pk, cntx = get_paillier(db, project_id)
         base = cntx['base']
 
         # Subtasks will encrypt the mask in chunks
@@ -495,12 +476,14 @@ def paillier_encrypt_mask(resource_id):
             (encrypt_mask.s(chunk, pk, base) for chunk in unencrypted_chunks),
             persist_encrypted_mask.s(
                 paillier_context=cntx,
-                resource_id=resource_id)
+                project_id=project_id,
+                run_id=run_id
+            )
         ).apply_async()
 
 
 @celery.task()
-def post_permutation(resource_id):
+def post_permutation(project_id, run_id):
     """
     Task to carry out any follow up after the permutation + mask is saved.
     """
@@ -509,36 +492,27 @@ def post_permutation(resource_id):
     # trigger the encryption of the mask
 
     db = connect_db()
-    result_type = get_project_column(db, resource_id, 'result_type')
+    result_type = get_project_column(db, project_id, 'result_type')
 
     if result_type == "permutation":
         logger.info("Need to encrypt the mask")
-        paillier_encrypt_mask.apply_async((resource_id,))
+        paillier_encrypt_mask.apply_async((project_id, run_id))
 
     elif result_type == "permutation_unencrypted_mask":
         logger.info("No need to encrypt the mask")
-        mark_mapping_complete.apply_async((resource_id,))
+        mark_mapping_complete.delay(run_id)
 
 
 @celery.task()
-def mark_mapping_complete(resource_id):
-    logger.debug("Marking job complete")
+def mark_mapping_complete(run_id):
+    logger.debug("Marking run complete")
     db = connect_db()
-    with db.cursor() as cur:
-        cur.execute("""
-            UPDATE runs SET
-              ready = TRUE,
-              state = 'completed',
-              time_completed = now()
-            WHERE
-              run_id = %s
-            """,
-            [resource_id])
-    db.commit()
+    update_run_mark_complete(db, run_id)
+    logger.info("run marked as complete")
 
 
 @celery.task()
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, threshold):
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -548,7 +522,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
             - Chunk start index
             - Chunk stop index
     :param chunk_info_dp2:
-    :param resource_id:
+    :param project_id:
     :param threshold:
     :return:
     """
@@ -556,7 +530,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
-        if not check_project_exists(db, resource_id):
+        if not check_project_exists(db, project_id):
             logger.warning("Skipping as resource not found.")
             return None
 
@@ -582,7 +556,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, resource_id, thres
         t1-t0, t2-t1, t3-t2, t3-t0, comparisons_computed)
     )
 
-    save_current_progress(comparisons_computed, resource_id)
+    save_current_progress(comparisons_computed, run_id)
 
     partial_sparse_result = []
     # offset chunk's index
@@ -608,9 +582,9 @@ def get_chunk_from_object_store(chunk_info):
     return chunk_data, chunk_length
 
 
-def save_current_progress(comparisons, resource_id):
+def save_current_progress(comparisons, run_id):
     logger.debug("Progress. Compared {} CLKS".format(comparisons))
-    cache.update_progress(comparisons, resource_id)
+    cache.update_progress(comparisons, run_id)
 
 
 @celery.task()
@@ -650,7 +624,7 @@ def aggregate_filter_chunks(sparse_result_groups, project_id, run_id, lenf1, len
             "lenf1": lenf1,
             "lenf2": lenf2
         }
-        save_and_permute.delay(res, project_id)
+        save_and_permute.delay(res, project_id, run_id)
 
 
 @celery.task()
@@ -709,8 +683,8 @@ def store_similarity_scores(similarity_scores, project_id, run_id):
     logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
 
     # Complete mapping job
-    logger.debug("Mark mapping job as complete")
-    mark_mapping_complete.delay(project_id)
+    logger.debug("Marking run as complete")
+    mark_mapping_complete.delay(run_id)
 
     # Post similarity computation cleanup
     logger.debug("Removing clk filters from redis cache")
@@ -723,7 +697,7 @@ def store_similarity_scores(similarity_scores, project_id, run_id):
 
 
 @celery.task()
-def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id):
+def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, project_id, run_id):
     # NB: This business with types is to circumvent Celery issue 3597:
     # We're given either a single chunk (not in a list) or a list of chunks.
     assert len(encrypted_mask_chunks) > 0, 'Got empty encrypted mask'
@@ -748,7 +722,7 @@ def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id)
     logger.debug("Committing encrypted permutation data to db")
     db.commit()
     logger.info("Encrypted mask has been saved")
-    mark_mapping_complete.apply_async((resource_id,))
+    mark_mapping_complete.delay(run_id)
 
 
 @celery.task()
@@ -762,24 +736,24 @@ def encrypt_mask(values, pk, base):
 def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating comparison rate")
-    elapsed_mapping_time_query = """
-        select resource_id, (time_completed - time_started) as elapsed
-        from mappings
+    elapsed_run_time_query = """
+        select run_id, project as project_id, (time_completed - time_started) as elapsed
+        from runs
         WHERE
-          mappings.ready=TRUE
+          runs.ready=TRUE
       """
 
     total_comparisons = 0
     total_time = timedelta(0)
-    for mapping in query_db(dbinstance, elapsed_mapping_time_query):
+    for run in query_db(dbinstance, elapsed_run_time_query):
 
-        comparisons = get_total_comparisons_for_mapping(dbinstance, mapping['resource_id'])
-        #logger.debug("{} comparisons in {} seconds".format(comparisons, mapping['elapsed'].total_seconds()))
+        comparisons = get_total_comparisons_for_project(dbinstance, run['project_id'])
+
         if comparisons != 'NA':
             total_comparisons += comparisons
         else:
-            logger.debug("Skipping mapping as it hasn't completed")
-        total_time += mapping['elapsed']
+            logger.debug("Skipping run as it hasn't completed")
+        total_time += run['elapsed']
 
     if total_time.total_seconds() > 0:
         rate = total_comparisons/total_time.total_seconds()

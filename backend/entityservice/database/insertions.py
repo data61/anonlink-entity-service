@@ -86,6 +86,41 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
     db.commit()
 
 
+def insert_mapping_result(db, run_id, mapping):
+    with db.cursor() as cur:
+        insertion_query = """
+            INSERT into run_results
+              (run, result)
+            VALUES
+              (%s, %s)
+            RETURNING id;
+            """
+        result_id = execute_returning_id(cur, insertion_query, [run_id, psycopg2.extras.Json(mapping)])
+    db.commit()
+    return result_id
+
+
+def insert_permutation(cur, dp_id, run_id, perm_list):
+    sql_insertion_query = """
+        INSERT INTO permutations
+          (dp, run, permutation)
+        VALUES
+          (%s, %s, %s)
+        """
+    cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+
+
+def insert_permutation_mask(cur, project_id, run_id, mask_list):
+    sql_insertion_query = """
+        INSERT INTO permutation_masks
+          (project, run, raw)
+        VALUES
+          (%s, %s, %s)
+        """
+    json_mask = psycopg2.extras.Json(mask_list)
+    cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+
+
 def update_filter_data(db, clks_filename, dp_id, state='ready'):
     sql_query = """
         UPDATE bloomingdata
@@ -112,4 +147,18 @@ def update_run_chunk(db, resource_id, chunk_size):
         """
     with db.cursor() as cur:
         cur.execute(sql_query, [chunk_size, resource_id])
+    db.commit()
+
+
+def update_run_mark_complete(db, run_id):
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              ready = TRUE,
+              state = 'completed',
+              time_completed = now()
+            WHERE
+              run_id = %s
+            """
+        cur.execute(sql_query, [run_id])
     db.commit()

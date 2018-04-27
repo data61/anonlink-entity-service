@@ -65,15 +65,15 @@ def remove_from_cache(dp_id):
     r.delete(key)
 
 
-def update_progress(comparisons, resource_id):
+def update_progress(comparisons, run_id):
     r = connect_to_redis()
-    key = 'progress-{}'.format(resource_id)
+    key = 'progress-{}'.format(run_id)
     r.incr(key, comparisons)
 
 
-def get_progress(resource_id):
+def get_progress(run_id):
     r = connect_to_redis()
-    key = 'progress-{}'.format(resource_id)
+    key = 'progress-{}'.format(run_id)
     res = r.get(key)
     # redis returns bytes, and None if not present
     if res is not None:
