@@ -18,7 +18,15 @@ app = Flask(__name__)
 ## method to do the obvious thing (but only when the built in
 ## find_library() fails). Note that the associated Alpine issue
 ## (#4512) is marked as closed, so it's not clear that we can expect
-## an upstream fix for this
+## an upstream fix for this.
+##
+## The reason why this code is here specifically, is that the only
+## time we trigger the problem described above is in the line
+##
+##   import ijson.backends.yajl2_cffi
+##
+## below, which in turn calls find_library() and will fail to find the
+## libyajl.so library without the monkey patch.
 ##
 ## References:
 ##   Alpine issue:
