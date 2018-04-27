@@ -11,7 +11,6 @@ def test_version(record_property):
     assert 'python' in version_obj
     assert 'entityservice' in version_obj
     assert 'anonlink' in version_obj
-    assert 'libc' in version_obj
 
 
 def test_status(record_property):
