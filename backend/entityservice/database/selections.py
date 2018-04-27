@@ -68,21 +68,21 @@ def get_number_parties_uploaded(db, resource_id):
     return query_result['count']
 
 
-def check_run_ready(db, resource_id):
+def check_run_ready(db, run_id):
     """See if the given run has indicated it is ready.
 
     Returns the boolean, and the state
     """
     logger.info("Selecting run")
     sql_query = """
-        SELECT id, ready, state
+        SELECT ready, state
         FROM runs
         WHERE
           run_id = %s
         """
-    query_result = query_db(db, sql_query, [resource_id], one=True)
+    query_result = query_db(db, sql_query, [run_id], one=True)
     is_ready, state = query_result['ready'], query_result['state']
-    logger.info("Run with dbid={} is ready: {}".format(query_result['id'], is_ready))
+    logger.info("Run with run_id={} is ready: {}".format(run_id, is_ready))
     return is_ready, state
 
 
@@ -105,10 +105,11 @@ def get_run(db, run_id):
 def get_project_column(db, project_id, column):
     assert column in {'notes', 'schema', 'parties', 'result_type'}
     sql_query = """
-        SELECT %s from projects
+        SELECT {} 
+        FROM projects
         WHERE project_id = %s
-        """
-    return query_db(db, sql_query, [column, project_id], one=True)
+        """.format(column)
+    return query_db(db, sql_query, [project_id], one=True)[column]
 
 
 def get_run_result(db, resource_id):
@@ -180,7 +181,7 @@ def get_smaller_dataset_size_for_project(db, project_id):
     return query_result['smaller']
 
 
-def get_total_comparisons_for_mapping(db, project_id):
+def get_total_comparisons_for_project(db, project_id):
     """
     :return total number of comparisons for this project
     """
