@@ -122,6 +122,7 @@ def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
 
+
 @app.errorhandler(404)
 def not_found(error):
     return "TODO - 404 as PROBLEM"

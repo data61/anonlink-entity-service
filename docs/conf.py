@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.imgmath',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'IPython.sphinxext.ipython_console_highlighting',
     'sphinxcontrib.redoc',
     'nbsphinx'
 ]
@@ -173,7 +174,8 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
-    'clkhash': ('http://clkhash.readthedocs.io/en/latest/', None)
+    'clkhash': ('http://clkhash.readthedocs.io/en/latest/', None),
+    'anonlink': ('http://anonlink.readthedocs.io/en/latest/', None)
 }
 
 

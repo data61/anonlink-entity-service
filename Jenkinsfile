@@ -60,8 +60,8 @@ node('docker') {
       try {
         sh '''
           sleep 2
-          docker logs -t -f entityservicetest_ci_1
-          exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_ci_1`
+          docker logs -t -f entityservicetest_tests_1
+          exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_tests_1`
         '''
         setBuildStatus("Integration tests complete", "SUCCESS");
       } catch (err) {

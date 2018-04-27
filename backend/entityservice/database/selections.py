@@ -42,6 +42,18 @@ def check_project_exists(db, resource_id):
     return query_result['count'] == 1
 
 
+def check_run_exists(db, project_id, run_id):
+    sql_query = '''
+        SELECT count(*)
+        FROM runs
+        WHERE 
+          project = %s AND
+          run_id = %s
+        '''
+    query_result = query_db(db, sql_query, [project_id, run_id], one=True)
+    return query_result['count'] == 1
+
+
 def get_number_parties_uploaded(db, resource_id):
     sql_query = """
         SELECT COUNT(*)
@@ -80,6 +92,14 @@ def get_project(db, resource_id):
         WHERE project_id = %s
         """
     return query_db(db, sql_query, [resource_id], one=True)
+
+
+def get_run(db, run_id):
+    sql_query = """
+        SELECT * from runs
+        WHERE run_id = %s
+        """
+    return query_db(db, sql_query, [run_id], one=True)
 
 
 def get_project_column(db, project_id, column):
@@ -134,15 +154,27 @@ def get_paillier(db, run_id):
     return pk, cntx
 
 
+def get_project_dataset_sizes(db, project_id):
+
+    sql_query = """
+        SELECT bloomingdata.size
+        FROM dataproviders, bloomingdata
+        WHERE
+          bloomingdata.dp=dataproviders.id AND
+          dataproviders.project=%s
+        """
+    query_result = query_db(db, sql_query, [project_id], one=False)
+    return [r['size'] for r in query_result]
+
+
 def get_smaller_dataset_size_for_project(db, project_id):
 
     sql_query = """
         SELECT MIN(bloomingdata.size) as smaller
-        FROM projects, dataproviders, bloomingdata
+        FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
-          dataproviders.project=project.project_id AND
-          projects.project_id=%s
+          dataproviders.project=%s
         """
     query_result = query_db(db, sql_query, [project_id], one=True)
     return query_result['smaller']

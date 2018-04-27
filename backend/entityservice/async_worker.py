@@ -12,6 +12,7 @@ from phe import paillier
 from phe.util import int_to_base64
 
 import entityservice.cache
+from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import load_public_key, binary_unpack_filters, \
@@ -101,18 +102,19 @@ def encrypt_vector(values, public_key, base):
     return base64_encoded_mask
 
 
-def check_mapping(mapping):
+def clks_uploaded_to_project(project_id):
     """ See if the given mapping has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
-    parties_contributed = get_number_parties_uploaded(connect_db(), mapping['id'])
-    logger.info("{} parties have contributed hashes".format(parties_contributed))
-    return parties_contributed == mapping['parties']
+    parties_contributed = get_number_parties_uploaded(connect_db(), project_id)
+    number_parties = get_project_column(connect_db(), project_id, 'parties')
+    logger.info("{} parties have contributed clks".format(parties_contributed))
+    return parties_contributed == number_parties
 
 
 @celery.task()
-def handle_raw_upload(resource_id, dp_id, receipt_token):
-    logger.info("Handling user uploaded file for dp: {}".format(dp_id))
+def handle_raw_upload(project_id, dp_id, receipt_token):
+    logger.info("Project {} - handling user uploaded file for dp: {}".format(project_id, dp_id))
     expected_size = get_number_of_hashes(connect_db(), dp_id)
     logger.info("Expecting to handle {} hashes".format(expected_size))
 
@@ -163,77 +165,108 @@ def handle_raw_upload(resource_id, dp_id, receipt_token):
     update_filter_data(connect_db(), filename, dp_id)
 
     # Now work out if all parties have added their data
-    mapping = get_project(connect_db(), resource_id)
-    logger.debug(str(mapping))
-    if check_mapping(mapping):
-        logger.debug("All parties data present. Scheduling matching")
-        calculate_mapping.delay(resource_id)
-        logger.info("Matching job scheduled with celery worker")
+
+    if clks_uploaded_to_project(project_id):
+        logger.info("Project {} - All parties data present. Scheduling any queued runs".format(project_id))
+        check_queued_runs.delay(project_id)
 
 
 @celery.task()
-def calculate_mapping(resource_id):
-    logger.debug("Checking we need to calculating mapping")
+def check_queued_runs(project_id):
+    """
+    This is called when a run is posted (if project is ready for runs), and also
+    after all dataproviders have uploaded CLKs.
+    """
+    logger.warning("Checking for runs that need to be executed")
 
-    db = connect_db()
-    res = get_project(db, resource_id)
-    threshold = res['threshold']
-    if res['ready']:
-        logger.info("Mapping '{}' is already computed. Skipping".format(resource_id))
+    conn = connect_db()
+
+    select_query = '''
+        SELECT run_id, time_added, state 
+        FROM runs
+        WHERE
+          project = %s AND
+          state = %s
+    '''
+    queued_runs = db.query_db(conn, select_query, (project_id, 'queued'))
+
+    logger.info("Creating tasks for {} queued runs".format(len(queued_runs)))
+    for qr in queued_runs:
+        logger.info(qr)
+        compute_run.delay(project_id, qr['run_id'])
+
+
+@celery.task()
+def compute_run(project_id, run_id):
+    logger.debug("Sanity check that we need to compute run")
+
+    conn = connect_db()
+    res = get_run(conn, run_id)
+
+    if res['state'] in {'completed', 'error'}:
+        logger.info("Run '{}' is already finished. Skipping".format(run_id))
         return
 
+    logger.debug("Setting run as in progress")
+    with conn.cursor() as cur:
+        cur.execute("""UPDATE runs SET
+                      time_started = now(),
+                      state = 'running'
+                    WHERE
+                      run_id = %s
+                    """,
+                    [run_id])
+    conn.commit()
+
+    threshold = res['threshold']
     logger.debug("Getting dp ids for compute similarity task")
-    dp_ids = get_dataprovider_ids(db, resource_id)
+    dp_ids = get_dataprovider_ids(conn, project_id)
 
     logger.debug("Data providers: {}".format(dp_ids))
     assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
-    logger.debug("Setting start time")
-    with db.cursor() as cur:
-        cur.execute("""UPDATE mappings SET
-                      time_started = now()
-                    WHERE
-                      resource_id = %s
-                    """,
-                    [resource_id])
-    db.commit()
+    compute_similarity.delay(project_id, run_id, dp_ids, threshold)
 
-    compute_similarity.delay(resource_id, dp_ids, threshold)
-
-    logger.info("Entity similarity computation scheduled")
+    logger.info("CLK similarity computation scheduled")
 
     return 'Done'
 
 
 @celery.task()
-def compute_similarity(resource_id, dp_ids, threshold):
+def compute_similarity(project_id, run_id, dp_ids, threshold):
     """
 
     """
 
     logger.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+    conn = connect_db()
 
+
+
+    lenf1, lenf2 = get_project_dataset_sizes(conn, project_id)
+
+    # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
+    # Although now we don't load any CLKS into the redis cache
     # Prime the redis cache
-    filters1 = cache.get_deserialized_filter(dp_ids[0])
-    filters2 = cache.get_deserialized_filter(dp_ids[1])
-
-    lenf1 = len(filters1)
-    lenf2 = len(filters2)
+    #filters1 = cache.get_deserialized_filter(dp_ids[0])
+    #filters2 = cache.get_deserialized_filter(dp_ids[1])
+    #lenf1 = len(filters1)
+    #lenf2 = len(filters2)
     size = lenf1 * lenf2
 
     logger.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
 
     logger.info("Computing similarity using greedy method")
-    db = connect_db()
-    filters1_object_filename = get_filter_metadata(db, dp_ids[0])
-    filters2_object_filename = get_filter_metadata(db, dp_ids[1])
+
+    filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
+    filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
 
     logger.debug("Chunking computation task")
-    chunk_size = config.get_task_chunk_size(size)
+    chunk_size = config.get_task_chunk_size(size, threshold)
     if chunk_size is None:
         chunk_size = max(lenf1, lenf2)
     logger.info("Chunks will contain {} entities per task".format(chunk_size))
-    update_run_chunk(db, resource_id, chunk_size)
+    update_run_chunk(conn, project_id, chunk_size)
     job_chunks = []
 
     dp1_chunks = []
@@ -257,8 +290,8 @@ def compute_similarity(resource_id, dp_ids, threshold):
         len(job_chunks), chunk_size))
 
     mapping_future = chord(
-        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, resource_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
-        aggregate_filter_chunks.s(resource_id, lenf1, lenf2)
+        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, project_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
+        aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2)
     ).apply_async()
 
 
@@ -277,7 +310,7 @@ def save_and_permute(similarity_result, resource_id):
     logger.debug("Saving the resulting map data to the db")
     with db.cursor() as cur:
         result_id = execute_returning_id(cur, """
-            INSERT into mapping_results
+            INSERT into run_results
               (mapping, result)
             VALUES
               (%s, %s)
@@ -493,11 +526,12 @@ def mark_mapping_complete(resource_id):
     db = connect_db()
     with db.cursor() as cur:
         cur.execute("""
-            UPDATE mappings SET
+            UPDATE runs SET
               ready = TRUE,
+              state = 'completed',
               time_completed = now()
             WHERE
-              resource_id = %s
+              run_id = %s
             """,
             [resource_id])
     db.commit()
@@ -580,7 +614,7 @@ def save_current_progress(comparisons, resource_id):
 
 
 @celery.task()
-def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
+def aggregate_filter_chunks(sparse_result_groups, project_id, run_id, lenf1, lenf2):
     sparse_matrix = []
     # Need to handle a single result group because 'chord(array_of_tasks, next_task)' won't wrap the
     # result in a list when there is only one task in the array.
@@ -594,11 +628,11 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
             sparse_matrix.extend(partial_sparse_result)
 
     db = connect_db()
-    result_type = get_project_column(db, resource_id, 'result_type')
+    result_type = get_project_column(db, project_id, 'result_type')
 
     if result_type == "similarity_scores":
         logger.info("Store the similarity scores in a CSV file")
-        store_similarity_scores.delay(sparse_matrix, resource_id)
+        store_similarity_scores.delay(sparse_matrix, project_id, run_id)
     else:
         # As we have the entire sparse matrix in memory at this point we directly compute the mapping
         # instead of re-serializing and calling another task
@@ -616,11 +650,11 @@ def aggregate_filter_chunks(sparse_result_groups, resource_id, lenf1, lenf2):
             "lenf1": lenf1,
             "lenf2": lenf2
         }
-        save_and_permute.delay(res, resource_id)
+        save_and_permute.delay(res, project_id)
 
 
 @celery.task()
-def store_similarity_scores(similarity_scores, resource_id):
+def store_similarity_scores(similarity_scores, project_id, run_id):
     """
     Stores the similarity scores above a similarity threshold as a CSV in minio.
 
@@ -628,9 +662,9 @@ def store_similarity_scores(similarity_scores, resource_id):
                                 - the index of an entity from dataprovider 1
                                 - the similarity score between 0 and 1 of the best match
                                 - the index of an entity from dataprovider 1
-    :param resource_id: the resource ID of the mapping
+    :param project_id: the resource ID of the mapping
     """
-    filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(resource_id)
+    filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(run_id)
 
     # Generate a CSV-like string from aggregated chunks
     # Also need to make sure this can handle very large list
@@ -663,25 +697,25 @@ def store_similarity_scores(similarity_scores, resource_id):
     with db.cursor() as cur:
         result_id = execute_returning_id(cur, """
             INSERT into similarity_scores
-              (mapping, file)
+              (run, file)
             VALUES
               (%s, %s)
             RETURNING id;
             """,
             [
-                resource_id, filename
+                run_id, filename
             ])
     db.commit()
     logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
 
     # Complete mapping job
     logger.debug("Mark mapping job as complete")
-    mark_mapping_complete.delay(resource_id)
+    mark_mapping_complete.delay(project_id)
 
     # Post similarity computation cleanup
     logger.debug("Removing clk filters from redis cache")
 
-    dp_ids = get_dataprovider_ids(db, resource_id)
+    dp_ids = get_dataprovider_ids(db, project_id)
     cache.remove_from_cache(dp_ids[0])
     cache.remove_from_cache(dp_ids[1])
     calculate_comparison_rate.delay()
@@ -708,9 +742,9 @@ def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, resource_id)
         cur.execute("""UPDATE encrypted_permutation_masks SET
                     raw = (%s)
                     WHERE
-                    mapping = %s
+                    run = %s
                     """,
-                    [result_to_save, resource_id])
+                    [result_to_save, run_id])
     logger.debug("Committing encrypted permutation data to db")
     db.commit()
     logger.info("Encrypted mask has been saved")
