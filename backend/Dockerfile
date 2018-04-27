@@ -1,26 +1,29 @@
 FROM python:3.6.5-alpine3.6
 
-MAINTAINER "Brian Thorne <brian@thorne.link>"
 EXPOSE 8000
-
-# postgresql-dev needed for pg_config
-# libffi-dev needed by anonlink
-# g++ needed by anonlink/cffi
-# gmp-dev, mpfr-dev, mpc1-dev needed by gmpy2
-# shadow needed for groupadd and useradd (NB: shadow package only available in alpine >= 3.6)
-RUN (pip install --upgrade pip setuptools; \
-     apk add --no-cache postgresql-dev libffi-dev g++ gmp-dev mpfr-dev mpc1-dev shadow)
-
 ADD requirements.txt /var/www/requirements.txt
-
 WORKDIR /var/www
 
-RUN pip install -U -r requirements.txt
-RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)"
-RUN python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
+# postgresql-dev needed for pg_config
+# libpq needed by psycopg2
+# libffi-dev needed by anonlink
+# g++ needed by anonlink/cffi
+# yajl, yajl-dev needed by ijson
+# gmp-dev, mpfr-dev, mpc1-dev needed by gmpy2
 
-RUN groupadd user && useradd --home-dir /var/www -g user user
-RUN chown user:user /var/www; chown user:user /var/log
+#RUN apk add --no-cache postgresql-dev shadow libffi-dev libstdc++ mpc1-dev yajl-dev yajl
+RUN apk add --no-cache libstdc++ mpc1-dev yajl libpq && \
+    apk add --no-cache --virtual .build-deps g++ yajl-dev postgresql-dev libffi-dev gmp-dev mpfr-dev && \
+    pip install --upgrade pip setuptools && \
+    pip install --upgrade -r requirements.txt && \
+    apk del --no-cache .build-deps && \
+    rm -fr /tmp/* /var/cache/apk/* /root/.cache/pip
+
+RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)" && \
+    python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
+
+RUN adduser -D -H -h /var/www user && \
+    chown user:user /var/www /var/log
 USER user
 
 ADD . /var/www
