@@ -142,13 +142,11 @@ paths:
                 type: string
               entityservice:
                 type: string
-              libc:
-                type: string
               python:
                 type: string
           examples:
             application/json:
-              {"anonlink": "0.6.3", "entityservice": "v1.7.2", "libc": "glibc2.2.5", "python": "3.6.4"}
+              {"anonlink": "0.6.3", "entityservice": "v1.7.2", "python": "3.6.4"}
   /projects:
     get:
       summary: List of record linkage projects.

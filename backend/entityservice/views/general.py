@@ -41,7 +41,6 @@ class Version(Resource):
         return {
             'anonlink': anonlink.__version__,
             'entityservice': __version__,
-            'libc': "".join(platform.libc_ver()),
             'python': platform.python_version()
         }
 
