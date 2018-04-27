@@ -129,24 +129,52 @@ class RunStatus(Resource):
     """
 
     def get(self, project_id, run_id):
-        app.logger.info("request to add a new run")
-        raise NotImplementedError
+        app.logger.info("request run status")
+        # Check the project and run resources exist
+        abort_if_run_doesnt_exist(project_id, run_id)
+
+        # Check the caller has a valid results token. Yes it should be renamed.
+        abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
+
+        app.logger.info("request for run status authorized")
         dbinstance = get_db()
-        is_ready, state = db.check_run_ready(dbinstance, resource_id)
+        is_ready, state = db.check_run_ready(dbinstance, run_id)
 
         # return compute time elapsed and number of comparisons here
-        time_elapsed = db.get_run_time(dbinstance, resource_id)
-        app.logger.debug("Time elapsed so far: {}".format(time_elapsed))
-        comparisons = cache.get_progress(resource_id)
-        total_comparisons = db.get_total_comparisons_for_mapping(dbinstance, resource_id)
+        times = db.get_run_times(dbinstance, run_id)
+
+        comparisons = cache.get_progress(run_id)
+        total_comparisons = db.get_total_comparisons_for_project(dbinstance, project_id)
+
         progress = {
-            "message": "Mapping isn't ready.",
-            "elapsed": time_elapsed.total_seconds(),
-            "total": str(total_comparisons),
-            "current": str(comparisons),
-            "progress": (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
+            'total': total_comparisons,
+            'current': comparisons,
+            'progress': (comparisons / total_comparisons) if total_comparisons is not 'NA' else 0.0
         }
-        return progress
+
+        status = {
+            "state": state,
+            "message": "running",
+            "progress": progress,
+            "time_added": times['time_added']
+        }
+
+        if times['time_started'] is not None:
+            status["time_started"] = times['time_started']
+
+        if times['time_completed'] is not None:
+            status["time_completed"] = times['time_completed']
+
+        run_status_fields = {
+            'state': fields.String,
+            'message': fields.String,
+            'progress': fields.Raw,
+            'time_added': fields.DateTime(dt_format='iso8601'),
+            'time_started': fields.DateTime(dt_format='iso8601'),
+            'time_completed': fields.DateTime(dt_format='iso8601'),
+        }
+
+        return marshal(status, run_status_fields)
 
 
 class RunResult(Resource):
