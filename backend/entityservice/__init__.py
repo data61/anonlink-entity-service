@@ -6,55 +6,6 @@ from flask_restful import Api
 # Note we explicitly do this before importing our own code
 app = Flask(__name__)
 
-
-##
-## NB: This Lovecraftian horror circumvents a problem in the way
-## Python searches for shared libraries in Alpine Linux. The problem
-## is that Alpine's /sbin/ldconfig does not support the '-p' option to
-## obtain a list of directories to search for shared libraries, and so
-## Python instead relies on GCC to locate shared libraries. However,
-## it's obviously overkill to install GCC just to find shared
-## libraries, so we instead monkey patch Python's find_library()
-## method to do the obvious thing (but only when the built in
-## find_library() fails). Note that the associated Alpine issue
-## (#4512) is marked as closed, so it's not clear that we can expect
-## an upstream fix for this.
-##
-## The reason why this code is here specifically, is that the only
-## time we trigger the problem described above is in the line
-##
-##   import ijson.backends.yajl2_cffi
-##
-## below, which in turn calls find_library() and will fail to find the
-## libyajl.so library without the monkey patch.
-##
-## References:
-##   Alpine issue:
-##     https://bugs.alpinelinux.org/issues/4512
-##   Example monkey-patching code:
-##     https://stackoverflow.com/a/48241290
-##
-def fixed_find_library(name):
-    from glob import glob
-    result = original_find_library(name)
-    if result is None:
-        for d in ['/usr/local/lib', '/usr/lib', '/lib']:
-            prefix = '{0}/lib{1}'.format(d, name)
-            for suff in ['so.*', '*.so.*', 'so']:
-                f = glob('{0}.{1}'.format(prefix,suff))
-                if f:
-                    result = f[0]
-                    break
-    return result
-
-import ctypes.util
-original_find_library = ctypes.util.find_library
-ctypes.util.find_library = fixed_find_library
-
-##
-## End Lovecraftian horror
-##
-
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
