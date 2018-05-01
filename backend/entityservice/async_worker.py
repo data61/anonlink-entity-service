@@ -508,7 +508,7 @@ def mark_mapping_complete(run_id):
     logger.debug("Marking run complete")
     db = connect_db()
     update_run_mark_complete(db, run_id)
-    logger.info("run marked as complete")
+    logger.info("run {} marked as complete".format(run_id))
 
 
 @celery.task()
