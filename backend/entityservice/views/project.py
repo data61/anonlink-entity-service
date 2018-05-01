@@ -13,7 +13,7 @@ from entityservice.utils import safe_fail_request, get_stream, get_json, generat
 
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
-    abort_if_invalid_results_token, dataprovider_id_if_authorize, node_id_if_authorize
+    abort_if_invalid_results_token, dataprovider_id_if_authorize, get_authorization_token_type_or_abort
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
@@ -156,7 +156,7 @@ class Project(Resource):
         elif project_object['result_type'] == 'permutation':
             dp_id = dataprovider_id_if_authorize(project_id, auth_header)
         elif project_object['result_type'] == 'permutation_unencrypted_mask':
-            dp_id = node_id_if_authorize(project_id, auth_header)
+            dp_id = get_authorization_token_type_or_abort(project_id, auth_header)
         else:
             safe_fail_request(500, "Unknown error")
         return dp_id, project_object
