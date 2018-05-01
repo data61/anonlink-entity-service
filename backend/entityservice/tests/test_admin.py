@@ -1,7 +1,6 @@
 import requests
 
 from entityservice.tests.config import url
-from entityservice.tests.util import EntityServiceTestBase
 
 
 def test_version(record_property):
