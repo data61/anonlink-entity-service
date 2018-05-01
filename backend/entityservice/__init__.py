@@ -18,7 +18,8 @@ from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream
 
 
-from entityservice.views import Status, Version, ProjectList, Project, ProjectClks, Run, RunStatus, RunResult, RunList
+from entityservice.views import Status, Version, ProjectList, Project, ProjectClks, Run, RunStatus, RunResult
+from entityservice.views.run.list import RunList
 
 # Logging setup
 if config.LOGFILE is not None:
