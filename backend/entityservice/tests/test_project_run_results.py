@@ -50,6 +50,46 @@ def test_run_similarity_score_results(requests, example_similarity_projects, thr
         assert 'similarity_scores' in result
 
 
+@pytest.mark.parametrize("threshold", [0.9, 0.999])
+def test_run_permutation_unencrypted_results(requests, example_permutation_projects, threshold):
+    for project in example_permutation_projects:
+        post_run_request = requests.post(
+            url + '/projects/{}/runs'.format(project['project_id']),
+            headers={'Authorization': project['result_token']},
+            json={'threshold': threshold}
+        )
+        assert post_run_request.status_code == 201
+        project_id = project['project_id']
+        result_token = project['result_token']
+        run_id = post_run_request.json()['run_id']
+
+        final_status = wait_for_run_completion(requests, project_id, run_id, result_token)
+        assert final_status['state'] == 'completed'
+        # Get results using result_token
+        r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
+            headers={'Authorization': result_token})
+        result = r.json()
+
+        assert 'mask' in result
+
+        # Get results using receipt_token A and B
+        r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
+            headers={'Authorization': project['dp_1']['receipt_token']})
+        assert r.status_code == 200
+        result = r.json()
+        assert 'permutation' in result
+        assert 'rows' in result
+        assert result['rows'] > 5
+
+        r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
+            headers={'Authorization': project['dp_2']['receipt_token']})
+        assert r.status_code == 200
+        result = r.json()
+        assert 'permutation' in result
+        assert 'rows' in result
+        assert result['rows'] > 5
+
+
 def test_run_mapping_results_no_data(requests):
     new_project_response = create_project_no_data(requests)
 
