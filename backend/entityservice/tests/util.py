@@ -66,7 +66,7 @@ def create_project_no_data(requests, result_type='mapping'):
 
 
 def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping'):
-    new_project_data = create_project_no_data(requests)
+    new_project_data = create_project_no_data(requests, result_type=result_type)
 
     d1, d2 = generate_overlapping_clk_data(size, overlap=overlap)
     r1 = requests.post(

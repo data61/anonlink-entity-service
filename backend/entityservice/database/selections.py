@@ -292,4 +292,4 @@ def get_similarity_scores_filename(db, run_id):
         WHERE
           run = %s
         """
-    return query_db(db, sql_query, [run_id], one=True)
+    return query_db(db, sql_query, [run_id], one=True)['file']

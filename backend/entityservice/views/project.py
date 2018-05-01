@@ -96,7 +96,7 @@ class Project(Resource):
         # If result_type is similarity_scores, delete the corresponding similarity_scores file
         if project_from_db['result_type'] == 'similarity_scores':
             app.logger.info("Deleting the similarity scores file from object store")
-            filename = db.get_similarity_scores_filename(dbinstance, project_id)['file']
+            filename = db.get_similarity_scores_filename(dbinstance, project_id)
             mc.remove_object(config.MINIO_BUCKET, filename)
 
         app.logger.info("Deleting project resourced from database")
