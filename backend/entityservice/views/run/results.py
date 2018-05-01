@@ -3,10 +3,10 @@ from flask_restful import Resource
 
 from entityservice import app, database as db
 from entityservice.database import get_db, get_project_column
+from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
 from entityservice.views import abort_if_invalid_results_token
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist
-from entityservice.views.run import get_similarity_scores
 
 
 class RunResult(Resource):
@@ -16,7 +16,7 @@ class RunResult(Resource):
 
     def get(self, project_id, run_id):
 
-        app.logger.info("Checking for results")
+        app.logger.info("Checking for results of run {}".format(run_id))
 
         # Check the project and run resources exist
         abort_if_run_doesnt_exist(project_id, run_id)
@@ -50,9 +50,10 @@ class RunResult(Resource):
                 return get_similarity_scores(filename)
 
             except TypeError:
-                app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
-                safe_fail_request(500, "Fail to retrieve similarity scores")
+                app.logger.warning("Couldn't find the similarity score file")
+                safe_fail_request(500, "Failed to retrieve similarity scores")
 
+        # TODO permutation result type
         # elif run_object['result_type'] == 'permutation_unencrypted_mask':
         #     app.logger.info("Permutation with unencrypted mask result type")
         #
@@ -72,11 +73,6 @@ class RunResult(Resource):
         #             'permutation': perm,
         #             'rows': rows
         #         }
-        #     # The result in this case is either a permutation, or the encrypted mask.
-        #     # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
-        #
-        # elif mapping['result_type'] == 'similarity_scores':
-
 
         else:
             app.logger.warning("Unimplemented result type")
