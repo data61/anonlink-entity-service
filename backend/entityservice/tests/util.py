@@ -103,3 +103,10 @@ def create_project_upload_fake_data(requests, size):
     assert r2.status_code == 201
 
     return new_project_data, r1.json(), r2.json()
+
+
+def _check_new_project_response_fields(new_project_data):
+    assert 'project_id' in new_project_data
+    assert 'update_tokens' in new_project_data
+    assert 'result_token' in new_project_data
+    assert len(new_project_data['update_tokens']) == 2
