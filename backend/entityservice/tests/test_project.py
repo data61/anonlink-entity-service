@@ -167,7 +167,7 @@ def test_project_single_party_data_uploaded(requests):
     )
     assert r.status_code == 201
     upload_response = r.json()
-    assert 'receipt-token' in upload_response
+    assert 'receipt_token' in upload_response
 
 
 def test_mapping_single_party_empty_data_upload(requests):

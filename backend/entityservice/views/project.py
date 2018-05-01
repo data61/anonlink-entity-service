@@ -197,7 +197,7 @@ class ProjectClks(Resource):
         handle_raw_upload.delay(project_id, dp_id, receipt_token)
         app.logger.info("Job scheduled to handle user uploaded hashes")
 
-        return {'message': 'Updated', 'receipt-token': receipt_token}, 201
+        return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
 def upload_clk_data(dp_id, raw_stream):
