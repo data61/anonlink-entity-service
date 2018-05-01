@@ -56,7 +56,7 @@ class RunList(Resource):
         data = request.get_json()
 
         threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
-        if threshold <= 0.0 or threshold >= 1.0:
+        if threshold <= 0.0 or threshold > 1.0:
             safe_fail_request(400, message="Threshold parameter out of range")
         app.logger.info("Threshold for run is: {}".format(threshold))
 
@@ -202,7 +202,6 @@ class RunResult(Resource):
             return 'run is not complete', 404
 
         result_type = get_project_column(dbinstance, project_id, 'result_type')
-        run_object = db.get_run(dbinstance, run_id)
 
         if result_type == 'mapping':
             app.logger.info("Mapping result being returned")
@@ -211,9 +210,16 @@ class RunResult(Resource):
                 "mapping": result
             }
 
-        elif result_type == 'permutation':
-            app.logger.info("Encrypted permutation result being returned")
-            return db.get_permutation_encrypted_result_with_mask(dbinstance, resource_id, dp_id)
+        elif result_type == 'similarity_scores':
+            app.logger.info("Similarity score result being returned")
+
+            try:
+                filename = db.get_similarity_scores_filename(dbinstance, run_id)
+                return get_similarity_scores(filename)
+
+            except TypeError:
+                app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
+                safe_fail_request(500, "Fail to retrieve similarity scores")
 
         # elif run_object['result_type'] == 'permutation_unencrypted_mask':
         #     app.logger.info("Permutation with unencrypted mask result type")
@@ -238,15 +244,7 @@ class RunResult(Resource):
         #     # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
         #
         # elif mapping['result_type'] == 'similarity_scores':
-        #     app.logger.info("Similarity scores being returned")
-        #
-        #     try:
-        #         filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
-        #         return get_similarity_scores(filename)
-        #
-        #     except TypeError:
-        #         app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
-        #         safe_fail_request(500, "Fail to retrieve similarity scores")
+
 
         else:
             app.logger.warning("Unimplemented result type")

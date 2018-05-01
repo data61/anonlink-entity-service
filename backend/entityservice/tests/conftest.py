@@ -75,12 +75,13 @@ def example_similarity_projects(requests):
     }
     """
     def project_creation_generator():
-        for overlap in [0.3, 0.5, 0.6, 0.8, 0.9]:
-            for size in [(100,100), (100, 1000), (1000, 100), (1000, 1000)]:
-                new_project_response, dp1, dp2 = create_project_upload_fake_data(requests,
-                                                                                 size,
-                                                                                 overlap=overlap,
-                                                                                 result_type='similarity_scores')
+        for overlap in [0.2, 0.5, 0.9]:
+            for size in [(100, 1000), (1000, 100), (1000, 1000)]:
+                new_project_response, dp1, dp2 = create_project_upload_fake_data(
+                    requests,
+                    size,
+                    overlap=overlap,
+                    result_type='similarity_scores')
                 new_project_response['size'] = size
                 new_project_response['overlap'] = overlap
                 new_project_response['dp_1'] = dp1
