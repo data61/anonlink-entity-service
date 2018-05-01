@@ -168,7 +168,8 @@ def check_public_key(pk):
 
 def get_similarity_scores(filename):
     """
-    Read a CSV file containing the similarity scores and return the similarity scores
+    Read a CSV file from the object store containing the similarity scores and return
+    a response that will stream the similarity scores.
 
     :param filename: name of the CSV file, obtained from the `similarity_scores` table
     :return: the similarity scores in a streaming JSON response.
