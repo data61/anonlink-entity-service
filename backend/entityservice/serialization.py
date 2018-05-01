@@ -1,9 +1,15 @@
+import io
+
+import urllib3
 from bitarray import bitarray
 import base64
 import struct
 
+from flask import Response
+
+from entityservice import connect_to_object_store, iterable_to_stream, app
 from entityservice.settings import Config as config
-from entityservice.utils import chunks
+from entityservice.utils import chunks, safe_fail_request
 import concurrent.futures
 import phe.util
 from phe import paillier
@@ -158,3 +164,26 @@ def check_public_key(pk):
     """
     publickey = load_public_key(pk)
     return publickey.max_int >= 2 ** config.ENCRYPTION_MIN_KEY_LENGTH
+
+
+def get_similarity_scores(filename):
+    """
+    Read a CSV file containing the similarity scores and return the similarity scores
+
+    :param filename: name of the CSV file, obtained from the `similarity_scores` table
+    :return: the similarity scores in a streaming JSON response.
+    """
+
+    mc = connect_to_object_store()
+
+    try:
+        csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
+
+        # Process the CSV into JSON
+        csv_text_stream = io.TextIOWrapper(csv_data_stream, encoding="utf-8")
+
+        return Response(generate_scores(csv_text_stream), mimetype='application/json')
+
+    except urllib3.exceptions.ResponseError:
+        app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
+        safe_fail_request(500, "Failed to retrieve similarity scores")
