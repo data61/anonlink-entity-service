@@ -8,7 +8,7 @@ from entityservice import app, connect_to_object_store, iterable_to_stream, gene
 from entityservice.utils import safe_fail_request, generate_code
 import entityservice.database as db
 import entityservice.cache as cache
-from entityservice.database import get_db
+from entityservice.database import get_db, get_project_column
 from entityservice.settings import Config as config
 from entityservice.async_worker import check_queued_runs
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_project_doesnt_exist, abort_if_invalid_results_token
@@ -183,60 +183,70 @@ class RunResult(Resource):
     """
 
     def get(self, project_id, run_id):
-        # TODO
-        raise NotImplementedError
 
         app.logger.info("Checking for results")
+
+        # Check the project and run resources exist
+        abort_if_run_doesnt_exist(project_id, run_id)
+
+        # Check the caller has a valid results token.
+        abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
+
+        app.logger.info("request for run result authorized")
+
         dbinstance = get_db()
+        is_ready, state = db.check_run_ready(dbinstance, run_id)
 
-        # Check that the mapping is ready
-        if not mapping['ready']:
-            progress = self.get_mapping_progress(dbinstance, resource_id)
-            return progress, 503
+        # Check that the run is complete, otherwise 404
+        if not is_ready:
+            return 'run is not complete', 404
 
-        if mapping['result_type'] == 'mapping':
+        result_type = get_project_column(dbinstance, project_id, 'result_type')
+        run_object = db.get_run(dbinstance, run_id)
+
+        if result_type == 'mapping':
             app.logger.info("Mapping result being returned")
-            result = db.get_run_result(dbinstance, resource_id)
+            result = db.get_run_result(dbinstance, run_id)
             return {
                 "mapping": result
             }
 
-        elif mapping['result_type'] == 'permutation':
+        elif result_type == 'permutation':
             app.logger.info("Encrypted permutation result being returned")
             return db.get_permutation_encrypted_result_with_mask(dbinstance, resource_id, dp_id)
 
-        elif mapping['result_type'] == 'permutation_unencrypted_mask':
-            app.logger.info("Permutation with unencrypted mask result type")
-
-            if dp_id == "Coordinator":
-                app.logger.info("Returning unencrypted mask to coordinator")
-                # The mask is a json blob of an
-                # array of 0/1 ints
-                mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
-                return {
-                    "mask": mask
-                }
-            else:
-                perm = db.get_permutation_result(dbinstance, dp_id)
-                rows = db.get_smaller_dataset_size_for_project(dbinstance, resource_id)
-
-                return {
-                    'permutation': perm,
-                    'rows': rows
-                }
-            # The result in this case is either a permutation, or the encrypted mask.
-            # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
-
-        elif mapping['result_type'] == 'similarity_scores':
-            app.logger.info("Similarity scores being returned")
-
-            try:
-                filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
-                return get_similarity_scores(filename)
-
-            except TypeError:
-                app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
-                safe_fail_request(500, "Fail to retrieve similarity scores")
+        # elif run_object['result_type'] == 'permutation_unencrypted_mask':
+        #     app.logger.info("Permutation with unencrypted mask result type")
+        #
+        #     if dp_id == "Coordinator":
+        #         app.logger.info("Returning unencrypted mask to coordinator")
+        #         # The mask is a json blob of an
+        #         # array of 0/1 ints
+        #         mask = db.get_permutation_unencrypted_mask(dbinstance, resource_id)
+        #         return {
+        #             "mask": mask
+        #         }
+        #     else:
+        #         perm = db.get_permutation_result(dbinstance, dp_id)
+        #         rows = db.get_smaller_dataset_size_for_project(dbinstance, resource_id)
+        #
+        #         return {
+        #             'permutation': perm,
+        #             'rows': rows
+        #         }
+        #     # The result in this case is either a permutation, or the encrypted mask.
+        #     # The key 'permutation_unencrypted_mask' is kept for the Java recognition of the algorithm.
+        #
+        # elif mapping['result_type'] == 'similarity_scores':
+        #     app.logger.info("Similarity scores being returned")
+        #
+        #     try:
+        #         filename = db.get_similarity_scores_filename(dbinstance, resource_id)['file']
+        #         return get_similarity_scores(filename)
+        #
+        #     except TypeError:
+        #         app.logger.warning("`resource_id` is valid but it is not in the similarity scores table.")
+        #         safe_fail_request(500, "Fail to retrieve similarity scores")
 
         else:
             app.logger.warning("Unimplemented result type")
