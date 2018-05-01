@@ -7,9 +7,10 @@ import struct
 
 from flask import Response
 
-from entityservice import connect_to_object_store, iterable_to_stream, app
+from entityservice import app
+from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
-from entityservice.utils import chunks, safe_fail_request
+from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
 import concurrent.futures
 import phe.util
 from phe import paillier

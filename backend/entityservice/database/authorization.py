@@ -2,7 +2,7 @@ from entityservice.database.util import query_db
 from entityservice.database.selections import get_dataprovider_id
 
 
-def check_project_auth(db, resource_id, results_token):
+def check_project_auth(db, project_id, results_token):
     sql_query = """
         select count(*) from projects
         WHERE
@@ -10,7 +10,7 @@ def check_project_auth(db, resource_id, results_token):
           access_token = %s
         """
 
-    query_result = query_db(db, sql_query, [resource_id, results_token], one=True)
+    query_result = query_db(db, sql_query, [project_id, results_token], one=True)
     return query_result['count'] == 1
 
 
