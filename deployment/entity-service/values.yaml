@@ -72,7 +72,7 @@ api:
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
-  pullSecret: n1-coreos-pull-secret
+  pullSecret: n1-quay-pull-secret
 
   ingress:
     enabled: true
@@ -143,7 +143,7 @@ workers:
     repository: "quay.io/n1analytics/entity-app"
     tag: "v1.7.2"
     pullPolicy: Always
-    pullSecret: "n1-coreos-pull-secret"
+    pullSecret: "n1-quay-pull-secret"
 
   ## Usually this is set to 1 per compute node
   replicaCount: 6

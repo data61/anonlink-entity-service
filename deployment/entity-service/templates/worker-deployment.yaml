@@ -61,9 +61,9 @@ spec:
                   key: minioSecretKey
 
           command:
-            - "/usr/local/bin/celery"
+            - "celery"
             - "-A"
-            - "async_worker"
+            - "entityservice.async_worker"
             - "worker"
             - "--loglevel=info"
             - "-Ofair"
