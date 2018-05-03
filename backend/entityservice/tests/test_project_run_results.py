@@ -68,9 +68,10 @@ def test_run_permutation_unencrypted_results(requests, example_permutation_proje
         # Get results using result_token
         r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
             headers={'Authorization': result_token})
-        result = r.json()
+        mask_result = r.json()
 
-        assert 'mask' in result
+        assert 'mask' in mask_result
+        assert len(mask_result['mask']) == min(project['size'])
 
         # Get results using receipt_token A and B
         r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
@@ -79,15 +80,16 @@ def test_run_permutation_unencrypted_results(requests, example_permutation_proje
         result = r.json()
         assert 'permutation' in result
         assert 'rows' in result
-        assert result['rows'] > 5
+        assert result['rows'] == len(mask_result['mask'])
 
         r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
             headers={'Authorization': project['dp_2']['receipt_token']})
         assert r.status_code == 200
-        result = r.json()
-        assert 'permutation' in result
-        assert 'rows' in result
-        assert result['rows'] > 5
+        result2 = r.json()
+        assert 'permutation' in result2
+        assert 'rows' in result2
+        assert result2['rows'] == result['rows']
+        assert result2['rows'] == len(mask_result['mask'])
 
 
 def test_run_mapping_results_no_data(requests):

@@ -38,7 +38,7 @@ def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
     for size in dataset_sizes:
         datasets.append(generate_serialized_clks(size))
 
-    overlap_to = math.floor(dataset_sizes[0]*overlap)
+    overlap_to = math.floor(min(dataset_sizes)*overlap)
     for ds in datasets[1:]:
         ds[:overlap_to] = datasets[0][:overlap_to]
         random.shuffle(ds)
@@ -89,9 +89,10 @@ def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='m
     return new_project_data, r1.json(), r2.json()
 
 
-def wait_for_run_completion(requests, project_id, run_id, result_token):
+def wait_for_run_completion(requests, project_id, run_id, result_token, timeout=30):
+    start_time = time.time()
     status = get_run_status(requests, project_id, run_id, result_token)
-    while status['state'] in {'queued', 'running'}:
+    while status['state'] in {'queued', 'running'} and time.time() - start_time < timeout:
         status = get_run_status(requests, project_id, run_id, result_token)
         time.sleep(0.1)
 
