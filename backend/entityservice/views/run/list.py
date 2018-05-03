@@ -4,6 +4,7 @@ from flask_restful import Resource, fields, marshal
 from entityservice import app, database as db
 from entityservice.async_worker import check_queued_runs
 from entityservice.database import get_db
+from entityservice.models.run import Run
 from entityservice.settings import Config as config
 from entityservice.utils import safe_fail_request, generate_code
 from entityservice.views import abort_if_project_doesnt_exist, abort_if_invalid_results_token
@@ -22,28 +23,22 @@ class RunList(Resource):
 
         data = request.get_json()
 
-        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
-        if threshold <= 0.0 or threshold > 1.0:
-            safe_fail_request(400, message="Threshold parameter out of range")
-        app.logger.info("Threshold for run is: {}".format(threshold))
+        run_model = Run.from_json(data, project_id)
 
-        notes = data.get("notes", '')
-        run_id = generate_code()
-        app.logger.debug("Inserting run into database")
-
+        app.logger.debug("Saving run")
         db_conn = db.get_db()
-        db.insert_new_run(db_conn, run_id, project_id, threshold, notes)
+        run_model.save(db_conn)
 
         project_object = db.get_project(db_conn, project_id)
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
 
         if parties_contributed == project_object['parties']:
-            app.logger.info("Scheduling task to carry out the run now")
+            app.logger.info("Scheduling task to carry out all runs for this project now")
             check_queued_runs.delay(project_id)
         else:
             app.logger.info("Task queued but won't start until CLKs are all uploaded")
         return {
-            'run_id': run_id,
+            'run_id': run_model.run_id,
         }, 201
 
     def get(self, project_id,):

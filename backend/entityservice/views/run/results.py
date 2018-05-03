@@ -45,9 +45,9 @@ class RunResult(Resource):
 
         elif result_type == 'permutation_unencrypted_mask':
             return self.get_permutation_unencrypted_result(project_id, run_id, dbinstance, token, auth_token_type)
-
         else:
             app.logger.warning("Unimplemented result type")
+            safe_fail_request(500, message='Project has unknown result type')
 
     def get_similarity_score_result(self, dbinstance, run_id):
         app.logger.info("Similarity score result being returned")

@@ -17,16 +17,16 @@ def insert_new_project(cur, result_type, schema, access_token, project_id, num_p
                                  result_type])
 
 
-def insert_new_run(db, run_id, project_id, threshold, notes=''):
+def insert_new_run(db, run_id, project_id, threshold, name, notes=''):
     sql_query = """
         INSERT INTO runs
-        (run_id, project, notes, threshold, state)
+        (run_id, project, name, notes, threshold, state)
         VALUES
-        (%s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s)
         RETURNING run_id;
         """
     with db.cursor() as cur:
-        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, notes, threshold, 'queued'])
+        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'queued'])
     db.commit()
     return run_id
 
