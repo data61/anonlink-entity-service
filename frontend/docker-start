@@ -18,6 +18,8 @@ fi
 
 # Tell nginx the address of the backend service to proxy to
 sed -i "s/{{TARGET_SERVICE}}/${TARGET_SERVICE:-localhost}/g;" /etc/nginx/nginx.conf
+sed -i "s/{{TARGET_MONITOR_SERVICE}}/${MONITOR_SERVICE:-celery_monitor}/g;" /etc/nginx/nginx.conf
+sed -i "s/{{TARGET_MONITOR_PORT}}/${MONITOR_SERVICE_PORT:-celery_monitor}/g;" /etc/nginx/nginx.conf
 echo "[INFO]  Starting web server"
 echo "[INFO]  Backend: $TARGET_SERVICE"
 exec nginx -g "daemon off;"
