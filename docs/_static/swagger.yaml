@@ -813,6 +813,10 @@ definitions:
         type: string
         description: |
           Some optional text that we store along with the run.
+      name:
+        type: string
+        description: |
+          Some short human readable name that we store along with the run.
 
     required:
       - threshold
