@@ -42,6 +42,10 @@ spec:
           env:
             - name: TARGET_SERVICE
               value: localhost
+            - name: MONITOR_SERVICE
+              value: {{ template "name" . }}-monitor
+            - name: MONITOR_SERVICE_PORT
+              value: 80
           lifecycle:
             preStop:
               exec:
