@@ -208,7 +208,7 @@ def test_mapping_2_party_data_uploaded(requests):
             'clks': d1
         }
     )
-    time.sleep(0.2)
+    time.sleep(0.5)
     description_2 = get_project_description(requests, new_project_data)
     assert description_2['number_parties'] == 2
     assert description_2['parties_contributed'] == 1
@@ -224,7 +224,7 @@ def test_mapping_2_party_data_uploaded(requests):
     assert r1.status_code == 201
     assert r2.status_code == 201
 
-    time.sleep(0.2)
+    time.sleep(0.5)
 
     description_3 = get_project_description(requests, new_project_data)
     assert description_3['number_parties'] == 2
