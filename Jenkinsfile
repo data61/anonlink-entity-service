@@ -119,3 +119,36 @@ node('docker') {
   }
 
 }
+
+node('helm && kubectl') {
+
+  stage('K8s Deployment') {
+
+    DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
+    NAMESPACE = "default"
+
+    configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
+
+        try {
+          timeout(time: 10, unit: 'MINUTES') {
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+              sh """
+                cd deployment/entity-service
+                helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
+                    -f values.yaml -f minimal-values.yaml \
+                    --dry-run
+              """
+            }
+          }
+        } catch(error) { // timeout reached or input false
+
+          sendSlackMsg(
+            'danger',
+            "Entity service deployment failed.")
+
+          throw error
+        }
+      }
+    }
+}
+
