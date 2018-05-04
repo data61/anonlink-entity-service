@@ -3,7 +3,7 @@ set -e
 cd $(dirname "$0")
 cd ..
 
-export APPVERSION=$(cat backend/VERSION)
+export APPVERSION=$(cat backend/entityservice/VERSION)
 
 docker build -t quay.io/n1analytics/entity-app:latest backend
 
