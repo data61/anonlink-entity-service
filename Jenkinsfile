@@ -123,6 +123,8 @@ node('docker') {
 node('helm && kubectl') {
 
   stage('K8s Deployment') {
+    // Pre-existant configuration file available from jenkins
+    CLUSTER_CONFIG_FILE_ID = "awsClusterConfig"
 
     DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
     NAMESPACE = "default"
@@ -136,8 +138,10 @@ node('helm && kubectl') {
                 cd deployment/entity-service
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml \
+                    --set api.ingress.enabled=false
                     --dry-run
               """
+
             }
           }
         } catch(error) { // timeout reached or input false
