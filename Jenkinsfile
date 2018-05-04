@@ -123,6 +123,8 @@ node('docker') {
 node('helm && kubectl') {
 
   stage('K8s Deployment') {
+    checkout scm
+
     // Pre-existant configuration file available from jenkins
     CLUSTER_CONFIG_FILE_ID = "awsClusterConfig"
 
