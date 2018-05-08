@@ -5,8 +5,8 @@ import requests as requests_library
 from entityservice.tests.util import create_project_upload_fake_data
 
 THROTTLE_SLEEP = 0.1
-DEFAULT_OVERLAPS = [0.2, 0.3, 0.5, 0.6, 0.8, 0.9]
-DEFAULT_SIZES = [(100, 100), (100, 1000), (1000, 100), (1000, 1000)]
+DEFAULT_OVERLAPS = [0.2, 0.5, 0.9]
+DEFAULT_SIZES = [(100, 1000), (1000, 100), (1000, 1000)]
 
 
 @pytest.fixture(scope='session')
@@ -64,7 +64,9 @@ def example_mapping_projects(requests):
     }
 
     """
-    yield project_generator(requests, 'mapping')
+    yield project_generator(requests, 'mapping',
+                            DEFAULT_OVERLAPS + [0.3, 0.6, 0.8],
+                            DEFAULT_SIZES + [(100, 100)])
 
 
 @pytest.fixture
