@@ -157,7 +157,7 @@ node('helm && kubectl') {
             }
           } catch(error) { // timeout reached or input false
             sh """
-            helm delete --purge --namespace ${NAMESPACE} ${DEPLOYMENT}
+            helm delete --purge ${DEPLOYMENT}
             """
 
             throw error
