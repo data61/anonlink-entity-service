@@ -130,6 +130,7 @@ node('helm && kubectl') {
 
     DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
     NAMESPACE = "default"
+    TAG = "v1.8.0-develop"
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -167,7 +168,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app:1.8.0-develop
+        image: quay.io/n1analytics/entity-app:${TAG}
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
