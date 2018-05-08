@@ -39,7 +39,7 @@ def create_project_response(requests, overlap, size, result_type):
     return new_project_response
 
 
-def project_creation_generator(requests, result_type, overlaps=DEFAULT_OVERLAPS, sizes=DEFAULT_SIZES):
+def project_generator(requests, result_type, overlaps=DEFAULT_OVERLAPS, sizes=DEFAULT_SIZES):
     return (create_project_response(requests, overlap, size, result_type)
             for overlap in overlaps
             for size in sizes)
@@ -64,7 +64,7 @@ def example_mapping_projects(requests):
     }
 
     """
-    yield project_creation_generator(requests, 'mapping')
+    yield project_generator(requests, 'mapping')
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def example_similarity_projects(requests):
     }
 
     """
-    yield project_creation_generator(requests, 'similarity_scores')
+    yield project_generator(requests, 'similarity_scores')
 
 
 @pytest.fixture
@@ -109,4 +109,4 @@ def example_permutation_projects(requests):
     }
 
     """
-    yield project_creation_generator(requests, 'permutation_unencrypted_mask')
+    yield project_generator(requests, 'permutation_unencrypted_mask')
