@@ -4,6 +4,30 @@
 Changelog
 =========
 
+Version 1.8
+-----------
+
+Version 1.8 introduces breaking changes to the REST api to allow an analyst to reuse uploaded CLKs.
+
+Instead of a linkage project only having one result, we introduce a new sub-resource `runs`. A project holds the schema
+and clks from all data providers; and multiple runs can be created with different parameters. A run has a status and a
+result endpoint. Runs can be queued before the CLK data has been uploaded.
+
+Brief summary of api changes:
+- the `mapping` endpoint has been renamed to `projects`
+- To carry out a linkage computation you must post to a project's `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs
+- Results are now accessed under the `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs/<RUN_ID>/result`
+
+For all the updated api details check the `Open API document <./api.html>`_.
+
+Other improvements
+~~~~~~~~~~~~~~~~~~
+
+- The documentation is now served at the root.
+- The flower monitoring tool for celery is now exposed at `/monitoring` for development deployments with docker-compose.
+  Note this will be disabled for production deployment with kubernetes by default.
+- The docker containers have been migrated to alpine linux to be much leaner.
+
 Version 1.7.3 (2018-03-16)
 --------------------------
 
