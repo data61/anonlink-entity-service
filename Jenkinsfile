@@ -190,7 +190,7 @@ EOF
 
 
                 kubectl describe job ${DEPLOYMENT}-test
-                kubectl delete job ${DEPLOYMENT}-test
+                # kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
               """
 
@@ -198,6 +198,7 @@ EOF
           } catch(error) { // timeout reached or input false
             sh """
             helm delete --purge ${DEPLOYMENT}
+            # kubectl delete job ${DEPLOYMENT}-test
             """
 
             throw error
