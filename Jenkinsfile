@@ -147,6 +147,8 @@ node('helm && kubectl') {
                 # give the cluster a chance to start the service, then create a new job to test it
                 sleep 60
 
+                curl http://${DEPLOYMENT}/api/v1/version
+
                 cat <<EOF | kubectl create -f -
 apiVersion: batch/v1
 kind: Job
