@@ -44,4 +44,5 @@ redis:
 
 minio:
   persistence:
+    enabled: false
     size: 1Gi
