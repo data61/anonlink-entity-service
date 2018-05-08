@@ -139,7 +139,6 @@ node('helm && kubectl') {
             sh """
                 cd deployment/entity-service
                 helm dependency update
-                helm list
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f versions.yaml \
                     --set api.ingress.enabled=false
@@ -154,9 +153,7 @@ node('helm && kubectl') {
 
             println serviceName
             sh """
-                sleep 20
-                curl http://$serviceName/api/v1/version
-
+                sleep 10
                 cat <<EOF | kubectl create -f -
 apiVersion: batch/v1
 kind: Job
@@ -195,7 +192,6 @@ spec:
 EOF
 
                 sleep 60
-
 
                 kubectl describe job ${DEPLOYMENT}-test
                 # kubectl delete job ${DEPLOYMENT}-test
