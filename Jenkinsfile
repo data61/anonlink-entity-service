@@ -134,14 +134,14 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
 
         try {
-          timeout(time: 2, unit: 'MINUTES') {
+          timeout(time: 5, unit: 'MINUTES') {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
               sh """
                 cd deployment/entity-service
                 helm dependency update
                 helm list
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
-                    -f values.yaml -f minimal-values.yaml \
+                    -f values.yaml -f minimal-values.yaml -f versions.yaml \
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance, then create a new job to test it
