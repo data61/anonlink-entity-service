@@ -143,8 +143,8 @@ node('helm && kubectl') {
                     -f values.yaml -f minimal-values.yaml -f versions.yaml \
                     --set api.ingress.enabled=false
 
-                # give the cluster a chance to start the service, then create a new job to test it
-                sleep 30
+                # give the cluster a chance to assign an IP to the service, then create a new job to test it
+                sleep 5
                 """
 
             def serviceIP = sh(script: """
@@ -187,6 +187,7 @@ spec:
           - "-m"
           - "pytest"
           - "entityservice/tests"
+          - "-v"
       imagePullSecrets:
       - name: n1-quay-pull-secret
 EOF
