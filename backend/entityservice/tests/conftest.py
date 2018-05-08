@@ -27,7 +27,7 @@ def requests():
     yield testing_session
 
 
-def create_project_response(requests, overlap, size, result_type):
+def create_project_response(requests, size, overlap, result_type):
     new_project_response, dp_1, dp_2 = create_project_upload_fake_data(
         requests, size, overlap=overlap, result_type=result_type)
     new_project_response.update({
@@ -39,8 +39,8 @@ def create_project_response(requests, overlap, size, result_type):
     return new_project_response
 
 
-def project_generator(requests, result_type, overlaps=DEFAULT_OVERLAPS, sizes=DEFAULT_SIZES):
-    return (create_project_response(requests, overlap, size, result_type)
+def project_generator(requests, result_type, sizes=DEFAULT_SIZES, overlaps=DEFAULT_OVERLAPS):
+    return (create_project_response(requests, size, overlap, result_type)
             for overlap in overlaps
             for size in sizes)
 
@@ -65,8 +65,8 @@ def example_mapping_projects(requests):
 
     """
     yield project_generator(requests, 'mapping',
-                            DEFAULT_OVERLAPS + [0.3, 0.6, 0.8],
-                            DEFAULT_SIZES + [(100, 100)])
+                            DEFAULT_SIZES + [(100, 100)],
+                            DEFAULT_OVERLAPS + [0.3, 0.6, 0.8])
 
 
 @pytest.fixture
