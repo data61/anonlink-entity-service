@@ -24,12 +24,6 @@ spec:
         backend:
           serviceName: {{ $serviceName }}
           servicePort: {{ $servicePort }}
-    {{- if .Values.workers.monitor.enabled }}
-      - path: /monitor
-        backend:
-          serviceName: {{ template "name" . }}-monitor
-          servicePort: "80"
-    {{- end }}
   {{- end -}}
   {{- if .Values.api.ingress.tls }}
   tls:
