@@ -147,7 +147,7 @@ node('helm && kubectl') {
                 # give the cluster a chance to start the service, then create a new job to test it
                 sleep 60
 
-                #curl http://${DEPLOYMENT}/api/v1/version
+                curl http://${DEPLOYMENT}-entity-service-server/api/v1/version
 
                 cat <<EOF | kubectl create -f -
 apiVersion: batch/v1
@@ -174,7 +174,7 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: http://${DEPLOYMENT}--entity-service-server/api/v1
+            value: http://${DEPLOYMENT}-entity-service-server/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
