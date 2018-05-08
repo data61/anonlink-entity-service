@@ -134,7 +134,7 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
 
         try {
-          timeout(time: 10, unit: 'MINUTES') {
+          timeout(time: 2, unit: 'MINUTES') {
             withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
               sh """
                 cd deployment/entity-service
@@ -142,15 +142,16 @@ node('helm && kubectl') {
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml \
                     --set api.ingress.enabled=false
+
+                # give the cluster a chance, then create a new job to test it
+                sleep 30
+
+
               """
 
             }
           }
         } catch(error) { // timeout reached or input false
-
-          sendSlackMsg(
-            'danger',
-            "Entity service deployment failed.")
 
           throw error
         }
