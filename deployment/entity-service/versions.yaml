@@ -1,7 +1,7 @@
 api:
   www:
     image:
-      tag: "v1.3.3"
+      tag: "v1.4.0-develop"
   app:
     image:
       tag: "v1.8.0-develop"
@@ -12,4 +12,3 @@ api:
 workers:
   image:
     tag: "v1.8.0-develop"
-
