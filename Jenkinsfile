@@ -145,9 +145,17 @@ node('helm && kubectl') {
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to start the service, then create a new job to test it
-                sleep 60
+                sleep 10
+                """
 
-                curl http://${DEPLOYMENT}-entity-service-server/api/v1/version
+            def serviceName = sh(script: """
+                kubectl get services -lapp=${DEPLOYMENT}-entity-service -o jsonpath="{.items[0].metadata.name}"
+            """, returnStdout: true)
+
+            println serviceName
+            sh """
+                sleep 20
+                curl http://$serviceName/api/v1/version
 
                 cat <<EOF | kubectl create -f -
 apiVersion: batch/v1
@@ -174,7 +182,7 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: http://${DEPLOYMENT}-entity-service-server/api/v1
+            value: http://$serviceName/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
