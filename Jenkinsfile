@@ -147,42 +147,41 @@ node('helm && kubectl') {
                 sleep 60
 
                 cat <<EOF | kubectl create -f -
-                apiVersion: batch/v1
-                kind: Job
-                metadata:
-                  name: ${DEPLOYMENT}-test
-                  labels:
-                    jobgroup: jenkins-es-integration-test
-                    deployment: ${DEPLOYMENT}
-                spec:
-                  completions: 1
-                  parallelism: 1
-                  template:
-                    metadata:
-                      labels:
-                        jobgroup: jenkins-es-integration-test
-                        deployment: ${DEPLOYMENT}
-                        tier: aux
-                    spec:
-                      restartPolicy: Never
-                      containers:
-                      - name: entitytester
-                        image: quay.io/n1analytics/entity-app:1.8.0-develop
-                        imagePullPolicy: Always
-                        env:
-                          - name: ENTITY_SERVICE_URL
-                            value: http://${DEPLOYMENT}/api/v1
-                          - name: LOGGING_LEVEL
-                            value: "INFO"
-                        command:
-                          - "python"
-                          - "-m"
-                          - "pytest"
-                          - "entityservice/tests"
-                      imagePullSecrets:
-                      - name: n1-quay-pull-secret
-
-                EOF
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${DEPLOYMENT}-test
+  labels:
+    jobgroup: jenkins-es-integration-test
+    deployment: ${DEPLOYMENT}
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        jobgroup: jenkins-es-integration-test
+        deployment: ${DEPLOYMENT}
+        tier: aux
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: entitytester
+        image: quay.io/n1analytics/entity-app:1.8.0-develop
+        imagePullPolicy: Always
+        env:
+          - name: ENTITY_SERVICE_URL
+            value: http://${DEPLOYMENT}/api/v1
+          - name: LOGGING_LEVEL
+            value: "INFO"
+        command:
+          - "python"
+          - "-m"
+          - "pytest"
+          - "entityservice/tests"
+      imagePullSecrets:
+      - name: n1-quay-pull-secret
+EOF
 
                 sleep 300
 
