@@ -13,7 +13,7 @@ Instead of a linkage project only having one result, we introduce a new sub-reso
 and clks from all data providers; and multiple runs can be created with different parameters. A run has a status and a
 result endpoint. Runs can be queued before the CLK data has been uploaded.
 
-Brief summary of api changes:
+Brief summary of API changes:
 - the `mapping` endpoint has been renamed to `projects`
 - To carry out a linkage computation you must post to a project's `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs
 - Results are now accessed under the `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs/<RUN_ID>/result`
@@ -27,6 +27,8 @@ Other improvements
 - The flower monitoring tool for celery is now exposed at `/monitoring` for development deployments with docker-compose.
   Note this will be disabled for production deployment with kubernetes by default.
 - The docker containers have been migrated to alpine linux to be much leaner.
+- Substantial internal refactoring - especially of views.
+- Move to pytest for end to end tests.
 
 Version 1.7.3 (2018-03-16)
 --------------------------
