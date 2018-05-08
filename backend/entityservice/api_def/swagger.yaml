@@ -83,9 +83,9 @@ info:
 
 
 
-host: localhost:8851
+host: es.data61.xyz
 schemes:
-  - "http"
+  - "https"
 basePath: /api/v1
 produces:
   - application/json
