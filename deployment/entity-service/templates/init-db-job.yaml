@@ -41,8 +41,10 @@ spec:
           - name: DEBUG
             value: {{default "false" .Values.api.app.debug | quote }}
           - name: FLASK_APP
-            value: entityservice/__init__.py
+            value: entityservice
         command:
+          - "python"
+          - "-m"
           - "flask"
           - "initdb"
       restartPolicy: Never

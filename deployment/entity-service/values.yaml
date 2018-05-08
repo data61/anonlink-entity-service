@@ -181,7 +181,7 @@ workers:
     ACKS_LATE: "true"
 
   monitor:
-    enabled: false
+    enabled: true
 
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
