@@ -135,7 +135,7 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
         try {
-          timeout(time: 10, unit: 'MINUTES') {
+          timeout(time: 15, unit: 'MINUTES') {
             sh """
                 cd deployment/entity-service
                 helm dependency update
@@ -144,7 +144,7 @@ node('helm && kubectl') {
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to assign an IP to the service, then create a new job to test it
-                sleep 5
+                sleep 90
                 """
 
             def serviceIP = sh(script: """
@@ -152,7 +152,6 @@ node('helm && kubectl') {
             """, returnStdout: true)
 
             sh """
-                sleep 30
                 cat <<EOF | kubectl create -f -
 apiVersion: batch/v1
 kind: Job
@@ -169,7 +168,6 @@ spec:
       labels:
         jobgroup: jenkins-es-integration-test
         deployment: ${DEPLOYMENT}
-        tier: aux
     spec:
       restartPolicy: Never
       containers:
@@ -179,8 +177,6 @@ spec:
         env:
           - name: ENTITY_SERVICE_URL
             value: http://$serviceIP/api/v1
-          - name: LOGGING_LEVEL
-            value: "INFO"
         command:
           - "python"
           - "-m"
@@ -190,7 +186,7 @@ spec:
       imagePullSecrets:
       - name: n1-quay-pull-secret
 EOF
-                sleep 30
+                sleep 10
             """
 
                 def jobPodName = sh(script: """
@@ -199,8 +195,6 @@ EOF
                 println jobPodName
 
             sh """
-                kubectl describe job ${DEPLOYMENT}-test
-
                 # Watch the output
                 kubectl logs -f $jobPodName
 
