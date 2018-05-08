@@ -64,6 +64,8 @@ api:
     debug: "false"
 
   dbinit:
+    enabled: "true"
+
     ## Database init can only run during chart install
     ## It cannot be updated! So we have a separate image + tag
     image:

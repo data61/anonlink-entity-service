@@ -45,7 +45,7 @@ spec:
             - name: MONITOR_SERVICE
               value: {{ template "name" . }}-monitor
             - name: MONITOR_SERVICE_PORT
-              value: 80
+              value: "80"
           lifecycle:
             preStop:
               exec:
