@@ -135,7 +135,7 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
         try {
-          timeout(time: 5, unit: 'MINUTES') {
+          timeout(time: 10, unit: 'MINUTES') {
             sh """
                 cd deployment/entity-service
                 helm dependency update
@@ -151,7 +151,6 @@ node('helm && kubectl') {
                 kubectl get services -lapp=${DEPLOYMENT}-entity-service -o jsonpath="{.items[0].spec.clusterIP}"
             """, returnStdout: true)
 
-            println serviceIP
             sh """
                 sleep 30
                 cat <<EOF | kubectl create -f -
@@ -191,13 +190,25 @@ spec:
       imagePullSecrets:
       - name: n1-quay-pull-secret
 EOF
+                sleep 30
+            """
 
-                sleep 60
+                def jobPodName = sh(script: """
+                    kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"
+                """, returnStdout: true)
+                println jobPodName
 
+            sh """
                 kubectl describe job ${DEPLOYMENT}-test
+
+                # Watch the output
+                kubectl logs -f $jobPodName
+
+
+                # Clean up
                 # kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
-              """
+            """
 
             }
           } catch(error) { // timeout reached or input false
