@@ -184,9 +184,11 @@ spec:
       - name: n1-quay-pull-secret
 EOF
 
-                sleep 300
+                sleep 60
 
-                kubectl delete job esintegrationtest
+
+                kubectl describe job ${DEPLOYMENT}-test
+                kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
               """
 
