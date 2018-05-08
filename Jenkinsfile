@@ -132,11 +132,10 @@ node('helm && kubectl') {
     NAMESPACE = "default"
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
-
+      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
         try {
           timeout(time: 5, unit: 'MINUTES') {
-            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-              sh """
+            sh """
                 cd deployment/entity-service
                 helm dependency update
                 helm list
@@ -153,17 +152,18 @@ node('helm && kubectl') {
                 sleep 60
 
                 kubectl delete job esintegrationtest
-
-                helm delete --purge --namespace ${NAMESPACE} ${DEPLOYMENT}
               """
 
             }
-          }
-        } catch(error) { // timeout reached or input false
+          } catch(error) { // timeout reached or input false
+            sh """
+            helm delete --purge --namespace ${NAMESPACE} ${DEPLOYMENT}
+            """
 
-          throw error
-        }
+            throw error
+          }
       }
     }
+  }
 }
 
