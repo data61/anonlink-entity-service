@@ -142,7 +142,6 @@ node('helm && kubectl') {
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml \
                     --set api.ingress.enabled=false
-                    --dry-run
               """
 
             }
