@@ -17,3 +17,4 @@ clkhash==0.10.1
 phe==1.3.1
 pytest
 iso8601
+connexion==1.4
