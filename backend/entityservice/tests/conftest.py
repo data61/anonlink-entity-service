@@ -5,6 +5,8 @@ import requests as requests_library
 from entityservice.tests.util import create_project_upload_fake_data
 
 THROTTLE_SLEEP = 0.1
+DEFAULT_OVERLAPS = [0.2, 0.3, 0.5, 0.6, 0.8, 0.9]
+DEFAULT_SIZES = [(100, 100), (100, 1000), (1000, 100), (1000, 1000)]
 
 
 @pytest.fixture(scope='session')
@@ -37,7 +39,7 @@ def create_project_response(requests, overlap, size, result_type):
     return new_project_response
 
 
-def project_creation_generator(requests, overlaps, sizes, result_type):
+def project_creation_generator(requests, result_type, overlaps=DEFAULT_OVERLAPS, sizes=DEFAULT_SIZES):
     return (create_project_response(requests, overlap, size, result_type)
             for overlap in overlaps
             for size in sizes)
@@ -62,11 +64,7 @@ def example_mapping_projects(requests):
     }
 
     """
-    overlaps = [0.3, 0.5, 0.6, 0.8, 0.9]
-    sizes = [(100, 100), (100, 1000), (1000, 100), (1000, 1000)]
-
-    yield project_creation_generator(
-        requests, overlaps, sizes, 'mapping')
+    yield project_creation_generator(requests, 'mapping')
 
 
 @pytest.fixture
@@ -88,11 +86,7 @@ def example_similarity_projects(requests):
     }
 
     """
-    overlaps = [0.2, 0.5, 0.9]
-    sizes = [(100, 1000), (1000, 100), (1000, 1000)]
-
-    yield project_creation_generator(
-        requests, overlaps, sizes, 'similarity_scores')
+    yield project_creation_generator(requests, 'similarity_scores')
 
 
 @pytest.fixture
@@ -115,8 +109,4 @@ def example_permutation_projects(requests):
     }
 
     """
-    overlaps = [0.2, 0.5, 0.9]
-    sizes = [(100, 1000), (1000, 100), (1000, 1000)]
-
-    yield project_creation_generator(
-        requests, overlaps, sizes, 'permutation_unencrypted_mask')
+    yield project_creation_generator(requests, 'permutation_unencrypted_mask')
