@@ -144,10 +144,17 @@ node('helm && kubectl') {
                     -f values.yaml -f minimal-values.yaml -f versions.yaml \
                     --set api.ingress.enabled=false
 
-                # give the cluster a chance, then create a new job to test it
-                sleep 30
+                # give the cluster a chance to start the service, then create a new job to test it
+                sleep 60
 
+                cd ..
+                kubectl create -f jobs/integration-test-job.yaml
 
+                sleep 60
+
+                kubectl delete job esintegrationtest
+
+                helm delete --purge --namespace ${NAMESPACE} ${DEPLOYMENT}
               """
 
             }

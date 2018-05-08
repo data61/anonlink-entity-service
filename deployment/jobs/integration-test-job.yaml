@@ -5,8 +5,8 @@ metadata:
   labels:
     jobgroup: linkage-integration
 spec:
-  completions: 10
-  parallelism: 3
+  completions: 1
+  parallelism: 1
   template:
     metadata:
       labels:
@@ -20,11 +20,13 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: https://beta.entityservice.edn.io/api/v1
+            value: https://testing.es.data61.xyz/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
-          - "nosetests"
-          - "tests"
+          - "python"
+          - "-m"
+          - "pytest"
+          - "entityservice/tests"
       imagePullSecrets:
-      - name: n1-coreos-pull-secret
+      - name: n1-quay-pull-secret
