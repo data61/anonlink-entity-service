@@ -1,10 +1,24 @@
 import datetime
 import time
-
+from requests import sessions
 import iso8601
 
 from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data
+from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, has_progressed
+
+
+def wait_while_queued(request, timeout=30, interval=1):
+    """
+    waits for maximum 'timeout' seconds for this run to change its state to something other than 'queued'.
+    """
+    start = datetime.datetime.now()
+    while datetime.datetime.now() - start < datetime.timedelta(seconds=timeout):
+        with sessions.Session() as session:
+            response = session.send(request)
+        if response.json().get('state') is not 'queued':
+            return response
+        time.sleep(interval)
+    raise TimeoutError('timeout reached while waiting for this run to un-queue...')
 
 
 def test_run_status_with_clks(requests):
@@ -28,17 +42,19 @@ def test_run_status_with_clks(requests):
         ),
         headers={'Authorization': new_project_response['result_token']})
 
+    r = wait_while_queued(r.request)
+
     assert r.status_code == 200
     status = r.json()
 
     assert 'state' in status
     assert 'message' in status
-    assert 'progress' in status
     assert 'time_added' in status
     assert status['state'] in {'queued', 'running', 'completed'}
 
     if status['state'] == 'running':
         assert 'time_started' in status
+        assert 'progress' in status
     elif status['state'] == 'completed':
         assert 'time_started' in status
         assert 'time_completed' in status
@@ -46,7 +62,7 @@ def test_run_status_with_clks(requests):
     dt = iso8601.parse_date(status['time_added'])
 
     assert time_posted - dt < datetime.timedelta(seconds=5)
-    original_progress = status['progress']['progress']
+    original_status = status
 
     # Wait and see if the progress changes. Project should easily be complete
     time.sleep(5)
@@ -57,12 +73,7 @@ def test_run_status_with_clks(requests):
         headers={'Authorization': new_project_response['result_token']})
     status = r.json()
 
-    if original_progress != 1.0:
-        assert status['progress']['progress'] > original_progress
-
-    assert status['state'] == 'completed'
-    assert 'time_started' in status
-    assert 'time_completed' in status
+    assert has_progressed(original_status, status)
 
 
 def test_run_status_without_clks(requests):
@@ -87,6 +98,5 @@ def test_run_status_without_clks(requests):
 
     assert 'state' in status
     assert 'message' in status
-    assert 'progress' in status
     assert 'time_added' in status
     assert status['state'] == 'queued'
