@@ -20,7 +20,7 @@ def get(project_id, run_id):
 
     run_description_fields = {
         'run_id': fields.String,
-        'threshold': fields.String,
+        'threshold': fields.Float,
         'notes': fields.String,
     }
 
