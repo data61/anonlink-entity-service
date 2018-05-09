@@ -366,7 +366,7 @@ paths:
         '201':
           description: Created new run
           schema:
-            $ref: '#/definitions/NewRunResponse'
+            $ref: '#/definitions/RunDescription'
         '400':
           $ref: '#/responses/BadRequest'
         '403':
@@ -831,14 +831,6 @@ definitions:
       - threshold
 
   RunDescription:
-    allOf:
-      - $ref: '#/definitions/NewRun'
-      - type: object
-        properties:
-          run_id:
-            type: string
-
-  NewRunResponse:
     allOf:
       - $ref: '#/definitions/NewRun'
       - type: object
