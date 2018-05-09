@@ -2,7 +2,6 @@ from entityservice import app
 from entityservice.utils import generate_code
 import entityservice.database as db
 from entityservice.settings import Config as config
-from marshmallow import Schema, fields
 
 
 class InvalidRunParametersException(ValueError):
@@ -12,19 +11,11 @@ class InvalidRunParametersException(ValueError):
         super(*args, **kwargs)
 
 
-class RunSchema(Schema):
-    threshold = fields.Float()
-    run_id = fields.String()
-    notes = fields.String()
-    name = fields.String()
-
-
 class Run(object):
     """
     A python object representing a run.
 
     """
-    schema = RunSchema()
 
     def __init__(self, project_id, threshold, name, notes):
         self.project_id = project_id
@@ -51,6 +42,3 @@ class Run(object):
         app.logger.debug("Saving run in database")
         db.insert_new_run(conn, self.run_id, self.project_id, self.threshold, self.name, self.notes)
         app.logger.debug("New run created in DB: {}".format(self.run_id))
-
-    def to_json(self):
-        return Run.schema.dump(self)

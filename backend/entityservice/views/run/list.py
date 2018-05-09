@@ -1,5 +1,4 @@
 from flask import request
-from flask_restful import fields, marshal
 
 from entityservice import app, database as db
 from entityservice.async_worker import check_queued_runs
@@ -7,6 +6,7 @@ from entityservice.database import get_db
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token
+from entityservice.views.serialization import RunList, RunDescription
 
 
 def get(project_id):
@@ -24,21 +24,10 @@ def get(project_id):
     '''
     runs = db.query_db(get_db(), select_query, (project_id,))
 
-    run_summary_fields = {
-        'run_id': fields.String,
-        'time_added': fields.DateTime(dt_format='iso8601'),
-        'state': fields.String
-    }
-
-    marshaled_runs = []
-    app.logger.debug("Marshaling list of all projects")
-    for run_object in runs:
-        marshaled_runs.append(marshal(run_object, run_summary_fields))
-
-    return marshaled_runs
+    return RunList().dump(runs)
 
 
-def post(project_id):
+def post(project_id, run):
 
     app.logger.debug("Processing request to add a new run")
     # Check the resource exists
@@ -47,9 +36,7 @@ def post(project_id):
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
 
-    data = request.get_json()
-
-    run_model = Run.from_json(data, project_id)
+    run_model = Run.from_json(run, project_id)
 
     app.logger.debug("Saving run")
     db_conn = db.get_db()
@@ -63,8 +50,7 @@ def post(project_id):
         check_queued_runs.delay(project_id)
     else:
         app.logger.info("Task queued but won't start until CLKs are all uploaded")
-    app.logger.debug('marshalled run_model: {}'.format(run_model.to_json()))
-    return run_model.to_json(), 201
+    return RunDescription().dump(run_model), 201
 
 
 def authorize_run_listing(project_id):

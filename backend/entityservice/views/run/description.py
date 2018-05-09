@@ -1,8 +1,8 @@
 from flask import request
-from flask_restful import fields, marshal
 
 from entityservice import app, database as db
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token
+from entityservice.views.serialization import RunDescription
 
 
 def get(project_id, run_id):
@@ -18,13 +18,7 @@ def get(project_id, run_id):
     db_conn = db.get_db()
     run_object = db.get_run(db_conn, run_id)
 
-    run_description_fields = {
-        'run_id': fields.String,
-        'threshold': fields.Float,
-        'notes': fields.String,
-    }
-
-    return marshal(run_object, run_description_fields)
+    return RunDescription().dump(run_object)
 
 
 def delete(project_id, run_id):
