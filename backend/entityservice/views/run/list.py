@@ -63,9 +63,8 @@ def post(project_id):
         check_queued_runs.delay(project_id)
     else:
         app.logger.info("Task queued but won't start until CLKs are all uploaded")
-    return {
-        'run_id': run_model.run_id,
-        }, 201
+    app.logger.debug('marshalled run_model: {}'.format(run_model.to_json()))
+    return run_model.to_json(), 201
 
 
 def authorize_run_listing(project_id):
