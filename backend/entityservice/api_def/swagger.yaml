@@ -332,15 +332,15 @@ paths:
         Requires project level authorization.
 
       responses:
-        200:
+        '200':
           description: List of runs
           schema:
             $ref: '#/definitions/RunList'
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -367,11 +367,11 @@ paths:
           description: Created new run
           schema:
             $ref: '#/definitions/NewRunResponse'
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -393,15 +393,15 @@ paths:
         This endpoint allows the caller to see what parameters a run was created with.
         Also see the ``/status`` endpoint.
       responses:
-        200:
+        '200':
           description: Success
           schema:
             $ref: '#/definitions/RunDescription'
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -417,11 +417,11 @@ paths:
       responses:
         '204':
           description: Successfully deleted
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -450,11 +450,11 @@ paths:
           description: Successful response
           schema:
             $ref: '#/definitions/RunStatus'
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -571,11 +571,11 @@ paths:
       responses:
         '200':
           description: Successful response
-        400:
+        '400':
           $ref: '#/responses/BadRequest'
-        403:
+        '403':
           $ref: '#/responses/Unauthorized'
-        404:
+        '404':
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/Error'
@@ -721,6 +721,10 @@ definitions:
         description: |
           Decimal between 0.0 and 1.0 indicating progress. For now equal to
           current/total.
+    required:
+      - total
+      - current
+      - progress
 
   PaillierPublicKey:
     description: https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation
@@ -806,7 +810,7 @@ definitions:
         type: string
 
   NewRun:
-    description: Configuration for a new linkage calculation (run)
+    description: Configuration for a new run doing the linkage calculation
     type: object
     properties:
       threshold:
@@ -858,22 +862,53 @@ definitions:
           $ref: '#/definitions/RunState'
 
   RunStatus:
+    type: object
+    discriminator: state
     properties:
-      state:
-        $ref: '#/definitions/RunState'
       message:
         type: string
-      progress:
-        $ref: '#/definitions/RunProgress'
       time_added:
         type: string
         format: 'date-time'
-      time_started:
+      state:
         type: string
-        format: 'date-time'
-      time_completed:
-        type: string
-        format: 'date-time'
+        enum:
+          - completed
+          - running
+          - error
+          - queued
+    required:
+      - time_added
+      - state
+
+  completed:
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          time_started:
+            type: string
+            format: 'date-time'
+          time_completed:
+            type: string
+            format: 'date-time'
+        required:
+          - time_started
+          - time_completed
+
+  running:
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          time_started:
+            type: string
+            format: 'date-time'
+          progress:
+            $ref: '#/definitions/RunProgress'
+        required:
+          - time_started
+          - progress
 
   CLKUpload:
     description: Array of this party's Bloom Filters
