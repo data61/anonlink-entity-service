@@ -1,10 +1,12 @@
 import logging
-from flask import Flask, g
-from flask_restful import Api
+import connexion
+from flask import g
 
 # Define the WSGI application object
 # Note we explicitly do this before importing our own code
-app = Flask(__name__)
+
+con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
+app = con_app.app
 
 try:
     import ijson.backends.yajl2_cffi as ijson
@@ -18,8 +20,7 @@ from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream
 
 
-from entityservice.views import Status, Version, ProjectList, Project, ProjectClks
-from entityservice.views.run import RunList, Run, RunStatus, RunResult
+con_app.add_api('swagger.yaml', base_path='/', strict_validation=True, validate_responses=True)
 
 # Logging setup
 if config.LOGFILE is not None:
@@ -40,28 +41,12 @@ if config.LOGFILE is not None:
     app.logger.addHandler(fileHandler)
 app.logger.addHandler(consoleHandler)
 
-# Create our flask_restful api
-api = Api(app)
-
 
 @app.cli.command('initdb')
 def initdb_command():
     """Initializes the database after a short delay."""
     db.init_db(5)
     print('Initialized the database.')
-
-
-api.add_resource(ProjectList, '/projects', endpoint='project-list')
-api.add_resource(Project, '/projects/<project_id>', endpoint='project-description')
-api.add_resource(ProjectClks, '/projects/<project_id>/clks', endpoint='project-clk-upload')
-
-api.add_resource(RunList, '/projects/<project_id>/runs', endpoint='run-list')
-api.add_resource(Run, '/projects/<project_id>/runs/<run_id>', endpoint='run-description')
-api.add_resource(RunStatus, '/projects/<project_id>/runs/<run_id>/status', endpoint='run-status')
-api.add_resource(RunResult, '/projects/<project_id>/runs/<run_id>/result', endpoint='run-result')
-
-api.add_resource(Status, '/status', endpoint='status')
-api.add_resource(Version, '/version', endpoint='version')
 
 
 @app.before_request
@@ -77,8 +62,9 @@ def teardown_request(exception):
 
 @app.errorhandler(404)
 def not_found(error):
-    return "TODO - 404 as PROBLEM"
+    app.logger.debug(error)
+    return "TODO - 404 as PROBLEM - {}".format(error), 404
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8851)
+    con_app.run(debug=True, port=8851)
