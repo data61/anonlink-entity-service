@@ -24,7 +24,7 @@ def get(project_id, run_id):
 
     # Check that the run is complete, otherwise 404
     if not is_ready:
-        return 'run is not complete', 404
+        return {'detail': 'run is not complete'}, 404
 
     result_type = get_project_column(dbinstance, project_id, 'result_type')
 
