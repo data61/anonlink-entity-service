@@ -91,5 +91,12 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 300
             timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: entity-flask
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
       imagePullSecrets:
         - name: {{ .Values.api.pullSecret }}
