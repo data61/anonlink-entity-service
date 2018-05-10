@@ -91,9 +91,10 @@ def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='m
 
 def wait_for_run_completion(requests, project_id, run_id, result_token, timeout=30):
     start_time = time.time()
-    status = get_run_status(requests, project_id, run_id, result_token)
-    while status['state'] in {'queued', 'running'} and time.time() - start_time < timeout:
+    while True:
         status = get_run_status(requests, project_id, run_id, result_token)
+        if status['state'] not in {'queued', 'running'} or time.time() - start_time > timeout:
+            break
         time.sleep(0.1)
 
     return status
