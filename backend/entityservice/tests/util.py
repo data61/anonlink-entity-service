@@ -122,14 +122,25 @@ def post_run(requests, project, threshold):
     return req.json()['run_id']
 
 
-def get_runs(requests, project):
+def get_runs(requests, project, expected_status = 200):
     project_id = project['project_id']
     result_token = project['result_token']
 
     req = requests.get(
         url + '/projects/{}/runs'.format(project_id),
         headers={'Authorization': result_token})
-    assert req.status_code == 200
+    assert req.status_code == expected_status
+    return req.json()
+
+
+def get_run(requests, project, run_id, expected_status = 200):
+    project_id = project['project_id']
+    result_token = project['result_token']
+
+    req = requests.get(
+        url + '/projects/{}/runs/{}'.format(project_id, run_id),
+        headers={'Authorization': result_token})
+    assert req.status_code == expected_status
     return req.json()
 
 
