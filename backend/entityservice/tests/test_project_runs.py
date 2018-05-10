@@ -30,7 +30,7 @@ def test_run_larger(requests):
     original_progress = status['progress']['progress']
 
     # Wait and see if the progress changes
-    time.sleep(30)
+    time.sleep(5)
     status = get_run_status(requests, project, run_id)
     assert status['progress']['progress'] > original_progress
 
