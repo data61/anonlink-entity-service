@@ -200,7 +200,7 @@ EOF
 
 
                 # Clean up
-                # kubectl delete job ${DEPLOYMENT}-test
+                kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
             """
 
