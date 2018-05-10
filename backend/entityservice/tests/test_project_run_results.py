@@ -1,7 +1,7 @@
 import pytest
 
 from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, wait_for_run_completion, post_run, get_run_result
+from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, post_run, get_run_result
 
 
 def test_run_mapping_results(requests, example_mapping_projects):
