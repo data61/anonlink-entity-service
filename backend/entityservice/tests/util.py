@@ -122,9 +122,9 @@ def post_run(requests, project, threshold):
     return req.json()['run_id']
 
 
-def get_runs(requests, project, expected_status = 200):
+def get_runs(requests, project, result_token = None, expected_status = 200):
     project_id = project['project_id']
-    result_token = project['result_token']
+    result_token = project['result_token'] if result_token is None else result_token
 
     req = requests.get(
         url + '/projects/{}/runs'.format(project_id),
