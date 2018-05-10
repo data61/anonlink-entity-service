@@ -1,32 +1,7 @@
 import pytest
 
 from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, wait_for_run_completion
-
-def post_run(requests, project, threshold):
-    project_id = project['project_id']
-    result_token = project['result_token']
-
-    req = requests.post(
-        url + '/projects/{}/runs'.format(project_id),
-        headers={'Authorization': result_token},
-        json={'threshold': threshold})
-    assert req.status_code == 201
-    return req.json()['run_id']
-
-
-def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True):
-    project_id = project['project_id']
-    result_token = project['result_token'] if result_token is None else result_token
-
-    if wait:
-        final_status = wait_for_run_completion(requests, project_id, run_id, result_token)
-        assert final_status['state'] == 'completed'
-
-    r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
-                     headers={'Authorization': result_token})
-    assert r.status_code == expected_status
-    return r.json()
+from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, wait_for_run_completion, post_run, get_run_result
 
 
 def test_run_mapping_results(requests, example_mapping_projects):

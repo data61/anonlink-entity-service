@@ -111,6 +111,30 @@ def get_run_status(requests, project_id, run_id, result_token):
     return r.json()
 
 
+def post_run(requests, project, threshold):
+    project_id = project['project_id']
+    result_token = project['result_token']
+
+    req = requests.post(
+        url + '/projects/{}/runs'.format(project_id),
+        headers={'Authorization': result_token},
+        json={'threshold': threshold})
+    assert req.status_code == 201
+    return req.json()['run_id']
+
+
+def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True):
+    project_id = project['project_id']
+    result_token = project['result_token'] if result_token is None else result_token
+
+    if wait:
+        final_status = wait_for_run_completion(requests, project_id, run_id, result_token)
+        assert final_status['state'] == 'completed'
+
+    r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
+                     headers={'Authorization': result_token})
+    assert r.status_code == expected_status
+    return r.json()
 
 
 def _check_new_project_response_fields(new_project_data):
