@@ -5,6 +5,8 @@ import requests as requests_library
 from entityservice.tests.util import create_project_upload_fake_data
 
 THROTTLE_SLEEP = 0.1
+DEFAULT_OVERLAPS = [0.2, 0.5, 0.9]
+DEFAULT_SIZES = [(100, 1000), (1000, 100), (1000, 1000)]
 
 
 @pytest.fixture(scope='session')
@@ -25,11 +27,29 @@ def requests():
     yield testing_session
 
 
+def create_project_response(requests, size, overlap, result_type):
+    new_project_response, dp_1, dp_2 = create_project_upload_fake_data(
+        requests, size, overlap=overlap, result_type=result_type)
+    new_project_response.update({
+        'size': size,
+        'overlap': overlap,
+        'dp_1': dp_1,
+        'dp_2': dp_2
+    })
+    return new_project_response
+
+
+def project_generator(requests, result_type, sizes=DEFAULT_SIZES, overlaps=DEFAULT_OVERLAPS):
+    return (create_project_response(requests, size, overlap, result_type)
+            for overlap in overlaps
+            for size in sizes)
+
+
 @pytest.fixture
 def example_mapping_projects(requests):
     """
-    A fixture that injects an iterator of example projects of result_type="mapping" with various
-    overlaps and sizes.
+    A fixture that injects an iterator of example projects of
+    result_type="mapping" with various overlaps and sizes.
 
     Tests that use this fixture will get a list of dicts like the following:
 
@@ -42,25 +62,18 @@ def example_mapping_projects(requests):
         "dp_1": <JSON RESPONSE TO DATA UPLOAD>
         "dp_2": <JSON RESPONSE TO DATA UPLOAD>
     }
-    """
-    def project_creation_generator():
-        for overlap in [0.3, 0.5, 0.6, 0.8, 0.9]:
-            for size in [(100,100), (100, 1000), (1000, 100), (1000, 1000)]:
-                new_project_response, dp1, dp2 = create_project_upload_fake_data(requests, size, overlap=overlap)
-                new_project_response['size'] = size
-                new_project_response['overlap'] = overlap
-                new_project_response['dp_1'] = dp1
-                new_project_response['dp_2'] = dp2
-                yield new_project_response
 
-    yield project_creation_generator()
+    """
+    yield project_generator(requests, 'mapping',
+                            DEFAULT_SIZES + [(100, 100)],
+                            DEFAULT_OVERLAPS + [0.3, 0.6, 0.8])
 
 
 @pytest.fixture
 def example_similarity_projects(requests):
     """
-    A fixture that injects an iterator of example projects of result_type="similarity_score" with various
-    overlaps and sizes.
+    A fixture that injects an iterator of example projects of
+    result_type="similarity_score" with various overlaps and sizes.
 
     Tests that use this fixture will get a list of dicts like the following:
 
@@ -73,29 +86,17 @@ def example_similarity_projects(requests):
         "dp_1": <JSON RESPONSE TO DATA UPLOAD>
         "dp_2": <JSON RESPONSE TO DATA UPLOAD>
     }
-    """
-    def project_creation_generator():
-        for overlap in [0.2, 0.5, 0.9]:
-            for size in [(100, 1000), (1000, 100), (1000, 1000)]:
-                new_project_response, dp1, dp2 = create_project_upload_fake_data(
-                    requests,
-                    size,
-                    overlap=overlap,
-                    result_type='similarity_scores')
-                new_project_response['size'] = size
-                new_project_response['overlap'] = overlap
-                new_project_response['dp_1'] = dp1
-                new_project_response['dp_2'] = dp2
-                yield new_project_response
 
-    yield project_creation_generator()
+    """
+    yield project_generator(requests, 'similarity_scores')
 
 
 @pytest.fixture
 def example_permutation_projects(requests):
     """
-    A fixture that injects an iterator of example projects of result_type="permutation_unencrypted_mask" with various
-    overlaps and sizes.
+    A fixture that injects an iterator of example projects of
+    result_type="permutation_unencrypted_mask" with various overlaps
+    and sizes.
 
     Tests that use this fixture will get a list of dicts like the following:
 
@@ -108,19 +109,6 @@ def example_permutation_projects(requests):
         "dp_1": <JSON RESPONSE TO DATA UPLOAD>
         "dp_2": <JSON RESPONSE TO DATA UPLOAD>
     }
-    """
-    def project_creation_generator():
-        for overlap in [0.2, 0.5, 0.9]:
-            for size in [(100, 1000), (1000, 100), (1000, 1000)]:
-                new_project_response, dp1, dp2 = create_project_upload_fake_data(
-                    requests,
-                    size,
-                    overlap=overlap,
-                    result_type='permutation_unencrypted_mask')
-                new_project_response['size'] = size
-                new_project_response['overlap'] = overlap
-                new_project_response['dp_1'] = dp1
-                new_project_response['dp_2'] = dp2
-                yield new_project_response
 
-    yield project_creation_generator()
+    """
+    yield project_generator(requests, 'permutation_unencrypted_mask')

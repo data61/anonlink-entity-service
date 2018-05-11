@@ -20,10 +20,12 @@ spec:
           - containerPort: 8888
             name: celery-monitor
         command:
-          - "/usr/local/bin/celery"
-          - "-A"
-          - "async_worker"
+          - "celery"
           - "flower"
+          - "-A"
+          - "entityservice.async_worker"
+          - "--basic_auth=n1:paillier"
+          - "--url_prefix=monitor"
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
           - "-Q celery,compute"

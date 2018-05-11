@@ -72,17 +72,18 @@ services:
       - LARGE_JOB_SIZE=100000000000
       - MATCH_THRESHOLD=0.98
 
+
   nginx:
     image: quay.io/n1analytics/entity-nginx
     ports:
-      - 8851:8851
+      - 8851
     depends_on:
       - backend
     environment:
       TARGET_SERVICE: backend
-      ETCD_URL:
+      MONITOR_SERVICE: celery_monitor
+      MONITOR_SERVICE_PORT: 8888
       PUBLIC_PORT: 8851
-      PUBLIC_IP:
 
 
   # A celery monitor. Useful for debugging but okay to remain
