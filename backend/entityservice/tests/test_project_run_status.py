@@ -30,13 +30,11 @@ def test_run_status_with_clks(requests):
     time_posted = datetime.datetime.now(tz=datetime.timezone.utc)
     status = get_run_status(requests, project, run_id)
 
-    assert post_run_request.status_code == 201
-
     r = requests.get(url + '/projects/{}/runs/{}/status'.format(
-        new_project_response['project_id'],
-        post_run_request.json()['run_id']
+        project['project_id'],
+        run_id
         ),
-        headers={'Authorization': new_project_response['result_token']})
+        headers={'Authorization': project['result_token']})
     r = wait_while_queued(r.request)
 
     assert r.status_code == 200
