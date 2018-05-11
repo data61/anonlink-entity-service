@@ -143,8 +143,8 @@ node('helm && kubectl') {
                 helm dependency update
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f versions.yaml \
-                    --set api.app.image.tag=${TAG}
-                    --set workers.image.tag=${TAG}
+                    --set api.app.image.tag=${TAG} \
+                    --set workers.image.tag=${TAG} \
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to assign an IP to the service, then create a new job to test it
