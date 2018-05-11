@@ -1,6 +1,5 @@
 flask==0.12.2
 Werkzeug==0.12.2
-flask-restful
 requests==2.18.3
 gunicorn==19.7.1
 psycopg2==2.7.4
