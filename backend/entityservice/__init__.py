@@ -60,11 +60,5 @@ def teardown_request(exception):
         g.db.close()
 
 
-@app.errorhandler(404)
-def not_found(error):
-    app.logger.debug(error)
-    return "TODO - 404 as PROBLEM - {}".format(error), 404
-
-
 if __name__ == '__main__':
     con_app.run(debug=True, port=8851)
