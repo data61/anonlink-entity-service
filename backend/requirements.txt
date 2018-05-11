@@ -1,6 +1,6 @@
 flask==0.12.2
 Werkzeug==0.12.2
-requests==2.18.3
+requests==2.18.4
 gunicorn==19.7.1
 psycopg2==2.7.4
 celery==4.1.0
