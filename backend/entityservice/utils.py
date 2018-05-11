@@ -6,7 +6,7 @@ import os
 
 import bitmath
 from flask import request
-from flask_restful import abort
+from connexion import ProblemException
 
 
 def fmt_bytes(num_bytes):
@@ -52,7 +52,17 @@ def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
     return io.BufferedReader(IterStream(), buffer_size=buffer_size)
 
 
-def safe_fail_request(status_code, message):
+def safe_fail_request(status_code, message, **kwargs):
+    """
+    generates an error message in the right format.
+
+    You can pass in additional key/value pairs for the keys 'title', 'instance' and 'type' in order to populate
+    the returned problem message.
+
+    :param status_code: the HTTP status code
+    :param message: the 'detail' section of the problem
+    :param kwargs: additional key/value pairs to populate the problem
+    """
     # ensure we read the post data, even though we mightn't need it
     # without this you get occasional nginx errors failed (104:
     # Connection reset by peer) (See issue #195)
@@ -62,7 +72,7 @@ def safe_fail_request(status_code, message):
             pass
     else:
         data = request.get_json()
-    abort(http_status_code=status_code, message=message)
+    raise ProblemException(status=status_code, detail=message, **kwargs)
 
 
 def get_stream():

@@ -76,7 +76,7 @@ node('docker') {
           mkdir -p html
           chmod 777 html
 
-          docker run -v `pwd`/docs:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
+          docker run -v `pwd`:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
 
           cd html
           zip -q -r n1-docs.zip *

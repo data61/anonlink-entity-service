@@ -16,6 +16,7 @@ class Run(object):
     A python object representing a run.
 
     """
+
     def __init__(self, project_id, threshold, name, notes):
         self.project_id = project_id
         self.name = name
@@ -41,5 +42,3 @@ class Run(object):
         app.logger.debug("Saving run in database")
         db.insert_new_run(conn, self.run_id, self.project_id, self.threshold, self.name, self.notes)
         app.logger.debug("New run created in DB: {}".format(self.run_id))
-
-

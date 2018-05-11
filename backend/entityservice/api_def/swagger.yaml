@@ -1,0 +1,922 @@
+# A Swagger 2.0 (a.k.a. OpenAPI) definition of the Entity Service API.
+#
+# This is used for generating API documentation and the types used by the
+# server.
+#
+# Some style notes:
+# - This file is used by ReDoc, which allows GitHub Flavored Markdown in
+#   descriptions.
+swagger: '2.0'
+info:
+  version: '1.2'
+  title: Entity Matching API
+  x-logo:
+    url: http://clkhash.readthedocs.io/en/latest/_static/logo.svg
+  contact:
+    name: 'Confidential Computing, Data61 | CSIRO'
+    email: support@n1analytics.com
+  description: >-
+    Allows two organisations to carry out private record linkage -
+    without disclosing personally identifiable information.
+
+    In general:
+
+    * All parameters and returned objects are JSON with content-type set to
+    `"application/json"`.
+
+    * All authentication tokens are 48 character hex strings.
+
+    * The `Project`/`Run` resource identifiers are also 48 char hex strings.
+
+    * HTTP status codes are used to distinguish server outcomes.
+
+
+    **Note:** Several important concepts including security considerations are described in
+    [separate documentation](./concepts.html).
+
+    ### Introduction
+
+    This is a service that computes matches of entity records between two parties.
+    The personally identifiable information used for linking is first locally transformed
+    to anonymous linking codes called [Cryptographic Longterm Keys](concepts.html#cryptographic-longterm-key)
+    (CLKs). Each party then uploads its CLKs to the service for matching.
+    The service supports four different [types of outputs](concepts.html#result-types)
+    of matching results, varying in privacy properties.
+    For the CLKs to be comparable, the parties need to agree on and follow a particular
+    [linkage schema](concepts.html#schema) and agree on a shared secret before generating
+    and uploading the CLKs.
+
+
+    ### Security
+
+    See the linked [security documentation](./security.html).
+
+
+    __Warning__: There are no restrictions on accessing the service, i.e., everyone can call the different endpoints.
+    However, authorization is required to access sensitive data. The authorization is described [here](security.html#auth).
+
+
+    Most endpoints require an authorization header to be sent along with any request.
+
+
+    ### Generating CLKs
+
+    See the [clkhash](https://github.com/n1analytics/clkhash) project for details and a command line
+    tool to locally generate CLKs from entity data to upload.
+
+
+
+    ## Matching Protocols
+
+    The Entity Service supports four different **result types** with varying privacy properties which define the produced result,
+    and who may see the which part of the output.
+
+    See the documentation section on [output types](./concepts.html#result-types).
+
+    The options are:
+
+      * `"permutation"` - Creates random permutations and Paillier encrypted mask.
+      * `"mapping"` - Creates a lookup table of the form `indexA = indexB`.
+      * `"permutation_unencrypted_mask"` - Creates random permutations and an unencrypted mask.
+      * `"similarity_scores"` - Outputs a list of similarity scores of `[indexA, indexB, score]`, where `score`
+        represents the likelihood that `indexA = indexB`.
+
+
+
+host: es.data61.xyz
+schemes:
+  - "https"
+basePath: /api/v1
+produces:
+  - application/json
+consumes:
+  - application/json
+paths:
+  /status:
+    get:
+      operationId: entityservice.views.general.status_get
+      summary: Service status
+      tags:
+        - General
+      description: |
+        Suitable for using as load balancer health check. Checks that
+        redis cache and database are operational. Provides very high level system wide
+        metrics.
+      responses:
+        '200':
+          description: Service status.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                description: Will be "ok" if everything is working.
+              project_count:
+                description: Number of projects created on this server.
+                type: integer
+              rate:
+                type: integer
+                description: The most recent reported comparison rate of the system (comparisons per second).
+          examples:
+            application/json:
+              - status: "ok"
+                number_mappings: 3118
+                rate: 1793757
+        '500':
+          description: | 
+            System is experiencing difficulties. 
+            E.g. application can't connect to database.
+  /version:
+    get:
+      operationId: entityservice.views.general.version_get
+      summary: Version
+      tags:
+        - General
+      description: |
+        Return version numbers of libraries used.
+      responses:
+        '200':
+          description: Versions
+          schema:
+            type: object
+            properties:
+              anonlink:
+                type: string
+              entityservice:
+                type: string
+              python:
+                type: string
+          examples:
+            application/json:
+              {"anonlink": "0.6.3", "entityservice": "v1.7.2", "python": "3.6.4"}
+  /projects:
+    get:
+      operationId: entityservice.views.project.projects_get
+      summary: List of record linkage projects.
+      tags:
+        - Project
+      description: |
+        List of all privacy preserving record linkage projects.
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            $ref: '#/definitions/ProjectList'
+    post:
+      operationId: entityservice.views.project.projects_post
+      summary: Create and configure a new linkage project
+      tags:
+        - Project
+      description: |
+        Prepare resources and endpoints to accept CLK uploads from data providers.
+        Provides the caller with credentials that will be required for any further
+        interaction with this project.
+
+        ### Schema
+
+        Although these comprise the column names, the raw data will never be
+        sent to this entity service.
+
+        Each participant will be able to see the schema to verify it is
+        what they expect. Schema details should have been determined and agreed
+        on by each party before starting a mapping task. This is documented
+        in [schema](./concepts.html#schema).
+
+        ### Result Type
+
+        The result type specifies what information is available after the entity
+        resolving process has completed. All project **runs** will use this result type.
+
+        The parts of the computed linkage results that are accessable by the different tokens depends on the
+        `result_type`:
+
+        - `"mapping"` or `"similarity_scores"`\
+        If the `result_type` is `"mapping"` or `"similarity_scores"` then the results can be accessed with the
+        `result_token``token`, which is provided when initially creating the mapping.
+
+        - `"permutation"`\
+        If the `result_type` is `"permutation"` then the data provider can access their respective permutation and the
+        encrypted mask with their respective `receipt_token`, which they obtain when adding data to the mapping.
+
+        - `"permutation_unenecrypted_mask"`\
+        If the `result_type` is `permutation_unenecrypted_mask`, then the mask can be accessed with the `result_token`,
+          and the permutations are obtained by providing `receipt_token`.
+
+        Note
+        `public_key` and `paillier_context` are only required if `result_type = "permutation"`.
+
+      parameters:
+        - in: body
+          name: project
+          required: true
+          schema:
+            $ref: '#/definitions/NewProject'
+      responses:
+        '201':
+          description: New project created
+          schema:
+            $ref: '#/definitions/NewProjectResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+  '/projects/{project_id}':
+    parameters:
+      - $ref: '#/parameters/token'
+      - $ref: '#/parameters/project_id'
+
+    get:
+      operationId: entityservice.views.project.project_get
+      summary: Description of a particular linkage project
+      tags:
+        - Project
+      description: |
+        Details provided at project creation.
+
+      responses:
+        '200':
+          description: Project description
+          schema:
+            $ref: '#/definitions/ProjectDescription'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+    delete:
+      operationId: entityservice.views.project.project_delete
+      summary: Delete linkage project.
+      tags:
+        - Project
+      description: Remove the project and all associated data from the service.
+      responses:
+        '204':
+          description: Successfully deleted
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+  '/projects/{project_id}/clks':
+    post:
+      operationId: entityservice.views.project.project_clks_post
+      summary: Upload CLK data to a linkage project.
+      tags:
+        - Project
+      description: |
+        Called by each of the data providers with their calculated `CLK` vectors.
+        The project must have been created, and the caller must have both the
+        `project_id` and a valid `upload_token` in order to contribute data.
+
+        This endpoint supports `Transfer-Encoding =  chunked` (streaming uploads).
+
+        When the second party successfully adds data the matching task is queued;
+        although it is worth noting there is no indication to the caller that this
+        has occurred.
+
+        The data uploaded is one [CLK](./concepts.html#cryptographic-longterm-keys) per entity/row.
+
+        Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
+        translate to just over 20 million entities.
+
+      parameters:
+        - $ref: '#/parameters/project_id'
+        - $ref: '#/parameters/token'
+        - in: body
+          name: clks
+          required: true
+          schema:
+            $ref: '#/definitions/CLKUpload'
+      responses:
+        '201':
+          description: Data Uploaded
+          schema:
+            $ref: '#/definitions/UploadReceipt'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+  '/projects/{project_id}/runs':
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/token'
+    get:
+      operationId: entityservice.views.run.list.get
+      summary: List runs
+      tags:
+        - Run
+      description: |
+        List of run summaries.
+        Requires project level authorization.
+
+      responses:
+        '200':
+          description: List of runs
+          schema:
+            $ref: '#/definitions/RunList'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+    post:
+      operationId: entityservice.views.run.list.post
+      summary: Create a new run
+      tags:
+        - Run
+      description: |
+        Queue up a computation to compare entities.
+      parameters:
+        - $ref: '#/parameters/project_id'
+        - $ref: '#/parameters/token'
+        - in: body
+          name: run
+          required: true
+          schema:
+            $ref: '#/definitions/NewRun'
+      responses:
+        '201':
+          description: Created new run
+          schema:
+            $ref: '#/definitions/RunDescription'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+
+  '/projects/{project_id}/runs/{run_id}':
+    parameters:
+      - $ref: '#/parameters/project_id'
+      - $ref: '#/parameters/run_id'
+      - $ref: '#/parameters/token'
+    get:
+      operationId: entityservice.views.run.description.get
+      summary: Description of a particular run
+      tags:
+        - Run
+      description: |
+        This endpoint allows the caller to see what parameters a run was created with.
+        Also see the ``/status`` endpoint.
+      responses:
+        '200':
+          description: Success
+          schema:
+            $ref: '#/definitions/RunDescription'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+    delete:
+      operationId: entityservice.views.run.description.delete
+      summary: Delete a run
+      tags:
+        - Run
+      description: Cancel the run and remove all associated data from the service.
+      responses:
+        '204':
+          description: Successfully deleted
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+  '/projects/{project_id}/runs/{run_id}/status':
+    get:
+      operationId: entityservice.views.run.status.get
+      summary: Run status
+      tags:
+        - Run
+      description: |
+        A status update on a particular record linkage run.
+
+        `'time_added'`, `'time_started'` and `'time_completed'` are represented in
+        [ISO 8601 format](https://docs.python.org/3/library/datetime.html#datetime.datetime.isoformat).
+
+        Note that the value will be `null` if the mapping has not yet started or completed.
+      parameters:
+        - $ref: '#/parameters/project_id'
+        - $ref: '#/parameters/run_id'
+        - $ref: '#/parameters/token'
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            $ref: '#/definitions/RunStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+  '/projects/{project_id}/runs/{run_id}/result':
+    get:
+      operationId: entityservice.views.run.results.get
+      summary: Run result
+      tags:
+        - Run
+      description: |
+
+        ## Response
+
+        The response schema depends on the mapping's `result_type`. OpenAPI doesn't
+        allow different schemas (in v2) so these are documented here:
+
+        Note if the result isn't ready, a `404` will be returned.
+
+
+        ### result_type = "mapping"
+
+        The mapping of indices between parties. Data is returned as `json` object e.g,
+
+            {
+                "mapping":
+                    {
+                        "0": "5",
+                        "2": "0"
+                    }
+            }
+
+
+        ### result_type = "similarity_scores"
+
+        The list of the indices of potential matches and their similarity score
+        where the similarity score is greater than the mapping threshold.
+        Data is returned as `json` object e.g.,
+
+            {
+                "similarity_scores":
+                    [
+                        [5, 27, 1.0],
+                        [14, 10, 1.0]
+                    ]
+            }
+
+
+        The element in the list is of the following format `[indexA, indexB, score]`,
+        where `indexA` refers to the index of entity from data provider 1, `indexB` is the index of entity
+        from data provider 2 that is a potential match to entity in `indexA`, and `score` is the similarity score
+        representing the likelihood that entity in `indexA` and entity in `indexB` is a match.
+
+        `indexA` and `indexB` starts from 0.
+
+        The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
+        and 1.0 corresponds to total match.
+
+        ### result_type = "permutation"
+
+        The permutation, and mask specific for the calling organisation.
+        Data is returned as `json` object e.g,
+
+
+            {
+                "permutation": [3,0,4,1,2],
+                "mask": [0,1,0,1,1],   <-- As paillier encrypted, base64 encoded numbers
+                "paillier_context": {
+                    "base": 2,
+                    "encoded": true
+                }
+            }
+
+
+        In this example the first three elements in the original dataset are included,
+        but have been reordered to the second, fourth and fifth positions. The other elements
+        have been excluded with the encrypted mask. Note the permutation is specific to
+        the caller. Also any data after row 5 is to be discarded after the reordering has
+        been applied.
+
+        The `mask` is a json array of Paillier encrypted numbers. These are the ciphertexts
+        as integer strings. The encoded number base is `2`, and the precision is set to
+        `1e3`. The exponent is not serialized, as it will always be 0. The resulting ciphertext
+        is serialized with base64 encoding.
+
+        In Python using `python-paillier`: `int_to_base64(public_key.encrypt(enc, precision).ciphertext())`
+
+
+        ### result_type = "permutation_unencrypted_mask"
+
+        The data providers will receive the permutation:
+
+
+            {
+                "permutation": [3,0,4,1,2],
+                "rows": 5
+            }
+
+
+        The creator of the mapping gets access to the mask:
+
+            {
+                "mask": [0,1,0,1,1]
+            }
+
+
+        The mask is an array of 0/1 numbers.
+      parameters:
+        - $ref: '#/parameters/project_id'
+        - $ref: '#/parameters/run_id'
+        - $ref: '#/parameters/token'
+      responses:
+        '200':
+          description: Successful response
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Unauthorized'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/Error'
+        '503':
+          $ref: '#/responses/RateLimited'
+
+parameters:
+  token:
+    required: true
+    type: string
+    name: Authorization
+    in: header
+  project_id:
+    in: path
+    name: "project_id"
+    description: Resource identifier of the record linkage project
+    required: true
+    type: string
+  run_id:
+    in: path
+    name: "run_id"
+    description: Resource identifier of a particular run in a record linkage project
+    required: true
+    type: string
+
+# Descriptions of common responses
+responses:
+  Error:
+    description: An unspecified error occured
+    schema:
+      $ref: '#/definitions/Problem'
+  NotFound:
+    description: The specified resource was not found
+    schema:
+      $ref: "#/definitions/Problem"
+  BadRequest:
+    description: Client's request could not be processed.
+    schema:
+      $ref: "#/definitions/Problem"
+  Unauthorized:
+    description: Authentication token could be missing, or invalid.
+    schema:
+      $ref: "#/definitions/Problem"
+  RateLimited:
+    description: Client is rate limited. Try requesting less frequently.
+
+
+definitions:
+
+  Problem:
+    type: object
+    properties:
+      type:
+        type: string
+        format: uri
+        description: |
+          An absolute URI that identifies the problem type.  When dereferenced,
+          it SHOULD provide human-readable documentation for the problem type
+          (e.g., using HTML).
+        default: 'about:blank'
+        example: 'http://anonlink.readthedocs.io/en/latest/problems.html#ratelimited'
+      title:
+        type: string
+        description: |
+          A short, summary of the problem type. Written in english and readable
+          for engineers; example: Service Unavailable
+      status:
+        type: integer
+        format: int32
+        description: |
+          The HTTP status code generated by the origin server for this occurrence
+          of the problem.
+        minimum: 100
+        maximum: 600
+        exclusiveMaximum: true
+        example: 503
+      detail:
+        type: string
+        description: |
+          A human readable explanation specific to this occurrence of the
+          problem.
+        example: Connection to database timed out
+      instance:
+        type: string
+        format: uri
+        description: |
+          An absolute URI that identifies the specific occurrence of the problem.
+          It may or may not yield further information if dereferenced.
+
+  ProjectList:
+    type: array
+    items:
+      type: object
+      description: Listing of projects.
+      properties:
+        project_id:
+          type: string
+        time_added:
+          type: string
+          description: ISO8601 formated datetime
+          format: 'date-time'
+
+  Schema:
+    type: object
+    description: |
+      The `schema` is described in the [clkhash](http://clkhash.readthedocs.io/en/latest/schema.html)
+      documentation.
+
+      A json-schema definition can be found [here](http://clkhash.readthedocs.io/en/latest/_static/schema.json#hashing-schema)
+
+  ResultType:
+    type: string
+    description: defines the output type of the mapping
+    enum:
+      - similarity_scores
+      - mapping
+      - permutation
+      - permutation_unencrypted_mask
+
+  RunState:
+    type: string
+    description: What state is the run in
+    enum:
+      - queued
+      - running
+      - completed
+      - error
+
+  RunProgress:
+    description: Details how far completed the run is.
+    type: object
+    properties:
+      total:
+        description: Number of comparisons required for this Match
+        type: number
+        format: int
+      current:
+        type: number
+        format: int
+        description: How many comparisons have been carried out.
+      progress:
+        type: number
+        description: |
+          Decimal between 0.0 and 1.0 indicating progress. For now equal to
+          current/total.
+    required:
+      - total
+      - current
+      - progress
+
+  PaillierPublicKey:
+    description: https://python-paillier.readthedocs.io/en/develop/serialisation.html#jwk-serialisation
+    type: object
+    properties:
+      n:
+        type: string
+      kty:
+        type: string
+        default: "DAJ"
+      kid:
+        type: string
+      key_ops:
+        type: array
+        items:
+          type: string
+      alg:
+        type: string
+        default: "PAI-GN1"
+
+  PaillierContext:
+    description: Information on the Paillier encoding
+    type: object
+    properties:
+      encoded:
+        type: boolean
+      base:
+        type: integer
+
+  NewProject:
+    description: Configuration for a new linkage project.
+    type: object
+    properties:
+      schema:
+        $ref: '#/definitions/Schema'
+
+      result_type:
+        $ref: '#/definitions/ResultType'
+
+      number_parties:
+        description: How many data providers will participate in this project. Default value is 2.
+        type: number
+
+      name:
+        description: Any free text name for this project.
+        type: string
+
+      notes:
+        description: Any free text to store with this project.
+        type: string
+
+      public_key:
+        $ref: "#/definitions/PaillierPublicKey"
+
+      paillier_context:
+        $ref: "#/definitions/PaillierContext"
+
+    required:
+      - schema
+      - result_type
+
+  ProjectDescription:
+    allOf:
+      - $ref: '#/definitions/NewProject'
+      - type: object
+        properties:
+          project_id:
+            type: string
+          parties_contributed:
+            type: number
+
+  NewProjectResponse:
+    properties:
+      project_id:
+        type: string
+      update_tokens:
+        type: array
+        description: Array of unique tokens authorizing the upload of CLKs.
+        items:
+          type: string
+      result_token:
+        description: A token required to access mapping results.
+        type: string
+
+  NewRun:
+    description: Configuration for a new run doing the linkage calculation
+    type: object
+    properties:
+      threshold:
+        type: number
+        format: double
+        description: |
+          The similarity threshold (a number between 0 and 1) above which two entites will be considered a match.
+      notes:
+        type: string
+        description: |
+          Some optional text that we store along with the run.
+      name:
+        type: string
+        description: |
+          Some short human readable name that we store along with the run.
+
+    required:
+      - threshold
+
+  RunDescription:
+    allOf:
+      - $ref: '#/definitions/NewRun'
+      - type: object
+        properties:
+          run_id:
+            type: string
+
+  RunList:
+    type: array
+    items:
+      type: object
+      description: Listing of runs.
+      properties:
+        run_id:
+          type: string
+        time_added:
+          type: string
+          description: ISO8601 formated datetime
+          format: 'date-time'
+        state:
+          $ref: '#/definitions/RunState'
+
+  RunStatus:
+    type: object
+    discriminator: state
+    properties:
+      message:
+        type: string
+      time_added:
+        type: string
+        format: 'date-time'
+      state:
+        type: string
+        enum:
+          - completed
+          - running
+          - error
+          - queued
+    required:
+      - time_added
+      - state
+
+  completed:
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          time_started:
+            type: string
+            format: 'date-time'
+          time_completed:
+            type: string
+            format: 'date-time'
+        required:
+          - time_started
+          - time_completed
+
+  running:
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          time_started:
+            type: string
+            format: 'date-time'
+          progress:
+            $ref: '#/definitions/RunProgress'
+        required:
+          - time_started
+          - progress
+
+  CLKUpload:
+    description: Array of this party's Bloom Filters
+    type: object
+    required: [clks]
+    properties:
+      clks:
+        type: array
+        items:
+          type: string
+          format: byte
+          description: Base64 encoded CLK data
+
+  UploadReceipt:
+    properties:
+      receipt_token:
+        type: string
+      message:
+        type: string

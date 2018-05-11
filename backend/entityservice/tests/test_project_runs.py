@@ -4,54 +4,27 @@ import time
 import iso8601
 
 from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data
+from entityservice.tests.util import create_project_upload_fake_data, has_progressed, post_run, get_run_status
 
 
 def test_run_larger(requests):
-    new_project_response, dp1, dp2 = create_project_upload_fake_data(requests, [100000, 10000])
+    project, dp1, dp2 = create_project_upload_fake_data(requests, [100000, 10000])
 
-    post_run_request = requests.post(
-        url + '/projects/{}/runs'.format(new_project_response['project_id']),
-        headers={'Authorization': new_project_response['result_token']},
-        json={
-            'threshold': 0.90
-        }
-    )
-
-    assert post_run_request.status_code == 201
-
-    r = requests.get(url + '/projects/{}/runs/{}/status'.format(
-        new_project_response['project_id'],
-        post_run_request.json()['run_id']
-        ),
-        headers={'Authorization': new_project_response['result_token']})
-
-    assert r.status_code == 200
-    status = r.json()
+    run_id = post_run(requests, project, 0.9)
+    status = get_run_status(requests, project, run_id)
 
     assert 'state' in status
     assert 'message' in status
-    assert 'progress' in status
     assert 'time_added' in status
     assert status['state'] in {'queued', 'running', 'completed'}
 
-    if status['state'] == 'running':
-        assert 'time_started' in status
-    elif status['state'] == 'completed':
-        assert 'time_started' in status
-        assert 'time_completed' in status
+    original_status = status
 
     dt = iso8601.parse_date(status['time_added'])
     assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
-    original_progress = status['progress']['progress']
 
     # Wait and see if the progress changes
     time.sleep(30)
-    r = requests.get(url + '/projects/{}/runs/{}/status'.format(
-        new_project_response['project_id'],
-        post_run_request.json()['run_id']
-    ),
-                     headers={'Authorization': new_project_response['result_token']})
-    status = r.json()
-    assert status['progress']['progress'] > original_progress
+    status = get_run_status(requests, project, run_id)
+    assert has_progressed(original_status, status)
 
