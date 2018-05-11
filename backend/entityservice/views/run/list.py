@@ -55,14 +55,11 @@ def post(project_id, run):
 
 def authorize_run_listing(project_id):
     app.logger.info("Looking up project")
+    # Check the project resource exists
     abort_if_project_doesnt_exist(project_id)
     if request.headers is None or 'Authorization' not in request.headers:
         safe_fail_request(401, message="Authentication token required")
     auth_header = request.headers.get('Authorization')
-    # Check the project resource exists
-    abort_if_project_doesnt_exist(project_id)
-    dbinstance = get_db()
-    project_object = db.get_project(dbinstance, project_id)
     app.logger.info("Checking credentials to list project runs")
     # Check the caller has a valid results token (analyst token)
     abort_if_invalid_results_token(project_id, auth_header)
