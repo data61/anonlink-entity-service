@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-api
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.api.name }}"
     tier: frontend
 spec:
@@ -19,7 +19,7 @@ spec:
 {{ toYaml .Values.api.podAnnotations | indent 8 }}
     {{- end }}
       labels:
-        {{-include "es.release_labels" . }}
+        {{- include "es.release_labels" . | indent 8 }}
         component: "{{ .Values.api.name }}"
         tier: frontend
     spec:

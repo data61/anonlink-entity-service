@@ -4,7 +4,7 @@ kind: Job
 metadata:
   name: {{ template "es.fullname" . }}-init-db
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
     tier: aux
   annotations:
     # This job only gets executed on install, not after an upgrade.
@@ -16,7 +16,7 @@ spec:
     metadata:
       name: {{ template "name" . }}-init-db
       labels:
-        {{-include "es.release_labels" . }}
+        {{- include "es.release_labels" . | indent 8 }}
     spec:
       containers:
       - name: db-init

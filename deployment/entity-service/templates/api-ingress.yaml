@@ -10,7 +10,7 @@ metadata:
 {{- end }}
   name: {{ template "es.fullname" . }}
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" .| indent 4 }}
 spec:
   rules:
   {{- range .Values.api.ingress.hosts }}

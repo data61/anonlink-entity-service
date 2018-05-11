@@ -6,7 +6,7 @@ metadata:
 {{ toYaml .Values.api.service.annotations | indent 4 }}
 {{- end }}
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.api.name }}"
 {{- if .Values.api.service.labels }}
 {{ toYaml .Values.api.service.labels | indent 4 }}

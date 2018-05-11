@@ -4,7 +4,7 @@ kind: Certificate
 metadata:
   name: {{ template "es.fullname" . }}
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
 spec:
   secretName: {{ .Values.api.certManager.secretName }}
   issuerRef:

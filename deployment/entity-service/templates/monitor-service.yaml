@@ -4,7 +4,7 @@ kind: Service
 metadata:
   name: {{ template "api.fullname" . }}-monitor
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
 spec:
   ports:
     - port: 80

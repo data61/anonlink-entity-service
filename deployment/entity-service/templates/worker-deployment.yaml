@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.workers.name }}"
     tier: backend
   name: {{ .Release.Name }}-worker
@@ -21,7 +21,7 @@ spec:
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
     {{- end }}
       labels:
-        {{-include "es.release_labels" . }}
+        {{- include "es.release_labels" . | indent 8 }}
         component: "{{ .Values.workers.name }}"
         tier: backend
     spec:

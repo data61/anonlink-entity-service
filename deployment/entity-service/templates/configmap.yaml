@@ -3,7 +3,7 @@ kind: ConfigMap
 metadata:
   name: {{ template "es.fullname" . }}
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
 data:
   REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
   DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"

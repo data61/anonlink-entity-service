@@ -4,13 +4,13 @@ kind: Deployment
 metadata:
   name: {{ template "name" . }}-monitor
   labels:
-    {{-include "es.release_labels" . }}
+    {{- include "es.release_labels" . | indent 4 }}
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        {{-include "es.release_labels" . }}
+        {{- include "es.release_labels" . | indent 4 }}
         tier: aux
         run: celery-monitor
     spec:
