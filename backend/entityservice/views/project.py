@@ -1,7 +1,6 @@
 import io
 
 from flask import request
-from flask_restful import abort
 import entityservice.database as db
 
 from entityservice.async_worker import handle_raw_upload
@@ -159,7 +158,7 @@ def upload_json_clk_data(dp_id, clk_json):
     non-streaming version of the upload_clk_data from above.
     """
     if 'clks' not in clk_json or len(clk_json['clks']) < 1:
-        abort(400, message="Missing CLKs information")
+        safe_fail_request(400, message="Missing CLKs information")
 
     receipt_token = generate_code()
 
