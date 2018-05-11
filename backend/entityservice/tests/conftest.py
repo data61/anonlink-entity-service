@@ -1,12 +1,14 @@
 import time
 import pytest
 import requests as requests_library
+import itertools
 
 from entityservice.tests.util import create_project_upload_fake_data
 
 THROTTLE_SLEEP = 0.1
 DEFAULT_OVERLAPS = [0.2, 0.5, 0.9]
-DEFAULT_SIZES = [(100, 1000), (1000, 100), (1000, 1000)]
+DEFAULT_SIZES = itertools.product([100, 1000], repeat = 2)
+LONG_TEST_SIZES = itertools.product([10000, 100000, 1000000], repeat = 2)
 
 
 @pytest.fixture(scope='session')
@@ -16,37 +18,28 @@ def requests():
     For now we just add a small sleep after every request to ensure we don't get throttled when
     tests run back to back. Note the rate limit in nginx is 10 requests per ip per second.
     """
-
-    testing_session = requests_library.Session()
-
     def delay_next(r, *args, **kwargs):
         time.sleep(THROTTLE_SLEEP)
 
+    testing_session = requests_library.Session()
     testing_session.hooks['response'].append(delay_next)
-
     yield testing_session
 
 
 def create_project_response(requests, size, overlap, result_type):
-    new_project_response, dp_1, dp_2 = create_project_upload_fake_data(
+    project, dp_1, dp_2 = create_project_upload_fake_data(
         requests, size, overlap=overlap, result_type=result_type)
-    new_project_response.update({
+    project.update({
         'size': size,
         'overlap': overlap,
         'dp_1': dp_1,
         'dp_2': dp_2
     })
-    return new_project_response
+    return project
 
 
-def project_generator(requests, result_type, sizes=DEFAULT_SIZES, overlaps=DEFAULT_OVERLAPS):
-    return (create_project_response(requests, size, overlap, result_type)
-            for overlap in overlaps
-            for size in sizes)
-
-
-@pytest.fixture
-def example_mapping_projects(requests):
+@pytest.fixture(params = itertools.product(DEFAULT_SIZES, DEFAULT_OVERLAPS + [0.3, 0.6, 0.8]))
+def example_mapping_projects(requests, request):
     """
     A fixture that injects an iterator of example projects of
     result_type="mapping" with various overlaps and sizes.
@@ -64,13 +57,12 @@ def example_mapping_projects(requests):
     }
 
     """
-    yield project_generator(requests, 'mapping',
-                            DEFAULT_SIZES + [(100, 100)],
-                            DEFAULT_OVERLAPS + [0.3, 0.6, 0.8])
+    size, overlap = request.param
+    yield create_project_response(requests, size, overlap, 'mapping')
 
 
-@pytest.fixture
-def example_similarity_projects(requests):
+@pytest.fixture(params = itertools.product(DEFAULT_SIZES, DEFAULT_OVERLAPS))
+def example_similarity_projects(requests, request):
     """
     A fixture that injects an iterator of example projects of
     result_type="similarity_score" with various overlaps and sizes.
@@ -88,11 +80,12 @@ def example_similarity_projects(requests):
     }
 
     """
-    yield project_generator(requests, 'similarity_scores')
+    size, overlap = request.param
+    yield create_project_response(requests, size, overlap, 'similarity_scores')
 
 
-@pytest.fixture
-def example_permutation_projects(requests):
+@pytest.fixture(params = itertools.product(DEFAULT_SIZES, DEFAULT_OVERLAPS))
+def example_permutation_projects(requests, request):
     """
     A fixture that injects an iterator of example projects of
     result_type="permutation_unencrypted_mask" with various overlaps
@@ -111,4 +104,5 @@ def example_permutation_projects(requests):
     }
 
     """
-    yield project_generator(requests, 'permutations')
+    size, overlap = request.param
+    yield create_project_response(requests, size, overlap, 'permutation_unencrypted_mask')

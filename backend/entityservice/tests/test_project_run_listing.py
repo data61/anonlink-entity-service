@@ -2,20 +2,20 @@ from entityservice.tests.config import url
 from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, get_runs, post_run
 
 
-def test_empty_list_run(requests):
-    project, dp1, dp2 = create_project_upload_fake_data(requests, [1000, 1000])
+def test_empty_list_run(requests, example_mapping_projects):
+    project = example_mapping_projects
     r = get_runs(requests, project)
     assert r == []
 
 
-def test_list_run_noauth(requests):
-    project, dp1, dp2 = create_project_upload_fake_data(requests, [1000, 1000])
+def test_list_run_noauth(requests, example_mapping_projects):
+    project = example_mapping_projects
     r = requests.get(url + '/projects/{}/runs'.format(project['project_id']))
     assert r.status_code == 400
 
 
-def test_list_run_invalid_auth(requests):
-    project, dp1, dp2 = create_project_upload_fake_data(requests, [1000, 1000])
+def test_list_run_invalid_auth(requests, example_mapping_projects):
+    project = example_mapping_projects
     _ = get_runs(requests, project, 'invalid', expected_status = 403)
 
 
