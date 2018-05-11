@@ -3,12 +3,14 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: {{ template "name" . }}-monitor
+  labels:
+    {{-include "es.release_labels" . }}
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: {{ template "fullname" . }}
+        {{-include "es.release_labels" . }}
         tier: aux
         run: celery-monitor
     spec:

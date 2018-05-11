@@ -2,11 +2,7 @@
 kind: Role
 metadata:
   labels:
-    app: {{ template "fullname" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    component: "{{ .Values.api.name }}"
-    heritage: {{ .Release.Service }}
-    release: {{ .Release.Name }}
+    {{-include "es.release_labels" . }}
   name: {{ template "name" . }}-role
 rules:
   - apiGroups:

@@ -2,12 +2,9 @@
 apiVersion: certmanager.k8s.io/v1alpha1
 kind: Certificate
 metadata:
-  name: {{ template "fullname" . }}
+  name: {{ template "es.fullname" . }}
   labels:
-    app: {{ template "fullname" . }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    release: {{ .Release.Name }}
-    heritage: "{{ .Release.Service }}"
+    {{-include "es.release_labels" . }}
 spec:
   secretName: {{ .Values.api.certManager.secretName }}
   issuerRef:
