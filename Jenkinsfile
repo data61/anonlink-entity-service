@@ -131,7 +131,7 @@ node('helm && kubectl') {
     DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
     NAMESPACE = "default"
 
-    def TAG = sh(script: """python get_docker_tag.py $BRANCH_NAME app""", returnStdout: true)
+    def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true)
 
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
