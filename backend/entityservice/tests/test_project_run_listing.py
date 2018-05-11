@@ -11,7 +11,7 @@ def test_empty_list_run(requests):
 def test_list_run_noauth(requests):
     project, dp1, dp2 = create_project_upload_fake_data(requests, [1000, 1000])
     r = requests.get(url + '/projects/{}/runs'.format(project['project_id']))
-    assert r.status_code == 401
+    assert r.status_code == 400
 
 
 def test_list_run_invalid_auth(requests):

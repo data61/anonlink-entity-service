@@ -4,7 +4,7 @@ import time
 import iso8601
 
 from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, post_run, get_run_status
+from entityservice.tests.util import create_project_upload_fake_data, has_progressed, post_run, get_run_status
 
 
 def test_run_larger(requests):
@@ -15,22 +15,16 @@ def test_run_larger(requests):
 
     assert 'state' in status
     assert 'message' in status
-    assert 'progress' in status
     assert 'time_added' in status
     assert status['state'] in {'queued', 'running', 'completed'}
 
-    if status['state'] == 'running':
-        assert 'time_started' in status
-    elif status['state'] == 'completed':
-        assert 'time_started' in status
-        assert 'time_completed' in status
+    original_status = status
 
     dt = iso8601.parse_date(status['time_added'])
     assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
-    original_progress = status['progress']['progress']
 
     # Wait and see if the progress changes
-    time.sleep(5)
+    time.sleep(30)
     status = get_run_status(requests, project, run_id)
-    assert status['progress']['progress'] > original_progress
+    assert has_progressed(original_status, status)
 

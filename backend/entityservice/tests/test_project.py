@@ -37,7 +37,7 @@ def test_create_then_delete_no_auth(requests):
     _check_new_project_response_fields(new_project_response.json())
 
     delete_project_response = requests.delete(url + '/projects/{}'.format(new_project_response.json()['project_id']))
-    assert delete_project_response.status_code == 403
+    assert 400 == delete_project_response.status_code
 
 
 def test_create_then_delete_invalid_auth(requests):
@@ -96,7 +96,7 @@ def test_create_then_describe_noauth(requests):
 
     print("Checking mapping status without authentication token")
     r = requests.get(url + '/projects/{}'.format(new_project['project_id']))
-    assert r.status_code == 401
+    assert 400 == r.status_code
 
 
 def test_create_then_describe_invalid_auth(requests):
