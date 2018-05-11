@@ -7,39 +7,39 @@ void setBuildStatus(String message, String state) {
   ]);
 }
 
-//node('docker') {
-//
-//  stage ('Checkout') {
-//    checkout scm
-//  }
-//
-//  // Login to quay.io
-//  withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
-//    sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
-//  }
-//
-//  def errorMsg = "Unknown failure";
-//
-//  try {
-//
-//    stage('Docker Build') {
-//
-//      try {
-//          sh """
-//            cd backend
-//            docker build -t quay.io/n1analytics/entity-app .
-//            cd ../frontend
-//            docker build -t quay.io/n1analytics/entity-nginx .
-//            cd ../docs
-//            docker build -t quay.io/n1analytics/entity-app:doc-builder .
-//          """
-//          setBuildStatus("Docker build complete", "PENDING");
-//      } catch (err) {
-//        errorMsg = "Failed to build docker images";
-//        throw err;
-//      }
-//    }
-//
+node('docker') {
+
+  stage ('Checkout') {
+    checkout scm
+  }
+
+  // Login to quay.io
+  withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
+    sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
+  }
+
+  def errorMsg = "Unknown failure";
+
+  try {
+
+    stage('Docker Build') {
+
+      try {
+          sh """
+            cd backend
+            docker build -t quay.io/n1analytics/entity-app .
+            cd ../frontend
+            docker build -t quay.io/n1analytics/entity-nginx .
+            cd ../docs
+            docker build -t quay.io/n1analytics/entity-app:doc-builder .
+          """
+          setBuildStatus("Docker build complete", "PENDING");
+      } catch (err) {
+        errorMsg = "Failed to build docker images";
+        throw err;
+      }
+    }
+
 //    stage('Compose Deploy') {
 //      try {
 //        sh '''
@@ -92,33 +92,33 @@ void setBuildStatus(String message, String state) {
 //      }
 //    }
 //
-//    stage('Publish') {
-//      // Login to quay.io
-//      withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
-//        sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
-//
-//        try {
-//            sh '''
-//              ./tools/upload.sh
-//            '''
-//            setBuildStatus("Published Docker Images", "SUCCESS");
-//        } catch (Exception err) {
-//          errorMsg = "Publishing docker images to quay.io failed";
-//          throw err
-//        }
-//
-//        sh 'docker logout quay.io'
-//      }
-//    }
-//
-//  } catch (err) {
-//    currentBuild.result = 'FAILURE'
-//    setBuildStatus(errorMsg,  "FAILURE");
-//  } finally {
-//    sh './tools/ci_cleanup.sh'
-//  }
-//
-//}
+    stage('Publish') {
+      // Login to quay.io
+      withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
+        sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
+
+        try {
+            sh '''
+              ./tools/upload.sh
+            '''
+            setBuildStatus("Published Docker Images", "SUCCESS");
+        } catch (Exception err) {
+          errorMsg = "Publishing docker images to quay.io failed";
+          throw err
+        }
+
+        sh 'docker logout quay.io'
+      }
+    }
+
+  } catch (err) {
+    currentBuild.result = 'FAILURE'
+    setBuildStatus(errorMsg,  "FAILURE");
+  } finally {
+    sh './tools/ci_cleanup.sh'
+  }
+
+}
 
 node('helm && kubectl') {
 
@@ -130,7 +130,9 @@ node('helm && kubectl') {
 
     DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
     NAMESPACE = "default"
-    TAG = "v1.8.0-develop"
+
+    def TAG = sh(script: """python get_docker_tag.py $BRANCH_NAME app""", returnStdout: true)
+
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -141,6 +143,8 @@ node('helm && kubectl') {
                 helm dependency update
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f versions.yaml \
+                    --set api.app.image.tag=${TAG}
+                    --set workers.image.tag=${TAG}
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to assign an IP to the service, then create a new job to test it
@@ -170,6 +174,7 @@ spec:
         deployment: ${DEPLOYMENT}
     spec:
       restartPolicy: Never
+      backoffLimit: 1
       containers:
       - name: entitytester
         image: quay.io/n1analytics/entity-app:${TAG}
