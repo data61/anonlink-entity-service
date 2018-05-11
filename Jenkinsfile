@@ -40,58 +40,58 @@ node('docker') {
       }
     }
 
-//    stage('Compose Deploy') {
-//      try {
-//        sh '''
-//        # Stop and remove any existing entity service
-//        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down -v
-//
-//        # Start all the containers (including tests)
-//        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
-//        '''
-//        setBuildStatus("Integration test in progress", "PENDING");
-//      } catch (err) {
-//        errorMsg = "Failed to start CI integration test with docker compose";
-//        throw err;
-//      }
-//    }
-//
-//    stage('Integration Tests') {
-//      try {
-//        sh '''
-//          sleep 2
-//          docker logs -t -f entityservicetest_tests_1
-//          exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_tests_1`
-//        '''
-//        setBuildStatus("Integration tests complete", "SUCCESS");
-//      } catch (err) {
-//        errorMsg = "Integration tests didn't pass";
-//        throw err;
-//      }
-//    }
-//
-//    stage('Documentation') {
-//      try {
-//        sh '''
-//          mkdir -p html
-//          chmod 777 html
-//
-//          docker run -v `pwd`/docs:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
-//
-//          cd html
-//          zip -q -r n1-docs.zip *
-//          mv n1-docs.zip ../
-//        '''
-//
-//        archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
-//        setBuildStatus("Documentation Built", "SUCCESS");
-//
-//      } catch (err) {
-//        errorMsg = "Couldn't build docs";
-//        throw err;
-//      }
-//    }
-//
+    stage('Compose Deploy') {
+      try {
+        sh '''
+        # Stop and remove any existing entity service
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down -v
+
+        # Start all the containers (including tests)
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
+        '''
+        setBuildStatus("Integration test in progress", "PENDING");
+      } catch (err) {
+        errorMsg = "Failed to start CI integration test with docker compose";
+        throw err;
+      }
+    }
+
+    stage('Integration Tests') {
+      try {
+        sh '''
+          sleep 2
+          docker logs -t -f entityservicetest_tests_1
+          exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_tests_1`
+        '''
+        setBuildStatus("Integration tests complete", "SUCCESS");
+      } catch (err) {
+        errorMsg = "Integration tests didn't pass";
+        throw err;
+      }
+    }
+
+    stage('Documentation') {
+      try {
+        sh '''
+          mkdir -p html
+          chmod 777 html
+
+          docker run -v `pwd`/docs:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
+
+          cd html
+          zip -q -r n1-docs.zip *
+          mv n1-docs.zip ../
+        '''
+
+        archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
+        setBuildStatus("Documentation Built", "SUCCESS");
+
+      } catch (err) {
+        errorMsg = "Couldn't build docs";
+        throw err;
+      }
+    }
+
     stage('Publish') {
       // Login to quay.io
       withCredentials([usernamePassword(credentialsId: 'quayion1analyticsbuilder', usernameVariable: 'USERNAME_QUAY', passwordVariable: 'PASSWORD_QUAY')]) {
@@ -220,6 +220,7 @@ EOF
           }
       }
     }
+    setBuildStatus("K8s Deployment Test", "SUCCESS");
   }
 }
 
