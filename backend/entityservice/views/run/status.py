@@ -3,6 +3,7 @@ from flask import request
 from entityservice import app, database as db, cache as cache
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token
+from entityservice.views.serialization import completed, running, RunStatus
 
 
 def get(project_id, run_id):
@@ -29,8 +30,9 @@ def get(project_id, run_id):
     if state == 'completed':
         status["time_started"] = times['time_started']
         status["time_completed"] = times['time_completed']
-    elif state == 'running':
+        return completed().dump(status)
 
+    if state == 'running':
         comparisons = cache.get_progress(run_id)
         total_comparisons = db.get_total_comparisons_for_project(dbinstance, project_id)
 
@@ -41,5 +43,6 @@ def get(project_id, run_id):
         }
         status["time_started"] = times['time_started']
         status["progress"] = progress
+        return running().dump(status)
 
-    return status
+    return RunStatus().dump(status)

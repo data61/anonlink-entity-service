@@ -43,3 +43,25 @@ class RunList(ListSchema):
     run_id = fields.String()
     time_added = fields.DateTime(format='iso8601')
     state = fields.String()
+
+
+class RunProgress(Schema):
+    total = fields.Integer(required=True)
+    current = fields.Integer(required=True)
+    progress = fields.Float(required=True)
+
+
+class RunStatus(Schema):
+    message = fields.String()
+    time_added = fields.DateTime(format='iso8601', required=True)
+    state = fields.String(required=True)
+
+
+class completed(RunStatus):
+    time_started = fields.DateTime(format='iso8601', required=True)
+    time_completed = fields.DateTime(format='iso8601', required=True)
+
+
+class running(RunStatus):
+    time_started = fields.DateTime(format='iso8601', required=True)
+    progress = fields.Nested(RunProgress)
