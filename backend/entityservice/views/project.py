@@ -2,12 +2,11 @@ import io
 
 from flask import request
 from flask_restful import abort
-from ijson.backends import yajl2_cffi as ijson
 import entityservice.database as db
 
 from entityservice.async_worker import handle_raw_upload
 from entityservice import app, fmt_bytes
-from entityservice.utils import safe_fail_request, get_stream, get_json, generate_code
+from entityservice.utils import safe_fail_request, get_json, generate_code
 
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
@@ -102,15 +101,7 @@ def project_clks_post(project_id):
     Update a project to provide data.
     """
 
-    # Pass the request.stream to add_mapping_data
-    # to avoid parsing the json in one hit, this enables running the
-    # web frontend with less memory.
     headers = request.headers
-
-    # Note we don't use request.stream so we handle chunked uploads without
-    # the content length set...
-    # TODO: for now the stream handling is broken. -> issue #???
-    # stream = get_stream()
 
     abort_if_project_doesnt_exist(project_id)
     if headers is None or 'Authorization' not in headers:
@@ -124,8 +115,15 @@ def project_clks_post(project_id):
     dp_id = db.get_dataprovider_id(get_db(), token)
 
     app.logger.info("Receiving data for: dpid: {}".format(dp_id))
-    receipt_token, raw_file = upload_json_clk_data(dp_id, get_json())
 
+    # TODO: Previously, we were accessing the CLKs in a streaming fashion to avoid parsing the json in one hit. This
+    #       enables running the web frontend with less memory.
+    #       However, as connexion is very, very strict about input validation when it comes to json, it will always
+    #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
+    #       json into memory. -> issue #184
+
+
+    receipt_token, raw_file = upload_json_clk_data(dp_id, get_json())
     # Schedule a task to deserialize the hashes, and carry
     # out a pop count.
     handle_raw_upload.delay(project_id, dp_id, receipt_token)
@@ -154,65 +152,6 @@ def authorise_get_request(project_id):
     else:
         safe_fail_request(500, "Unknown error")
     return dp_id, project_object
-
-
-def upload_clk_data(dp_id, raw_stream):
-    """
-    Save the untrusted user provided data and start a celery job to
-    deserialize, popcount and save the hashes.
-
-    Because this takes place in a worker, we "lock" the upload by
-    setting the state to pending in the bloomingdata table.
-    """
-    receipt_token = generate_code()
-
-    filename = config.RAW_FILENAME_FMT.format(receipt_token)
-    app.logger.info("Storing user {} supplied clks from json".format(dp_id))
-
-    # We will increment a counter as we process
-    store = {
-        'count': 0,
-        'totalbytes': 0
-    }
-
-    def counting_generator():
-        try:
-            for clk in ijson.items(raw_stream, 'clks.item'):
-                # Often the clients upload base64 strings with newlines
-                # We remove those here
-                app.logger.debug('we received this clk: {}'.format(clk))
-                raw = ''.join(clk.split('\n')).encode() + b'\n'
-                store['count'] += 1
-                store['totalbytes'] += len(raw)
-                yield raw
-        except ijson.common.IncompleteJSONError as e:
-            store['count'] = 0
-            app.logger.warning("Stopping as we have received incomplete json: {}".format(e))
-            return
-
-    # Annoyingly we need the totalbytes to upload to the object store
-    # so we consume the input stream here. We could change the public
-    # api instead so that we know the expected size ahead of time.
-    data = b''.join(counting_generator())
-    num_bytes = len(data)
-    buffer = io.BytesIO(data)
-
-    if store['count'] == 0:
-        abort(400, message="Missing information")
-
-    app.logger.info("Processed {} CLKS".format(store['count']))
-    app.logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
-    mc = connect_to_object_store()
-    mc.put_object(
-        config.MINIO_BUCKET,
-        filename,
-        data=buffer,
-        length=len(data)
-    )
-
-    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, store['count'])
-
-    return receipt_token, filename
 
 
 def upload_json_clk_data(dp_id, clk_json):
