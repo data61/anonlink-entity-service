@@ -131,7 +131,7 @@ node('helm && kubectl') {
     DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
     NAMESPACE = "default"
 
-    def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true)
+    def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
 
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
@@ -174,7 +174,6 @@ spec:
         deployment: ${DEPLOYMENT}
     spec:
       restartPolicy: Never
-      backoffLimit: 1
       containers:
       - name: entitytester
         image: quay.io/n1analytics/entity-app:${TAG}
