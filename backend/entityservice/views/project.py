@@ -144,9 +144,7 @@ def authorise_get_request(project_id):
     if project_object['result_type'] == 'mapping' or project_object['result_type'] == 'similarity_scores':
         # Check the caller has a valid results token if we are including results
         abort_if_invalid_results_token(project_id, auth_header)
-    elif project_object['result_type'] == 'permutation':
-        dp_id = dataprovider_id_if_authorize(project_id, auth_header)
-    elif project_object['result_type'] == 'permutation_unencrypted_mask':
+    elif project_object['result_type'] == 'permutations':
         dp_id = get_authorization_token_type_or_abort(project_id, auth_header)
     else:
         safe_fail_request(500, "Unknown error")
