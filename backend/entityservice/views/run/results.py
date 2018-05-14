@@ -36,8 +36,8 @@ def get(project_id, run_id):
     elif result_type == 'similarity_scores':
         return get_similarity_score_result(dbinstance, run_id)
 
-    elif result_type == 'permutation_unencrypted_mask':
-        return get_permutation_unencrypted_result(project_id, run_id, dbinstance, token, auth_token_type)
+    elif result_type == 'permutations':
+        return get_permutations_result(project_id, run_id, dbinstance, token, auth_token_type)
     else:
         app.logger.warning("Unimplemented result type")
         safe_fail_request(500, message='Project has unknown result type')
@@ -54,8 +54,8 @@ def get_similarity_score_result(dbinstance, run_id):
         safe_fail_request(500, "Failed to retrieve similarity scores")
 
 
-def get_permutation_unencrypted_result(project_id, run_id, dbinstance, token, auth_token_type):
-    app.logger.info("Permutation with unencrypted mask result type being returned")
+def get_permutations_result(project_id, run_id, dbinstance, token, auth_token_type):
+    app.logger.info("Permutations and mask result type being returned")
     if auth_token_type == 'receipt_token':
         dp_id = db.select_dataprovider_id(dbinstance, project_id, token)
         perm = db.get_permutation_result(dbinstance, dp_id, run_id)

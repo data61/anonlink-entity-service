@@ -111,4 +111,4 @@ def example_permutation_projects(requests):
     }
 
     """
-    yield project_generator(requests, 'permutation_unencrypted_mask')
+    yield project_generator(requests, 'permutations')
