@@ -50,10 +50,6 @@ class Config(object):
     CELERYD_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERYD_MAX_TASKS_PER_CHILD', '4'))
     CELERY_ACKS_LATE = os.environ.get('CELERY_ACKS_LATE', 'false') == 'true'
 
-    ENCRYPTION_MIN_KEY_LENGTH = int(os.environ.get('ENCRYPTION_MIN_KEY_LENGTH', '512'))
-
-    ENCRYPTION_CHUNK_SIZE = int(os.environ.get('ENCRYPTION_CHUNK_SIZE', '100'))
-
     # Number of comparisons per chunk. Default is to interpolate between the min
     # of 100M and the max size of 1B based on the JOB_SIZE parameters.
     SMALL_COMPARISON_CHUNK_SIZE = int(os.environ.get('SMALL_COMPARISON_CHUNK_SIZE', '100000000'))

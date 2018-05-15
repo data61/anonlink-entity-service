@@ -47,18 +47,6 @@ def delete_project(db, project_id):
                 WHERE project = %s
                 """, [project_id])
 
-        if result_type == "permutation":
-            paillier_id = execute_returning_id(cur, """
-                DELETE FROM encrypted_permutation_masks
-                WHERE project = %s
-                RETURNING paillier
-                """, [project_id])
-
-            cur.execute("""
-                DELETE FROM paillier
-                WHERE id = %s
-                """, [paillier_id])
-
         if result_type == "similarity_scores":
             cur.execute("""
                 DELETE FROM similarity_scores

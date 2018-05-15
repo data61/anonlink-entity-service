@@ -31,28 +31,6 @@ def insert_new_run(db, run_id, project_id, threshold, name, notes=''):
     return run_id
 
 
-def insert_paillier(cur, public_key, context):
-    sql_query = """
-        INSERT INTO paillier
-        (public_key, context)
-        VALUES
-        (%s, %s)
-        RETURNING id;
-        """
-    return execute_returning_id(cur, sql_query, [psycopg2.extras.Json(public_key), psycopg2.extras.Json(context)])
-
-
-def insert_empty_encrypted_mask(cur, project_id, run_id, pid):
-    sql_query = """
-        INSERT INTO encrypted_permutation_masks
-        (project, run, paillier)
-        VALUES
-        (%s, %s, %s)
-        RETURNING id;
-        """
-    return execute_returning_id(cur, sql_query, [project_id, run_id, pid])
-
-
 def insert_dataprovider(cur, auth_token, project_id):
     sql_query = """
         INSERT INTO dataproviders

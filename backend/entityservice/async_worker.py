@@ -8,14 +8,12 @@ import psycopg2.extras
 from celery import Celery, chord
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery.utils.log import get_task_logger
-from phe import paillier
-from phe.util import int_to_base64
 
 import entityservice.cache
 from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
-from entityservice.serialization import load_public_key, binary_unpack_filters, \
+from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, iterable_to_stream, fmt_bytes
@@ -65,41 +63,6 @@ def convert_mapping_to_list(permutation):
     for j in range(l):
         perm_list.append(permutation[j])
     return perm_list
-
-
-def encrypt_vector(values, public_key, base):
-    """
-    Encrypt an array of booleans.
-
-    Note the exponent will always be 0
-
-    :param values: List of booleans.
-    :return list of base64 encoded encrypted ciphertext strings
-    """
-
-    # Only use this for testing purposes!
-    # Should use the next section of code instead!
-    #return [1 if x else 0 for x in values]
-
-    # Using the default encoding Base:
-    # return [
-    #     str(public_key.encrypt(int(x)).ciphertext())
-    #     for x in values]
-
-
-    class EntityEncodedNumber(paillier.EncodedNumber):
-        BASE = base
-        LOG2_BASE = math.log(BASE, 2)
-
-    precision = 1e3
-
-    encoded_mask = [EntityEncodedNumber.encode(public_key, int(x)) for x in values]
-
-    encrypted_mask = [public_key.encrypt(enc, precision).ciphertext() for enc in encoded_mask]
-
-    base64_encoded_mask = [int_to_base64(m) for m in encrypted_mask]
-
-    return base64_encoded_mask
 
 
 def clks_uploaded_to_project(project_id):
@@ -242,8 +205,6 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     logger.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     conn = connect_db()
 
-
-
     lenf1, lenf2 = get_project_dataset_sizes(conn, project_id)
 
     # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
@@ -312,7 +273,7 @@ def save_and_permute(similarity_result, project_id, run_id):
     result_id = insert_mapping_result(db, run_id, mapping)
     logger.info("Mapping result saved to db with id {}".format(result_id))
 
-    if result_type in {"permutation", "permutation_unencrypted_mask"}:
+    if result_type == "permutations":
         logger.debug("Submitting job to permute mapping")
         permute_mapping_data.apply_async(
             (
@@ -449,58 +410,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
         logger.info("Mask saved")
     db.commit()
 
-    post_permutation.apply_async((project_id, run_id))
-
-
-@celery.task()
-def paillier_encrypt_mask(project_id, run_id):
-    """
-    The paillier encrypted mask is saved in the encrypted_permutation_masks table.
-    """
-
-    db = connect_db()
-    with db.cursor() as cur:
-        mask_list = get_permutation_unencrypted_mask(db, project_id, run_id)
-
-        logger.info("Encrypting mask data")
-
-        pk, cntx = get_paillier(db, project_id)
-        base = cntx['base']
-
-        # Subtasks will encrypt the mask in chunks
-        logger.info("Chunking mask")
-        unencrypted_chunks = chunks(mask_list, config.ENCRYPTION_CHUNK_SIZE)
-        # calling .apply_async will create a dedicated task so that the
-        # individual tasks are applied in a worker instead
-        encrypted_mask_future = chord(
-            (encrypt_mask.s(chunk, pk, base) for chunk in unencrypted_chunks),
-            persist_encrypted_mask.s(
-                paillier_context=cntx,
-                project_id=project_id,
-                run_id=run_id
-            )
-        ).apply_async()
-
-
-@celery.task()
-def post_permutation(project_id, run_id):
-    """
-    Task to carry out any follow up after the permutation + mask is saved.
-    """
-
-    # If the resource has an encrypted mask type, here we should
-    # trigger the encryption of the mask
-
-    db = connect_db()
-    result_type = get_project_column(db, project_id, 'result_type')
-
-    if result_type == "permutation":
-        logger.info("Need to encrypt the mask")
-        paillier_encrypt_mask.apply_async((project_id, run_id))
-
-    elif result_type == "permutation_unencrypted_mask":
-        logger.info("No need to encrypt the mask")
-        mark_mapping_complete.delay(run_id)
+    mark_mapping_complete.delay(run_id)
 
 
 @celery.task()
@@ -693,43 +603,6 @@ def store_similarity_scores(similarity_scores, project_id, run_id):
     cache.remove_from_cache(dp_ids[0])
     cache.remove_from_cache(dp_ids[1])
     calculate_comparison_rate.delay()
-
-
-
-@celery.task()
-def persist_encrypted_mask(encrypted_mask_chunks, paillier_context, project_id, run_id):
-    # NB: This business with types is to circumvent Celery issue 3597:
-    # We're given either a single chunk (not in a list) or a list of chunks.
-    assert len(encrypted_mask_chunks) > 0, 'Got empty encrypted mask'
-    if isinstance(encrypted_mask_chunks[0], list):
-        # Flatten encrypted_mask_chunks
-        encrypted_mask = [mask for chunk in encrypted_mask_chunks for mask in chunk]
-    else:
-        encrypted_mask = encrypted_mask_chunks
-
-    db = connect_db()
-    with db.cursor() as cur:
-        logger.info("Serializing encrypted permutation data")
-        result_to_save = psycopg2.extras.Json(encrypted_mask)
-
-        logger.info("Inserting encrypted permutation data to db")
-        cur.execute("""UPDATE encrypted_permutation_masks SET
-                    raw = (%s)
-                    WHERE
-                    run = %s
-                    """,
-                    [result_to_save, run_id])
-    logger.debug("Committing encrypted permutation data to db")
-    db.commit()
-    logger.info("Encrypted mask has been saved")
-    mark_mapping_complete.delay(run_id)
-
-
-@celery.task()
-def encrypt_mask(values, pk, base):
-    logger.info("Encrypting a mask chunk")
-    public_key = load_public_key(pk)
-    return encrypt_vector(values, public_key, base)
 
 
 @celery.task()

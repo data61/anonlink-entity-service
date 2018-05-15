@@ -12,8 +12,6 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
 import concurrent.futures
-import phe.util
-from phe import paillier
 
 
 def bytes_to_list(python_object):
@@ -123,17 +121,6 @@ def deserialize_filters_concurrent(filters):
     return res
 
 
-def load_public_key(pk):
-    MALFORMED_ERROR = "Malformed Public Key"
-    for attr in {'key_ops', 'kty', 'alg'}:
-        assert attr in pk, MALFORMED_ERROR
-    assert pk['kty'] == "DAJ", "Unsupported key type"
-    assert pk['alg'] == "PAI-GN1", "Unsupported algorithm type"
-    assert 'n' in pk, MALFORMED_ERROR
-    n = phe.util.base64_to_int(pk['n'])
-    return paillier.PaillierPublicKey(n)
-
-
 def generate_scores(csv_text_stream):
     """
     Processes a TextIO stream of csv similarity scores into
@@ -157,14 +144,6 @@ def generate_scores(csv_text_stream):
     # Yield the last line without a trailing comma, instead close the json object
     yield '[{}]'.format(prev_line.strip())
     yield ']}'
-
-
-def check_public_key(pk):
-    """
-    Check we can unmarshal the public key, and that it has sufficient length.
-    """
-    publickey = load_public_key(pk)
-    return publickey.max_int >= 2 ** config.ENCRYPTION_MIN_KEY_LENGTH
 
 
 def get_similarity_scores(filename):

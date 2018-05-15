@@ -1,7 +1,6 @@
 from entityservice import app
 from entityservice.messages import INVALID_RESULT_TYPE_MESSAGE
 from entityservice.utils import generate_code
-from entityservice.serialization import check_public_key
 import entityservice.database as db
 
 
@@ -18,15 +17,13 @@ class Project(object):
 
     Exists before insertion into the database.
     """
-    def __init__(self, result_type, schema, name, notes, parties, public_key=None, paillier_context=None):
+    def __init__(self, result_type, schema, name, notes, parties):
         app.logger.info("Creating project codes")
         self.result_type = result_type
         self.schema = schema
         self.name = name
         self.notes = notes
         self.number_parties = parties
-        self.public_key = public_key
-        self.paillier_context = paillier_context
 
         self.project_id = generate_code()
         self.result_token = generate_code()
@@ -40,7 +37,7 @@ class Project(object):
         self.data = {}
         self.result = {}
 
-    VALID_RESULT_TYPES = {'permutation', 'mapping', 'permutation_unencrypted_mask', 'similarity_scores'}
+    VALID_RESULT_TYPES = {'permutations', 'mapping', 'similarity_scores'}
 
     @staticmethod
     def from_json(data):
@@ -49,15 +46,6 @@ class Project(object):
 
         if 'result_type' not in data or data['result_type'] not in Project.VALID_RESULT_TYPES:
             raise InvalidProjectParametersException(INVALID_RESULT_TYPE_MESSAGE)
-
-        if data['result_type'] == 'permutation' and 'public_key' not in data:
-            raise InvalidProjectParametersException('Paillier public key required when result_type="permutation"')
-
-        if data['result_type'] == 'permutation' and 'paillier_context' not in data:
-            raise InvalidProjectParametersException('Paillier context required when result_type="permutation"')
-
-        if data['result_type'] == 'permutation' and not check_public_key(data['public_key']):
-            raise InvalidProjectParametersException('Paillier public key required when result_type="permutation"')
 
         result_type = data['result_type']
         schema = data['schema']
@@ -82,12 +70,6 @@ class Project(object):
                                                self.notes
                                                )
 
-            if self.result_type == 'permutation':
-                app.logger.debug("Inserting public key and paillier context into db")
-                paillier_db_id = db.insert_paillier(cur, self.public_key, self.paillier_context)
-                # TODO: have paillier context to be associated with a project not a run?
-                #db.insert_empty_encrypted_mask(cur, project_id, paillier_db_id)
-
             app.logger.debug("New project created in DB: {}".format(project_id))
             app.logger.debug("Creating new data provider entries")
 
@@ -99,4 +81,3 @@ class Project(object):
 
             app.logger.debug("Committing transaction")
             conn.commit()
-

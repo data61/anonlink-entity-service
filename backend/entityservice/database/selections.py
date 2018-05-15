@@ -128,33 +128,6 @@ def get_run_result(db, resource_id):
     return query_result['result']
 
 
-def get_paillier(db, run_id):
-    """Given a run resource, return
-    the Paillier public key and context.
-    """
-    sql_paillier_id_query = """
-        SELECT paillier
-        FROM encrypted_permutation_masks
-        WHERE
-          run = %s
-        """
-    paillier_id = query_db(db, sql_paillier_id_query, [run_id], one=True)['paillier']
-
-    sql_select_paillier_info_query = """
-        SELECT public_key, context
-        FROM paillier
-        WHERE
-          id = %s
-        """
-
-    query_result = query_db(db, sql_select_paillier_info_query, [paillier_id], one=True)
-
-    pk = query_result['public_key']
-    cntx = query_result['context']
-
-    return pk, cntx
-
-
 def get_project_dataset_sizes(db, project_id):
 
     sql_query = """
@@ -263,27 +236,6 @@ def get_permutation_unencrypted_mask(db, project_id, run_id):
           run = %s
         """
     return query_db(db, sql_query, [project_id, run_id], one=True)['raw']
-
-
-def get_permutation_encrypted_result_with_mask(db, mapping_resource_id, dp_id):
-    # Query to fetch the full result for the 'permutation' result type
-    raise NotImplementedError("Maybe after another coffee.")
-    sql_query = """
-        SELECT
-          permutations.permutation AS permutation,
-          encrypted_permutation_masks.raw AS mask,
-          paillier.context AS paillier_context
-        FROM
-          encrypted_permutation_masks,
-          permutations,
-          paillier
-        WHERE
-          encrypted_permutation_masks.paillier = paillier.id AND
-          permutations.dp = %s AND
-          mapping = %s
-
-        """
-    return query_db(db, sql_query, [dp_id, mapping_resource_id], one=True)
 
 
 def get_similarity_scores_filename(db, run_id):
