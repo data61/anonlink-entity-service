@@ -13,10 +13,16 @@ Instead of a linkage project only having one result, we introduce a new sub-reso
 and clks from all data providers; and multiple runs can be created with different parameters. A run has a status and a
 result endpoint. Runs can be queued before the CLK data has been uploaded.
 
+We also introduced changes to the result types.
+The result type `permutation`, which was producing permutations and an encrypted mask, was removed. 
+And the result type `permutation_unecrypyted_mask` was renamed to `permutations`.
+
 Brief summary of API changes:
 - the `mapping` endpoint has been renamed to `projects`
 - To carry out a linkage computation you must post to a project's `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs
 - Results are now accessed under the `runs` endpoint: `/api/v1/project/<PROJECT_ID>/runs/<RUN_ID>/result`
+- result type `permutation_unecrypyted_mask` was renamed to `permutations`
+- result type `permutation` was removed
 
 For all the updated api details check the `Open API document <./api.html>`_.
 
