@@ -60,30 +60,34 @@ def create_project_no_data(requests, result_type='mapping'):
                                          'schema': {},
                                          'result_type': result_type,
                                      })
-    assert new_project_response.status_code == 201
+    assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.json())
     return new_project_response.json()
 
 
 def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping'):
+    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap)
+    return create_project_upload_data(requests, d1, d2, result_type=result_type)
+
+
+def create_project_upload_data(requests, clks1, clks2, result_type='mapping'):
     new_project_data = create_project_no_data(requests, result_type=result_type)
 
-    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap)
     r1 = requests.post(
         url + '/projects/{}/clks'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['update_tokens'][0]},
         json={
-            'clks': d1
+            'clks': clks1
         }
     )
     r2 = requests.post(
         url + '/projects/{}/clks'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['update_tokens'][1]},
         json={
-            'clks': d2
+            'clks': clks2
         }
     )
-    assert r1.status_code == 201
-    assert r2.status_code == 201
+    assert r1.status_code == 201, 'I received this instead: {}'.format(r1.json())
+    assert r2.status_code == 201, 'I received this instead: {}'.format(r2.json())
 
     return new_project_data, r1.json(), r2.json()
 
@@ -94,7 +98,7 @@ def get_run_status(requests, project, run_id, result_token = None):
     r = requests.get(url + '/projects/{}/runs/{}/status'.format(project_id, run_id),
                      headers={'Authorization': result_token})
 
-    assert r.status_code == 200
+    assert r.status_code == 200, 'I received this instead: {}'.format(r.json())
     return r.json()
 
 
