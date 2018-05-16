@@ -1,4 +1,5 @@
 import pickle
+import os
 
 import anonlink
 import pytest
@@ -13,7 +14,7 @@ from entityservice.tests.util import create_project_upload_data, post_run, get_r
 @pytest.fixture
 def the_truth(scope='module'):
     threshold = 0.8
-    with open('testdata/febrl4_clks_and_truth.pkl', 'rb') as f:
+    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testdata/febrl4_clks_and_truth.pkl'), 'rb') as f:
         # load prepared clks and ground truth from file
         filters_a, filters_b, entity_ids_a, entity_ids_b, clks_a, clks_b = pickle.load(f)
         # compute similarity scores with anonlink
