@@ -7,8 +7,12 @@ from entityservice.tests.util import create_project_upload_fake_data
 
 THROTTLE_SLEEP = 0.1
 DEFAULT_OVERLAPS = [0.2, 0.5, 0.9]
-DEFAULT_SIZES = itertools.product([100, 1000], repeat = 2)
-LONG_TEST_SIZES = itertools.product([10000, 100000, 1000000], repeat = 2)
+# NB: For some reason these things have to be actual lists rather than
+# generators, otherwise pytest won't generate the fixtures below
+# correctly (yes, this is the case even though the fixtures themselves
+# are still parameterised by generators -- go figure).
+DEFAULT_SIZES = list(itertools.product([100, 1000], repeat = 2))
+LONG_TEST_SIZES = list(itertools.product([10000, 100000, 1000000], repeat = 2))
 
 
 @pytest.fixture(scope='session')
