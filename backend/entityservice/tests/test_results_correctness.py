@@ -66,10 +66,10 @@ def test_permutation(requests, the_truth):
     perm_a_result = get_run_result(requests, project_data, run, result_token=r_a['receipt_token'], wait=False)
     perm_b_result = get_run_result(requests, project_data, run, result_token=r_b['receipt_token'], wait=False)
     # compare permutations and mask against mapping of the truth
-    idx_a_after_perm = reverse_permutation(perm_a_result['permutation'])
-    idx_b_after_perm = reverse_permutation(perm_b_result['permutation'])
+    permutation_a = inverse_of_permutation(perm_a_result['permutation'])
+    permutation_b = inverse_of_permutation(perm_b_result['permutation'])
     mapping = the_truth['mapping']
-    for a, b, m in zip(idx_a_after_perm, idx_b_after_perm, mask_result['mask']):
+    for a, b, m in zip(permutation_a, permutation_b, mask_result['mask']):
         if m == 1:
             assert mapping[a] == b
         else:
@@ -77,11 +77,17 @@ def test_permutation(requests, the_truth):
 
 
 def apply_permutation(items, permutation):
-    neworder = items.copy()
+    perm_items = items.copy()
     for item, newpos in zip(items, permutation):
-        neworder[newpos] = item
-    return neworder
+        perm_items[newpos] = item
+    return perm_items
 
 
-def reverse_permutation(permutations):
-    return apply_permutation(list(range(len(permutations))), permutations)
+def inverse_of_permutation(permutation):
+    """ Let's be 'p' the entry of a permutation 'P' at position 'i'.
+        The permutation is applied to a vector x as:
+        P(x) = y with y_p = x_i
+        (Take the element at position 'i' and put it at pos 'p')
+        The inverse of a permutation is defined as:
+        P^{}-1 (x) = y with y_i = x_p """
+    return apply_permutation(list(range(len(permutation))), permutation)
