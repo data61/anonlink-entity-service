@@ -102,12 +102,14 @@ def get_run_status(requests, project, run_id, result_token = None):
     return r.json()
 
 
-def wait_for_run_completion(requests, project, run_id, result_token, timeout=30):
+def wait_for_run_completion(requests, project, run_id, result_token, timeout=3):
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        if status['state'] not in {'queued', 'running'} or time.time() - start_time > timeout:
+        if status['state'] not in {'queued', 'running'}:
             break
+        if time.time() - start_time > timeout:
+            raise TimeoutError('waited for {}s'.format(timeout))
         time.sleep(0.1)
 
     return status
@@ -151,7 +153,8 @@ def get_run_result(requests, project, run_id, result_token = None, expected_stat
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
         final_status = wait_for_run_completion(requests, project, run_id, result_token)
-        assert final_status['state'] == 'completed'
+        state = final_status['state']
+        assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
 
     project_id = project['project_id']
     r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
