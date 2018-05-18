@@ -11,9 +11,9 @@ setproctitle
 minio==2.0.6
 ijson==2.3
 bitmath
-anonlink==0.8.0
+anonlink==0.8.1
 clkhash==0.10.1
 pytest
 iso8601
 connexion==1.4
-marshmallow==3.0.0b9
+marshmallow==3.0.0b10
