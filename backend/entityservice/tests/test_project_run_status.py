@@ -58,7 +58,7 @@ def test_run_status_with_clks(requests, example_mapping_projects):
     original_status = status
 
     # Wait and see if the progress changes. Project should easily be complete
-    time.sleep(5)
+    time.sleep(1)
     status = get_run_status(requests, project, run_id)
 
     assert has_progressed(original_status, status)
