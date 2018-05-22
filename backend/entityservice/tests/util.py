@@ -102,17 +102,31 @@ def get_run_status(requests, project, run_id, result_token = None):
     return r.json()
 
 
-def wait_for_run_completion(requests, project, run_id, result_token, timeout=3):
+def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, timeout=10):
+    """
+    Poll project/run_id until its status is one of the ok_statuses. Raise a
+    TimeoutError if we've waited more than timeout seconds.
+    """
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        if status['state'] not in {'queued', 'running'}:
+        if status['state'] in ok_statuses:
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
         time.sleep(0.1)
 
     return status
+
+
+def wait_for_run_completion(requests, project, run_id, result_token, timeout=10):
+    completion_statuses = {'completed'}
+    return wait_for_run(requests, project, run_id, result_token, completion_statuses, timeout)
+
+
+def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
+    not_queued_statuses = {'running', 'completed'}
+    return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
 def post_run(requests, project, threshold):
