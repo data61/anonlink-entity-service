@@ -23,18 +23,16 @@ def wait_while_queued(request, timeout=30, interval=1):
 
 
 # TODO: This is practically the same as test_project_runs.py::test_run_larger()
-def test_run_status_with_clks(requests, example_mapping_projects):
-    project = example_mapping_projects
-
-    run_id = post_run(requests, project, 0.9)
+def test_run_status_with_clks(requests, mapping_project):
+    run_id = post_run(requests, mapping_project, 0.9)
     time_posted = datetime.datetime.now(tz=datetime.timezone.utc)
-    status = get_run_status(requests, project, run_id)
+    status = get_run_status(requests, mapping_project, run_id)
 
     r = requests.get(url + '/projects/{}/runs/{}/status'.format(
-        project['project_id'],
+        mapping_project['project_id'],
         run_id
         ),
-        headers={'Authorization': project['result_token']})
+        headers={'Authorization': mapping_project['result_token']})
     r = wait_while_queued(r.request)
 
     assert r.status_code == 200
@@ -59,7 +57,7 @@ def test_run_status_with_clks(requests, example_mapping_projects):
 
     # Wait and see if the progress changes. Project should easily be complete
     time.sleep(1)
-    status = get_run_status(requests, project, run_id)
+    status = get_run_status(requests, mapping_project, run_id)
 
     assert has_progressed(original_status, status)
 
