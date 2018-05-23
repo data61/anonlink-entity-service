@@ -1,7 +1,7 @@
 from flask import request
 
 from entityservice import app, database as db
-from entityservice.async_worker import check_queued_runs
+from entityservice.async_worker import check_for_executable_runs
 from entityservice.database import get_db, get_runs
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
@@ -39,7 +39,7 @@ def post(project_id, run):
 
     if parties_contributed == project_object['parties']:
         app.logger.info("Scheduling task to carry out all runs for this project now")
-        check_queued_runs.delay(project_id)
+        check_for_executable_runs.delay(project_id)
     else:
         app.logger.info("Task queued but won't start until CLKs are all uploaded")
     return RunDescription().dump(run_model), 201
