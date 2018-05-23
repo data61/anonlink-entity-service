@@ -255,3 +255,13 @@ def get_similarity_scores_filename(db, run_id):
           run = %s
         """
     return query_db(db, sql_query, [run_id], one=True)['file']
+
+
+def get_run_status(db, run_id):
+    sql_query = """
+            SELECT state, stage, type, time_added, time_started, time_completed
+            FROM runs
+            WHERE
+              run_id = %s
+            """
+    return query_db(db, sql_query, [run_id], one=True)
