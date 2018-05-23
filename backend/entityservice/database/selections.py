@@ -75,7 +75,7 @@ def check_run_ready(db, run_id):
     """
     logger.info("Selecting run")
     sql_query = """
-        SELECT ready, state
+        SELECT runs.ready AS ready, state
         FROM runs
         WHERE
           run_id = %s
