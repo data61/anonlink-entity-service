@@ -1,5 +1,7 @@
 import entityservice.database as db
 from entityservice import app
+from entityservice import cache
+from entityservice.settings import Config as config
 from entityservice.utils import generate_code
 
 RUN_TYPES = {
@@ -27,6 +29,12 @@ RUN_TYPES = {
         }
     }
 }
+
+
+def progress_run_stage(conn, run_id):
+    db.progress_run_stage(conn, run_id)
+    # clear progress in cache
+    cache.clear_progress(run_id)
 
 
 class InvalidRunParametersException(ValueError):
