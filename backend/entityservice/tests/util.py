@@ -106,7 +106,8 @@ def wait_for_run_completion(requests, project, run_id, result_token, timeout=30)
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        if status['state'] not in {'queued', 'running'} or time.time() - start_time > timeout:
+        assert time.time() - start_time <= timeout, 'timeout reached in wait_for_run_completion'
+        if status['state'] not in {'queued', 'running'}:
             break
         time.sleep(0.1)
 
@@ -205,3 +206,24 @@ def has_progressed(status_old, status_new):
     if new_state == State.completed:
         return True
     return status_new['progress']['progress'] > status_old['progress']['progress']
+
+
+def is_run_status(status):
+    assert 'state' in status
+    run_state = State.from_string(status['state'])
+    assert run_state in State
+    assert 'stages' in status
+    assert 'time_added' in status
+    assert 'current_stage' in status
+    cur_stage = status['current_stage']
+
+    if run_state == State.completed:
+        assert 'time_started' in status
+        assert 'time_completed' in status
+    elif run_state == State.running:
+        assert 'time_started' in status
+
+    assert 'number' in cur_stage
+    if 'progress' in cur_stage:
+        assert 'absolute' in cur_stage['progress']
+        assert 'relative' in cur_stage['progress']
