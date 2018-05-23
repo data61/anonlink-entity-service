@@ -2,8 +2,7 @@ DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
-  'permutation',
-  'permutation_unencrypted_mask',
+  'permutations',
   'similarity_scores'
 );
 
@@ -156,32 +155,6 @@ CREATE TABLE permutation_masks (
   -- Store the mask in the json form how it will be served
   -- A list of [0, 1, 0...]
   raw     JSONB
-);
-
--- Information required for the encrypted types
-CREATE TABLE paillier (
-  id         SERIAL PRIMARY KEY,
-
-  -- The paillier public key if the result_type requires it
-  public_key JSONB,
-
-  -- Paillier context includes the base to use when encrypting the
-  -- mask.
-  context    JSONB
-
-);
-
--- Encrypted mask data
-CREATE TABLE encrypted_permutation_masks (
-  id       SERIAL PRIMARY KEY,
-
-  project  CHAR(48) REFERENCES projects (project_id),
-  run      CHAR(48) REFERENCES runs (run_id),
-
-  paillier INT REFERENCES paillier (id),
-
-  -- Store it in the json form how it will be served
-  raw      JSONB
 );
 
 -- Calculation metrics

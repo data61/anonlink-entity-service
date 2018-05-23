@@ -14,7 +14,7 @@ except ImportError:
     import ijson
 
 from entityservice import database as db
-from entityservice.serialization import load_public_key, generate_scores
+from entityservice.serialization import generate_scores
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream

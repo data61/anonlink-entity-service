@@ -5,7 +5,7 @@ Tutorials
    :maxdepth: 1
 
    Tutorial 01 - Mapping.ipynb
-   Tutorial 02 - Unencrypted Masked.ipynb
+   Tutorial 02 - Permutations.ipynb
    Tutorial 03 - Similarity Scores.ipynb
 
 
