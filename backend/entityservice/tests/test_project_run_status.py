@@ -5,7 +5,7 @@ import iso8601
 
 from entityservice.tests.config import url
 from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data
-from entityservice.tests.util import has_progressed, post_run, get_run_status
+from entityservice.tests.util import has_progressed, post_run, get_run_status, is_run_status
 
 
 def wait_while_queued(request, timeout=30, interval=1):
@@ -16,7 +16,7 @@ def wait_while_queued(request, timeout=30, interval=1):
     while datetime.datetime.now() - start < datetime.timedelta(seconds=timeout):
         with sessions.Session() as session:
             response = session.send(request)
-        if response.json().get('state') is not 'queued':
+        if response.json().get('state') != 'queued':
             return response
         time.sleep(interval)
     raise TimeoutError('timeout reached while waiting for this run to un-queue...')
@@ -40,28 +40,20 @@ def test_run_status_with_clks(requests):
     assert r.status_code == 200
     status = r.json()
 
-    assert 'state' in status
-    assert 'message' in status
-    assert 'time_added' in status
-    assert status['state'] in {'queued', 'running', 'completed'}
-
-    if status['state'] == 'running':
-        assert 'time_started' in status
-        assert 'progress' in status
-    elif status['state'] == 'completed':
-        assert 'time_started' in status
-        assert 'time_completed' in status
+    is_run_status(status)
+    assert status['state'] in ('running', 'completed')
 
     dt = iso8601.parse_date(status['time_added'])
 
     assert time_posted - dt < datetime.timedelta(seconds=5)
-    original_status = status
+    if status['state'] == 'running':
+        original_status = status
 
-    # Wait and see if the progress changes. Project should easily be complete
-    time.sleep(5)
-    status = get_run_status(requests, project, run_id)
+        # Wait and see if the progress changes. Project should easily be complete
+        time.sleep(5)
+        status = get_run_status(requests, project, run_id)
 
-    assert has_progressed(original_status, status)
+        assert has_progressed(original_status, status)
 
 
 def test_run_status_without_clks(requests):
@@ -70,7 +62,5 @@ def test_run_status_without_clks(requests):
     run_id = post_run(requests, project, 0.9)
     status = get_run_status(requests, project, run_id)
 
-    assert 'state' in status
-    assert 'message' in status
-    assert 'time_added' in status
+    is_run_status(status)
     assert status['state'] == 'queued'
