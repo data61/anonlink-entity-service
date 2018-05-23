@@ -17,6 +17,7 @@ from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, iterable_to_stream, fmt_bytes
+from entityservice.models.run import progress_run_stage as progress_stage
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -157,6 +158,8 @@ def check_queued_runs(project_id):
     logger.info("Creating tasks for {} queued runs".format(len(queued_runs)))
     for qr in queued_runs:
         logger.info(qr)
+        # run has reached a new stage
+        progress_stage(conn, qr['run_id'])
         compute_run.delay(project_id, qr['run_id'])
 
 
@@ -518,6 +521,8 @@ def aggregate_filter_chunks(sparse_result_groups, project_id, run_id, lenf1, len
         logger.info("Store the similarity scores in a CSV file")
         store_similarity_scores.delay(sparse_matrix, project_id, run_id)
     else:
+        # we promote the run to the next stage
+        progress_stage(db, run_id)
         # As we have the entire sparse matrix in memory at this point we directly compute the mapping
         # instead of re-serializing and calling another task
         logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
@@ -613,7 +618,7 @@ def calculate_comparison_rate():
         select run_id, project as project_id, (time_completed - time_started) as elapsed
         from runs
         WHERE
-          runs.ready=TRUE
+          runs.state='completed'
       """
 
     total_comparisons = 0
