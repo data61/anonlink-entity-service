@@ -121,7 +121,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
 
 def wait_for_run_completion(requests, project, run_id, result_token, timeout=10):
     completion_statuses = {'completed'}
-    return wait_for_run(requests, project, run_id, result_token, completion_statuses, timeout)
+    return wait_for_run(requests, project, run_id, completion_statuses, result_token, timeout)
 
 
 def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
