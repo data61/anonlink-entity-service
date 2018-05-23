@@ -94,6 +94,16 @@ def get_project(db, resource_id):
     return query_db(db, sql_query, [resource_id], one=True)
 
 
+def get_runs(db, project_id):
+    select_query = """
+      SELECT run_id, time_added, state 
+      FROM runs
+      WHERE
+        project = %s
+    """
+    return query_db(db, select_query, [project_id], one=False)
+
+
 def get_run(db, run_id):
     sql_query = """
         SELECT * from runs

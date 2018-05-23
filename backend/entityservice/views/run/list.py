@@ -2,7 +2,7 @@ from flask import request
 
 from entityservice import app, database as db
 from entityservice.async_worker import check_queued_runs
-from entityservice.database import get_db
+from entityservice.database import get_db, get_runs
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token
@@ -16,15 +16,7 @@ def get(project_id):
 
     app.logger.info("Authorized request to list runs")
 
-    select_query = '''
-      SELECT run_id, time_added, state 
-      FROM runs
-      WHERE
-        project = %s
-    '''
-    runs = db.query_db(get_db(), select_query, (project_id,))
-
-    return RunList().dump(runs)
+    return RunList().dump(get_runs(get_db(), project_id))
 
 
 def post(project_id, run):
