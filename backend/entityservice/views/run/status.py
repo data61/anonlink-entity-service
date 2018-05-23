@@ -55,7 +55,7 @@ def get(project_id, run_id):
         status["time_started"] = run_status['time_started']
         status["time_completed"] = run_status['time_completed']
         return completed().dump(status)
-    elif state == 'running' or state == 'queued':
+    elif state == 'running' or state == 'queued' or state == 'created':
         status["time_started"] = run_status['time_started']
         return running().dump(status)
     elif state == 'error':

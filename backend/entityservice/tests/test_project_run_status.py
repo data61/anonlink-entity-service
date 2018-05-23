@@ -8,15 +8,15 @@ from entityservice.tests.util import create_project_upload_fake_data, create_pro
 from entityservice.tests.util import has_progressed, post_run, get_run_status, is_run_status
 
 
-def wait_while_queued(request, timeout=30, interval=1):
+def wait_while_not_running(request, timeout=30, interval=1):
     """
-    waits for maximum 'timeout' seconds for this run to change its state to something other than 'queued'.
+    waits for maximum 'timeout' seconds for this run to change its state to something other than 'queued' or 'created'.
     """
     start = datetime.datetime.now()
     while datetime.datetime.now() - start < datetime.timedelta(seconds=timeout):
         with sessions.Session() as session:
             response = session.send(request)
-        if response.json().get('state') != 'queued':
+        if response.json().get('state') not in ('queued', 'created'):
             return response
         time.sleep(interval)
     raise TimeoutError('timeout reached while waiting for this run to un-queue...')
@@ -28,14 +28,13 @@ def test_run_status_with_clks(requests):
 
     run_id = post_run(requests, project, 0.9)
     time_posted = datetime.datetime.now(tz=datetime.timezone.utc)
-    status = get_run_status(requests, project, run_id)
 
     r = requests.get(url + '/projects/{}/runs/{}/status'.format(
         project['project_id'],
         run_id
         ),
         headers={'Authorization': project['result_token']})
-    r = wait_while_queued(r.request)
+    r = wait_while_not_running(r.request)
 
     assert r.status_code == 200
     status = r.json()
@@ -63,4 +62,4 @@ def test_run_status_without_clks(requests):
     status = get_run_status(requests, project, run_id)
 
     is_run_status(status)
-    assert status['state'] == 'queued'
+    assert status['state'] == 'created'

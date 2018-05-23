@@ -26,7 +26,7 @@ def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
         RETURNING run_id;
         """
     with db.cursor() as cur:
-        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'queued', type])
+        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'created', type])
     db.commit()
     return run_id
 

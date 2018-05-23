@@ -35,6 +35,7 @@ CREATE TABLE projects (
 );
 
 CREATE TYPE RUNSTATE AS ENUM (
+  'created',
   'queued',
   'running',
   'completed',
