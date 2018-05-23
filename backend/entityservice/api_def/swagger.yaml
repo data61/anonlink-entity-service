@@ -122,8 +122,8 @@ paths:
                 number_mappings: 3118
                 rate: 1793757
         '500':
-          description: | 
-            System is experiencing difficulties. 
+          description: |
+            System is experiencing difficulties.
             E.g. application can't connect to database.
   /version:
     get:
@@ -679,24 +679,24 @@ definitions:
     description: Details how far completed the run is.
     type: object
     properties:
-      total:
-        description: Number of comparisons required for this Match
+      absolute:
+        description: The progress of this stage in absolute terms
         type: number
         format: int
-      current:
+        minimum: 0
+      description:
+        type: string
+        description: oportunity to give those numbers some context, what are we counting here?
+      relative:
         type: number
-        format: int
-        description: How many comparisons have been carried out.
-      progress:
-        type: number
+        format: double
+        minimum: 0.0
+        maximum: 1.0
         description: |
-          Decimal between 0.0 and 1.0 indicating progress. For now equal to
-          current/total.
+          Decimal between 0.0 and 1.0 indicating the relative progress of this stage.
     required:
-      - total
-      - current
-      - progress
-
+      - absolute
+      - relative
 
   NewProject:
     description: Configuration for a new linkage project.
@@ -790,21 +790,29 @@ definitions:
     type: object
     discriminator: state
     properties:
-      message:
-        type: string
       time_added:
         type: string
         format: 'date-time'
       state:
         type: string
+        description: What state is the run in
         enum:
-          - completed
-          - running
-          - error
           - queued
+          - running
+          - completed
+          - error
+      stages:
+        type: number
+        format: int
+        minimum: 1
+        description: total number of stages for this run
+      current_stage:
+        $ref: '#/definitions/RunStage'
     required:
       - time_added
       - state
+      - stages
+      - current_stage
 
   completed:
     allOf:
@@ -821,6 +829,32 @@ definitions:
           - time_started
           - time_completed
 
+  error:
+    description: Describes the errored Run. Must contain a 'message', can provide more detail in 'detail'.
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          message:
+            type: string
+            description: short error message
+          detail:
+            type: string
+            description: detailed error message
+        required:
+          - message
+
+
+  queued:
+    allOf:
+      - $ref: '#/definitions/RunStatus'
+      - type: object
+        properties:
+          time_started:
+            type: string
+            format: 'date-time'
+
+
   running:
     allOf:
       - $ref: '#/definitions/RunStatus'
@@ -829,11 +863,25 @@ definitions:
           time_started:
             type: string
             format: 'date-time'
-          progress:
-            $ref: '#/definitions/RunProgress'
         required:
           - time_started
-          - progress
+
+
+  RunStage:
+    description: describes the current stage of a run
+    type: object
+    properties:
+      number:
+        type: number
+        minimum: 1
+        description: the number of the current stage, first stage has number 1
+      description:
+        type: string
+        description: describes the current stage in human readable form
+      progress:
+        $ref: '#/definitions/RunProgress'
+    required:
+      - number
 
   CLKUpload:
     description: Array of this party's Bloom Filters
