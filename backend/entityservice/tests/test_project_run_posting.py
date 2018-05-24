@@ -18,11 +18,9 @@ def test_posting_run_before_data_upload(requests):
     assert run['state'] == 'queued'
 
 
-def test_posting_run_after_data_upload(requests):
-    project, dp1, dp2 = create_project_upload_fake_data(requests, [1000, 1000])
-
-    run_id = post_run(requests, project, 0.95)
-    runs = get_runs(requests, project)
+def test_posting_run_after_data_upload(requests, mapping_project):
+    run_id = post_run(requests, mapping_project, 0.95)
+    runs = get_runs(requests, mapping_project)
 
     assert len(runs) == 1
     for run in runs:
