@@ -81,6 +81,9 @@ node('docker') {
           cd html
           zip -q -r n1-docs.zip *
           mv n1-docs.zip ../
+          cd ..
+          cp -r html/* frontend/static
+          docker build -t quay.io/n1analytics/entity-nginx:latest frontend
         '''
 
         archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
