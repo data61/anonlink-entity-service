@@ -27,9 +27,9 @@ node('docker') {
       try {
           sh """
             cd backend
-            docker build -t quay.io/n1analytics/entity-app .
+            docker build -t quay.io/n1analytics/entity-app:latest .
             cd ../frontend
-            docker build -t quay.io/n1analytics/entity-nginx .
+            docker build -t quay.io/n1analytics/entity-nginx:latest .
             cd ../docs
             docker build -t quay.io/n1analytics/entity-app:doc-builder .
           """
