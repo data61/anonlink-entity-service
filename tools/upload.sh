@@ -10,7 +10,7 @@ else
 fi
 
 export ENTITY_APP_LABEL=$(python get_docker_tag.py $BRANCH_NAME app)
-export ENTITY_NGINX_LABEL=$(python get_docker_tag.py $BRANCH_NAME app)
+export ENTITY_NGINX_LABEL=$(python get_docker_tag.py $BRANCH_NAME nginx)
 
 echo "Tagging images: $ENTITY_APP_LABEL and $ENTITY_NGINX_LABEL";
 
