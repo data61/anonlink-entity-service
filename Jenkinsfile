@@ -132,6 +132,7 @@ node('helm && kubectl') {
     NAMESPACE = "default"
 
     def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
+    def NGINXTAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
 
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
@@ -139,10 +140,27 @@ node('helm && kubectl') {
         try {
           timeout(time: 15, unit: 'MINUTES') {
             sh """
+                cat <<EOF > test-versions.yaml
+api:
+  www:
+    image:
+      tag: "${NGINXTAG}"
+  app:
+    image:
+      tag: "${TAG}"
+  dbinit:
+    image:
+      tag: "${TAG}"
+workers:
+  image:
+    tag: "${TAG}"
+EOF
+
+
                 cd deployment/entity-service
                 helm dependency update
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
-                    -f values.yaml -f minimal-values.yaml -f versions.yaml \
+                    -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
                     --set api.ingress.enabled=false
@@ -190,7 +208,7 @@ spec:
       imagePullSecrets:
       - name: n1-quay-pull-secret
 EOF
-                sleep 10
+                sleep 30
             """
 
                 def jobPodName = sh(script: """
