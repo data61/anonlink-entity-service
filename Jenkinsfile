@@ -143,7 +143,7 @@ node('helm && kubectl') {
         try {
           timeout(time: 15, unit: 'MINUTES') {
             sh """
-                cat <<EOF > test-versions.yaml
+                cat <<EOF > deployment/entity-service/test-versions.yaml
 api:
   www:
     image:
