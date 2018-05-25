@@ -107,7 +107,7 @@ def wait_for_run_completion(requests, project, run_id, result_token, timeout=30)
     while True:
         status = get_run_status(requests, project, run_id, result_token)
         assert time.time() - start_time <= timeout, 'timeout reached in wait_for_run_completion'
-        if status['state'] not in {'queued', 'running'}:
+        if status['state'] not in {'created', 'queued', 'running'}:
             break
         time.sleep(0.1)
 
@@ -169,13 +169,16 @@ def _check_new_project_response_fields(new_project_data):
 
 
 class State(IntEnum):
+    created = -1
     queued = 0
     running = 1
     completed = 2
 
     @staticmethod
     def from_string(state):
-        if state == 'queued':
+        if state == 'created':
+            return State.created
+        elif state == 'queued':
             return State.queued
         elif state == 'running':
             return State.running

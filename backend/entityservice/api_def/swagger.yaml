@@ -670,6 +670,7 @@ definitions:
     type: string
     description: What state is the run in
     enum:
+      - created
       - queued
       - running
       - completed
@@ -797,6 +798,7 @@ definitions:
         type: string
         description: What state is the run in
         enum:
+          - created
           - queued
           - running
           - completed
@@ -853,6 +855,11 @@ definitions:
           time_started:
             type: string
             format: 'date-time'
+
+
+  started:
+    allOf:
+      - $ref: '#/definitions/queued'
 
 
   running:

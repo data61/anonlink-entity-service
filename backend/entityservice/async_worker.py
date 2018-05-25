@@ -133,34 +133,30 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     if clks_uploaded_to_project(project_id):
         logger.info("Project {} - All parties data present. Scheduling any queued runs".format(project_id))
-        check_queued_runs.delay(project_id)
+        check_for_executable_runs.delay(project_id)
 
 
 @celery.task()
-def check_queued_runs(project_id):
+def check_for_executable_runs(project_id):
     """
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs.
     """
-    logger.warning("Checking for runs that need to be executed")
+    logger.warning("Checking for runs that need to be executed for project {}".format(project_id))
 
     conn = connect_db()
 
-    select_query = '''
-        SELECT run_id, time_added, state 
-        FROM runs
-        WHERE
-          project = %s AND
-          state = %s
-    '''
-    queued_runs = db.query_db(conn, select_query, (project_id, 'queued'))
+    if clks_uploaded_to_project(project_id):
+        new_runs = get_created_runs_and_queue(conn, project_id)
 
-    logger.info("Creating tasks for {} queued runs".format(len(queued_runs)))
-    for qr in queued_runs:
-        logger.info(qr)
-        # run has reached a new stage
-        progress_stage(conn, qr['run_id'])
-        compute_run.delay(project_id, qr['run_id'])
+        if new_runs is not None:
+            logger.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
+            for qr in new_runs:
+                run_id = qr[0]
+                logger.info('queueing run {} for computation'.format(qr))
+                # run has reached a new stage
+                progress_stage(conn, run_id)
+                compute_run.delay(project_id, run_id)
 
 
 @celery.task()

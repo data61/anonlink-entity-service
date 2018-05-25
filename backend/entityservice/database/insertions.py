@@ -26,7 +26,7 @@ def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
         RETURNING run_id;
         """
     with db.cursor() as cur:
-        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'queued', type])
+        run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'created', type])
     db.commit()
     return run_id
 
@@ -151,3 +151,24 @@ def progress_run_stage(db, run_id):
             """
         cur.execute(sql_query, [run_id])
     db.commit()
+
+
+def get_created_runs_and_queue(db, project_id):
+    """
+    returns the run_ids of all runs for this project who's state is 'created' and sets the state of those runs
+    to 'queued'.
+    This is necessary to avoid a race condition which led to executing a run twice. (#194)
+    """
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              state = 'queued'
+            WHERE
+              state = 'created' AND project = %s
+            RETURNING
+              run_id;
+        """
+        cur.execute(sql_query, [project_id])
+        res = cur.fetchall()
+    db.commit()
+    return res

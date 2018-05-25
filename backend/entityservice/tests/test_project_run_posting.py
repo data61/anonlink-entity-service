@@ -15,7 +15,7 @@ def test_posting_run_before_data_upload(requests):
     assert 'run_id' in run
     assert 'time_added' in run
     assert 'state' in run
-    assert run['state'] == 'queued'
+    assert run['state'] == 'created'
 
 
 def test_posting_run_after_data_upload(requests):
