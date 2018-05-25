@@ -163,10 +163,10 @@ def get_run(requests, project, run_id, expected_status = 200):
     return req.json()
 
 
-def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True):
+def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=30):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
-        final_status = wait_for_run_completion(requests, project, run_id, result_token)
+        final_status = wait_for_run_completion(requests, project, run_id, result_token, timeout)
         state = final_status['state']
         assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
 
