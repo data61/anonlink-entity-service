@@ -220,11 +220,12 @@ def has_progressed(status_old, status_new):
     elif old_state > new_state:
         raise ValueError("progress seems to go backwards! What's going on???")
     # now both states are the same
-    if new_state == State.queued:
+    if new_state in (State.queued, State.created):
         return False
     if new_state == State.completed:
         return True
-    return status_new['progress']['progress'] > status_old['progress']['progress']
+    if new_state == State.running:
+        return status_new['progress']['progress'] > status_old['progress']['progress']
 
 
 def is_run_status(status):
