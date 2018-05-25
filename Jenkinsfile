@@ -141,7 +141,7 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
         try {
-          timeout(time: 15, unit: 'MINUTES') {
+          timeout(time: 30, unit: 'MINUTES') {
             sh """
                 cat <<EOF > deployment/entity-service/test-versions.yaml
 api:
@@ -163,7 +163,7 @@ EOF
                 cd deployment/entity-service
                 helm dependency update
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
-                    -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
+                    -f values.yaml -f test-versions.yaml \
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
                     --set api.ingress.enabled=false
@@ -207,7 +207,7 @@ spec:
           - "-m"
           - "pytest"
           - "entityservice/tests"
-          - "--quick"
+          - "--long"
       imagePullSecrets:
       - name: n1-quay-pull-secret
 EOF
@@ -223,7 +223,6 @@ EOF
                 # Watch the output
                 kubectl logs -f $jobPodName
 
-
                 # Clean up
                 kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
@@ -233,7 +232,7 @@ EOF
           } catch(error) { // timeout reached or input false
             sh """
             helm delete --purge ${DEPLOYMENT}
-            # kubectl delete job ${DEPLOYMENT}-test
+            kubectl delete job -lapp=${DEPLOYMENT}-entity-service
             """
 
             throw error
