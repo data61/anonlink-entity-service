@@ -166,6 +166,7 @@ EOF
                     -f values.yaml -f test-versions.yaml \
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
+                    --set workers.replicaCount=2 \
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to assign an IP to the service, then create a new job to test it
