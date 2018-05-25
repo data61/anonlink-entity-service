@@ -22,9 +22,11 @@ def get(project_id, run_id):
 
     is_ready, state = db.check_run_ready(dbinstance, run_id)
 
-    # Check that the run is complete, otherwise 404
-    if not is_ready:
-        return {'detail': 'run is not complete'}, 404
+    # Check that the run is not queued or running, otherwise 404
+    if state in {'queued', 'running'}:
+        safe_fail_request(404, message='run is not complete')
+    elif state == 'error':
+        safe_fail_request(500, message='Error during computation of run')
 
     result_type = get_project_column(dbinstance, project_id, 'result_type')
 
