@@ -30,6 +30,7 @@ def get_dataprovider_ids(db, project_id):
         WHERE
           dataproviders.project = %s AND
           dataproviders.uploaded = TRUE
+        ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id])
     dp_ids = list(map(lambda d: d['id'], query_result))
@@ -148,6 +149,7 @@ def get_project_dataset_sizes(db, project_id):
         WHERE
           bloomingdata.dp=dataproviders.id AND
           dataproviders.project=%s
+        ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id], one=False)
     return [r['size'] for r in query_result]

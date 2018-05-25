@@ -94,7 +94,6 @@ def test_create_then_describe_noauth(requests):
         'result_type': 'mapping',
     }).json()
 
-    print("Checking mapping status without authentication token")
     r = requests.get(url + '/projects/{}'.format(new_project['project_id']))
     assert 400 == r.status_code
 

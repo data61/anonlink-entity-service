@@ -102,16 +102,31 @@ def get_run_status(requests, project, run_id, result_token = None):
     return r.json()
 
 
-def wait_for_run_completion(requests, project, run_id, result_token, timeout=30):
+def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, timeout=10):
+    """
+    Poll project/run_id until its status is one of the ok_statuses. Raise a
+    TimeoutError if we've waited more than timeout seconds.
+    """
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        assert time.time() - start_time <= timeout, 'timeout reached in wait_for_run_completion'
-        if status['state'] not in {'created', 'queued', 'running'}:
+        if status['state'] in ok_statuses:
             break
+        if time.time() - start_time > timeout:
+            raise TimeoutError('waited for {}s'.format(timeout))
         time.sleep(0.1)
 
     return status
+
+
+def wait_for_run_completion(requests, project, run_id, result_token, timeout=10):
+    completion_statuses = {'completed'}
+    return wait_for_run(requests, project, run_id, completion_statuses, result_token, timeout)
+
+
+def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
+    not_queued_statuses = {'running', 'completed'}
+    return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
 def post_run(requests, project, threshold):
@@ -152,7 +167,8 @@ def get_run_result(requests, project, run_id, result_token = None, expected_stat
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
         final_status = wait_for_run_completion(requests, project, run_id, result_token)
-        assert final_status['state'] == 'completed'
+        state = final_status['state']
+        assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
 
     project_id = project['project_id']
     r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
