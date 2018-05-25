@@ -252,9 +252,15 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
 
     mapping_future = chord(
         (compute_filter_similarity.s(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
-        aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2)
+        aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2).on_error(on_chord_error.s(project_id, run_id))
     ).apply_async()
 
+
+@celery.task()
+def on_chord_error(request, exc, traceback):
+    logger.warning("Chord error occurred :-/")
+    logger.warning('Task {0!r} raised error: {1!r}'.format(request.id, exc))
+    logger.warning(traceback)
 
 @celery.task()
 def save_and_permute(similarity_result, project_id, run_id):
