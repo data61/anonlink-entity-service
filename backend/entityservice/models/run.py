@@ -10,7 +10,7 @@ RUN_TYPES = {
         'stage_descriptions': {
             1: 'waiting for CLKs',
             2: 'compute similarity scores',
-            3: 'compute mapping'
+            3: 'compute output'
         },
         'stage_progress_descriptions': {
             1: 'number of parties already contributed',
