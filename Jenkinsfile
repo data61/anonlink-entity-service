@@ -170,7 +170,7 @@ EOF
                     --set api.ingress.enabled=false
 
                 # give the cluster a chance to assign an IP to the service, then create a new job to test it
-                sleep 90
+                sleep 120
                 """
 
             def serviceIP = sh(script: """

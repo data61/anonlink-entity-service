@@ -75,6 +75,7 @@ def create_project_response(requests, size, overlap, result_type):
     })
     return project
 
+
 def create_projects(result_type, sizes, overlaps):
     rq = next(requests())
     projects = []
@@ -82,9 +83,11 @@ def create_projects(result_type, sizes, overlaps):
     print("Generating {} '{}' projects ".format(len(params), result_type), end='', flush=True)
     for size, overlap in params:
         projects.append(create_project_response(rq, size, overlap, result_type))
+        time.sleep(THROTTLE_SLEEP)
         print('.', end='', flush=True)
     print()
     return projects
+
 
 def pytest_generate_tests(metafunc):
     """
