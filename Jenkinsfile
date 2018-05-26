@@ -171,8 +171,8 @@ EOF
                     --set minio.persistence.size="4Gi" \
                     --set api.ingress.enabled=false
 
-                # give the cluster a chance to assign an IP to the service, then create a new job to test it
-                sleep 120
+                # give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
+                sleep 300
                 """
 
             def serviceIP = sh(script: """
