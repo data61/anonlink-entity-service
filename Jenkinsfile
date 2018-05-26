@@ -164,6 +164,7 @@ EOF
                 helm dependency update
                 helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f test-versions.yaml \
+                    --set api.app.debug=true \
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
                     --set workers.replicaCount=2 \
