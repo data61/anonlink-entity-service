@@ -17,6 +17,7 @@ from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, iterable_to_stream, fmt_bytes
+from entityservice.models.run import progress_run_stage as progress_stage
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -132,32 +133,30 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     if clks_uploaded_to_project(project_id):
         logger.info("Project {} - All parties data present. Scheduling any queued runs".format(project_id))
-        check_queued_runs.delay(project_id)
+        check_for_executable_runs.delay(project_id)
 
 
 @celery.task()
-def check_queued_runs(project_id):
+def check_for_executable_runs(project_id):
     """
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs.
     """
-    logger.warning("Checking for runs that need to be executed")
+    logger.warning("Checking for runs that need to be executed for project {}".format(project_id))
 
     conn = connect_db()
 
-    select_query = '''
-        SELECT run_id, time_added, state 
-        FROM runs
-        WHERE
-          project = %s AND
-          state = %s
-    '''
-    queued_runs = db.query_db(conn, select_query, (project_id, 'queued'))
+    if clks_uploaded_to_project(project_id):
+        new_runs = get_created_runs_and_queue(conn, project_id)
 
-    logger.info("Creating tasks for {} queued runs".format(len(queued_runs)))
-    for qr in queued_runs:
-        logger.info(qr)
-        compute_run.delay(project_id, qr['run_id'])
+        if new_runs is not None:
+            logger.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
+            for qr in new_runs:
+                run_id = qr[0]
+                logger.info('queueing run {} for computation'.format(qr))
+                # run has reached a new stage
+                progress_stage(conn, run_id)
+                compute_run.delay(project_id, run_id)
 
 
 @celery.task()
@@ -518,6 +517,8 @@ def aggregate_filter_chunks(sparse_result_groups, project_id, run_id, lenf1, len
         logger.info("Store the similarity scores in a CSV file")
         store_similarity_scores.delay(sparse_matrix, project_id, run_id)
     else:
+        # we promote the run to the next stage
+        progress_stage(db, run_id)
         # As we have the entire sparse matrix in memory at this point we directly compute the mapping
         # instead of re-serializing and calling another task
         logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
@@ -613,7 +614,7 @@ def calculate_comparison_rate():
         select run_id, project as project_id, (time_completed - time_started) as elapsed
         from runs
         WHERE
-          runs.ready=TRUE
+          runs.state='completed'
       """
 
     total_comparisons = 0

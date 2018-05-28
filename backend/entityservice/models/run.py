@@ -1,7 +1,40 @@
-from entityservice import app
-from entityservice.utils import generate_code
 import entityservice.database as db
+from entityservice import app
+from entityservice import cache
 from entityservice.settings import Config as config
+from entityservice.utils import generate_code
+
+RUN_TYPES = {
+    'default': {
+        'stages': 3,
+        'stage_descriptions': {
+            1: 'waiting for CLKs',
+            2: 'compute similarity scores',
+            3: 'compute output'
+        },
+        'stage_progress_descriptions': {
+            1: 'number of parties already contributed',
+            2: 'number of already computed similarity scores'
+        }
+    },
+    'no_mapping': {
+        'stages': 2,
+        'stage_descriptions': {
+            1: 'waiting for CLKs',
+            2: 'compute similarity scores'
+        },
+        'stage_progress_descriptions': {
+            1: 'number of parties already contributed',
+            2: 'number of already computed similarity scores'
+        }
+    }
+}
+
+
+def progress_run_stage(conn, run_id):
+    db.progress_run_stage(conn, run_id)
+    # clear progress in cache
+    cache.clear_progress(run_id)
 
 
 class InvalidRunParametersException(ValueError):
@@ -24,6 +57,9 @@ class Run(object):
         self.threshold = threshold
         app.logger.info("Creating run id")
         self.run_id = generate_code()
+        self.type = 'no_mapping' \
+            if db.get_project_column(db.get_db(), project_id, 'result_type') == 'similarity_scores' \
+            else 'default'
 
     @staticmethod
     def from_json(data, project_id):
@@ -40,5 +76,6 @@ class Run(object):
 
     def save(self, conn):
         app.logger.debug("Saving run in database")
-        db.insert_new_run(conn, self.run_id, self.project_id, self.threshold, self.name, self.notes)
+        db.insert_new_run(db=conn, run_id=self.run_id, project_id=self.project_id, threshold=self.threshold,
+                          name=self.name, notes=self.notes, type=self.type)
         app.logger.debug("New run created in DB: {}".format(self.run_id))

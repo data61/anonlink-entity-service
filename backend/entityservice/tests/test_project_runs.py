@@ -3,8 +3,8 @@ import time
 
 import iso8601
 
-from entityservice.tests.util import create_project_upload_fake_data, has_progressed, post_run, get_run_status
-
+from entityservice.tests.util import create_project_upload_fake_data, has_progressed, post_run, get_run_status, \
+    is_run_status
 
 def test_run_larger(requests):
     size_1, size_2 = 100000, 10000
@@ -13,10 +13,7 @@ def test_run_larger(requests):
     run_id = post_run(requests, project, 0.9)
     status = get_run_status(requests, project, run_id)
 
-    assert 'state' in status
-    assert 'message' in status
-    assert 'time_added' in status
-    assert status['state'] in {'queued', 'running', 'completed'}
+    is_run_status(status)
 
     original_status = status
 
@@ -27,4 +24,3 @@ def test_run_larger(requests):
     time.sleep(2 + size_1 * size_2 / 10_000_000)
     status = get_run_status(requests, project, run_id)
     assert has_progressed(original_status, status)
-
