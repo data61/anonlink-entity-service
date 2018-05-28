@@ -20,7 +20,7 @@ def get(project_id, run_id):
     app.logger.info("request to access run result authorized")
     dbinstance = get_db()
 
-    is_ready, state = db.check_run_ready(dbinstance, run_id)
+    state = db.get_run_state(dbinstance, run_id)
 
     # Check that the run is not queued or running, otherwise 404
     if state in {'queued', 'running'}:
