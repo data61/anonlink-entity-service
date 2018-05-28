@@ -21,9 +21,9 @@ def get(project_id, run_id):
     dbinstance = get_db()
 
     state = db.get_run_state(dbinstance, run_id)
-
+    app.logger.info("run state is '{}'".format(state))
     # Check that the run is not queued or running, otherwise 404
-    if state in {'queued', 'running'}:
+    if state in {'created', 'queued', 'running'}:
         safe_fail_request(404, message='run is not complete')
     elif state == 'error':
         safe_fail_request(500, message='Error during computation of run')
