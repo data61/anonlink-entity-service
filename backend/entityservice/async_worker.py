@@ -142,7 +142,7 @@ def check_for_executable_runs(project_id):
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs.
     """
-    logger.warning("Checking for runs that need to be executed for project {}".format(project_id))
+    logger.info("Checking for runs that need to be executed for project {}".format(project_id))
 
     conn = connect_db()
 
