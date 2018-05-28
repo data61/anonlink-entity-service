@@ -119,7 +119,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
     return status
 
 
-def wait_for_run_completion(requests, project, run_id, result_token, timeout=10):
+def wait_for_run_completion(requests, project, run_id, result_token, timeout=20):
     completion_statuses = {'completed'}
     return wait_for_run(requests, project, run_id, completion_statuses, result_token, timeout)
 
@@ -185,13 +185,16 @@ def _check_new_project_response_fields(new_project_data):
 
 
 class State(IntEnum):
+    created = -1
     queued = 0
     running = 1
     completed = 2
 
     @staticmethod
     def from_string(state):
-        if state == 'queued':
+        if state == 'created':
+            return State.created
+        elif state == 'queued':
             return State.queued
         elif state == 'running':
             return State.running
@@ -201,24 +204,45 @@ class State(IntEnum):
 
 def has_progressed(status_old, status_new):
     """
-    state change counts as progress, also if both are running, we compare progress. If both are finished we return
-    True.
+    stage change counts as progress, also if both runs are in the same stage, we compare progress. If no progress is
+    available, we return True.
 
     :param status_old: json describing a run status as returned from the '/projects/{project_id}/runs/{run_id}/status'
                        endpoint
     :param status_new: same as above
     :return: True if there has been any progress, False otherwise
     """
-    old_state = State.from_string(status_old['state'])
-    new_state = State.from_string(status_new['state'])
+    old_stage = status_old['current_stage']['number']
+    new_stage = status_new['current_stage']['number']
 
-    if old_state < new_state:
+    if old_stage < new_stage:
         return True
-    elif old_state > new_state:
+    elif old_stage > new_stage:
         raise ValueError("progress seems to go backwards! What's going on???")
-    # now both states are the same
-    if new_state == State.queued:
-        return False
-    if new_state == State.completed:
+    # both in the same stage then
+    if 'progress' in status_old['current_stage'] and 'progress' in status_new['current_stage']:
+        return status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']
+    else:
+        # how do you measure progress in that case??
         return True
-    return status_new['progress']['progress'] > status_old['progress']['progress']
+
+
+def is_run_status(status):
+    assert 'state' in status
+    run_state = State.from_string(status['state'])
+    assert run_state in State
+    assert 'stages' in status
+    assert 'time_added' in status
+    assert 'current_stage' in status
+    cur_stage = status['current_stage']
+
+    if run_state == State.completed:
+        assert 'time_started' in status
+        assert 'time_completed' in status
+    elif run_state == State.running:
+        assert 'time_started' in status
+
+    assert 'number' in cur_stage
+    if 'progress' in cur_stage:
+        assert 'absolute' in cur_stage['progress']
+        assert 'relative' in cur_stage['progress']

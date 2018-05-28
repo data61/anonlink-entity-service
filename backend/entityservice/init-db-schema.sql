@@ -35,6 +35,7 @@ CREATE TABLE projects (
 );
 
 CREATE TYPE RUNSTATE AS ENUM (
+  'created',
   'queued',
   'running',
   'completed',
@@ -58,9 +59,9 @@ CREATE TABLE runs (
 
   chunk_size     BIGINT           NOT NULL DEFAULT -1,
 
-  -- if the entity matching has been completed
-  ready          BOOL             NOT NULL DEFAULT FALSE,
   state          RUNSTATE         NOT NULL,
+  stage          SMALLINT  DEFAULT 1,
+  type           TEXT             NOT NULL,
 
   -- When was this run started/completed
   time_added     TIMESTAMP                 DEFAULT current_timestamp,
@@ -68,6 +69,14 @@ CREATE TABLE runs (
   time_completed TIMESTAMP        NULL
 
 );
+
+
+CREATE OR REPLACE FUNCTION ready(runs)
+-- if the entity matching has been completed
+RETURNS bool AS $$
+  SELECT $1.state = 'completed'
+$$ STABLE LANGUAGE SQL;
+
 
 CREATE TABLE dataproviders (
   id       SERIAL PRIMARY KEY,

@@ -79,7 +79,13 @@ def get_progress(run_id):
     if res is not None:
         return int(res)
     else:
-        return 0
+        return None
+
+
+def clear_progress(run_id):
+    r = connect_to_redis()
+    key = 'progress-{}'.format(run_id)
+    r.delete(key)
 
 
 def get_status():
@@ -96,5 +102,3 @@ def set_status(status):
     logger.debug("Saving the service status to redis cache")
     r = connect_to_redis()
     r.setex('entityservice-status', 30, pickle.dumps(status))
-
-
