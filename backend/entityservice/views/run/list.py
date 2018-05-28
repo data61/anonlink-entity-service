@@ -1,8 +1,8 @@
 from flask import request
 
 from entityservice import app, database as db
-from entityservice.async_worker import check_queued_runs
-from entityservice.database import get_db
+from entityservice.async_worker import check_for_executable_runs
+from entityservice.database import get_db, get_runs
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token
@@ -16,15 +16,7 @@ def get(project_id):
 
     app.logger.info("Authorized request to list runs")
 
-    select_query = '''
-      SELECT run_id, time_added, state 
-      FROM runs
-      WHERE
-        project = %s
-    '''
-    runs = db.query_db(get_db(), select_query, (project_id,))
-
-    return RunList().dump(runs)
+    return RunList().dump(get_runs(get_db(), project_id))
 
 
 def post(project_id, run):
@@ -47,7 +39,7 @@ def post(project_id, run):
 
     if parties_contributed == project_object['parties']:
         app.logger.info("Scheduling task to carry out all runs for this project now")
-        check_queued_runs.delay(project_id)
+        check_for_executable_runs.delay(project_id)
     else:
         app.logger.info("Task queued but won't start until CLKs are all uploaded")
     return RunDescription().dump(run_model), 201

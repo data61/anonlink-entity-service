@@ -46,15 +46,22 @@ class RunList(ListSchema):
 
 
 class RunProgress(Schema):
-    total = fields.Integer(required=True)
-    current = fields.Integer(required=True)
-    progress = fields.Float(required=True)
+    absolute = fields.Integer(required=True)
+    description = fields.String()
+    relative = fields.Float(required=True)
+
+
+class RunStage(Schema):
+    number = fields.Integer(required=True)
+    description = fields.String()
+    progress = fields.Nested(RunProgress)
 
 
 class RunStatus(Schema):
-    message = fields.String()
     time_added = fields.DateTime(format='iso8601', required=True)
     state = fields.String(required=True)
+    stages = fields.Integer(required=True)
+    current_stage = fields.Nested(RunStage)
 
 
 class completed(RunStatus):
@@ -62,6 +69,14 @@ class completed(RunStatus):
     time_completed = fields.DateTime(format='iso8601', required=True)
 
 
+class queued(RunStatus):
+    time_started = fields.DateTime(format='iso8601', required=True)
+
+
 class running(RunStatus):
     time_started = fields.DateTime(format='iso8601', required=True)
-    progress = fields.Nested(RunProgress)
+
+
+class error(RunStatus):
+    message = fields.String(required=True)
+    detail = fields.String()

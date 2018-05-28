@@ -73,10 +73,12 @@ def check_run_ready(db, run_id):
     """See if the given run has indicated it is ready.
 
     Returns the boolean, and the state
+
+    ('runs.ready' calls a function in the database called ready. It's the same as ready(runs))
     """
     logger.info("Selecting run")
     sql_query = """
-        SELECT ready, state
+        SELECT runs.ready AS ready, state
         FROM runs
         WHERE
           run_id = %s
@@ -93,6 +95,16 @@ def get_project(db, resource_id):
         WHERE project_id = %s
         """
     return query_db(db, sql_query, [resource_id], one=True)
+
+
+def get_runs(db, project_id):
+    select_query = """
+      SELECT run_id, time_added, state 
+      FROM runs
+      WHERE
+        project = %s
+    """
+    return query_db(db, select_query, [project_id], one=False)
 
 
 def get_run(db, run_id):
@@ -247,3 +259,13 @@ def get_similarity_scores_filename(db, run_id):
           run = %s
         """
     return query_db(db, sql_query, [run_id], one=True)['file']
+
+
+def get_run_status(db, run_id):
+    sql_query = """
+            SELECT state, stage, type, time_added, time_started, time_completed
+            FROM runs
+            WHERE
+              run_id = %s
+            """
+    return query_db(db, sql_query, [run_id], one=True)
