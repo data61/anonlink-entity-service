@@ -70,12 +70,6 @@ def get_number_parties_uploaded(db, resource_id):
 
 
 def get_run_state(db, run_id):
-    """See if the given run has indicated it is ready.
-
-    Returns the boolean, and the state
-
-    ('runs.ready' calls a function in the database called ready. It's the same as ready(runs))
-    """
     logger.info("Selecting run")
     sql_query = """
         SELECT state
