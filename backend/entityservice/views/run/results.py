@@ -8,22 +8,17 @@ from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_autho
 
 
 def get(project_id, run_id):
-
     app.logger.info("Checking for results of run {}".format(run_id))
-
     # Check the project and run resources exist
     abort_if_run_doesnt_exist(project_id, run_id)
-
     # Check the caller has a valid results token.
     token = request.headers.get('Authorization')
-
     app.logger.info("request to access run result authorized")
     dbinstance = get_db()
-
     state = db.get_run_state(dbinstance, run_id)
     app.logger.info("run state is '{}'".format(state))
-    # Check that the run is not queued or running, otherwise 404
-    if state == 'created':
+    # Check that the run is not in a terminal state, otherwise 404
+    if state == 'completed':
         return get_result(dbinstance, project_id, run_id, token)
     elif state == 'error':
         safe_fail_request(500, message='Error during computation of run')
