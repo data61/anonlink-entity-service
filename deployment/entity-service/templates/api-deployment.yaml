@@ -48,25 +48,20 @@ spec:
           imagePullPolicy: {{ .Values.api.app.pullPolicy }}
           resources:
 {{ toYaml .Values.api.app.resources | indent 12 }}
+          envFrom:
+          - configMapRef:
+              name: {{ template "es.fullname" . }}
           env:
-            - name: REDIS_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: redisPassword
-            - name: DATABASE_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: postgresPassword
-            - name: DEBUG
-              value: {{default "false" .Values.api.app.debug | quote }}
-            - name: MINIO_SERVER
-              value: "{{ .Release.Name }}-minio:9000"
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
