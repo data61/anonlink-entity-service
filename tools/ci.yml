@@ -24,7 +24,7 @@ services:
     environment:
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
       - INITIAL_DELAY=20
-    entrypoint: /bin/sh -c "sleep 10; python -m pytest entityservice/tests"
+    entrypoint: /bin/sh -c "sleep 10; python -m pytest entityservice/tests --quick"
     depends_on:
       - db
       - redis

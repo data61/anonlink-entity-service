@@ -20,8 +20,8 @@ def test_run_status_with_clks(requests, mapping_project):
     assert time_posted - dt < datetime.timedelta(seconds=5)
     original_status = status
 
-    # Wait and see if the progress changes. Project should easily be complete
-    time.sleep(1)
+    # Wait and see if the progress changes. This assumes a comparison rate of 10 M/s
+    time.sleep(2 + mapping_project['size'][0] * mapping_project['size'][1]/10_000_000)
     status = get_run_status(requests, mapping_project, run_id)
 
     assert has_progressed(original_status, status)

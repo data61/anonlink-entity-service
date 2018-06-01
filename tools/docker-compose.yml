@@ -81,8 +81,6 @@ services:
       - backend
     environment:
       TARGET_SERVICE: backend
-      MONITOR_SERVICE: celery_monitor
-      MONITOR_SERVICE_PORT: 8888
       PUBLIC_PORT: 8851
 
 
