@@ -1,5 +1,8 @@
 import random
 import time
+import datetime
+import iso8601
+
 from enum import IntEnum
 
 
@@ -127,6 +130,24 @@ def wait_for_run_completion(requests, project, run_id, result_token, timeout=20)
 def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
     not_queued_statuses = {'running', 'completed'}
     return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
+
+
+def ensure_run_progressing(requests, project, size):
+    size_1, size_2 = size
+    run_id = post_run(requests, project, 0.9)
+    status = get_run_status(requests, project, run_id)
+
+    is_run_status(status)
+
+    original_status = status
+
+    dt = iso8601.parse_date(status['time_added'])
+    assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
+
+    # Wait and see if the progress changes. This assumes a comparison rate of 10 M/s
+    time.sleep(2 + size_1 * size_2 / 10_000_000)
+    status = get_run_status(requests, project, run_id)
+    assert has_progressed(original_status, status)
 
 
 def post_run(requests, project, threshold):
