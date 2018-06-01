@@ -62,8 +62,8 @@ Monitoring
 ----------
 
 A celery monitor tool `flower` is also part of the docker-compose file - this graphical interface
-allows administration and monitoring of the celery tasks and workers. Access this via the nginx
-container - e.g. http://localhost:8851/monitor
+allows administration and monitoring of the celery tasks and workers. Access this via the monitor
+container.
 
 Testing with docker-compose
 ---------------------------

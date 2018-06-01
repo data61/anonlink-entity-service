@@ -4,8 +4,8 @@
 Changelog
 =========
 
-Version 1.8
------------
+Version 1.8 (2018-06-01)
+------------------------
 
 Version 1.8 introduces breaking changes to the REST API to allow an analyst to reuse uploaded CLKs.
 
@@ -30,7 +30,7 @@ Other improvements
 ~~~~~~~~~~~~~~~~~~
 
 - The documentation is now served at the root.
-- The flower monitoring tool for celery is now exposed at `/monitoring` for development deployments with docker-compose.
+- The flower monitoring tool for celery is now included with the docker-compose deployment.
   Note this will be disabled for production deployment with kubernetes by default.
 - The docker containers have been migrated to alpine linux to be much leaner.
 - Substantial internal refactoring - especially of views.

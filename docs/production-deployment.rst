@@ -24,7 +24,7 @@ The components that are used in support are:
 - redis is used for the celery job queue and as a cache
 - minio object store stores the raw CLKs and result files
 - nginx provides upload buffering, request rate limiting.
-- an ingress controller (e.g. traefik) provides TLS termination
+- an ingress controller (e.g. nginx-ingress/traefik) provides TLS termination
 
 
 The rest of this document goes into how to deploy in a production setting.
@@ -64,7 +64,7 @@ create a ``slow`` storage class. For AWS execute::
 
 When pods require persistent storage this can be dynamically
 provided by the cluster. The default settings (in ``values.yaml``)
-assumes the existence of a ``"slow"`` ``storageClass``.
+assumes the existence of a ``"default"`` ``storageClass``.
 
 For a cluster on AWS the ``aws-storage.yaml`` resource will dynamically
 provision elastic block store volumes.
