@@ -6,11 +6,8 @@ metadata:
 {{ toYaml .Values.api.service.annotations | indent 4 }}
 {{- end }}
   labels:
-    app: {{ template "fullname" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.api.name }}"
-    heritage: {{ .Release.Service }}
-    release: {{ .Release.Name }}
 {{- if .Values.api.service.labels }}
 {{ toYaml .Values.api.service.labels | indent 4 }}
 {{- end }}
@@ -31,7 +28,7 @@ spec:
       protocol: TCP
       targetPort: "entity-nginx"
   selector:
-    app: {{ template "fullname" . }}
+    app: {{ template "es.fullname" . }}
     component: "{{ .Values.api.name }}"
     release: {{ .Release.Name }}
   type: {{ .Values.api.service.type }}

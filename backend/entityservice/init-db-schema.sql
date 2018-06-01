@@ -31,7 +31,6 @@ CREATE TABLE projects (
 
   result_type  MAPPINGRESULT NOT NULL
 
-
 );
 
 CREATE TYPE RUNSTATE AS ENUM (

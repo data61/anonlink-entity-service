@@ -241,3 +241,4 @@ minio:
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
+  imageTag: "RELEASE.2018-05-04T23-13-12Z"

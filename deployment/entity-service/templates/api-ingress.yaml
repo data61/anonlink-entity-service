@@ -8,12 +8,9 @@ metadata:
   annotations:
 {{ toYaml .Values.api.ingress.annotations | indent 4 }}
 {{- end }}
-  name: {{ template "fullname" . }}
+  name: {{ template "es.fullname" . }}
   labels:
-    app: {{ template "fullname" . }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-    release: {{ .Release.Name }}
-    heritage: "{{ .Release.Service }}"
+    {{- include "es.release_labels" .| indent 4 }}
 spec:
   rules:
   {{- range .Values.api.ingress.hosts }}

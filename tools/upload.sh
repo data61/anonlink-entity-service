@@ -3,23 +3,14 @@ set -e
 script_name=$(basename "$0")
 cd $(dirname "$0")
 
-export APPVERSION=$(cat ../backend/entityservice/VERSION)
-export NGINXVERSION=$(cat ../frontend/VERSION)
-
 if [ -z ${BRANCH_NAME+x} ]; then
     export BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
 else
     echo "BRANCH_NAME is set to '$BRANCH_NAME'";
 fi
 
-if [ "$BRANCH_NAME" = "master" ];
-then
-    export ENTITY_APP_LABEL="$APPVERSION";
-    export ENTITY_NGINX_LABEL="$NGINXVERSION";
-else
-    export ENTITY_APP_LABEL="$APPVERSION-$BRANCH_NAME";
-    export ENTITY_NGINX_LABEL="$NGINXVERSION-$BRANCH_NAME";
-fi
+export ENTITY_APP_LABEL=$(python get_docker_tag.py $BRANCH_NAME app)
+export ENTITY_NGINX_LABEL=$(python get_docker_tag.py $BRANCH_NAME nginx)
 
 echo "Tagging images: $ENTITY_APP_LABEL and $ENTITY_NGINX_LABEL";
 

@@ -60,7 +60,7 @@ def create_project_no_data(requests, result_type='mapping'):
                                          'schema': {},
                                          'result_type': result_type,
                                      })
-    assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.json())
+    assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.text)
     return new_project_response.json()
 
 
@@ -86,8 +86,8 @@ def create_project_upload_data(requests, clks1, clks2, result_type='mapping'):
             'clks': clks2
         }
     )
-    assert r1.status_code == 201, 'I received this instead: {}'.format(r1.json())
-    assert r2.status_code == 201, 'I received this instead: {}'.format(r2.json())
+    assert r1.status_code == 201, 'I received this instead: {}'.format(r1.text)
+    assert r2.status_code == 201, 'I received this instead: {}'.format(r2.text)
 
     return new_project_data, r1.json(), r2.json()
 
@@ -98,7 +98,7 @@ def get_run_status(requests, project, run_id, result_token = None):
     r = requests.get(url + '/projects/{}/runs/{}/status'.format(project_id, run_id),
                      headers={'Authorization': result_token})
 
-    assert r.status_code == 200, 'I received this instead: {}'.format(r.json())
+    assert r.status_code == 200, 'I received this instead: {}'.format(r.text)
     return r.json()
 
 
@@ -163,10 +163,10 @@ def get_run(requests, project, run_id, expected_status = 200):
     return req.json()
 
 
-def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True):
+def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=30):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
-        final_status = wait_for_run_completion(requests, project, run_id, result_token)
+        final_status = wait_for_run_completion(requests, project, run_id, result_token, timeout)
         state = final_status['state']
         assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
 

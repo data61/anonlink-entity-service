@@ -7,10 +7,10 @@ Changelog
 Version 1.8
 -----------
 
-Version 1.8 introduces breaking changes to the REST api to allow an analyst to reuse uploaded CLKs.
+Version 1.8 introduces breaking changes to the REST API to allow an analyst to reuse uploaded CLKs.
 
 Instead of a linkage project only having one result, we introduce a new sub-resource `runs`. A project holds the schema
-and clks from all data providers; and multiple runs can be created with different parameters. A run has a status and a
+and CLKs from all data providers; and multiple runs can be created with different parameters. A run has a status and a
 result endpoint. Runs can be queued before the CLK data has been uploaded.
 
 We also introduced changes to the result types.
@@ -24,7 +24,7 @@ Brief summary of API changes:
 - result type `permutation_unecrypyted_mask` was renamed to `permutations`
 - result type `permutation` was removed
 
-For all the updated api details check the `Open API document <./api.html>`_.
+For all the updated API details check the `Open API document <./api.html>`_.
 
 Other improvements
 ~~~~~~~~~~~~~~~~~~
@@ -47,7 +47,7 @@ Deployment and documentation sprint.
   configuration option has been added. #83, #90
 - More sensible logging during testing.
 - Every http request now has a (globally configurable) timeout
-- Minor update regarding handling uploading empty clks. #92
+- Minor update regarding handling uploading empty CLKs. #92
 - Update to latest versions of anonlink and clkhash. #94
 - Documentation updates.
 

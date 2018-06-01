@@ -35,7 +35,7 @@ def test_similarity_scores(requests, the_truth):
     project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                     result_type='similarity_scores')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    result = get_run_result(requests, project_data, run)
+    result = get_run_result(requests, project_data, run, timeout=60)
     # compare the result with the truth
     ss = result['similarity_scores']
     ts = the_truth['similarity_scores']
@@ -62,7 +62,7 @@ def test_permutation(requests, the_truth):
     project_data, r_a, r_b = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                         result_type='permutations')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    mask_result = get_run_result(requests, project_data, run)
+    mask_result = get_run_result(requests, project_data, run, timeout=60)
     perm_a_result = get_run_result(requests, project_data, run, result_token=r_a['receipt_token'], wait=False)
     perm_b_result = get_run_result(requests, project_data, run, result_token=r_b['receipt_token'], wait=False)
     # compare permutations and mask against mapping of the truth
