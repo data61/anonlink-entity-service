@@ -1,11 +1,11 @@
 import pytest
 
-from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, post_run, get_run_result
+from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time
 
 
 def test_run_mapping_results(requests, mapping_project):
     run_id = post_run(requests, mapping_project, 0.95)
+    wait_approx_run_time(mapping_project['size'])
     result = get_run_result(requests, mapping_project, run_id)
     assert 'mapping' in result
     assert isinstance(result['mapping'], dict)
@@ -41,4 +41,4 @@ def test_run_permutation_unencrypted_results(requests, permutations_project, thr
 def test_run_mapping_results_no_data(requests):
     empty_project = create_project_no_data(requests)
     run_id = post_run(requests, empty_project, 0.95)
-    result = get_run_result(requests, empty_project, run_id, expected_status = 404, wait=False)
+    get_run_result(requests, empty_project, run_id, expected_status = 404, wait=False)
