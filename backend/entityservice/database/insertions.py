@@ -141,6 +141,20 @@ def update_run_mark_complete(db, run_id):
     db.commit()
 
 
+def update_run_mark_failure(db, run_id):
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              ready = FALSE,
+              state = 'error',
+              time_completed = now()
+            WHERE
+              run_id = %s
+            """
+        cur.execute(sql_query, [run_id])
+    db.commit()
+
+
 def progress_run_stage(db, run_id):
     with db.cursor() as cur:
         sql_query = """

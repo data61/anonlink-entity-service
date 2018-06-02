@@ -142,7 +142,7 @@ def check_for_executable_runs(project_id):
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs.
     """
-    logger.warning("Checking for runs that need to be executed for project {}".format(project_id))
+    logger.info("Checking for runs that need to be executed for project {}".format(project_id))
 
     conn = connect_db()
 
@@ -250,17 +250,34 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     logger.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
         len(job_chunks), chunk_size))
 
-    mapping_future = chord(
-        (compute_filter_similarity.s(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for chunk_dp1, chunk_dp2 in job_chunks),
-        aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2).on_error(on_chord_error.s(project_id, run_id))
-    ).apply_async()
+    # Prepare the Celery Chord that will compute all the similarity scores:
+    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for
+                     chunk_dp1, chunk_dp2 in job_chunks]
+
+    if len(scoring_tasks) == 1:
+        scoring_tasks.append(celery_bug_fix.si())
+
+    callback_task = aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2).on_error(on_chord_error.s(run_id=run_id))
+    mapping_future = chord(scoring_tasks)(callback_task)
 
 
 @celery.task()
-def on_chord_error(request, exc, traceback):
-    logger.warning("Chord error occurred :-/")
-    logger.warning('Task {0!r} raised error: {1!r}'.format(request.id, exc))
-    logger.warning(traceback)
+def celery_bug_fix(*args, **kwargs):
+    '''
+    celery chords only correctly handle errors with at least 2 tasks,
+    so we append a celery_bug_fix task.
+    https://github.com/celery/celery/issues/3709
+    '''
+    return []
+
+
+@celery.task()
+def on_chord_error(*args, **kwargs):
+    logger.info("An error occurred while processing the chord's tasks")
+    conn = connect_db()
+    update_run_mark_failure(conn, kwargs['run_id'])
+    logger.warning("Marked run as failure")
+
 
 @celery.task()
 def save_and_permute(similarity_result, project_id, run_id):
@@ -439,13 +456,12 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param chunk_info_dp2:
     :param project_id:
     :param threshold:
-    :return:
     """
     logger.debug("Computing similarity for a chunk of filters")
 
     logger.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
-        if not check_project_exists(db, project_id):
+        if not check_run_exists(db, project_id, run_id):
             logger.warning("Skipping as resource not found.")
             return None
 

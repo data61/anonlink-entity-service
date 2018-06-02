@@ -69,24 +69,18 @@ def get_number_parties_uploaded(db, resource_id):
     return query_result['count']
 
 
-def check_run_ready(db, run_id):
-    """See if the given run has indicated it is ready.
-
-    Returns the boolean, and the state
-
-    ('runs.ready' calls a function in the database called ready. It's the same as ready(runs))
-    """
+def get_run_state(db, run_id):
     logger.info("Selecting run")
     sql_query = """
-        SELECT runs.ready AS ready, state
+        SELECT state
         FROM runs
         WHERE
           run_id = %s
         """
     query_result = query_db(db, sql_query, [run_id], one=True)
-    is_ready, state = query_result['ready'], query_result['state']
-    logger.info("Run with run_id={} is ready: {}".format(run_id, is_ready))
-    return is_ready, state
+    state = query_result['state']
+    logger.info("Run with run_id={} is in state: {}".format(run_id, state))
+    return state
 
 
 def get_project(db, resource_id):
