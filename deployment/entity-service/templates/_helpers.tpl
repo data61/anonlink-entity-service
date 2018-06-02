@@ -28,7 +28,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 We define the release labels that will be applied to all deployments.
 */}}
 {{- define "es.release_labels" }}
-app: {{ template "fullname" . }}
+app: {{ template "es.fullname" . }}
 chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 # The "heritage" label is used to track which tool deployed a given chart.
 # It is useful for admins who want to see what releases a particular tool
