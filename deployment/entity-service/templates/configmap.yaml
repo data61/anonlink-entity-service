@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
 data:
-  REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
+  REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}-master"
   DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
   DEBUG: {{ .Values.workers.debug | quote }}
   ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
