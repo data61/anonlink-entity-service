@@ -8,7 +8,6 @@ from entityservice.tests.util import has_progressed, post_run, get_run_status, w
 
 
 def test_run_status_with_clks(requests, mapping_project):
-    run_id = post_run(requests, mapping_project, 0.9)
     size = mapping_project['size']
     ensure_run_progressing(requests, mapping_project, size)
 

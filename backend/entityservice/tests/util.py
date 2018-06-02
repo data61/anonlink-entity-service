@@ -132,8 +132,17 @@ def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
     return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
-def ensure_run_progressing(requests, project, size):
+def wait_approx_run_time(size, assumed_rate=2_000_000):
+    """Calculate how long the similarity comparison stage of a project should take
+    using a particular comparison rate. 2 M/s is quite conservative in order to work
+    on slower CI systems.
+    """
     size_1, size_2 = size
+    time.sleep(2 + size_1 * size_2 / assumed_rate)
+
+
+def ensure_run_progressing(requests, project, size):
+
     run_id = post_run(requests, project, 0.9)
     status = get_run_status(requests, project, run_id)
 
@@ -144,9 +153,11 @@ def ensure_run_progressing(requests, project, size):
     dt = iso8601.parse_date(status['time_added'])
     assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
 
-    # Wait and see if the progress changes. This assumes a comparison rate of 10 M/s
-    time.sleep(2 + size_1 * size_2 / 10_000_000)
+    # Wait and see if the progress changes
+    wait_approx_run_time(size)
+
     status = get_run_status(requests, project, run_id)
+
     assert has_progressed(original_status, status)
 
 
