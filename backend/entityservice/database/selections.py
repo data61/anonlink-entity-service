@@ -194,33 +194,28 @@ def get_dataprovider_id(db, update_token):
     return query_db(db, sql_query, [update_token], one=True)['id']
 
 
+def get_bloomingdata_column(db, dp_id, column):
+    assert column in {'ts', 'token', 'file', 'state', 'size'}
+    sql_query = """
+        SELECT {} 
+        FROM bloomingdata
+        WHERE dp = %s
+        """.format(column)
+    return query_db(db, sql_query, [dp_id], one=True)[column]
+
+
 def get_filter_metadata(db, dp_id):
     """
     :return: The filename of the raw clks.
     """
-    sql_query = """
-        SELECT file
-        FROM bloomingdata
-        WHERE
-          dp = %s
-        """
-    query_result = query_db(db, sql_query, [dp_id], one=True)
-
-    return query_result['file'].strip()
+    return get_bloomingdata_column(db, dp_id, 'file').strip()
 
 
 def get_number_of_hashes(db, dp_id):
     """
     :return: The size of the uploaded raw clks.
     """
-    sql_query = """
-        SELECT size
-        FROM bloomingdata
-        WHERE
-          dp = %s
-        """
-    query_result = query_db(db, sql_query, [dp_id], one=True)
-    return query_result['size']
+    return get_bloomingdata_column(db, dp_id, 'size')
 
 
 def get_permutation_result(db, dp_id, run_id):

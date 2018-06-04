@@ -2,6 +2,7 @@ import logging
 import time
 
 import psycopg2
+import psycopg2.extras
 from flask import current_app, g
 
 from entityservice import database as db
