@@ -1,22 +1,18 @@
 import io
-import math
 import random
-import time
 
 import anonlink
-import psycopg2.extras
 from celery import Celery, chord
 from celery.signals import after_setup_task_logger, after_setup_logger
 from celery.utils.log import get_task_logger
 
-import entityservice.cache
 from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
-    binary_pack_filters, deserialize_filters, bit_packed_element_size, deserialize_bitarray
+    binary_pack_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
-from entityservice.utils import chunks, iterable_to_stream, fmt_bytes
+from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project
 from entityservice.models.run import progress_run_stage as progress_stage
 
 celery = Celery('tasks',
@@ -31,8 +27,8 @@ celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
 celery.conf.CELERYD_PREFETCH_MULTIPLIER = config.CELERYD_PREFETCH_MULTIPLIER
 celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
 celery.conf.CELERY_ACKS_LATE = config.CELERY_ACKS_LATE
-
 celery.conf.CELERY_ROUTES = config.CELERY_ROUTES
+
 
 @after_setup_logger.connect
 @after_setup_task_logger.connect
@@ -44,6 +40,7 @@ def init_celery_logger(logger, **kwargs):
         handler.setLevel(level)
 
     logger.debug("Set logging up")
+
 
 logger = get_task_logger(__name__)
 logger.info("Setting up celery worker")
@@ -64,17 +61,6 @@ def convert_mapping_to_list(permutation):
     for j in range(l):
         perm_list.append(permutation[j])
     return perm_list
-
-
-def clks_uploaded_to_project(project_id):
-    """ See if the given mapping has had all parties contribute data.
-    """
-    logger.info("Counting contributing parties")
-    conn = connect_db()
-    parties_contributed = get_number_parties_uploaded(conn, project_id)
-    number_parties = get_project_column(conn, project_id, 'parties')
-    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
-    return parties_contributed == number_parties
 
 
 @celery.task()

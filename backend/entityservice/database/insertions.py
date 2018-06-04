@@ -1,6 +1,7 @@
 # Insertion Queries
 
 import psycopg2
+import psycopg2.extras
 from entityservice.database.util import execute_returning_id, logger
 
 

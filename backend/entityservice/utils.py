@@ -3,10 +3,13 @@ import binascii
 import io
 import json
 import os
+import logging
 
 import bitmath
 from flask import request
 from connexion import ProblemException
+
+from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column
 
 
 def fmt_bytes(num_bytes):
@@ -105,3 +108,14 @@ def get_json():
 
 def generate_code(length=24):
     return binascii.hexlify(os.urandom(length)).decode('utf8')
+
+
+def clks_uploaded_to_project(project_id):
+    """ See if the given mapping has had all parties contribute data.
+    """
+    logging.info("Counting contributing parties")
+    conn = connect_db()
+    parties_contributed = get_number_parties_uploaded(conn, project_id)
+    number_parties = get_project_column(conn, project_id, 'parties')
+    logging.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
+    return parties_contributed == number_parties
