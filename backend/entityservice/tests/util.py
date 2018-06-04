@@ -278,3 +278,23 @@ def is_run_status(status):
     if 'progress' in cur_stage:
         assert 'absolute' in cur_stage['progress']
         assert 'relative' in cur_stage['progress']
+
+
+def upload_binary_data(requests, file_path, project_id, token, count, expected_status_code=201):
+    with open(file_path, 'rb') as f:
+        r = requests.post(
+            url + '/projects/{}/clks'.format(project_id),
+            headers={
+                'Authorization': token,
+                'Content-Type': 'application/octet-stream',
+                'Hash-Count': str(count),
+                'Hash-Size':  '128'
+            },
+            data=f
+        )
+    assert r.status_code == expected_status_code
+
+    upload_response = r.json()
+    if expected_status_code == 201:
+        assert 'receipt_token' in upload_response
+    return upload_response
