@@ -273,6 +273,9 @@ paths:
     post:
       operationId: entityservice.views.project.project_clks_post
       summary: Upload CLK data to a linkage project.
+      consumes:
+        - application/json
+        - application/octet-stream
       tags:
         - Project
       description: |
@@ -290,6 +293,29 @@ paths:
 
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
+
+        ### Binary Upload
+
+        An experimental api has been added for uploading CLKs as a binary file.
+
+        Additional headers are required:
+
+          Content-Type: application/octet-stream
+          Hash-Count: <number of CLKS>
+          Hash-Size: <size of one CLK in bytes>
+
+        The file is a series of (index, CLK data, popcount):
+
+            bit_packing_fmt = "!1I<Hash-Size>s1H"
+
+        Where:
+
+            "!" Use network byte order (big-endian).
+            "1I" Store the index in 4 bytes as an unsigned int.
+            Is the length of a hash in Bytes. Default value is "128s". Store the 128 raw bytes of the bitarray.
+            "1H" The popcount stored in 2 bytes (unsigned short)
+
+        https://docs.python.org/3/library/struct.html#format-strings
 
       parameters:
         - $ref: '#/parameters/project_id'
