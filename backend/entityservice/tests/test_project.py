@@ -1,7 +1,7 @@
 import time
 
 from entityservice.tests.config import url
-from entityservice.tests.util import generate_serialized_clks, generate_overlapping_clk_data, get_project_description
+from entityservice.tests.util import generate_overlapping_clk_data, get_project_description
 
 
 def _check_new_project_response_fields(new_project_data):
@@ -151,43 +151,6 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
     assert r.status_code == 403
 
 
-def test_project_single_party_data_uploaded(requests):
-    new_project_data = requests.post(url + '/projects',
-                                     json={
-                                         'schema': {},
-                                         'result_type': 'mapping',
-                                     }).json()
-    r = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][0]},
-        json={
-            'clks': generate_serialized_clks(100)
-        }
-    )
-    assert r.status_code == 201
-    upload_response = r.json()
-    assert 'receipt_token' in upload_response
-
-
-def test_mapping_single_party_empty_data_upload(requests):
-    new_project_data = requests.post(url + '/projects',
-                                     headers={'Authorization': 'invalid'},
-                                     json={
-                                         'schema': {},
-                                         'result_type': 'mapping',
-                                     }).json()
-
-
-    r = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][0]},
-        json={
-            'clks': []
-        }
-    )
-    assert r.status_code == 400
-
-
 def test_mapping_2_party_data_uploaded(requests):
     new_project_data = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
@@ -229,43 +192,3 @@ def test_mapping_2_party_data_uploaded(requests):
     assert description_3['number_parties'] == 2
     assert description_3['parties_contributed'] == 2
 
-
-    # def test_mapping_status_invalid_mapping_id_fake_auth(self):
-    #     r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
-    #                      headers={'Authorization': 'invalid'})
-    #     self.assertEqual(r.status_code, 403)
-    #
-    # def test_mapping_status_invalid_mapping_id_valid_auth(self):
-    #     new_map_response = requests.post(self.url + '/mappings',
-    #                                      headers={'Authorization': 'invalid'},
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     r = requests.get(self.url + '/mappings/{}'.format('fakeid'),
-    #                      headers={'Authorization': new_map_response['result_token']})
-    #     self.assertEqual(r.status_code, 403)
-    #     self.projects.append(new_map_response['resource_id'])
-    #
-    # def test_mapping_status_no_data_uploaded(self):
-    #     new_map = requests.post(self.url + '/mappings',
-    #                                      headers={'Authorization': 'invalid'},
-    #                                      json={
-    #                                          'schema': TestProjectTest.schema,
-    #                                          'result_type': 'mapping',
-    #                                          'threshold': 0.8
-    #                                      }).json()
-    #     r = requests.get(self.url + '/mappings/{}'.format(new_map['resource_id']),
-    #                      headers={'Authorization': new_map['result_token']})
-    #     self.assertEqual(r.status_code, 503)
-    #     update = r.json()
-    #
-    #     self.assertIn('progress', update)
-    #     self.assertIn('current', update)
-    #     self.assertIn('elapsed', update)
-    #     self.assertIn('message', update)
-    #     self.assertIn('total', update)
-    #
-    #     self.projects.append(new_map['resource_id'])
-    #
