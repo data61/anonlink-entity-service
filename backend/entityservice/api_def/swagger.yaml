@@ -283,20 +283,23 @@ paths:
         The project must have been created, and the caller must have both the
         `project_id` and a valid `upload_token` in order to contribute data.
 
-        This endpoint supports `Transfer-Encoding =  chunked` (streaming uploads).
-
-        When the second party successfully adds data the matching task is queued;
-        although it is worth noting there is no indication to the caller that this
-        has occurred.
-
         The data uploaded is one [CLK](./concepts.html#cryptographic-longterm-keys) per entity/row.
+
+        When the last party successfully uploads their data any existing project runs are queued
+        for execution.
 
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
 
+        ### JSON Upload
+
+        This endpoint can be used with the Content-Type: application/json and uses the `CLKUpload`
+        structure.
+
         ### Binary Upload
 
-        An experimental api has been added for uploading CLKs as a binary file.
+        An experimental api has been added for uploading CLKs as a binary file. This is to allow for
+        faster and more efficient data transfer.
 
         Additional headers are required:
 
