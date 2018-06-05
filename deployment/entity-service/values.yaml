@@ -56,10 +56,10 @@ api:
     resources:
       limits:
         cpu: 1
-        memory: 1Gi
+        memory: 8Gi
       requests:
         cpu: 500m
-        memory: 1Gi
+        memory: 512Mi
 
     debug: "false"
 
@@ -214,20 +214,40 @@ postgresql:
 
 redis:
   # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
-  redisPassword: "gOgRockEPtiN"
-  persistence:
+  cluster:
     enabled: true
-    storageClass: "default"
-    size: "10Gi"
+    slaveCount: 1
+  usePassword: true
+  password: "YGcBZ65tsg56"
   metrics:
     enabled: true
-  resources:
-    requests:
-      #memory: 8Gi
-      cpu: 200m
-    limits:
-      #memory: 20Gi
-      cpu: 300m
+
+  master:
+    persistence:
+      enabled: true
+      storageClass: "default"
+      size: "10Gi"
+
+    service:
+      type: ClusterIP
+
+    resources:
+      requests:
+        #memory: 2Gi
+        cpu: 200m
+      limits:
+        #memory: 20Gi
+        cpu: 300m
+
+  slave:
+    resources:
+      requests:
+        #memory: 2Gi
+        cpu: 200m
+      limits:
+        #memory: 20Gi
+        cpu: 300m
+
   nameOverride: "redis"
 
 minio:

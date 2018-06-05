@@ -1,13 +1,13 @@
 
-*- N1 Analytics Entity Service -*
+*- Confidential Computing Anonlink Service Deployed -*
 
-Soon you should be able to visit the entity service.
+Soon you should be able to visit the entity service api.
 
 1. Get the entity service URL by running:
 
 {{- if contains "NodePort" .Values.api.service.type }}
 
-  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "fullname" . }})
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "es.fullname" . }})
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
   echo http://$NODE_IP:$NODE_PORT/
 
@@ -29,7 +29,7 @@ add the DNS entry for {{ .Values.api.ingress.hosts }} now.
 Alternatively you can forward the port of the entity service's nginx server to your
 local machine:
 
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "fullname" . }}" -o jsonpath="{.items[0].metadata.name}")
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "es.fullname" . }}" -o jsonpath="{.items[0].metadata.name}")
   kubectl port-forward $POD_NAME 8080:80
 
 And visit http://127.0.0.1:8080/
