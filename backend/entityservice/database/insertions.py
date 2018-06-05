@@ -52,15 +52,23 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
         (%s, %s, %s, %s, %s)
         """
 
+    with db.cursor() as cur:
+        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
+
+    db.commit()
+    set_dataprovider_upload_state(db, dp_id, True)
+
+
+def set_dataprovider_upload_state(db, dp_id, state=True):
+    logger.info("Setting dataprovider upload state to {}".format(state))
     sql_update = """
         UPDATE dataproviders
-        SET uploaded = TRUE
+        SET uploaded = %s
         WHERE id = %s
         """
 
     with db.cursor() as cur:
-        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
-        cur.execute(sql_update, [dp_id])
+        cur.execute(sql_update, [state, dp_id])
 
     db.commit()
 
