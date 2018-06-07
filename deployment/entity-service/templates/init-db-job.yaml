@@ -11,6 +11,7 @@ metadata:
     # Manual intervention (or a job with a post-upgrade hook) is required to migrate a
     # production database.
     "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   template:
     metadata:
