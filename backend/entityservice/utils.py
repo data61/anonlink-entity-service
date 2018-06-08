@@ -119,3 +119,12 @@ def clks_uploaded_to_project(project_id):
     number_parties = get_project_column(conn, project_id, 'parties')
     logging.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
     return parties_contributed == number_parties
+
+
+def from_csv_bytes(data):
+    rows = data.decode().splitlines()
+    sparse_matrix = []
+    for row in rows:
+        index_1, score, index_2 = row.split(',')
+        sparse_matrix.append((int(index_1), float(score), int(index_2)))
+    return sparse_matrix

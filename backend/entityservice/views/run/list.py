@@ -40,7 +40,7 @@ def post(project_id, run):
         project_object['parties'], parties_contributed
     ))
     if parties_contributed == project_object['parties']:
-        app.logger.info("Scheduling task to carry out all runs for this project now")
+        app.logger.info("Scheduling task to carry out all runs for project {} now".format(project_id))
         check_for_executable_runs.delay(project_id)
     else:
         app.logger.info("Task queued but won't start until CLKs are all uploaded")
