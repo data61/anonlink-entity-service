@@ -257,7 +257,7 @@ def celery_bug_fix(*args, **kwargs):
     so we append a celery_bug_fix task.
     https://github.com/celery/celery/issues/3709
     '''
-    return []
+    return [0, None]
 
 
 @celery.task()
@@ -485,7 +485,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     logger.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
     for (ia, score, ib) in chunk_results:
-        partial_sparse_result.append((ia + offset_dp1, score, ib + offset_dp2))
+        partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
 
     num_results = len(partial_sparse_result)
     if num_results > 0:
@@ -533,11 +533,6 @@ def save_current_progress(comparisons, run_id):
 
 @celery.task()
 def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, lenf2):
-    # Need to handle a single result group because 'chord(array_of_tasks, next_task)' won't wrap the
-    # result in a list when there is only one task in the array.
-    # (See https://github.com/celery/celery/issues/3597)
-    if len(similarity_result_files) == 2 and isinstance(similarity_result_files[0], int):
-        similarity_result_files = [similarity_result_files]
 
     files = []
     for num, filename in similarity_result_files:
@@ -554,6 +549,9 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, 
         response = mc.get_object(config.MINIO_BUCKET, result_filename)
         bytes_data.append(response.data)
 
+    logger.debug("Deleting intermediate similarity score files")
+    mc.remove_objects(config.MINIO_BUCKET, files)
+
     data = b''.join(bytes_data)
     logger.info("Aggregated {} similarity score results".format(fmt_bytes(len(data))))
 
@@ -561,7 +559,6 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, 
     result_type = get_project_column(db, project_id, 'result_type')
 
     if result_type == "similarity_scores":
-
         store_similarity_scores(data, project_id, run_id)
     else:
         # we promote the run to the next stage
@@ -595,8 +592,8 @@ def store_similarity_scores(similarity_scores, project_id, run_id):
 
     :param similarity_scores: a csv bytes object where each row contains:
                                 - the index of an entity from dataprovider 1
-                                - the similarity score between 0 and 1 of the best match
                                 - the index of an entity from dataprovider 1
+                                - the similarity score between 0 and 1 of the best match
     :param project_id:
     :param run_id:
     """
