@@ -55,6 +55,54 @@ def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
     return io.BufferedReader(IterStream(), buffer_size=buffer_size)
 
 
+def chain_streams(streams, buffer_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Chain an iterable of streams together into a single buffered stream.
+
+    Usage:
+        def generate_open_file_streams():
+            for file in filenames:
+                yield open(file, 'rb')
+
+        f = chain_streams(generate_open_file_streams())
+        f.read()
+
+    """
+
+    class ChainStream(io.RawIOBase):
+        def __init__(self):
+            self._readable = True
+            self.leftover = []
+            self.stream_iter = iter(streams)
+            try:
+                self.stream = next(self.stream_iter)
+            except StopIteration:
+                self.stream = io.BytesIO(b'')
+
+        def readable(self):
+            return True
+
+        def _read_next_chunk(self):
+            return self.leftover or self.stream.read(buffer_size)
+
+        def readinto(self, b):
+            chunk = self._read_next_chunk()
+            if len(chunk) == 0:
+                # move to next stream
+                self.stream.close()
+                try:
+                    self.stream = next(self.stream_iter)
+                    chunk = self._read_next_chunk()
+                except StopIteration:
+                    return 0  # indicate EOF
+            l = len(b)
+            output, self.leftover = chunk[:l], chunk[l:]
+            b[:len(output)] = output
+            return len(output)
+
+    return io.BufferedReader(ChainStream(), buffer_size=buffer_size)
+
+
 def safe_fail_request(status_code, message, **kwargs):
     """
     generates an error message in the right format.
@@ -126,7 +174,6 @@ def from_csv_bytes(data):
     sparse_matrix = []
     for row in rows:
         index_1, index_2, score = row.split(',')
-
         # Note we rewrite in a different order because we love making work for ourselves
         sparse_matrix.append((int(index_1), float(score), int(index_2)))
     return sparse_matrix

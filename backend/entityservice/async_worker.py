@@ -1,5 +1,6 @@
 import csv
 import io
+import itertools
 import os
 import random
 
@@ -15,7 +16,8 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
-from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, from_csv_bytes
+from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, from_csv_bytes, \
+    chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
 
 celery = Celery('tasks',
@@ -533,86 +535,102 @@ def save_current_progress(comparisons, run_id):
 
 @celery.task()
 def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, lenf2):
-
+    mc = connect_to_object_store()
     files = []
+    data_size = 0
     for num, filename in similarity_result_files:
         if num > 0:
             files.append(filename)
+            data_size += mc.stat_object(config.MINIO_BUCKET, filename).size
 
-    mc = connect_to_object_store()
-    bytes_data = []
-    data_size = 0
-    logger.debug("Aggregating result chunks from {} files".format(len(files)))
+    logger.debug("Aggregating result chunks from {} files, total size: {}".format(
+        len(files), fmt_bytes(data_size)))
 
-    for result_filename in files:
-        data_size += mc.stat_object(config.MINIO_BUCKET, result_filename).size
-        response = mc.get_object(config.MINIO_BUCKET, result_filename)
-        bytes_data.append(response.data)
+    def generate_result_file_streams():
+        for result_filename in files:
+            yield mc.get_object(config.MINIO_BUCKET, result_filename)
 
-    logger.debug("Deleting intermediate similarity score files")
-    mc.remove_objects(config.MINIO_BUCKET, files)
-
-    data = b''.join(bytes_data)
-    logger.info("Aggregated {} similarity score results".format(fmt_bytes(len(data))))
+    logger.info("Similarity score results are {}".format(fmt_bytes(data_size)))
+    result_stream = chain_streams(generate_result_file_streams())
 
     db = connect_db()
     result_type = get_project_column(db, project_id, 'result_type')
 
+    # Note: Storing the similarity scores for all result types
+    result_filename = store_similarity_scores(result_stream, run_id, data_size)
+
     if result_type == "similarity_scores":
-        store_similarity_scores(data, project_id, run_id)
+        # logger.debug("Deleting intermediate similarity score files")
+        mc.remove_objects(config.MINIO_BUCKET, files)
+
+        # Complete mapping job
+        logger.debug("Marking run as complete")
+        mark_mapping_complete.delay(run_id)
+
+        # Post similarity computation cleanup
+        logger.debug("Removing clk filters from redis cache")
+
+        dp_ids = get_dataprovider_ids(db, project_id)
+        cache.remove_from_cache(dp_ids[0])
+        cache.remove_from_cache(dp_ids[1])
+        calculate_comparison_rate.delay()
     else:
         # we promote the run to the next stage
         progress_stage(db, run_id)
-
-        logger.debug("Creating python sparse matrix from bytes data")
-        sparse_matrix = from_csv_bytes(data)
-
-        # As we have the entire sparse matrix in memory at this point we directly compute the mapping
-        # instead of re-serializing and calling another task
-        logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
-        mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
-
-        logger.debug("Converting all indices to strings")
-        for key in mapping:
-            mapping[key] = str(mapping[key])
-
-        logger.info("Entity mapping has been computed")
-
-        res = {
-            "mapping": mapping,
-            "lenf1": lenf1,
-            "lenf2": lenf2
-        }
-        save_and_permute.delay(res, project_id, run_id)
+        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
 
 
-def store_similarity_scores(similarity_scores, project_id, run_id):
+@celery.task()
+def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
+    mc = connect_to_object_store()
+    score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
+    logger.debug("Creating python sparse matrix from bytes data")
+    sparse_matrix = from_csv_bytes(score_file.data)
+
+    # As we have the entire sparse matrix in memory at this point we directly compute the mapping
+    # instead of re-serializing and calling another task
+    logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
+    mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+
+    logger.debug("Converting all indices to strings")
+    for key in mapping:
+        mapping[key] = str(mapping[key])
+
+    logger.info("Entity mapping has been computed")
+
+    res = {
+        "mapping": mapping,
+        "lenf1": lenf1,
+        "lenf2": lenf2
+    }
+    save_and_permute.delay(res, project_id, run_id)
+
+
+def store_similarity_scores(buffer, run_id, length):
     """
     Stores the similarity scores above a similarity threshold as a CSV in minio.
 
-    :param similarity_scores: a csv bytes object where each row contains:
+    :param buffer: a stream of csv bytes where each row contains similarity_scores:
                                 - the index of an entity from dataprovider 1
                                 - the index of an entity from dataprovider 1
                                 - the similarity score between 0 and 1 of the best match
-    :param project_id:
     :param run_id:
+    :param length:
     """
     filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(run_id)
 
-    buffer = io.BytesIO(similarity_scores)
-
-    logger.info("Storing {} similarity score results in CSV file: {}".format(fmt_bytes(len(similarity_scores)), filename))
+    logger.info("Storing similarity score results in CSV file: {}".format(filename))
     mc = connect_to_object_store()
     mc.put_object(
         config.MINIO_BUCKET,
         filename,
         data=buffer,
-        length=len(similarity_scores),
+        length=length,
         content_type='application/csv'
     )
 
     db = connect_db()
-    logger.debug("Storing the CSV filename: {}".format(filename))
+    logger.debug("Storing the CSV filename '{}' in the database".format(filename))
     with db.cursor() as cur:
         result_id = execute_returning_id(cur, """
             INSERT into similarity_scores
@@ -626,18 +644,7 @@ def store_similarity_scores(similarity_scores, project_id, run_id):
             ])
     db.commit()
     logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
-
-    # Complete mapping job
-    logger.debug("Marking run as complete")
-    mark_mapping_complete.delay(run_id)
-
-    # Post similarity computation cleanup
-    logger.debug("Removing clk filters from redis cache")
-
-    dp_ids = get_dataprovider_ids(db, project_id)
-    cache.remove_from_cache(dp_ids[0])
-    cache.remove_from_cache(dp_ids[1])
-    calculate_comparison_rate.delay()
+    return filename
 
 
 @celery.task()
