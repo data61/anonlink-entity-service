@@ -431,7 +431,7 @@ def mark_mapping_complete(run_id):
     logger.debug("Marking run complete")
     db = connect_db()
     update_run_mark_complete(db, run_id)
-    logger.info("run {} marked as complete".format(run_id))
+    logger.info("Run {} marked as complete".format(run_id))
 
 
 @celery.task()
@@ -491,8 +491,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     num_results = len(partial_sparse_result)
     if num_results > 0:
-        result_filename = generate_code() + '.csv'
-        logger.info("Writing {} results to file: {}".format(num_results, result_filename))
+        result_filename = 'chunk-res-{}.csv'.format(generate_code(12))
+        logger.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
 
         with open(result_filename, 'wt') as f:
             csvwriter = csv.writer(f)
@@ -506,9 +506,9 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
             mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
         except minio.ResponseError as err:
             logger.warn("Failed to store result in minio")
-            raise
+            raise err
 
-        # TODO delete the file maybe?
+        # If we don't delete the file we *do* run out of space
         os.remove(result_filename)
     else:
         result_filename = None
@@ -560,11 +560,11 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, 
     result_filename = store_similarity_scores(result_stream, run_id, data_size)
 
     if result_type == "similarity_scores":
-        # logger.debug("Deleting intermediate similarity score files")
+        logger.info("Deleting intermediate similarity score files from object store")
         mc.remove_objects(config.MINIO_BUCKET, files)
 
         # Complete mapping job
-        logger.debug("Marking run as complete")
+        logger.info("Marking run {} as complete".format(run_id))
         mark_mapping_complete.delay(run_id)
 
         # Post similarity computation cleanup
@@ -650,7 +650,7 @@ def store_similarity_scores(buffer, run_id, length):
 @celery.task()
 def calculate_comparison_rate():
     dbinstance = connect_db()
-    logger.info("Calculating comparison rate")
+    logger.info("Calculating global comparison rate")
     elapsed_run_time_query = """
         select run_id, project as project_id, (time_completed - time_started) as elapsed
         from runs

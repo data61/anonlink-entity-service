@@ -46,7 +46,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.7.2"
+      tag: "v1.8.1"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -70,7 +70,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.7.2"
+      tag: "v1.8.1"
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
@@ -149,7 +149,9 @@ workers:
 
   ## Usually this is set to 1 per compute node
   replicaCount: 6
-  debug: "true"
+  autoscaler:
+    enabled: false
+  debug: true
 
   podAnnotations: {}
 
@@ -215,10 +217,11 @@ postgresql:
 redis-ha:
   auth: true
   redisPassword: "9X9RFrRnQHcB"
-  servers:
-    annotations:
-      cloud.google.com/load-balancer-type: Internal
-    serviceType: LoadBalancer
+  # For GKE ONLY (otherwise will be exposed)!!!
+  #servers:
+    #annotations:
+    #  cloud.google.com/load-balancer-type: Internal
+    #serviceType: LoadBalancer
   resources:
     server:
       requests:
