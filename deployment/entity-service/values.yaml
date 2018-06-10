@@ -81,7 +81,7 @@ api:
 
     ## Ingress annotations
     ##
-    annotations: []
+    annotations: {}
      # kubernetes.io/ingress.class: nginx
      # certmanager.k8s.io/issuer: letsencrypt
      ## To handle large uploads we increase the nginx buffer size
@@ -143,7 +143,7 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.7.2"
+    tag: "v1.8.1"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
@@ -240,10 +240,11 @@ redis-ha:
 minio:
   # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
   ## Can distribute the object store across multiple nodes...
-  #mode: "distributed"
+  mode: "standalone"
+  #replicas: 5
   serviceType: "ClusterIP"
   persistence:
-    size: 100Gi
+    size: 1000Gi
     storageClass: "default"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"

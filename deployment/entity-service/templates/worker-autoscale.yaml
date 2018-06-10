@@ -1,13 +1,14 @@
-# TODO try again?
-#apiVersion: autoscaling/v1
-#kind: HorizontalPodAutoscaler
-#metadata:
-#  name: worker-auto-scale
-#spec:
-#  scaleTargetRef:
-#    apiVersion: extensions/v1beta1
-#    kind: Deployment
-#    name: entityservice-worker
-#  minReplicas: 5
-#  maxReplicas: 20
-#  targetCPUUtilizationPercentage: 75
+{{- if .Values.workers.autoscaler.enabled }}
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-auto-scale
+spec:
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: {{ .Release.Name }}-worker
+  minReplicas: {{ .Values.workers.replicaCount }}
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 75
+{{- end -}}

@@ -20,7 +20,7 @@ from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream
 
 
-con_app.add_api('swagger.yaml', base_path='/', strict_validation=True, validate_responses=True)
+con_app.add_api('swagger.yaml', base_path='/', strict_validation=config.DEBUG, validate_responses=config.DEBUG)
 
 # Logging setup
 if config.LOGFILE is not None:
