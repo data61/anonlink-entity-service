@@ -4,6 +4,17 @@
 Changelog
 =========
 
+Version 1.8.1 (2018-06-14)
+--------------------------
+
+Internal change to substantially reduce the memory requirement on the celery queue. Previously the chunks
+of similarity scores that are computed were returned from the celery tasks and buffered in redis before
+an aggregation task would take all the results (as Python list of tuples). Now the intermediate results
+from each task are written to a csv file in the object store and the aggregation task is given a list of
+filenames to aggregate. this task streams through the intermediate files one by one streaming the output
+into a final csv.
+
+
 Version 1.8 (2018-06-01)
 ------------------------
 
