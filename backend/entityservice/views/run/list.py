@@ -36,7 +36,9 @@ def post(project_id, run):
 
     project_object = db.get_project(db_conn, project_id)
     parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-
+    app.logger.debug("Expecting {} parties to upload data. Have received {}".format(
+        project_object['parties'], parties_contributed
+    ))
     if parties_contributed == project_object['parties']:
         app.logger.info("Scheduling task to carry out all runs for this project now")
         check_for_executable_runs.delay(project_id)
