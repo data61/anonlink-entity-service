@@ -248,7 +248,7 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
 
-    callback_task = aggregate_filter_chunks.s(project_id, run_id, lenf1, lenf2).on_error(on_chord_error.s(run_id=run_id))
+    callback_task = aggregate_filter_chunks.s(project_id, run_id).on_error(on_chord_error.s(run_id=run_id))
     mapping_future = chord(scoring_tasks)(callback_task)
 
 
@@ -474,11 +474,9 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     # Update the number of comparisons completed
     comparisons_computed = chunk_dp1_size * chunk_dp2_size
-    logger.info("Timings: Prep: {:.4f} + {:.4f}, Solve: {:.4f}, Total: {:.4f}  Comparisons: {}".format(
-        t1-t0, t2-t1, t3-t2, t3-t0, comparisons_computed)
-    )
-
     save_current_progress(comparisons_computed, run_id)
+
+    t4 = time.time()
 
     partial_sparse_result = []
     # offset chunk's index
@@ -488,6 +486,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     logger.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
     for (ia, score, ib) in chunk_results:
         partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
+
+    t5 = time.time()
 
     num_results = len(partial_sparse_result)
     if num_results > 0:
@@ -513,6 +513,20 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     else:
         result_filename = None
 
+    t6 = time.time()
+    logger.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
+    logger.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
+        t1 - t0,
+        t2 - t1,
+        t3 - t2,
+        t4 - t3,
+        t4 - t4,
+        t6 - t5,
+        t6 - t0, )
+    )
+
+
+
     return num_results, result_filename
 
 
@@ -534,7 +548,7 @@ def save_current_progress(comparisons, run_id):
 
 
 @celery.task()
-def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, lenf2):
+def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
     mc = connect_to_object_store()
     files = []
     data_size = 0
@@ -577,6 +591,7 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, lenf1, 
     else:
         # we promote the run to the next stage
         progress_stage(db, run_id)
+        lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
         solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
 
 

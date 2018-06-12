@@ -157,6 +157,9 @@ def get_similarity_scores(filename):
 
     mc = connect_to_object_store()
 
+    details = mc.stat_object(config.MINIO_BUCKET, filename)
+    app.logger.info("Starting download stream of {} ({})".format(filename, details.size))
+
     try:
         csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
 
