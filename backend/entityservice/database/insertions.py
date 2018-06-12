@@ -60,7 +60,7 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
 
 
 def set_dataprovider_upload_state(db, dp_id, state=True):
-    logger.info("Setting dataprovider upload state to {}".format(state))
+    logger.debug("Setting dataprovider {} upload state to {}".format(dp_id, state))
     sql_update = """
         UPDATE dataproviders
         SET uploaded = %s
