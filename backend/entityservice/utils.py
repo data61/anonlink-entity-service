@@ -178,7 +178,7 @@ def clks_uploaded_to_project(project_id):
     return parties_contributed == number_parties
 
 
-def from_csv_bytes(data):
+def similarity_matrix_from_csv_bytes(data):
     rows = data.decode().splitlines()
     sparse_matrix = []
     for row in rows:

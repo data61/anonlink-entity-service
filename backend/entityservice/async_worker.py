@@ -16,7 +16,7 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
-from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, from_csv_bytes, \
+from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
 
@@ -505,7 +505,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
             mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
         except minio.ResponseError as err:
             logger.warn("Failed to store result in minio")
-            raise err
+            raise
 
         # If we don't delete the file we *do* run out of space
         os.remove(result_filename)
@@ -599,7 +599,7 @@ def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
     mc = connect_to_object_store()
     score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
     logger.debug("Creating python sparse matrix from bytes data")
-    sparse_matrix = from_csv_bytes(score_file.data)
+    sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
 
     # As we have the entire sparse matrix in memory at this point we directly compute the mapping
     # instead of re-serializing and calling another task
