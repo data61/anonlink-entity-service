@@ -496,8 +496,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
         with open(result_filename, 'wt') as f:
             csvwriter = csv.writer(f)
-            for res_tuple in partial_sparse_result:
-                csvwriter.writerow(res_tuple)
+            csvwriter.writerows(partial_sparse_result)
 
         # Now write these to the object store. and return the filename and summary
         # Will write a csv file for now
