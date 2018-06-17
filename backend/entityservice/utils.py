@@ -71,32 +71,41 @@ def chain_streams(streams, buffer_size=io.DEFAULT_BUFFER_SIZE):
 
     class ChainStream(io.RawIOBase):
         def __init__(self):
-            self._readable = True
-            self.leftover = []
+            self.leftover = b''
             self.stream_iter = iter(streams)
             try:
                 self.stream = next(self.stream_iter)
             except StopIteration:
-                self.stream = io.BytesIO(b'')
+                self.stream = None
 
         def readable(self):
             return True
 
-        def _read_next_chunk(self):
-            return self.leftover or self.stream.read(buffer_size)
+        def _read_next_chunk(self, max_length):
+            # Return 0 or more bytes from the current stream, first returning all
+            # leftover bytes. If the stream is closed returns b''
+            if self.leftover:
+                return self.leftover
+            elif self.stream is not None:
+                return self.stream.read(max_length)
+            else:
+                return b''
 
         def readinto(self, b):
-            chunk = self._read_next_chunk()
+            buffer_length = len(b)
+            chunk = self._read_next_chunk(buffer_length)
             if len(chunk) == 0:
                 # move to next stream
-                self.stream.close()
+                if self.stream is not None:
+                    self.stream.close()
                 try:
                     self.stream = next(self.stream_iter)
-                    chunk = self._read_next_chunk()
+                    chunk = self._read_next_chunk(buffer_length)
                 except StopIteration:
+                    # No more streams to chain together
+                    self.stream = None
                     return 0  # indicate EOF
-            l = len(b)
-            output, self.leftover = chunk[:l], chunk[l:]
+            output, self.leftover = chunk[:buffer_length], chunk[buffer_length:]
             b[:len(output)] = output
             return len(output)
 
