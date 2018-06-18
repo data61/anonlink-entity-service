@@ -31,14 +31,15 @@ def requests():
 # - result_type in ['mapping', 'similarity_scores', 'permutations']
 # - threshold
 
+ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
 THRESHOLDS = [0.6, 0.9, 0.99]
 OVERLAPS = [0.0, 0.2, 0.6, 0.9, 1.0]
 SIZES = itertools.chain(
     # Default project sizes
     itertools.product([1, 100, 1000], repeat=2),
     # Large project sizes; will only run if RUN_SLOW environment variable is set
-    filter(lambda _: os.getenv('RUN_SLOW'),
-        itertools.combinations([1, 10000, 100000, 1000000], 2)))
+    filter(lambda _: os.getenv(ENVVAR_NAME),
+           itertools.combinations([1, 10000, 100000, 1000000], 2)))
 
 PROJECT_PARAMS = itertools.product(SIZES, OVERLAPS)
 
