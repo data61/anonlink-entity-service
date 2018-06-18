@@ -212,43 +212,27 @@ postgresql:
       #memory: 1Gi
       cpu: 100m
 
-redis:
-  # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
-  cluster:
-    enabled: true
-    slaveCount: 1
-  usePassword: true
-  password: "YGcBZ65tsg56"
-  metrics:
-    enabled: true
-
-  master:
-    persistence:
-      enabled: true
-      storageClass: "default"
-      size: "10Gi"
-
-    service:
-      type: ClusterIP
-
-    resources:
+redis-ha:
+  auth: true
+  redisPassword: "9X9RFrRnQHcB"
+  servers:
+    annotations:
+      cloud.google.com/load-balancer-type: Internal
+    serviceType: LoadBalancer
+  resources:
+    server:
       requests:
-        #memory: 2Gi
-        cpu: 200m
+        memory: 2Gi
+        cpu: 100m
       limits:
-        #memory: 20Gi
-        cpu: 300m
-
-  slave:
-    resources:
+        memory: 10Gi
+    sentinel:
       requests:
-        #memory: 2Gi
-        cpu: 200m
+        cpu: 100m
       limits:
-        #memory: 20Gi
-        cpu: 300m
-
+        memory: 1Gi
   nameOverride: "redis"
+
 
 minio:
   # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
