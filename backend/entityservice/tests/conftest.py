@@ -38,8 +38,8 @@ SIZES = itertools.chain(
     # Default project sizes
     itertools.product([1, 100, 1000], repeat=2),
     # Large project sizes; will only run if the environment variable is set
-    filter(lambda _: os.getenv(ENVVAR_NAME),
-           itertools.combinations([1, 10000, 100000, 1000000], 2)))
+    () if not os.getenv(ENVVAR_NAME)
+       else itertools.combinations([1, 10000, 100000, 1000000], 2))
 
 PROJECT_PARAMS = itertools.product(SIZES, OVERLAPS)
 
