@@ -523,8 +523,6 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         t6 - t0, )
     )
 
-
-
     return num_results, result_filename
 
 
@@ -558,12 +556,10 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
     logger.debug("Aggregating result chunks from {} files, total size: {}".format(
         len(files), fmt_bytes(data_size)))
 
-    def generate_result_file_streams():
-        for result_filename in files:
-            yield mc.get_object(config.MINIO_BUCKET, result_filename)
+    result_file_stream_generator = (mc.get_object(config.MINIO_BUCKET, result_filename) for result_filename in files)
 
     logger.info("Similarity score results are {}".format(fmt_bytes(data_size)))
-    result_stream = chain_streams(generate_result_file_streams())
+    result_stream = chain_streams(result_file_stream_generator)
 
     db = connect_db()
     result_type = get_project_column(db, project_id, 'result_type')
