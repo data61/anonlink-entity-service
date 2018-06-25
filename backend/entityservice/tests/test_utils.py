@@ -14,3 +14,16 @@ def test_chaining_streams():
     data = s.read()
 
     assert len(data) == 16
+
+
+def test_chaining_streams_empty():
+
+    f1 = io.BytesIO(b'1abc')
+    f2 = io.BytesIO(b'')
+    f3 = io.BytesIO(b'3abc')
+
+    s = chain_streams((f for f in [f1, f2, f3]))
+
+    data = s.read()
+
+    assert len(data) == 8

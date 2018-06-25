@@ -94,7 +94,7 @@ def chain_streams(streams, buffer_size=io.DEFAULT_BUFFER_SIZE):
         def readinto(self, b):
             buffer_length = len(b)
             chunk = self._read_next_chunk(buffer_length)
-            if len(chunk) == 0:
+            while len(chunk) == 0:
                 # move to next stream
                 if self.stream is not None:
                     self.stream.close()
