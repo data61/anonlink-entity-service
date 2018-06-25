@@ -222,6 +222,7 @@ redis-ha:
     #annotations:
     #  cloud.google.com/load-balancer-type: Internal
     #serviceType: LoadBalancer
+
   resources:
     server:
       requests:
