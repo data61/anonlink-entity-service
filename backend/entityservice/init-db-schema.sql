@@ -48,7 +48,7 @@ CREATE TABLE runs (
   -- The run's resource identifier
   run_id         CHAR(48)         NOT NULL UNIQUE,
 
-  project        CHAR(48) REFERENCES projects (project_id),
+  project        CHAR(48) REFERENCES projects (project_id) on DELETE CASCADE,
 
   -- human readable name for display purposes
   name           TEXT,
@@ -86,7 +86,7 @@ CREATE TABLE dataproviders (
   -- Set after the bloom filter data has been added
   uploaded BOOL     NOT NULL DEFAULT FALSE,
 
-  project  CHAR(48) REFERENCES projects (project_id)
+  project  CHAR(48) REFERENCES projects (project_id) on DELETE CASCADE
 );
 
 CREATE INDEX ON dataproviders (project);
@@ -104,7 +104,7 @@ CREATE TABLE bloomingdata (
 
   ts    TIMESTAMP DEFAULT current_timestamp,
 
-  dp    INT REFERENCES dataproviders (id),
+  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
   -- The receipt token for this data
   token CHAR(48)    NOT NULL UNIQUE,
@@ -122,7 +122,7 @@ CREATE TABLE run_results (
   -- Just the table index
   id     SERIAL PRIMARY KEY,
 
-  run    CHAR(48) REFERENCES runs (run_id),
+  run    CHAR(48) REFERENCES runs (run_id) on DELETE CASCADE,
 
   -- the mapping result as json blob
   result JSONB
@@ -134,7 +134,7 @@ CREATE TABLE similarity_scores (
   -- Just the table index
   id   SERIAL PRIMARY KEY,
 
-  run  CHAR(48) REFERENCES runs (run_id),
+  run  CHAR(48) REFERENCES runs (run_id) on DELETE CASCADE,
 
   -- The name of CSV file containing the score results
   file CHAR(70) NOT NULL
@@ -146,8 +146,8 @@ CREATE INDEX ON similarity_scores (run);
 CREATE TABLE permutations (
   id          SERIAL PRIMARY KEY,
 
-  dp          INT REFERENCES dataproviders (id),
-  run         CHAR(48) REFERENCES runs (run_id),
+  dp          INT REFERENCES dataproviders (id) on DELETE CASCADE,
+  run         CHAR(48) REFERENCES runs (run_id), -- ? on DELETE CASCADE ?
 
   -- the permutation array as a json blob for this dp
   permutation JSONB
@@ -157,7 +157,7 @@ CREATE TABLE permutations (
 CREATE TABLE permutation_masks (
   id      SERIAL PRIMARY KEY,
 
-  project CHAR(48) REFERENCES projects (project_id),
+  project CHAR(48) REFERENCES projects (project_id) on DELETE CASCADE,
   run     CHAR(48) REFERENCES runs (run_id),
 
   -- Store the mask in the json form how it will be served

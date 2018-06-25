@@ -258,3 +258,38 @@ def get_run_status(db, run_id):
               run_id = %s
             """
     return query_db(db, sql_query, [run_id], one=True)
+
+
+def get_all_objects_for_project(db, project_id):
+    result_type = get_project_column(db, project_id, 'result_type')
+    object_store_files = []
+    dps = query_db(db, """
+        SELECT id
+        FROM dataproviders
+        WHERE project = %s
+        """, [project_id])
+
+    for dp in dps:
+        clk_file_ref = query_db(db, """
+            SELECT file FROM bloomingdata
+            WHERE dp = %s
+            """, [dp['id']], one=True)
+
+        if clk_file_ref is not None:
+            logger.info("blooming data file found: {}".format(clk_file_ref))
+            object_store_files.append(clk_file_ref['file'])
+
+    if result_type == "similarity_scores":
+        query_response = query_db(db, """
+            SELECT 
+              similarity_scores.file
+            FROM 
+              similarity_scores, runs
+            WHERE 
+              runs.run_id = similarity_scores.run AND
+              runs.project = %s
+            """, [project_id])
+        similarity_files = [res[0]['file'] for res in query_response]
+        object_store_files.extend(similarity_files)
+
+    return object_store_files
