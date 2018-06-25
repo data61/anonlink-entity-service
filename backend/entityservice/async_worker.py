@@ -1,6 +1,5 @@
 import csv
 import io
-import itertools
 import os
 import random
 
@@ -600,10 +599,7 @@ def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
     score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
     logger.debug("Creating python sparse matrix from bytes data")
     sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
-
-    # As we have the entire sparse matrix in memory at this point we directly compute the mapping
-    # instead of re-serializing and calling another task
-    logger.info("Calculating the optimal mapping from similarity matrix of length {}".format(len(sparse_matrix)))
+    logger.info("Calculating the optimal mapping from similarity matrix")
     mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
     logger.debug("Converting all indices to strings")

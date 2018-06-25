@@ -180,9 +180,7 @@ def clks_uploaded_to_project(project_id):
 
 def similarity_matrix_from_csv_bytes(data):
     rows = data.decode().splitlines()
-    sparse_matrix = []
     for row in rows:
         index_1, index_2, score = row.split(',')
         # Note we rewrite in a different order because we love making work for ourselves
-        sparse_matrix.append((int(index_1), float(score), int(index_2)))
-    return sparse_matrix
+        yield (int(index_1), float(score), int(index_2))
