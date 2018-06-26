@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS mappings, dataproviders, bloomingdata, metrics;
+DROP TABLE IF EXISTS projects, runs, dataproviders, bloomingdata, run_results, similarity_scores, permutations, permutation_masks, metrics;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
