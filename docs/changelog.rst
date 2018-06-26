@@ -4,6 +4,14 @@
 Changelog
 =========
 
+Version 1.8.1 (2018-06-14)
+--------------------------
+
+Improve system stability while handling large intermediate results.
+Intermediate results are now stored in files instead of in Redis. This permits us to stream them instead of loading
+everything into memory.
+
+
 Version 1.8 (2018-06-01)
 ------------------------
 

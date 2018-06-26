@@ -135,7 +135,7 @@ node('helm && kubectl') {
     NAMESPACE = "default"
 
     def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
-    def NGINXTAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
+    def NGINXTAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME nginx""", returnStdout: true).trim()
 
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
@@ -168,6 +168,7 @@ EOF
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
                     --set workers.replicaCount=2 \
+                    --set minio.mode="standalone" \
                     --set minio.persistence.size="4Gi" \
                     --set api.ingress.enabled=false
 

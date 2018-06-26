@@ -95,6 +95,15 @@ def create_project_upload_data(requests, clks1, clks2, result_type='mapping'):
     return new_project_data, r1.json(), r2.json()
 
 
+def delete_project(requests, project):
+    project_id = project['project_id']
+    result_token = project['result_token']
+    r = requests.delete(url + '/projects/{}'.format(project_id),
+                        headers={'Authorization': result_token})
+
+    assert r.status_code == 204, 'I received this instead: {}'.format(r.text)
+
+
 def get_run_status(requests, project, run_id, result_token = None):
     project_id = project['project_id']
     result_token = project['result_token'] if result_token is None else result_token

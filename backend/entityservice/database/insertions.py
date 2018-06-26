@@ -154,7 +154,6 @@ def update_run_mark_failure(db, run_id):
     with db.cursor() as cur:
         sql_query = """
             UPDATE runs SET
-              ready = FALSE,
               state = 'error',
               time_completed = now()
             WHERE

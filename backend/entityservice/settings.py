@@ -14,6 +14,9 @@ class Config(object):
 
     DEBUG = os.environ.get("DEBUG", "false") == "true"
 
+    CONNEXION_STRICT_VALIDATION = os.environ.get("CONNEXION_STRICT_VALIDATION", "true") == "true"
+    CONNEXION_RESPONSE_VALIDATION = os.environ.get("CONNEXION_RESPONSE_VALIDATION", "true") == "true"
+
     LOGFILE = os.environ.get("LOGFILE")
     fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
     consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',

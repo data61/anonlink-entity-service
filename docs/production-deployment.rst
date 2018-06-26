@@ -22,7 +22,7 @@ The components that are used in support are:
 
 - postgresql database holds all match metadata
 - redis is used for the celery job queue and as a cache
-- minio object store stores the raw CLKs and result files
+- minio object store stores the raw CLKs, intermediate files, and results.
 - nginx provides upload buffering, request rate limiting.
 - an ingress controller (e.g. nginx-ingress/traefik) provides TLS termination
 
