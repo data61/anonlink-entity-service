@@ -2,18 +2,20 @@ from flask import request
 
 from entityservice import app, database as db, cache as cache
 from entityservice.database import get_db
-from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token
+from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token, \
+    get_authorization_token_type_or_abort
 from entityservice.views.serialization import completed, running, error
 from entityservice.models.run import RUN_TYPES
 
 
 def get(project_id, run_id):
-    app.logger.info("request run status")
+    app.logger.debug("request run status")
     # Check the project and run resources exist
     abort_if_run_doesnt_exist(project_id, run_id)
 
     # Check the caller has a valid results token. Yes it should be renamed.
-    abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
+    auth_token_type = get_authorization_token_type_or_abort(project_id, request.headers.get('Authorization'))
+    app.logger.debug("Run status authorized using {} token".format(auth_token_type))
 
     app.logger.info("request for run status authorized")
     dbinstance = get_db()
