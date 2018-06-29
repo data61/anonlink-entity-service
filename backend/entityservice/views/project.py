@@ -205,7 +205,8 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     receipt_token = generate_code()
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
-    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, count)
+    with db.DBConn() as conn:
+        db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
     app.logger.info("dp_id={} Storing supplied binary clks".format(dp_id))
 
     num_bytes = count * (size + 6)
@@ -221,8 +222,9 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
         app.logger.info("Mismatch between expected stream length and header info")
         raise ValueError("Mismatch between expected stream length and header info")
 
-    db.update_filter_data(get_db(), filename, dp_id, 'ready')
-    db.set_dataprovider_upload_state(get_db(), dp_id, True)
+    with db.DBConn() as conn:
+        db.update_filter_data(conn, filename, dp_id, 'ready')
+        db.set_dataprovider_upload_state(conn, dp_id, True)
 
     # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
@@ -260,6 +262,7 @@ def upload_json_clk_data(dp_id, clk_json):
         length=len(data)
     )
 
-    db.insert_filter_data(get_db(), filename, dp_id, receipt_token, count)
+    with db.DBConn() as conn:
+        db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

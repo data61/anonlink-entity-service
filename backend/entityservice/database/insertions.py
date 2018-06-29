@@ -56,7 +56,6 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
     with db.cursor() as cur:
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
 
-    db.commit()
     set_dataprovider_upload_state(db, dp_id, True)
 
 
@@ -70,7 +69,6 @@ def set_dataprovider_upload_state(db, dp_id, state=True):
 
     with db.cursor() as cur:
         cur.execute(sql_update, [state, dp_id])
-    db.commit()
 
 
 def insert_similarity_score_file(db, run_id, filename):
@@ -136,7 +134,6 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
     logger.info("Updating database with info about hashes")
     with db.cursor() as cur:
         cur.execute(sql_query, [state, clks_filename, dp_id,])
-    db.commit()
 
 
 def update_run_chunk(db, resource_id, chunk_size):

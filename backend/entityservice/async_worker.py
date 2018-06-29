@@ -146,7 +146,8 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
     logger.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
     mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
-    update_filter_data(connect_db(), filename, dp_id)
+    with DBConn() as conn:
+        update_filter_data(conn, filename, dp_id)
 
     # Now work out if all parties have added their data
 
