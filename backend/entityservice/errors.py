@@ -20,6 +20,7 @@ class RunDeleted(DBResourceMissing):
     """The database is missing data that indicates the a run has been deleted"""
     resource_type = 'run'
 
+
 class DataProviderDeleted(DBResourceMissing):
     """The database is missing data that indicates the a run has been deleted"""
-    resource_type = 'dp'
+    resource_type = 'dataprovider'
