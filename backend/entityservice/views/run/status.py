@@ -38,10 +38,12 @@ def get(project_id, run_id):
         abs_val = db.get_number_parties_uploaded(dbinstance, project_id)
         max_val = db.get_project_column(dbinstance, project_id, 'parties')
     elif stage == 2:
+        # Computing similarity
         abs_val = cache.get_progress(run_id)
         if abs_val is not None:
             max_val = db.get_total_comparisons_for_project(dbinstance, project_id)
-    else: # no progress
+    else:
+        # Solving for mapping (no progress)
         abs_val = None
     if abs_val is not None:
         progress = {

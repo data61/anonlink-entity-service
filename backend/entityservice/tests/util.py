@@ -157,17 +157,19 @@ def ensure_run_progressing(requests, project, size):
 
     is_run_status(status)
 
-    original_status = status
+    if status['state'] not in {'completed', 'error'}:
 
-    dt = iso8601.parse_date(status['time_added'])
-    assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
+        original_status = status
 
-    # Wait and see if the progress changes
-    wait_approx_run_time(size)
+        dt = iso8601.parse_date(status['time_added'])
+        assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
 
-    status = get_run_status(requests, project, run_id)
+        # Wait and see if the progress changes
+        wait_approx_run_time(size)
 
-    assert has_progressed(original_status, status)
+        status = get_run_status(requests, project, run_id)
+
+        assert has_progressed(original_status, status)
 
 
 def post_run(requests, project, threshold):
