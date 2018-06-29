@@ -141,9 +141,9 @@ def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
     return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
-def wait_approx_run_time(size, assumed_rate=2_000_000):
+def wait_approx_run_time(size, assumed_rate=1_000_000):
     """Calculate how long the similarity comparison stage of a project should take
-    using a particular comparison rate. 2 M/s is quite conservative in order to work
+    using a particular comparison rate. 1 M/s is quite conservative in order to work
     on slower CI systems.
     """
     size_1, size_2 = size
