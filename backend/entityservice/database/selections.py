@@ -62,6 +62,19 @@ def get_number_parties_uploaded(db, resource_id):
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
+          dataproviders.uploaded = TRUE
+        """
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    return query_result['count']
+
+
+def get_number_parties_ready(db, resource_id):
+    sql_query = """
+        SELECT COUNT(*)
+        FROM dataproviders, bloomingdata
+        WHERE
+          dataproviders.project = %s AND
+          bloomingdata.dp = dataproviders.id AND
           dataproviders.uploaded = TRUE AND
           bloomingdata.state = 'ready'
         """
