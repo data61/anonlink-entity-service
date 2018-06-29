@@ -1,23 +1,6 @@
 version: '2'
 services:
 
-  # The old integration tests. To be removed before release
-#  ci:
-#    image: quay.io/n1analytics/entity-app
-#    environment:
-#      - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
-#      - ENTITY_SERVICE_TEST_SIZE=5000
-#      - ENTITY_SERVICE_PERMUTATION=true
-#      - ENTITY_SERVICE_TEST_REPEATS=1
-#      - INITIAL_DELAY=20
-#      - LOGGING_LEVEL=INFO
-#      - LOGGING_FILE=/var/log/es-test.log
-#    entrypoint: python test_service.py
-#    depends_on:
-#      - db
-#      - redis
-#      - worker
-#      - nginx
 
   tests:
     image: quay.io/n1analytics/entity-app

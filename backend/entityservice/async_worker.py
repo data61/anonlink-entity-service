@@ -50,6 +50,34 @@ logger = get_task_logger(__name__)
 logger.info("Setting up celery worker")
 
 
+class BaseTask(celery.Task):
+    """Abstract base class for all tasks in Entity Service"""
+
+    abstract = True
+    throws = (DBResourceMissing, psycopg2.IntegrityError)
+
+    def on_retry(self, exc, task_id, args, kwargs, einfo):
+        """Log the exceptions to some central logging system at retry."""
+        #todo captureException(exc)
+        logger.warning("ON RETRY")
+
+        super(BaseTask, self).on_retry(exc, task_id, args, kwargs, einfo)
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        """Log the exceptions"""
+        logger.info("An exception '{}' was raised in a task".format(exc.__class__.__name__))
+
+        if isinstance(exc, (DBResourceMissing, psycopg2.IntegrityError)):
+            logger.info("Task was running when a resource was deleted, or db was inconsistent. Ignoring")
+            # Note it will still be logged by celery
+            # http://docs.celeryproject.org/en/master/userguide/tasks.html#Task.throws
+            # todo captureException(exc)
+
+        else:
+            logger.exception(f"Unexpected exception raised in task {task_id}", exc_info=einfo)
+            super(BaseTask, self).on_failure(exc, task_id, args, kwargs, einfo)
+
+
 def convert_mapping_to_list(permutation):
     """Convert the permutation from a dict mapping into a list
 
@@ -67,10 +95,11 @@ def convert_mapping_to_list(permutation):
     return perm_list
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def handle_raw_upload(project_id, dp_id, receipt_token):
     logger.info("Project {} - handling user uploaded file for dp: {}".format(project_id, dp_id))
-    expected_size = get_number_of_hashes(connect_db(), dp_id)
+    with DBConn() as db:
+        expected_size = get_number_of_hashes(db, dp_id)
     logger.info("Expecting to handle {} hashes".format(expected_size))
 
     mc = connect_to_object_store()
@@ -126,75 +155,69 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
         check_for_executable_runs.delay(project_id)
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def check_for_executable_runs(project_id):
     """
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs.
     """
     logger.info("Checking for runs that need to be executed for project {}".format(project_id))
+    if not clks_uploaded_to_project(project_id):
+        return
 
-    conn = connect_db()
-
-    if clks_uploaded_to_project(project_id):
+    with DBConn() as conn:
         new_runs = get_created_runs_and_queue(conn, project_id)
-
-        if new_runs is not None:
-            logger.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
-            for qr in new_runs:
-                run_id = qr[0]
-                logger.info('queueing run {} for computation'.format(qr))
-                # run has reached a new stage
-                progress_stage(conn, run_id)
-                compute_run.delay(project_id, run_id)
+        logger.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
+        for qr in new_runs:
+            run_id = qr[0]
+            logger.info('Queueing run {} for computation'.format(qr))
+            # Record that the run has reached a new stage
+            progress_stage(conn, run_id)
+            compute_run.delay(project_id, run_id)
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def compute_run(project_id, run_id):
     logger.debug("Sanity check that we need to compute run")
 
-    conn = connect_db()
-    res = get_run(conn, run_id)
+    with DBConn() as conn:
+        res = get_run(conn, run_id)
 
-    if res['state'] in {'completed', 'error'}:
-        logger.info("Run '{}' is already finished. Skipping".format(run_id))
-        return
+        if res is None:
+            logger.info(f"Run '{run_id}' not found. Skipping")
+            raise RunDeleted(run_id)
 
-    logger.debug("Setting run as in progress")
-    with conn.cursor() as cur:
-        cur.execute("""UPDATE runs SET
-                      time_started = now(),
-                      state = 'running'
-                    WHERE
-                      run_id = %s
-                    """,
-                    [run_id])
-    conn.commit()
+        if res['state'] in {'completed', 'error'}:
+            logger.info("Run '{}' is already finished. Skipping".format(run_id))
+            return
 
-    threshold = res['threshold']
-    logger.debug("Getting dp ids for compute similarity task")
-    dp_ids = get_dataprovider_ids(conn, project_id)
+        logger.debug("Setting run as in progress")
+        update_run_set_started(conn, run_id)
 
-    logger.debug("Data providers: {}".format(dp_ids))
-    assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
+        threshold = res['threshold']
+        logger.debug("Getting dp ids for compute similarity task")
+        dp_ids = get_dataprovider_ids(conn, project_id)
+        logger.debug("Data providers: {}".format(dp_ids))
+        assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
     compute_similarity.delay(project_id, run_id, dp_ids, threshold)
-
     logger.info("CLK similarity computation scheduled")
 
-    return 'Done'
 
-
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def compute_similarity(project_id, run_id, dp_ids, threshold):
-    """
 
-    """
-
+    assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     logger.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     conn = connect_db()
 
-    lenf1, lenf2 = get_project_dataset_sizes(conn, project_id)
+    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+    if len(dataset_sizes) < 2:
+        logger.warning("Unexpected number of dataset sizes in db. Stopping")
+        update_run_mark_failure(conn, run_id)
+        return
+    else:
+        lenf1, lenf2 = dataset_sizes
 
     # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
     # Although now we don't load any CLKS into the redis cache
@@ -261,15 +284,15 @@ def celery_bug_fix(*args, **kwargs):
     return [0, None]
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def on_chord_error(*args, **kwargs):
     logger.info("An error occurred while processing the chord's tasks")
-    conn = connect_db()
-    update_run_mark_failure(conn, kwargs['run_id'])
+    with DBConn() as db:
+        update_run_mark_failure(db, kwargs['run_id'])
     logger.warning("Marked run as failure")
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def save_and_permute(similarity_result, project_id, run_id):
     logger.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
@@ -277,12 +300,15 @@ def save_and_permute(similarity_result, project_id, run_id):
     # Note Postgres requires JSON object keys to be strings
     # Celery actually converts the json arguments in the same way
 
-    db = connect_db()
-    result_type = get_project_column(db, project_id, 'result_type')
+    with DBConn() as db:
+        result_type = get_project_column(db, project_id, 'result_type')
 
-    # Just save the raw "mapping"
-    logger.debug("Saving the resulting map data to the db")
-    result_id = insert_mapping_result(db, run_id, mapping)
+        # Just save the raw "mapping"
+        logger.debug("Saving the resulting map data to the db")
+        result_id = insert_mapping_result(db, run_id, mapping)
+        dp_ids = get_dataprovider_ids(db, project_id)
+
+
     logger.info("Mapping result saved to db with id {}".format(result_id))
 
     if result_type == "permutations":
@@ -302,13 +328,12 @@ def save_and_permute(similarity_result, project_id, run_id):
     # Post similarity computation cleanup
     logger.debug("Removing clk filters from redis cache")
 
-    dp_ids = get_dataprovider_ids(db, project_id)
-    cache.remove_from_cache(dp_ids[0])
-    cache.remove_from_cache(dp_ids[1])
+    for dp_id in dp_ids:
+        cache.remove_from_cache(dp_id)
     calculate_comparison_rate.delay()
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
     """
     Task which will create a permutation after a mapping has been completed.
@@ -373,7 +398,6 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
     random.shuffle(remaining_a_values)
     random.shuffle(remaining_b_values)
 
-
     # For every element in a's permutation
     for a_index in range(len_filters1):
         # Check if it is not already present
@@ -425,15 +449,16 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
     mark_mapping_complete.delay(run_id)
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_results=True)
 def mark_mapping_complete(run_id):
     logger.debug("Marking run complete")
-    db = connect_db()
-    update_run_mark_complete(db, run_id)
+    with DBConn() as db:
+        update_run_mark_complete(db, run_id)
+    calculate_comparison_rate.delay()
     logger.info("Run {} marked as complete".format(run_id))
 
 
-@celery.task()
+@celery.task(base=BaseTask)
 def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
@@ -452,7 +477,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     logger.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
         if not check_run_exists(db, project_id, run_id):
-            logger.warning("Skipping as resource not found.")
+            logger.info("Skipping as resource not found.")
             return None
 
     t0 = time.time()
@@ -503,7 +528,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         try:
             mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
         except minio.ResponseError as err:
-            logger.warn("Failed to store result in minio")
+            logger.warning("Failed to store result in minio")
             raise
 
         # If we don't delete the file we *do* run out of space
@@ -543,8 +568,13 @@ def save_current_progress(comparisons, run_id):
     cache.update_progress(comparisons, run_id)
 
 
-@celery.task()
+@celery.task(
+    base=BaseTask,
+    ignore_result=True,
+    autoretry_for=(minio.ResponseError,),
+    retry_backoff=True)
 def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
+    if similarity_result_files is None: return
     mc = connect_to_object_store()
     files = []
     data_size = 0
@@ -561,35 +591,37 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
     logger.info("Similarity score results are {}".format(fmt_bytes(data_size)))
     result_stream = chain_streams(result_file_stream_generator)
 
-    db = connect_db()
-    result_type = get_project_column(db, project_id, 'result_type')
+    with DBConn() as db:
+        result_type = get_project_column(db, project_id, 'result_type')
 
-    # Note: Storing the similarity scores for all result types
-    result_filename = store_similarity_scores(result_stream, run_id, data_size)
+        # Note: Storing the similarity scores for all result types
+        result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
 
+        if result_type == "similarity_scores":
+            # Post similarity computation cleanup
+            dp_ids = get_dataprovider_ids(db, project_id)
+
+        else:
+            # we promote the run to the next stage
+            progress_stage(db, run_id)
+            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+
+    # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
         logger.info("Deleting intermediate similarity score files from object store")
         mc.remove_objects(config.MINIO_BUCKET, files)
-
-        # Complete mapping job
-        logger.info("Marking run {} as complete".format(run_id))
-        mark_mapping_complete.delay(run_id)
-
-        # Post similarity computation cleanup
         logger.debug("Removing clk filters from redis cache")
-
-        dp_ids = get_dataprovider_ids(db, project_id)
         cache.remove_from_cache(dp_ids[0])
         cache.remove_from_cache(dp_ids[1])
-        calculate_comparison_rate.delay()
+
+        # Complete the run
+        logger.info("Marking run {} as complete".format(run_id))
+        mark_mapping_complete.delay(run_id)
     else:
-        # we promote the run to the next stage
-        progress_stage(db, run_id)
-        lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
         solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
 
 
-@celery.task()
+@celery.task(base=BaseTask, ignore_result=True)
 def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
     mc = connect_to_object_store()
     score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
@@ -612,7 +644,7 @@ def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
     save_and_permute.delay(res, project_id, run_id)
 
 
-def store_similarity_scores(buffer, run_id, length):
+def store_similarity_scores(buffer, run_id, length, conn):
     """
     Stores the similarity scores above a similarity threshold as a CSV in minio.
 
@@ -635,25 +667,17 @@ def store_similarity_scores(buffer, run_id, length):
         content_type='application/csv'
     )
 
-    db = connect_db()
-    logger.debug("Storing the CSV filename '{}' in the database".format(filename))
-    with db.cursor() as cur:
-        result_id = execute_returning_id(cur, """
-            INSERT into similarity_scores
-              (run, file)
-            VALUES
-              (%s, %s)
-            RETURNING id;
-            """,
-            [
-                run_id, filename
-            ])
-    db.commit()
-    logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
+    try:
+        logger.debug("Storing the CSV filename '{}' in the database".format(filename))
+        result_id = insert_similarity_score_file(conn, run_id, filename)
+        logger.debug("Saved path to similarity scores file to db with id {}".format(result_id))
+    except psycopg2.IntegrityError:
+        logger.info("Error saving similarity score filename to database. Suspect that project has been deleted")
+        raise RunDeleted(run_id)
     return filename
 
 
-@celery.task()
+@celery.task(ignore_result=True)
 def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating global comparison rate")
