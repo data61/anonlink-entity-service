@@ -150,7 +150,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     # Now work out if all parties have added their data
 
-    if clks_uploaded_to_project(project_id):
+    if clks_uploaded_to_project(project_id, check_data_ready=True):
         logger.info("Project {} - All parties data present. Scheduling any queued runs".format(project_id))
         check_for_executable_runs.delay(project_id)
 
@@ -159,10 +159,10 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 def check_for_executable_runs(project_id):
     """
     This is called when a run is posted (if project is ready for runs), and also
-    after all dataproviders have uploaded CLKs.
+    after all dataproviders have uploaded CLKs, and the CLKS are ready.
     """
     logger.info("Checking for runs that need to be executed for project {}".format(project_id))
-    if not clks_uploaded_to_project(project_id):
+    if not clks_uploaded_to_project(project_id, check_data_ready=True):
         return
 
     with DBConn() as conn:
