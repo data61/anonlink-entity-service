@@ -9,6 +9,7 @@ from entityservice.tests.util import create_project_upload_fake_data, delete_pro
 
 THROTTLE_SLEEP = 0.1
 
+
 @pytest.fixture(scope='session')
 def requests():
     """

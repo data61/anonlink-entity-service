@@ -264,6 +264,9 @@ def has_progressed(status_old, status_new):
         raise ValueError("progress seems to go backwards! What's going on???")
     # both in the same stage then
     if 'progress' in status_old['current_stage'] and 'progress' in status_new['current_stage']:
+        assert 0 <= status_new['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_new['current_stage']['progress']['relative'])
+        assert 0 <= status_old['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_old['current_stage']['progress']['relative'])
+
         return status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']
     else:
         # how do you measure progress in that case??
