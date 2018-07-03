@@ -59,7 +59,8 @@ class BaseTask(celery.Task):
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """Log the exceptions to some central logging system at retry."""
         #todo captureException(exc)
-        logger.warning("ON RETRY")
+        logger.warning("Task {} is retrying after a '{}' exception".format(
+            task_id, exc.__class__.__name__))
 
         super(BaseTask, self).on_retry(exc, task_id, args, kwargs, einfo)
 
