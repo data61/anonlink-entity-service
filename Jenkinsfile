@@ -19,7 +19,7 @@ node('docker&&multicore&&ram') {
   }
 
   def errorMsg = "Unknown failure";
-
+  def composeproject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replace("-", "").replace("_", "");
   try {
 
     stage('Docker Build') {
@@ -42,13 +42,13 @@ node('docker&&multicore&&ram') {
 
     stage('Compose Deploy') {
       try {
-        sh '''
+        sh """
         # Stop and remove any existing entity service
-        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest down -v
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeproject} down -v
 
         # Start all the containers (including tests)
-        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
-        '''
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeproject} up -d
+        """
         setBuildStatus("Integration test in progress", "PENDING");
       } catch (err) {
         errorMsg = "Failed to start CI integration test with docker compose";
@@ -58,11 +58,11 @@ node('docker&&multicore&&ram') {
 
     stage('Integration Tests') {
       try {
-        sh '''
+        sh """
           sleep 2
-          docker logs -t -f entityservicetest_tests_1
-          exit `docker inspect --format='{{.State.ExitCode}}' entityservicetest_tests_1`
-        '''
+          docker logs -t -f ${composeproject}_tests_1
+          exit `docker inspect --format='{{.State.ExitCode}}' ${composeproject}_tests_1`
+        """
         setBuildStatus("Integration tests complete", "SUCCESS");
       } catch (err) {
         errorMsg = "Integration tests didn't pass";
@@ -72,7 +72,7 @@ node('docker&&multicore&&ram') {
 
     stage('Documentation') {
       try {
-        sh '''
+        sh """
           mkdir -p html
           chmod 777 html
 
@@ -84,7 +84,7 @@ node('docker&&multicore&&ram') {
           cd ..
           cp -r html/* frontend/static
           docker build -t quay.io/n1analytics/entity-nginx:latest frontend
-        '''
+        """
 
         archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
         setBuildStatus("Documentation Built", "SUCCESS");
@@ -118,7 +118,16 @@ node('docker&&multicore&&ram') {
     currentBuild.result = 'FAILURE'
     setBuildStatus(errorMsg,  "FAILURE");
   } finally {
-    sh './tools/ci_cleanup.sh'
+    sh """
+    docker-compose -f docker-compose.yml -p  ${composeproject} down -v
+
+    # Raise the exit code of the tests
+    exit_code=`docker inspect --format='{{.State.ExitCode}}' ${composeproject}_tests_1`
+
+    docker-compose -f docker-compose.yml -f ci.yml -p ${composeproject} down -v
+
+    exit "$exit_code"
+    """
   }
 
 }
@@ -131,7 +140,7 @@ node('helm && kubectl') {
     // Pre-existant configuration file available from jenkins
     CLUSTER_CONFIG_FILE_ID = "awsClusterConfig"
 
-    DEPLOYMENT = "es-${BRANCH_NAME}-${BUILD_NUMBER}"
+    DEPLOYMENT = "es_${BRANCH_NAME}_${BUILD_NUMBER}".replace("-", "_")
     NAMESPACE = "default"
 
     def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
@@ -162,7 +171,7 @@ EOF
 
                 cd deployment/entity-service
                 helm dependency update
-                helm upgrade --install --namespace ${NAMESPACE} ${DEPLOYMENT} . \
+                helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
                     --set api.app.image.tag=${TAG} \
