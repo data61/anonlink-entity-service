@@ -147,7 +147,7 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     on slower CI systems.
     """
     size_1, size_2 = size
-    time.sleep(2 + size_1 * size_2 / assumed_rate)
+    time.sleep(3 + size_1 * size_2 / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):
@@ -169,7 +169,8 @@ def ensure_run_progressing(requests, project, size):
 
         status = get_run_status(requests, project, run_id)
 
-        assert has_progressed(original_status, status)
+        failure_msg = "No progress seen. Status A:\n{}\nStatus B:\n{}\n".format(original_status, status)
+        assert has_progressed(original_status, status), failure_msg
 
 
 def post_run(requests, project, threshold):
