@@ -7,7 +7,7 @@ void setBuildStatus(String message, String state) {
   ]);
 }
 
-node('docker') {
+node('docker&&multicore&&ram') {
 
   stage ('Checkout') {
     checkout scm

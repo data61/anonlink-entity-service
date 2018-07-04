@@ -147,7 +147,7 @@ CREATE TABLE permutations (
   id          SERIAL PRIMARY KEY,
 
   dp          INT REFERENCES dataproviders (id) on DELETE CASCADE,
-  run         CHAR(48) REFERENCES runs (run_id), -- ? on DELETE CASCADE ?
+  run         CHAR(48) REFERENCES runs (run_id) on DELETE CASCADE,
 
   -- the permutation array as a json blob for this dp
   permutation JSONB

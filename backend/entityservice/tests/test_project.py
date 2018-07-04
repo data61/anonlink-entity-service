@@ -1,7 +1,7 @@
 import time
 
 from entityservice.tests.config import url
-from entityservice.tests.util import generate_overlapping_clk_data, get_project_description
+from entityservice.tests.util import generate_overlapping_clk_data, get_project_description, delete_project
 
 
 def _check_new_project_response_fields(new_project_data):
@@ -69,6 +69,10 @@ def test_create_then_delete_valid_auth(requests):
         headers={'Authorization': token}
     )
     assert delete_project_response.status_code == 204
+
+
+def test_delete_mapping_project(requests, mapping_project):
+    delete_project(requests, mapping_project)
 
 
 def test_create_then_list(requests):

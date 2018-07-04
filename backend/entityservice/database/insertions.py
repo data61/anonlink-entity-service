@@ -3,6 +3,7 @@
 import psycopg2
 import psycopg2.extras
 from entityservice.database.util import execute_returning_id, logger
+from entityservice.errors import RunDeleted
 
 
 def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes):
@@ -55,7 +56,6 @@ def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
     with db.cursor() as cur:
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
 
-    db.commit()
     set_dataprovider_upload_state(db, dp_id, True)
 
 
@@ -70,20 +70,36 @@ def set_dataprovider_upload_state(db, dp_id, state=True):
     with db.cursor() as cur:
         cur.execute(sql_update, [state, dp_id])
 
-    db.commit()
 
-
-def insert_mapping_result(db, run_id, mapping):
+def insert_similarity_score_file(db, run_id, filename):
     with db.cursor() as cur:
         insertion_query = """
-            INSERT into run_results
-              (run, result)
+            INSERT into similarity_scores
+              (run, file)
             VALUES
               (%s, %s)
             RETURNING id;
             """
-        result_id = execute_returning_id(cur, insertion_query, [run_id, psycopg2.extras.Json(mapping)])
-    db.commit()
+        try:
+            result_id = execute_returning_id(cur, insertion_query, [run_id, filename])
+        except psycopg2.IntegrityError as e:
+            raise RunDeleted(run_id)
+    return result_id
+
+
+def insert_mapping_result(db, run_id, mapping):
+    try:
+        with db.cursor() as cur:
+            insertion_query = """
+                INSERT into run_results
+                  (run, result)
+                VALUES
+                  (%s, %s)
+                RETURNING id;
+                """
+            result_id = execute_returning_id(cur, insertion_query, [run_id, psycopg2.extras.Json(mapping)])
+    except psycopg2.IntegrityError as e:
+        raise RunDeleted(run_id)
     return result_id
 
 
@@ -94,7 +110,10 @@ def insert_permutation(cur, dp_id, run_id, perm_list):
         VALUES
           (%s, %s, %s)
         """
-    cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+    try:
+        cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+    except psycopg2.IntegrityError:
+        raise RunDeleted(run_id)
 
 
 def insert_permutation_mask(cur, project_id, run_id, mask_list):
@@ -105,7 +124,10 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
           (%s, %s, %s)
         """
     json_mask = psycopg2.extras.Json(mask_list)
-    cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+    try:
+        cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+    except psycopg2.IntegrityError:
+        raise RunDeleted(run_id)
 
 
 def update_filter_data(db, clks_filename, dp_id, state='ready'):
@@ -121,7 +143,6 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
     logger.info("Updating database with info about hashes")
     with db.cursor() as cur:
         cur.execute(sql_query, [state, clks_filename, dp_id,])
-    db.commit()
 
 
 def update_run_chunk(db, resource_id, chunk_size):
@@ -137,6 +158,18 @@ def update_run_chunk(db, resource_id, chunk_size):
     db.commit()
 
 
+def update_run_set_started(db, run_id):
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              state = 'running',
+              time_started = now()
+            WHERE
+              run_id = %s
+            """
+        cur.execute(sql_query, [run_id])
+
+
 def update_run_mark_complete(db, run_id):
     with db.cursor() as cur:
         sql_query = """
@@ -147,7 +180,6 @@ def update_run_mark_complete(db, run_id):
               run_id = %s
             """
         cur.execute(sql_query, [run_id])
-    db.commit()
 
 
 def update_run_mark_failure(db, run_id):
@@ -164,15 +196,19 @@ def update_run_mark_failure(db, run_id):
 
 
 def progress_run_stage(db, run_id):
-    with db.cursor() as cur:
-        sql_query = """
-            UPDATE runs SET
-              stage = stage + 1
-            WHERE
-              run_id = %s
-            """
-        cur.execute(sql_query, [run_id])
-    db.commit()
+    try:
+        with db.cursor() as cur:
+            sql_query = """
+                UPDATE runs SET
+                  stage = stage + 1
+                WHERE
+                  run_id = %s
+                """
+            cur.execute(sql_query, [run_id])
+        db.commit()
+    except psycopg2.Error as e:
+        logger.warning(e)
+        raise RunDeleted(run_id)
 
 
 def get_created_runs_and_queue(db, project_id):
@@ -192,5 +228,6 @@ def get_created_runs_and_queue(db, project_id):
         """
         cur.execute(sql_query, [project_id])
         res = cur.fetchall()
-    db.commit()
+    if res is None:
+        res = []
     return res

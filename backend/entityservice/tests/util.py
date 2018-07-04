@@ -101,7 +101,8 @@ def delete_project(requests, project):
     r = requests.delete(url + '/projects/{}'.format(project_id),
                         headers={'Authorization': result_token})
 
-    assert r.status_code == 204, 'I received this instead: {}'.format(r.text)
+    # Note we allow for a 403 because the project may already have been deleted
+    assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
 
 
 def get_run_status(requests, project, run_id, result_token = None):
@@ -141,13 +142,13 @@ def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
     return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
-def wait_approx_run_time(size, assumed_rate=2_000_000):
+def wait_approx_run_time(size, assumed_rate=1_000_000):
     """Calculate how long the similarity comparison stage of a project should take
-    using a particular comparison rate. 2 M/s is quite conservative in order to work
+    using a particular comparison rate. 1 M/s is quite conservative in order to work
     on slower CI systems.
     """
     size_1, size_2 = size
-    time.sleep(2 + size_1 * size_2 / assumed_rate)
+    time.sleep(3 + size_1 * size_2 / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):
@@ -157,17 +158,20 @@ def ensure_run_progressing(requests, project, size):
 
     is_run_status(status)
 
-    original_status = status
+    if status['state'] not in {'completed', 'error'}:
 
-    dt = iso8601.parse_date(status['time_added'])
-    assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
+        original_status = status
 
-    # Wait and see if the progress changes
-    wait_approx_run_time(size)
+        dt = iso8601.parse_date(status['time_added'])
+        assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
 
-    status = get_run_status(requests, project, run_id)
+        # Wait and see if the progress changes
+        wait_approx_run_time(size)
 
-    assert has_progressed(original_status, status)
+        status = get_run_status(requests, project, run_id)
+
+        failure_msg = "No progress seen. Status A:\n{}\nStatus B:\n{}\n".format(original_status, status)
+        assert has_progressed(original_status, status), failure_msg
 
 
 def post_run(requests, project, threshold):
@@ -262,6 +266,9 @@ def has_progressed(status_old, status_new):
         raise ValueError("progress seems to go backwards! What's going on???")
     # both in the same stage then
     if 'progress' in status_old['current_stage'] and 'progress' in status_new['current_stage']:
+        assert 0 <= status_new['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_new['current_stage']['progress']['relative'])
+        assert 0 <= status_old['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_old['current_stage']['progress']['relative'])
+
         return status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']
     else:
         # how do you measure progress in that case??

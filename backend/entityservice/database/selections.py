@@ -1,4 +1,5 @@
 from entityservice.database.util import query_db, logger
+from entityservice.errors import ProjectDeleted, RunDeleted, DataProviderDeleted
 
 
 def select_dataprovider_id(db, project_id, receipt_token):
@@ -62,6 +63,19 @@ def get_number_parties_uploaded(db, resource_id):
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
+          dataproviders.uploaded = TRUE
+        """
+    query_result = query_db(db, sql_query, [resource_id], one=True)
+    return query_result['count']
+
+
+def get_number_parties_ready(db, resource_id):
+    sql_query = """
+        SELECT COUNT(*)
+        FROM dataproviders, bloomingdata
+        WHERE
+          dataproviders.project = %s AND
+          bloomingdata.dp = dataproviders.id AND
           dataproviders.uploaded = TRUE AND
           bloomingdata.state = 'ready'
         """
@@ -116,7 +130,11 @@ def get_project_column(db, project_id, column):
         FROM projects
         WHERE project_id = %s
         """.format(column)
-    return query_db(db, sql_query, [project_id], one=True)[column]
+    query_result = query_db(db, sql_query, [project_id], one=True)
+    if query_result is None:
+        raise ProjectDeleted(project_id)
+    else:
+        return query_result[column]
 
 
 def get_run_result(db, resource_id):
@@ -132,11 +150,12 @@ def get_run_result(db, resource_id):
         WHERE run = %s
         """
     query_result = query_db(db, sql_query, [resource_id], one=True)
+    if query_result is None:
+        raise RunDeleted(f"Run {resource_id} not found in database")
     return query_result['result']
 
 
 def get_project_dataset_sizes(db, project_id):
-
     sql_query = """
         SELECT bloomingdata.size
         FROM dataproviders, bloomingdata
@@ -150,7 +169,6 @@ def get_project_dataset_sizes(db, project_id):
 
 
 def get_smaller_dataset_size_for_project(db, project_id):
-
     sql_query = """
         SELECT MIN(bloomingdata.size) as smaller
         FROM dataproviders, bloomingdata
@@ -166,7 +184,6 @@ def get_total_comparisons_for_project(db, project_id):
     """
     :return total number of comparisons for this project
     """
-
     sql_query = """
         SELECT bloomingdata.size as rows
         from dataproviders, bloomingdata
@@ -201,7 +218,11 @@ def get_bloomingdata_column(db, dp_id, column):
         FROM bloomingdata
         WHERE dp = %s
         """.format(column)
-    return query_db(db, sql_query, [dp_id], one=True)[column]
+    result = query_db(db, sql_query, [dp_id], one=True)
+    if result is None:
+        raise DataProviderDeleted(dp_id)
+    else:
+        return result[column]
 
 
 def get_filter_metadata(db, dp_id):
