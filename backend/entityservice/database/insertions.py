@@ -80,7 +80,10 @@ def insert_similarity_score_file(db, run_id, filename):
               (%s, %s)
             RETURNING id;
             """
-        result_id = execute_returning_id(cur, insertion_query, [run_id, filename])
+        try:
+            result_id = execute_returning_id(cur, insertion_query, [run_id, filename])
+        except psycopg2.IntegrityError as e:
+            raise RunDeleted(run_id)
     return result_id
 
 
@@ -107,7 +110,10 @@ def insert_permutation(cur, dp_id, run_id, perm_list):
         VALUES
           (%s, %s, %s)
         """
-    cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+    try:
+        cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+    except psycopg2.IntegrityError:
+        raise RunDeleted(run_id)
 
 
 def insert_permutation_mask(cur, project_id, run_id, mask_list):
@@ -118,7 +124,10 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
           (%s, %s, %s)
         """
     json_mask = psycopg2.extras.Json(mask_list)
-    cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+    try:
+        cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+    except psycopg2.IntegrityError:
+        raise RunDeleted(run_id)
 
 
 def update_filter_data(db, clks_filename, dp_id, state='ready'):
