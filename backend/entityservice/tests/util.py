@@ -101,7 +101,8 @@ def delete_project(requests, project):
     r = requests.delete(url + '/projects/{}'.format(project_id),
                         headers={'Authorization': result_token})
 
-    assert r.status_code == 204, 'I received this instead: {}'.format(r.text)
+    # Note we allow for a 403 because the project may already have been deleted
+    assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
 
 
 def get_run_status(requests, project, run_id, result_token = None):
