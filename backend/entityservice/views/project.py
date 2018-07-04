@@ -11,7 +11,7 @@ from entityservice.utils import safe_fail_request, get_json, generate_code, get_
 
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
-    abort_if_invalid_results_token, dataprovider_id_if_authorize, get_authorization_token_type_or_abort
+    abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
