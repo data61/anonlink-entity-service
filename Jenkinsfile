@@ -7,6 +7,8 @@ void setBuildStatus(String message, String state) {
   ]);
 }
 
+def composeproject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("-", "").replaceAll("_", "").toLowerCase();
+
 node('docker&&multicore&&ram') {
 
   stage ('Checkout') {
@@ -20,7 +22,7 @@ node('docker&&multicore&&ram') {
 
 
   def errorMsg = "Unknown failure";
-  def composeproject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("-", "").replaceAll("_", "").toLowerCase();
+
   try {
 
     stage('Docker Build') {
