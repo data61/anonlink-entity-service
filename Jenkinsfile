@@ -18,6 +18,7 @@ node('docker&&multicore&&ram') {
     sh 'docker login -u=${USERNAME_QUAY} -p=${PASSWORD_QUAY} quay.io'
   }
 
+
   def errorMsg = "Unknown failure";
   def composeproject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("-", "").replaceAll("_", "").toLowerCase();
   try {
@@ -115,16 +116,17 @@ node('docker&&multicore&&ram') {
     currentBuild.result = 'FAILURE'
     setBuildStatus(errorMsg,  "FAILURE");
   } finally {
-    sh """
-    # Raise the exit code of the tests
-    exit_code=`docker inspect --format='{{.State.ExitCode}}' ${composeproject}_tests_1`
-
-    docker-compose -f docker-compose.yml -f ci.yml -p ${composeproject} down -v
-
-    exit "$exit_code"
-    """
+    try {
+        String cmdInspect = "docker inspect --format='{{.State.ExitCode}}' "+ composeproject + "_tests_1"
+        sh cmdInspect
+    } catch (Exception e) {
+        print("Tests failed with exception " + e.toString())
+        throw e
+    } finally {
+        String cmdTearDown = "docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p " + composeproject + " down -v"
+        sh cmdTearDown
+    }
   }
-
 }
 
 node('helm && kubectl') {
@@ -135,7 +137,7 @@ node('helm && kubectl') {
     // Pre-existant configuration file available from jenkins
     CLUSTER_CONFIG_FILE_ID = "awsClusterConfig"
 
-    DEPLOYMENT = "es_${BRANCH_NAME}_${BUILD_NUMBER}"
+    DEPLOYMENT = composeproject
     NAMESPACE = "default"
 
     def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
