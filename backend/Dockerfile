@@ -36,6 +36,6 @@ CMD gunicorn entityservice:app \
     --timeout 600 \
     --keep-alive 300 \
     --graceful-timeout 120 \
-    --log-level info \
+    --log-level debug \
     --access-logfile /var/log/gunicorn-access.log
 

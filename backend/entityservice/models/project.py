@@ -2,7 +2,9 @@ from entityservice import app
 from entityservice.messages import INVALID_RESULT_TYPE_MESSAGE
 from entityservice.utils import generate_code
 import entityservice.database as db
+from structlog import get_logger
 
+logger = get_logger()
 
 class InvalidProjectParametersException(ValueError):
 
@@ -18,7 +20,7 @@ class Project(object):
     Exists before insertion into the database.
     """
     def __init__(self, result_type, schema, name, notes, parties):
-        app.logger.info("Creating project codes")
+        logger.info("Creating project codes")
         self.result_type = result_type
         self.schema = schema
         self.name = name
@@ -26,6 +28,7 @@ class Project(object):
         self.number_parties = parties
 
         self.project_id = generate_code()
+        log = logger.bind(pid=self.project_id)
         self.result_token = generate_code()
 
         # Order is important here
@@ -59,7 +62,7 @@ class Project(object):
 
     def save(self, conn):
         with conn.cursor() as cur:
-            app.logger.debug("Starting database transaction. Creating project.")
+            logger.debug("Starting database transaction. Creating project.")
             project_id = db.insert_new_project(cur,
                                                self.result_type,
                                                self.schema,
@@ -70,14 +73,14 @@ class Project(object):
                                                self.notes
                                                )
 
-            app.logger.debug("New project created in DB: {}".format(project_id))
-            app.logger.debug("Creating new data provider entries")
+            logger.debug("New project created in DB", pid=project_id)
+            logger.debug("Creating new data provider entries")
 
             for auth_token in self.update_tokens:
                 dp_id = db.insert_dataprovider(cur, auth_token, project_id)
-                app.logger.info("Added dataprovider with id = {}".format(dp_id))
+                logger.info("Added dataprovider with id = {}".format(dp_id), dp_id=dp_id)
 
-            app.logger.debug("Added data providers")
+            logger.debug("Added data providers")
 
-            app.logger.debug("Committing transaction")
+            logger.debug("Committing transaction")
             conn.commit()
