@@ -166,7 +166,7 @@ node('helm && kubectl') {
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
       withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws_jenkins', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
         try {
-          Map<String, String> dicTestVersions = [
+          dicTestVersions = [
               "api"    : [
                   "www"   : [
                       "image": [
@@ -191,61 +191,11 @@ node('helm && kubectl') {
               ]
           ]
 
-          Map<String, String> dicKubernetesTestVariables = [
-              "apiVersion": "batch/v1",
-              "kind"      : "Job",
-              "metadata"  : [
-                  "name": DEPLOYMENT + "-test"
-              ],
-              "labels"    : [
-                  "jobgroup": "jenkins-es-integration-test"
-              ],
-              "deployment": DEPLOYMENT,
-              "spec"      : [
-                  "completions": 1,
-                  "parallelism": 1,
-                  "template"   : [
-                      "metadata": [
-                          "labels": [
-                              "jobgroup"  : "jenkins-es-integration-test",
-                              "deployment": DEPLOYMENT
-                          ]
-                      ],
-                      "spec"    : [
-                          "restartPolicy"   : "Never",
-                          "containers"      : [
-                              [
-                                  "name"           : "entitytester",
-                                  "image"          : QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG,
-                                  "imagePullPolicy": "Always",
-                                  "env"            : [
-                                      [
-                                          "name" : ENTITY_SERVICE_URL,
-                                          "value": "http://" + serviceIP + "/api/v1"
-                                      ]
-                                  ],
-                                  "command"        : [
-                                      "python",
-                                      "-m",
-                                      "pytest",
-                                      "entityservice/tests",
-                                      "--long"
-                                  ]
-                              ]
-                          ],
-                          "imagePullSecrets": [
-                              [
-                                  "name": "n1-quay-pull-secret"
-                              ]
-                          ]
-                      ]
-
-                  ]
-              ]
-          ]
-
           timeout(time: 30, unit: 'MINUTES') {
             dir("deployment/entity-service") {
+              if (fileExists("test-versions.yaml")) {
+                sh "rm test-versions.yaml"
+              }
               writeYaml(file: "test-versions.yaml", data: dicTestVersions)
               sh """
                 helm dependency update
@@ -267,10 +217,9 @@ node('helm && kubectl') {
                 kubectl get services -lapp=${DEPLOYMENT}-entity-service -o jsonpath="{.items[0].spec.clusterIP}"
             """, returnStdout: true).trim()
 
-            writeYaml(file: "test-variables.yaml", data: dicKubernetesTestVariables)
-            sh """
-                kubectl create -f test-variables.yaml
-            """
+            dicKubernetesYamlFile = writeDicKubernetesVariables(DEPLOYMENT, QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG, serviceIP)
+            String shCommand = "kubectl create -f " + dicKubernetesYamlFile
+            sh shCommand
             sleep(time: 300, unit: "SECONDS")
 
             def jobPodName = sh(script: """
@@ -303,4 +252,66 @@ node('helm && kubectl') {
       }
     }
   }
+}
+
+
+String writeDicKubernetesVariables(String deploymentName, String imageNameWithTag, String serviceIP) {
+  String yamlFileName = "test-variables.yaml"
+  if (fileExists(yamlFileName)) {
+    sh "rm " + yamlFileName
+  }
+  def dicKubernetes = [
+      "apiVersion": "batch/v1",
+      "kind"      : "Job",
+      "metadata"  : [
+          "name": deploymentName + "-test"
+      ],
+      "labels"    : [
+          "jobgroup": "jenkins-es-integration-test"
+      ],
+      "deployment": deploymentName,
+      "spec"      : [
+          "completions": 1,
+          "parallelism": 1,
+          "template"   : [
+              "metadata": [
+                  "labels": [
+                      "jobgroup"  : "jenkins-es-integration-test",
+                      "deployment": deploymentName
+                  ]
+              ],
+              "spec"    : [
+                  "restartPolicy"   : "Never",
+                  "containers"      : [
+                      [
+                          "name"           : "entitytester",
+                          "image"          : imageNameWithTag,
+                          "imagePullPolicy": "Always",
+                          "env"            : [
+                              [
+                                  "name" : "ENTITY_SERVICE_URL",
+                                  "value": "http://" + serviceIP + "/api/v1"
+                              ]
+                          ],
+                          "command"        : [
+                              "python",
+                              "-m",
+                              "pytest",
+                              "entityservice/tests",
+                              "--long"
+                          ]
+                      ]
+                  ],
+                  "imagePullSecrets": [
+                      [
+                          "name": "n1-quay-pull-secret"
+                      ]
+                  ]
+              ]
+
+          ]
+      ]
+  ]
+  writeYaml(file: yamlFileName, data: dicKubernetes)
+  return yamlFileName
 }
