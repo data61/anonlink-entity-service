@@ -73,9 +73,9 @@ node('docker&&multicore&&ram') {
       try {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
-        timeout(time: 5, unit: 'MINUTES') {
+        timeout(time: 30, unit: 'MINUTES') {
           while (containerTests.isRunning()) {
-            sleep 2
+            sleep 10
           }
           if (containerTests.getExitCode() != "0") {
             throw new Exception("The tests failed.")
