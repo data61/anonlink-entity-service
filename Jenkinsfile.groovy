@@ -78,7 +78,8 @@ node('docker&&multicore&&ram') {
             sleep 10
           }
           if (containerTests.getExitCode() != "0") {
-            throw new Exception("The tests failed.")
+            containerTests.printLogs()
+            throw new Exception("The integration tests failed.")
           }
           gitCommit.setSuccessStatus(gitContextIntegrationTests)
         }
@@ -215,7 +216,7 @@ node('helm && kubectl') {
                           "containers"      : [
                               [
                                   "name"           : "entitytester",
-                                  "image"          : QuayIORepo.ENTITY_SERVICE_APP + ":" + TAG,
+                                  "image"          : QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG,
                                   "imagePullPolicy": "Always",
                                   "env"            : [
                                       [
