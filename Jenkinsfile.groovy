@@ -264,12 +264,12 @@ String writeDicKubernetesVariables(String deploymentName, String imageNameWithTa
       "apiVersion": "batch/v1",
       "kind"      : "Job",
       "metadata"  : [
-          "name": deploymentName + "-test"
+          "name": deploymentName + "-test",
+          "labels"    : [
+              "jobgroup": "jenkins-es-integration-test",
+              "deployment": deploymentName
+          ]
       ],
-      "labels"    : [
-          "jobgroup": "jenkins-es-integration-test"
-      ],
-      "deployment": deploymentName,
       "spec"      : [
           "completions": 1,
           "parallelism": 1,
