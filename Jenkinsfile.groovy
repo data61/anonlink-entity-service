@@ -47,6 +47,7 @@ node('docker&&multicore&&ram') {
         }
         gitCommit.setSuccessStatus(gitContextDockerBuild)
       } catch (err) {
+        print("Error in docker build stage:\n" + err)
         gitCommit.setFailStatus(gitContextDockerBuild)
         throw err;
       }
@@ -61,6 +62,7 @@ node('docker&&multicore&&ram') {
         """
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
+        print("Error in compose deploy stage:\n" + err)
         gitCommit.setFailStatus(gitContextComposeDeploy)
         throw err;
       }
@@ -77,6 +79,7 @@ node('docker&&multicore&&ram') {
         }
         gitCommit.setSuccessStatus(gitContextIntegrationTests)
       } catch (err) {
+        print("Error in integration tests stage:\n" + err)
         gitCommit.setFailStatus(gitContextIntegrationTests)
         throw err;
       }
@@ -103,6 +106,7 @@ node('docker&&multicore&&ram') {
         archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
         gitCommit.setSuccessStatus(gitContextDocumentation)
       } catch (err) {
+        print("Error in documentation stage:\n" + err)
         gitCommit.setFailStatus(gitContextDocumentation)
         throw err;
       }
@@ -116,6 +120,7 @@ node('docker&&multicore&&ram') {
           '''
         gitCommit.setSuccessStatus(gitContextPublish)
       } catch (Exception err) {
+        print("Error in publish stage:\n" + err)
         gitCommit.setFailStatus(gitContextPublish)
         throw err
       }
@@ -129,7 +134,8 @@ node('docker&&multicore&&ram') {
         dockerUtils.dockerLogoutQuayIOWithoutFail()
         String cmdTearDown = "docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p " + composeProject + " down -v"
         sh cmdTearDown
-      } catch(Exception e) {
+      } catch(Exception err) {
+        print("Error in cleaning stage, but do nothing about it:\n" + err)
         // Do nothing on purpose.
       }
     }
@@ -278,6 +284,7 @@ node('helm && kubectl') {
           }
           gitCommit.setSuccessStatus(gitContextKubernetesDeployment)
         } catch (error) { // timeout reached or input false
+          print("Error in k8s deployment stage:\n" + error)
           gitCommit.setFailStatus(gitContextKubernetesDeployment)
           throw error
         } finally {
