@@ -73,11 +73,15 @@ node('docker&&multicore&&ram') {
       try {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
-        echo containerTests.printLogs()
-        if (containerTests.isRunning() || containerTests.getExitCode() != "0") {
-          throw new Exception("The tests failed.")
+        timeout(time: 5, unit: 'MINUTES') {
+          while (containerTests.isRunning()) {
+            sleep 2
+          }
+          if (containerTests.getExitCode() != "0") {
+            throw new Exception("The tests failed.")
+          }
+          gitCommit.setSuccessStatus(gitContextIntegrationTests)
         }
-        gitCommit.setSuccessStatus(gitContextIntegrationTests)
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
         gitCommit.setFailStatus(gitContextIntegrationTests)
