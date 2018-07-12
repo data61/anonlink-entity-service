@@ -199,7 +199,7 @@ node('helm && kubectl') {
               writeYaml(file: "test-versions.yaml", data: dicTestVersions)
               sh """
                 helm dependency update
-                helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
+                helm upgrade --install --wait --debug --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
                     --set api.app.image.tag=${TAG} \
@@ -242,12 +242,16 @@ node('helm && kubectl') {
           gitCommit.setFailStatus(gitContextKubernetesDeployment)
           throw error
         } finally {
-          sh """
+          try {
+            sh """
             helm delete --purge ${DEPLOYMENT}
             kubectl delete job -lapp=${DEPLOYMENT}-entity-service
             kubectl delete job ${DEPLOYMENT}-test
             """
-
+          } catch(Exception err) {
+            print("Error in final cleanup, Ignoring:\n" + err)
+            // Do nothing on purpose.
+          }
         }
       }
     }
