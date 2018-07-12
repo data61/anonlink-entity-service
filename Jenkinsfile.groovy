@@ -297,8 +297,7 @@ String writeDicKubernetesVariables(String deploymentName, String imageNameWithTa
                               "python",
                               "-m",
                               "pytest",
-                              "entityservice/tests",
-                              "--long"
+                              "entityservice/tests"
                           ]
                       ]
                   ],
