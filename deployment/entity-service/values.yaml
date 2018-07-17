@@ -234,7 +234,7 @@ redis-ha:
         cpu: 100m
       limits:
         memory: 1Gi
-  nameOverride: "redis"
+  nameOverride: "memstore"
 
 
 minio:
