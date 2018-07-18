@@ -33,9 +33,11 @@ def projects_post(project):
     There are multiple result types, see documentation for how these effect information leakage
     and the resulting data.
     """
+    logger = get_logger()
     logger.debug("Processing request to add a new project", project=project)
     try:
         project_model = models.Project.from_json(project)
+        logger = logger.bind(pid=project_model.project_id)
     except models.InvalidProjectParametersException as e:
         safe_fail_request(400, message=e.msg)
 
@@ -87,7 +89,8 @@ def project_get(project_id):
     """
     This endpoint describes a Project.
     """
-    logger.info("Getting detail for a project", project=project_id)
+    log = logger.bind(pid=project_id)
+    log.info("Getting detail for a project")
     abort_if_project_doesnt_exist(project_id)
     authorise_get_request(project_id)
     db_conn = db.get_db()
@@ -95,7 +98,7 @@ def project_get(project_id):
 
     # Expose the number of data providers who have uploaded clks
     parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-    logger.info("{} parties have contributed hashes".format(parties_contributed))
+    log.info("{} parties have contributed hashes".format(parties_contributed))
     project_object['parties_contributed'] = parties_contributed
 
     return ProjectDescription().dump(project_object)
@@ -138,7 +141,7 @@ def project_clks_post(project_id):
         try:
             count, size = check_binary_upload_headers(headers)
         except:
-            logger.warning("Upload failed due to problem with headers in binary upload")
+            log.warning("Upload failed due to problem with headers in binary upload")
             raise
 
         # TODO actually stream the upload data straight to Minio. Currently we can't because

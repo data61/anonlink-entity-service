@@ -20,7 +20,7 @@ class Project(object):
     Exists before insertion into the database.
     """
     def __init__(self, result_type, schema, name, notes, parties):
-        logger.info("Creating project codes")
+        logger.debug("Creating project codes")
         self.result_type = result_type
         self.schema = schema
         self.name = name
@@ -28,7 +28,7 @@ class Project(object):
         self.number_parties = parties
 
         self.project_id = generate_code()
-        log = logger.bind(pid=self.project_id)
+        logger.debug("Generated project code", pid=self.project_id)
         self.result_token = generate_code()
 
         # Order is important here
@@ -73,12 +73,12 @@ class Project(object):
                                                self.notes
                                                )
 
-            logger.debug("New project created in DB", pid=project_id)
+            logger.debug("New project created in DB")
             logger.debug("Creating new data provider entries")
 
             for auth_token in self.update_tokens:
                 dp_id = db.insert_dataprovider(cur, auth_token, project_id)
-                logger.info("Added dataprovider with id = {}".format(dp_id), dp_id=dp_id)
+                logger.debug("Added a dataprovider to db", dp_id=dp_id)
 
             logger.debug("Added data providers")
 

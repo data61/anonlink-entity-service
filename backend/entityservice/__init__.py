@@ -37,19 +37,13 @@ if config.LOGFILE is not None:
     fileHandler.setFormatter(config.fileFormat)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
-# consoleHandler.setFormatter(config.consoleFormat)
 structlog.configure(
     processors=[
-        # structlog.processors.KeyValueRenderer(
-        #     key_order=['event', 'pid', 'rid', 'request'],
-        # ),
         structlog.stdlib.add_logger_name,
-        #structlog.stdlib.add_log_level,    # Added by unicorn
         structlog.stdlib.PositionalArgumentsFormatter(),
-        #structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M.%S"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
-        structlog.dev.ConsoleRenderer()  # <=== TODO dev/debug only?
+        structlog.dev.ConsoleRenderer()
     ],
     context_class=structlog.threadlocal.wrap_dict(dict),
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -61,12 +55,14 @@ app.config.from_object(config)
 gunicorn_logger = logging.getLogger('gunicorn.error')
 # Use the gunicorn logger handler (it owns stdout)
 app.logger.handlers = gunicorn_logger.handlers
-# Use the logging level passed to gunicorn on the cmd line
-app.logger.setLevel(gunicorn_logger.level)
+# Use the logging level passed to gunicorn on the cmd line unless DEBUG is set
+if config.DEBUG:
+    app.logger.setLevel(logging.DEBUG)
+else:
+    app.logger.setLevel(gunicorn_logger.level)
 
 if config.LOGFILE is not None:
    app.logger.addHandler(fileHandler)
-
 
 
 @app.cli.command('initdb')
