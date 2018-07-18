@@ -4,8 +4,9 @@ description: Privacy preserving entity matching
 home: es.data61.xyz
 sources:
   - https://github.com/n1analytics/entity-service
-  - https://github.csiro.au/magic/AnonymousLinking/
-  - https://github.csiro.au/magic/n1-compute/
+  - https://github.com/n1analytics/anonlink
+  - https://github.com/n1analytics/clkhash
+
 maintainers:
   - name: N1 Analytics
     email: support@n1analytics.com
