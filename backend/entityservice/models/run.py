@@ -4,6 +4,10 @@ from entityservice import cache
 from entityservice.settings import Config as config
 from entityservice.utils import generate_code
 
+from structlog import get_logger
+
+logger = get_logger()
+
 RUN_TYPES = {
     'default': {
         'stages': 3,
@@ -32,6 +36,7 @@ RUN_TYPES = {
 
 
 def progress_run_stage(conn, run_id):
+    logger.info("Run progressing to next stage")
     db.progress_run_stage(conn, run_id)
     # clear progress in cache
     cache.clear_progress(run_id)
@@ -55,8 +60,9 @@ class Run(object):
         self.name = name
         self.notes = notes
         self.threshold = threshold
-        app.logger.info("Creating run id")
         self.run_id = generate_code()
+        logger.info("Created run id", rid=self.run_id)
+
         self.type = 'no_mapping' \
             if db.get_project_column(db.get_db(), project_id, 'result_type') == 'similarity_scores' \
             else 'default'
@@ -67,7 +73,7 @@ class Run(object):
         threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
         if threshold <= 0.0 or threshold > 1.0:
             raise InvalidRunParametersException("Threshold parameter out of range")
-        app.logger.info("Threshold for run is: {}".format(threshold))
+        logger.info("Threshold for run is: {}".format(threshold))
 
         name = data.get('name', '')
         notes = data.get('notes', '')
@@ -75,7 +81,7 @@ class Run(object):
         return Run(project_id, threshold, name, notes)
 
     def save(self, conn):
-        app.logger.debug("Saving run in database")
+        logger.debug("Saving run in database", rid=self.run_id)
         db.insert_new_run(db=conn, run_id=self.run_id, project_id=self.project_id, threshold=self.threshold,
                           name=self.name, notes=self.notes, type=self.type)
-        app.logger.debug("New run created in DB: {}".format(self.run_id))
+        logger.debug("New run created in DB", rid=self.run_id)

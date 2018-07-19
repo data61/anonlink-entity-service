@@ -17,3 +17,5 @@ pytest==3.5.1
 iso8601==0.1.12
 connexion==1.4
 marshmallow==3.0.0b10
+structlog
+colorama

@@ -4,7 +4,7 @@ import urllib3
 from bitarray import bitarray
 import base64
 import struct
-
+from structlog import get_logger
 from flask import Response
 
 from entityservice import app
@@ -12,6 +12,9 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
 import concurrent.futures
+
+
+logger = get_logger()
 
 
 def bytes_to_list(python_object):
@@ -158,7 +161,7 @@ def get_similarity_scores(filename):
     mc = connect_to_object_store()
 
     details = mc.stat_object(config.MINIO_BUCKET, filename)
-    app.logger.info("Starting download stream of {} ({})".format(filename, details.size))
+    logger.info("Starting download stream of similarity scores.", filename=filename, filesize=details.size)
 
     try:
         csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
@@ -169,5 +172,5 @@ def get_similarity_scores(filename):
         return Response(generate_scores(csv_text_stream), mimetype='application/json')
 
     except urllib3.exceptions.ResponseError:
-        app.logger.warning("Attempt to read the similarity scores file failed with an error response.")
+        logger.warning("Attempt to read the similarity scores file failed with an error response.", filename=filename)
         safe_fail_request(500, "Failed to retrieve similarity scores")
