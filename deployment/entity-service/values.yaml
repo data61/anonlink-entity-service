@@ -106,7 +106,7 @@ api:
 
   # Configure a cert-manager Certificate (caution experimental!)
   certManager:
-    enabled: true
+    enabled: false
     secretName: es-tls
     issuerRef:
       #name: letsencrypt
