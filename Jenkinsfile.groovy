@@ -199,7 +199,7 @@ node('helm && kubectl') {
               writeYaml(file: "test-versions.yaml", data: dicTestVersions)
               sh """
                 helm dependency update
-                helm upgrade --install --wait --debug --namespace ${NAMESPACE} ${DEPLOYMENT} . \
+                helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
                     --set api.app.image.tag=${TAG} \
@@ -207,7 +207,8 @@ node('helm && kubectl') {
                     --set workers.replicaCount=2 \
                     --set minio.mode="standalone" \
                     --set minio.persistence.size="4Gi" \
-                    --set api.ingress.enabled=false
+                    --set api.ingress.enabled=false \
+                    --set api.certManager.enabled=false
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 300, unit: "SECONDS")
