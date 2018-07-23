@@ -92,20 +92,21 @@ node('docker&&multicore&&ram') {
 
     stage('Documentation') {
       gitCommit.setInProgressStatus(gitContextDocumentation);
+      String dockerContainerDocsBuilderName = composeProject + "docbuilder"
       // TODO Update this stage with the library.
       try {
         sh """
           mkdir -p html
-          chmod 777 html
-
-          docker run -v `pwd`:/src -v `pwd`/html:/build quay.io/n1analytics/entity-app:doc-builder
-
-          cd html
+          docker run -v `pwd`:/src --name ${dockerContainerDocsBuilderName} quay.io/n1analytics/entity-app:doc-builder
+          docker cp ${dockerContainerDocsBuilderName}:/build `pwd`/html
+          cd html/build
           zip -q -r n1-docs.zip *
-          mv n1-docs.zip ../
-          cd ..
-          cp -r html/* frontend/static
+          mv n1-docs.zip ../../
+          cd ../..
+          cp -r html/build/* frontend/static
+          rm -r html
           docker build -t quay.io/n1analytics/entity-nginx:latest frontend
+          docker rm ${dockerContainerDocsBuilderName}
         """
 
         archiveArtifacts artifacts: 'n1-docs.zip', fingerprint: true
