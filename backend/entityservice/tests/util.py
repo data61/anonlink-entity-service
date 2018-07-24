@@ -2,6 +2,7 @@ import random
 import time
 import datetime
 import iso8601
+import warnings
 
 from enum import IntEnum
 
@@ -269,7 +270,11 @@ def has_progressed(status_old, status_new):
         assert 0 <= status_new['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_new['current_stage']['progress']['relative'])
         assert 0 <= status_old['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_old['current_stage']['progress']['relative'])
 
-        return status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']
+        if status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']:
+            return True
+        else:
+            if status_new['state'] == 'queued' and status_old['state'] == 'queued':
+                warnings.warn('No progress because run was queued the whole time! Celery needs some Ketchup.')
     else:
         # how do you measure progress in that case??
         return True
