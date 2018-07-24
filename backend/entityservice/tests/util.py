@@ -272,9 +272,11 @@ def has_progressed(status_old, status_new):
 
         if status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']:
             return True
+        elif status_new['state'] == 'queued' and status_old['state'] == 'queued':
+            warnings.warn('No progress because run was queued the whole time! Celery needs some Ketchup.')
+            return True  # it wasn't the runs fault that there was no progress...
         else:
-            if status_new['state'] == 'queued' and status_old['state'] == 'queued':
-                warnings.warn('No progress because run was queued the whole time! Celery needs some Ketchup.')
+            return False
     else:
         # how do you measure progress in that case??
         return True
