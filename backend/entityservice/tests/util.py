@@ -168,8 +168,10 @@ def ensure_run_progressing(requests, project, size):
 
         # Wait and see if the progress changes
         wait_approx_run_time(size)
-
         status = get_run_status(requests, project, run_id)
+        if not has_progressed(original_status, status):
+            wait_approx_run_time(size)
+            status = get_run_status(requests, project, run_id)
 
         failure_msg = "No progress seen. Status A:\n{}\nStatus B:\n{}\n".format(original_status, status)
         assert has_progressed(original_status, status), failure_msg
