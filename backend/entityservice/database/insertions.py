@@ -233,7 +233,7 @@ def get_created_runs_and_queue(db, project_id):
             UPDATE runs SET
               state = 'queued'
             WHERE
-              state = 'created' AND project = %s
+              state IN ('created', 'queued') AND project = %s
             RETURNING
               run_id;
         """
