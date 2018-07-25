@@ -1,17 +1,13 @@
+import base64
+import datetime
+import math
 import random
 import time
-import datetime
-import iso8601
 import warnings
-
 from enum import IntEnum
 
-
+import iso8601
 from anonlink.util import generate_clks
-
-import math
-
-import base64
 
 from entityservice.tests.config import url
 
@@ -173,7 +169,8 @@ def ensure_run_progressing(requests, project, size):
             wait_approx_run_time(size)
             status = get_run_status(requests, project, run_id)
 
-        failure_msg = "No progress seen. Status A:\n{}\nStatus B:\n{}\n".format(original_status, status)
+        failure_msg = "No progress seen for run {}. Status A:\n{}\nStatus B:\n{}\n".format(run_id, original_status,
+                                                                                           status)
         assert has_progressed(original_status, status), failure_msg
 
 
@@ -275,8 +272,8 @@ def has_progressed(status_old, status_new):
         if status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']:
             return True
         elif status_new['state'] == 'queued' and status_old['state'] == 'queued':
-            warnings.warn('No progress because run was queued the whole time! Celery needs some Ketchup.')
-            return True  # it wasn't the runs fault that there was no progress...
+            warnings.warn("No progress because run was queued the whole time! Celery, what's up?")
+            return False
         else:
             return False
     else:
