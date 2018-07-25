@@ -165,13 +165,10 @@ def ensure_run_progressing(requests, project, size):
         # Wait and see if the progress changes
         wait_approx_run_time(size)
         status = get_run_status(requests, project, run_id)
-        if not has_progressed(original_status, status):
-            wait_approx_run_time(size)
-            status = get_run_status(requests, project, run_id)
 
-        failure_msg = "No progress seen for run {}. Status A:\n{}\nStatus B:\n{}\n".format(run_id, original_status,
+        failure_msg = "Invalid progress for run {}. Status A:\n{}\nStatus B:\n{}\n".format(run_id, original_status,
                                                                                            status)
-        assert has_progressed(original_status, status), failure_msg
+        assert has_not_progressed_invalidly(original_status, status), failure_msg
 
 
 def post_run(requests, project, threshold):
@@ -247,15 +244,17 @@ class State(IntEnum):
             return State.completed
 
 
-def has_progressed(status_old, status_new):
+def has_not_progressed_invalidly(status_old, status_new):
     """
-    stage change counts as progress, also if both runs are in the same stage, we compare progress. If no progress is
-    available, we return True.
+    If there happened to be progress between the two statuses we check if it was valid.
+    Thus, we return False if there was invalid progress, and True otherwise. (even if there was no progress)
+    stage change counts as progress, but has to be done in the right order.
+    also if both runs are in the same stage, we compare progress.
 
     :param status_old: json describing a run status as returned from the '/projects/{project_id}/runs/{run_id}/status'
                        endpoint
     :param status_new: same as above
-    :return: True if there has been any progress, False otherwise
+    :return: False if the progress was not valid
     """
     old_stage = status_old['current_stage']['number']
     new_stage = status_new['current_stage']['number']
@@ -263,21 +262,17 @@ def has_progressed(status_old, status_new):
     if old_stage < new_stage:
         return True
     elif old_stage > new_stage:
-        raise ValueError("progress seems to go backwards! What's going on???")
+        return False
     # both in the same stage then
     if 'progress' in status_old['current_stage'] and 'progress' in status_new['current_stage']:
         assert 0 <= status_new['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_new['current_stage']['progress']['relative'])
         assert 0 <= status_old['current_stage']['progress']['relative'] <= 1.0, "{} not between 0 and 1".format(status_old['current_stage']['progress']['relative'])
 
-        if status_new['current_stage']['progress']['relative'] > status_old['current_stage']['progress']['relative']:
-            return True
-        elif status_new['state'] == 'queued' and status_old['state'] == 'queued':
-            warnings.warn("No progress because run was queued the whole time! Celery, what's up?")
+        if status_new['current_stage']['progress']['relative'] < status_old['current_stage']['progress']['relative']:
             return False
         else:
-            return False
-    else:
-        # how do you measure progress in that case??
+            return True
+    else:  # same stage, no progress info
         return True
 
 
