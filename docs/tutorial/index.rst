@@ -5,7 +5,7 @@ Tutorials
    :maxdepth: 1
 
    Permutations.ipynb
-   Tutorial 03 - Similarity Scores.ipynb
+   Similarity Scores.ipynb
 
 
 External Tutorials
