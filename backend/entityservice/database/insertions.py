@@ -195,6 +195,17 @@ def update_run_mark_failure(db, run_id):
     db.commit()
 
 
+def update_run_mark_queued(db, run_id):
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              state = 'queued'
+            WHERE
+              run_id = %s
+            """
+        cur.execute(sql_query, [run_id])
+
+
 def progress_run_stage(db, run_id):
     try:
         with db.cursor() as cur:
@@ -222,7 +233,7 @@ def get_created_runs_and_queue(db, project_id):
             UPDATE runs SET
               state = 'queued'
             WHERE
-              state = 'created' AND project = %s
+              state IN ('created', 'queued') AND project = %s
             RETURNING
               run_id;
         """
