@@ -36,7 +36,8 @@ RUN_TYPES = {
 
 
 def progress_run_stage(conn, run_id):
-    logger.info("Run progressing to next stage")
+    log = logger.bind(run_id=run_id)
+    log.info("Run progressing to next stage")
     db.progress_run_stage(conn, run_id)
     # clear progress in cache
     cache.clear_progress(run_id)
