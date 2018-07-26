@@ -2,14 +2,14 @@ import redis
 
 import pickle
 
-import logging
+import structlog
 
 from entityservice import serialization
 from entityservice import database
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
-logger = logging.getLogger('cache')
+logger = structlog.get_logger()
 redis_host = config.REDIS_SERVER
 redis_pass = config.REDIS_PASSWORD
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-import binascii
+
 import io
 import json
 import os
-import logging
 
+import binascii
 import bitmath
 from flask import request
 from connexion import ProblemException
+from structlog import get_logger
 
 from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, get_number_parties_ready
+
+logger = get_logger()
 
 
 def fmt_bytes(num_bytes):
@@ -170,16 +173,16 @@ def generate_code(length=24):
 def clks_uploaded_to_project(project_id, check_data_ready=False):
     """ See if the given mapping has had all parties contribute data.
     """
-    logging.info("Counting contributing parties")
+    logger.info("Counting contributing parties")
     conn = connect_db()
     if check_data_ready:
         parties_contributed = get_number_parties_ready(conn, project_id)
-        logging.info("Parties where data is ready: {}".format(parties_contributed))
+        logger.info("Parties where data is ready: {}".format(parties_contributed))
     else:
         parties_contributed = get_number_parties_uploaded(conn, project_id)
-        logging.info("Parties where data is uploaded: {}".format(parties_contributed))
+        logger.info("Parties where data is uploaded: {}".format(parties_contributed))
     number_parties = get_project_column(conn, project_id, 'parties')
-    logging.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
+    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
     return parties_contributed == number_parties
 
 
