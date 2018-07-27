@@ -1,4 +1,4 @@
-@Library("N1Pipeline@0.0.17")
+@Library("N1Pipeline@0.0.18")
 import com.n1analytics.docker.DockerContainer;
 import com.n1analytics.docker.DockerUtils;
 import com.n1analytics.docker.QuayIORepo
@@ -85,6 +85,7 @@ node('docker&&multicore&&ram') {
         }
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
+        containerTests.printLogs()
         gitCommit.setFailStatus(gitContextIntegrationTests)
         throw err;
       }
