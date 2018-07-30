@@ -16,4 +16,4 @@ ADD doc-requirements.txt /src/requirements.txt
 WORKDIR /src
 RUN pip install -U -r requirements.txt
 
-CMD python -m sphinx /src /build
+CMD python -m sphinx /src/docs /build

@@ -98,7 +98,7 @@ node('docker&&multicore&&ram') {
       try {
         sh """
           mkdir -p html
-          docker run -v `pwd`/docs:/src --name ${dockerContainerDocsBuilderName} quay.io/n1analytics/entity-app:doc-builder
+          docker run -v `pwd`:/src --name ${dockerContainerDocsBuilderName} quay.io/n1analytics/entity-app:doc-builder
           docker cp ${dockerContainerDocsBuilderName}:/build `pwd`/html
           cd html/build
           zip -q -r n1-docs.zip *
