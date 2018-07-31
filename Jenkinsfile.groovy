@@ -1,4 +1,4 @@
-@Library("N1Pipeline@0.0.18")
+@Library("N1Pipeline@0.0.19")
 import com.n1analytics.docker.DockerContainer;
 import com.n1analytics.docker.DockerUtils;
 import com.n1analytics.docker.QuayIORepo
