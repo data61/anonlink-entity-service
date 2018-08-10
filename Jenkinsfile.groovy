@@ -81,7 +81,7 @@ node('docker&&multicore&&ram') {
           sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
           sh("docker logs " + composeProject + "_db_1" + " &> db.log")
 
-          archiveArtifacts artifacts: "*.log", fingerprint: true
+          archiveArtifacts artifacts: "*.log", fingerprint: false
           if (containerTests.getExitCode() != "0") {
             throw new Exception("The integration tests failed.")
           }
