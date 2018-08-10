@@ -89,11 +89,6 @@ node('docker&&multicore&&ram') {
         }
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
-        try {
-
-        } catch (suberror) {
-          print("Error getting container information from docker")
-        }
         gitCommit.setFailStatus(gitContextIntegrationTests)
         throw err;
       }
