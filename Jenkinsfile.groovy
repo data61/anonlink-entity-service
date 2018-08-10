@@ -75,6 +75,13 @@ node('docker&&multicore&&ram') {
         sleep 2
         timeout(time: 30, unit: 'MINUTES') {
           containerTests.watchLogs();
+
+          sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
+          sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
+          sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
+          sh("docker logs " + composeProject + "_db_1" + " &> db.log")
+
+          archiveArtifacts artifacts: "*.log", fingerprint: true
           if (containerTests.getExitCode() != "0") {
             throw new Exception("The integration tests failed.")
           }
@@ -83,7 +90,7 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
         try {
-          containerTests.printLogs()
+
         } catch (suberror) {
           print("Error getting container information from docker")
         }
