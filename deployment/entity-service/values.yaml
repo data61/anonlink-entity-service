@@ -242,11 +242,10 @@ minio:
   ## Can distribute the object store across multiple nodes...
   mode: "standalone"
   #replicas: 5
-  serviceType: "ClusterIP"
+  service.type: "ClusterIP"
   persistence:
     size: 1000Gi
     storageClass: "default"
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
-  imageTag: "RELEASE.2018-05-04T23-13-12Z"
