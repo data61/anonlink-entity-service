@@ -206,6 +206,9 @@ def compute_run(project_id, run_id):
         if res['state'] in {'completed', 'error'}:
             log.info("Run is already finished. Skipping")
             return
+        if res['state'] == 'running':
+            log.info("Run already started. Skipping")
+            return
 
         log.debug("Setting run as in progress")
         update_run_set_started(conn, run_id)
