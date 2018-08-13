@@ -4,12 +4,12 @@ import time
 import psycopg2
 import psycopg2.extras
 from flask import current_app, g
-
+from structlog import get_logger
 from entityservice import database as db
 from entityservice.errors import DatabaseInconsistent, DBResourceMissing
 from entityservice.settings import Config as config
 
-logger = logging.getLogger('db')
+logger = get_logger()
 
 
 def query_db(db, query, args=(), one=False):
@@ -19,7 +19,7 @@ def query_db(db, query, args=(), one=False):
     https://flask-doc.readthedocs.org/en/latest/patterns/sqlite3.html#easy-querying
     """
     with db.cursor() as cur:
-        logger.debug(f"Query: query")
+        logger.debug(f"Query: {query}")
         cur.execute(query, args)
         rv = [dict((cur.description[idx][0], value)
                    for idx, value in enumerate(row)) for row in cur.fetchall()]

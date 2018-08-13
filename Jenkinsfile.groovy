@@ -1,4 +1,4 @@
-@Library("N1Pipeline@0.0.17")
+@Library("N1Pipeline@0.0.19")
 import com.n1analytics.docker.DockerContainer;
 import com.n1analytics.docker.DockerUtils;
 import com.n1analytics.docker.QuayIORepo
@@ -74,11 +74,15 @@ node('docker&&multicore&&ram') {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
         timeout(time: 30, unit: 'MINUTES') {
-          while (containerTests.isRunning()) {
-            sleep 10
-          }
+          containerTests.watchLogs();
+
+          sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
+          sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
+          sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
+          sh("docker logs " + composeProject + "_db_1" + " &> db.log")
+
+          archiveArtifacts artifacts: "*.log", fingerprint: false
           if (containerTests.getExitCode() != "0") {
-            containerTests.printLogs()
             throw new Exception("The integration tests failed.")
           }
           gitCommit.setSuccessStatus(gitContextIntegrationTests)

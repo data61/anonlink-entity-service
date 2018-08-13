@@ -1,7 +1,7 @@
 # Note we expect the user to mount the sources to build...
 # Usage:
 # docker run -it -v <PATH TO PROJECT>:/src -v <OUTPUT HTML PATH>:/build quay.io/n1analytics/entity-app:doc-builder
-FROM python:3.6.5
+FROM python:3.7
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
 USER root
