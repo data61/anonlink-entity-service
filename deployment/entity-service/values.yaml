@@ -81,12 +81,12 @@ api:
 
     ## Ingress annotations
     ##
-    annotations: {}
+    annotations: #{}
      # kubernetes.io/ingress.class: nginx
      # certmanager.k8s.io/issuer: letsencrypt
      ## To handle large uploads we increase the nginx buffer size
-     # nginx.org/client-max-body-size: 4096m
-     # ingress.kubernetes.io/proxy-body-size: 4096m
+     ingress.kubernetes.io/proxy-body-size: 4096m
+     nginx.ingress.kubernetes.io/proxy-body-size: 4096m
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled

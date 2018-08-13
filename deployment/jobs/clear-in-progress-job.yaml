@@ -30,4 +30,4 @@ spec:
           - "purge"
           - "-f"
       imagePullSecrets:
-        - name: n1analytics-coreos-pull-secret
+        - name: n1-quay-pull-secret
