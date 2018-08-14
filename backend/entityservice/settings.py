@@ -45,7 +45,9 @@ class Config(object):
     CELERY_ROUTES = {
         'async_worker.calculate_mapping': {'queue': 'celery'},
         'async_worker.compute_similarity': {'queue': 'compute'},
-        'async_worker.save_and_permute': {'queue': 'celery'},
+        'async_worker.aggregate_filter_chunks': {'queue': 'highmemory'},
+        'async_worker.solver_task': {'queue': 'highmemory'},
+        'async_worker.save_and_permute': {'queue': 'highmemory'},
         'async_worker.handle_raw_upload': {'queue': 'celery'}
     }
 

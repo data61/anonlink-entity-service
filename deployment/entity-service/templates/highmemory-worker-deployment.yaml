@@ -5,9 +5,9 @@ metadata:
     {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.workers.name }}"
     tier: backend
-  name: {{ .Release.Name }}-worker
+  name: {{ .Release.Name }}-highmemory-worker
 spec:
-  replicas: {{ .Values.workers.replicaCount }}
+  replicas: {{ .Values.workers.highmemory.replicaCount }}
   {{- if .Values.workers.strategy }}
   strategy:
 {{ toYaml .Values.workers.strategy | indent 4 }}
@@ -29,7 +29,7 @@ spec:
           image: {{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}
           imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
           resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+{{ toYaml .Values.workers.highmemory.resources | indent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}
@@ -63,7 +63,7 @@ spec:
             - "--loglevel=info"
             - "-Ofair"
             - "-Q"
-            - "celery,compute"
+            - "celery,compute,highmemory"
           args:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}

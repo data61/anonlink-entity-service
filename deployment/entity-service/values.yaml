@@ -194,6 +194,15 @@ workers:
 #      memory: 2Gi
 #      cpu: 200m
 
+  # At least one "high memory" worker is also required
+  highmemory:
+    replicaCount: 2
+    resources:
+      requests:
+        memory: 16Gi
+        cpu: 800m
+
+
 postgresql:
   # See available settings and defaults at:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql

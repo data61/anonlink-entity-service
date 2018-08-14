@@ -55,7 +55,7 @@ services:
     depends_on:
       - redis
       - db
-    entrypoint: celery -A entityservice.async_worker worker --loglevel=info -Q celery,compute
+    entrypoint: celery -A entityservice.async_worker worker --loglevel=info -Q celery,compute,highmemory
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
