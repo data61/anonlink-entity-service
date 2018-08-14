@@ -17,7 +17,7 @@ from clkhash.bloomfilter import calculate_bloom_filters
 from clkhash.key_derivation import generate_key_lists
 from clkhash.schema import get_schema_types
 
-from phe import paillier, util
+
 from serialization import *
 from tests.util import serialize_bitarray, serialize_filters, logger, initial_delay, rate_limit_delay
 
@@ -778,6 +778,7 @@ class Timer:
     def __exit__(self, *args):
         self.end = time.clock()
         self.interval = self.end - self.start
+
 
 if __name__ == "__main__":
     size = int(os.environ.get("ENTITY_SERVICE_TEST_SIZE", "1000"))
