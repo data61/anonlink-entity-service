@@ -100,7 +100,7 @@ def get_run_state(db, run_id):
 def get_project(db, resource_id):
     sql_query = """
         SELECT * from projects
-        WHERE project_id = %s
+        WHERE project_id = %s AND deleted=FALSE
         """
     return query_db(db, sql_query, [resource_id], one=True)
 
