@@ -250,8 +250,8 @@ minio:
   # https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
   ## Access credentials for the object store
-  #accessKey: "XXX"
-  #secretKey: "YYY"
+  accessKey: "xtoNfbmB7cUaW4sLPzKBXVPXd8oAvVbvkAosxsEXAMPLE"
+  secretKey: "6hkE6FzMLBd4tkzhVjXjPdEzQikmEtjRDQwyobEXAMPLE"
 
   ## Settings required for connecting to another object store, the server is ignored
   ## if provisioning minio during deployment.
