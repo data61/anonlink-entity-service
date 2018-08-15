@@ -70,7 +70,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.8.1"
+      tag: "v1.8.2"
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
@@ -222,24 +222,29 @@ postgresql:
       #memory: 1Gi
       cpu: 100m
 
+
+redis:
+  ## Note the redis server is ignored if provisioning redis during deployment.
+  server: ""
+  ## Note if deploying redis-ha you should have the same password below!
+  password: "9X9RFrRnQHcB"
+
 redis-ha:
+  ## Settings for configuration of a provisioned redis ha cluster.
+  ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "9X9RFrRnQHcB"
-  # For GKE ONLY (otherwise will be exposed)!!!
-  #servers:
-    #annotations:
-    #  cloud.google.com/load-balancer-type: Internal
-    #serviceType: LoadBalancer
   resources:
     server:
       requests:
-        memory: 2Gi
+        memory: 512Mi
         cpu: 100m
       limits:
         memory: 10Gi
     sentinel:
       requests:
         cpu: 100m
+        memory: 256Mi
       limits:
         memory: 1Gi
   nameOverride: "memstore"
