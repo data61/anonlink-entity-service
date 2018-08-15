@@ -248,13 +248,24 @@ redis-ha:
 
 minio:
   # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
-  ## Can distribute the object store across multiple nodes...
+  # enable to deploy a standalone version of minio, otherwise connect to another service (e.g. S3)
+  enabled: false
+
+  ## Settings required for connecting to another object store:
+  server: "s3.amazonaws.com"
+  bucket: "confidentialcomputing-k8s-objectstore"
+
+  ## Settings for deploying standalone object store
+  ## Can distribute the object store across multiple nodes.
   mode: "standalone"
   #replicas: 5
   service.type: "ClusterIP"
   persistence:
     size: 1000Gi
     storageClass: "default"
-  accessKey: "SNANDoWeruDenOCongsA"
-  secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
+
+  ## Settings required anyway
+  accessKey: "XXX"
+  secretKey: "YYY"
+
