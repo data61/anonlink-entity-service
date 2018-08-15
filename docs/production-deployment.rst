@@ -55,7 +55,7 @@ Cluster Storage
 ~~~~~~~~~~~~~~~
 
 An existing kubernetes cluster may already have dynamically provisioned storage. If not,
-create a ``slow`` storage class. For AWS execute::
+create a ``default`` storage class. For AWS execute::
 
     kubectl create -f aws-storage.yaml
 
@@ -74,7 +74,7 @@ Install Helm
 ~~~~~~~~~~~~
 
 The entity service system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
-there is a program that needs to be `installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
+there is a client program that needs to be `installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
 
 At the very least you will need to install tiller into the cluster::
 
@@ -84,17 +84,9 @@ At the very least you will need to install tiller into the cluster::
 Ingress Controller
 ~~~~~~~~~~~~~~~~~~
 
-We assume the cluster has an ingress controller, if this isn't the case
-we will have to add one. We suggest using `Traefik <https://traefik.io/>`__.
-
-Deploy the `traefik ingress
-controller <https://docs.traefik.io/user-guide/kubernetes/>`__ into the
-``kube-system`` namespace with:
-
-::
-
-    helm install --name traefik --namespace kube-system --values traefik.yaml stable/traefik
-
+We assume the cluster has an ingress controller, if this isn't the case first add one. We suggest using
+`Traefik <https://traefik.io/>`__ or `NGINX Ingress Controller <https://github.com/kubernetes/ingress-nginx>`__.  Both
+can be installed using helm.
 
 
 Deploy the system
@@ -163,12 +155,30 @@ set very small resource limits. Install the minimal system with::
 Object Store Deployment Options
 -------------------------------
 
-At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3.
-Carefully read the comments in the default ``values.yaml`` file.
+At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3. Note that there is
+a trade off between using a local deployment of minio vs S3. Minio is noticeably faster, but both more expensive and far
+less reliable than AWS S3.
+
+To configure simple set ``provision.minio`` to ``false`` and add appropriate connection configuration in the ``minio``
+section.
 
 To use AWS S3 simply provide your access credentials and disable provisioning minio::
 
     helm install entity-service --name="es-s3" --set provision.minio=false --set minio.accessKey=XXX --set minio.secretKey=YYY --set minio.bucket=<bucket>
+
+
+
+Redis Deployment Options
+------------------------
+
+At deployment time you can decide to deploy redis or instead use an existing redis installation or managed service.
+Carefully read the comments in the default ``values.yaml`` file.
+
+To use a separate install of redis using the server ``shared-redis-ha-redis-ha.default.svc.cluster.local``
+
+    helm install entity-service --name="es-shared-redis" \
+         --set provision.redis=false \
+         --set redis.server=shared-redis-ha-redis-ha.default.svc.cluster.local
 
 
 Uninstalling
