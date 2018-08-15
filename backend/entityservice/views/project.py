@@ -64,22 +64,27 @@ def project_delete(project_id):
     dbinstance = get_db()
     mc = connect_to_object_store()
     project_from_db = db.get_project(dbinstance, project_id)
+    is_deleted = db.get_project_column(dbinstance, project_id, 'deleted')
+    log.info("The variable is deleted: {}".format(is_deleted))
 
-    log.info("Authorized request to delete a project resource and all data")
+    if not is_deleted:
+        db.mark_project_deleted(dbinstance, project_id)
 
-    # If result_type is similarity_scores, delete the corresponding similarity_scores file
-    if project_from_db['result_type'] == 'similarity_scores':
-        log.debug("Deleting the similarity scores file from object store")
-        filename = db.get_similarity_scores_filename(dbinstance, project_id)
-        mc.remove_object(config.MINIO_BUCKET, filename)
+        log.info("Authorized request to delete a project resource and all data")
 
-    log.info("Deleting project resourced from database")
-    object_store_files = db.delete_project(get_db(), project_id)
-    log.info("Object store files associated with project:")
+        # If result_type is similarity_scores, delete the corresponding similarity_scores file
+        if project_from_db['result_type'] == 'similarity_scores':
+            log.debug("Deleting the similarity scores file from object store")
+            filename = db.get_similarity_scores_filename(dbinstance, project_id)
+            mc.remove_object(config.MINIO_BUCKET, filename)
 
-    for filename in object_store_files:
-        log.info("Deleting {}".format(filename))
-        mc.remove_object(config.MINIO_BUCKET, filename)
+        log.info("Deleting project resourced from database")
+        object_store_files = db.delete_project(get_db(), project_id)
+        log.info("Object store files associated with project:")
+
+        for filename in object_store_files:
+            log.info("Deleting {}".format(filename))
+            mc.remove_object(config.MINIO_BUCKET, filename)
 
     return '', 204
 

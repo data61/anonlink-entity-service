@@ -124,7 +124,7 @@ def get_run(db, run_id):
 
 
 def get_project_column(db, project_id, column):
-    assert column in {'notes', 'schema', 'parties', 'result_type'}
+    assert column in {'notes', 'schema', 'parties', 'result_type', 'deleted'}
     sql_query = """
         SELECT {} 
         FROM projects

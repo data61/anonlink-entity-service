@@ -29,8 +29,9 @@ CREATE TABLE projects (
 
   parties      SMALLINT  DEFAULT 2,
 
-  result_type  MAPPINGRESULT NOT NULL
+  result_type  MAPPINGRESULT NOT NULL,
 
+  deleted      boolean
 );
 
 CREATE TYPE RUNSTATE AS ENUM (
