@@ -17,7 +17,7 @@ data:
   CELERYD_MAX_TASKS_PER_CHILD: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
   CELERY_ACKS_LATE: {{ .Values.workers.celery.ACKS_LATE | quote }}
   ENCRYPTION_MIN_KEY_LENGTH: "1024"
-  {{ if .Values.minio.enabled }}
+  {{ if .Values.provision.minio }}
   MINIO_SERVER: "{{ .Release.Name }}-minio:9000"
   {{ else }}
   MINIO_SERVER: {{ .Values.minio.server | quote }}

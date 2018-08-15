@@ -159,6 +159,18 @@ set very small resource limits. Install the minimal system with::
 
     helm install entity-service --name="mini-es" --values entity-service/minimal-values.yaml
 
+
+Object Store Deployment Options
+-------------------------------
+
+At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3.
+Carefully read the comments in the default ``values.yaml`` file.
+
+To use AWS S3 simply provide your access credentials and disable provisioning minio::
+
+    helm install entity-service --name="es-s3" --set provision.minio=false --set minio.accessKey=XXX --set minio.secretKey=YYY --set minio.bucket=<bucket>
+
+
 Uninstalling
 ------------
 
