@@ -27,7 +27,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.3.2"
+      tag: "v1.4.0"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -143,7 +143,7 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.8.1"
+    tag: "v1.8.2"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
