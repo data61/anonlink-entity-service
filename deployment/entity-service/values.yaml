@@ -272,6 +272,6 @@ minio:
 
 provision:
   # enable to deploy a standalone version of minio, otherwise connect minio to another service (e.g. S3)
-  minio: false
-  postgresql: false
-  redis: false
+  minio: true
+  postgresql: true
+  redis: true
