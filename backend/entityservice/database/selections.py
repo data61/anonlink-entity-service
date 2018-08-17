@@ -39,7 +39,7 @@ def get_dataprovider_ids(db, project_id):
 
 
 def check_project_exists(db, resource_id):
-    sql_query = 'select count(*) from projects WHERE project_id = %s'
+    sql_query = 'select count(*) from projects WHERE project_id = %s AND marked_for_deletion = false'
     query_result = query_db(db, sql_query, [resource_id], one=True)
     return query_result['count'] == 1
 
@@ -100,7 +100,7 @@ def get_run_state(db, run_id):
 def get_project(db, resource_id):
     sql_query = """
         SELECT * from projects
-        WHERE project_id = %s AND deleted=FALSE
+        WHERE project_id = %s AND marked_for_deletion=FALSE
         """
     return query_db(db, sql_query, [resource_id], one=True)
 

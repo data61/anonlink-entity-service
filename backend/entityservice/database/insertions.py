@@ -210,7 +210,7 @@ def mark_project_deleted(db, project_id):
     with db.cursor() as cur:
         sql_query = """
             UPDATE projects SET
-              deleted = TRUE 
+              marked_for_deletion = TRUE 
             WHERE
               project_id = %s
             """
