@@ -265,7 +265,8 @@ minio:
   mode: "standalone"
   service.type: "ClusterIP"
   persistence:
-    size: 1000Gi
+    enabled: true
+    size: 50Gi
     storageClass: "default"
   nameOverride: "minio"
 
