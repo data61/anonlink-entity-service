@@ -1,9 +1,9 @@
 import minio
-import logging
+from structlog import get_logger
 
 from entityservice.settings import Config as config
 
-logger = logging.getLogger('objectstore')
+logger = get_logger('objectstore')
 
 
 def connect_to_object_store():

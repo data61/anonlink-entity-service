@@ -202,7 +202,6 @@ workers:
         memory: 16Gi
         cpu: 800m
 
-
 postgresql:
   # See available settings and defaults at:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql
@@ -247,14 +246,33 @@ redis-ha:
 
 
 minio:
-  # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
-  ## Can distribute the object store across multiple nodes...
+  # Configure the object storage
+  # https://github.com/helm/charts/blob/master/stable/minio/values.yaml
+
+  ## Access credentials for the object store
+  accessKey: "xtoNfbmB7cUaW4sLPzKBXVPXd8oAvVbvkAosxsEXAMPLE"
+  secretKey: "6hkE6FzMLBd4tkzhVjXjPdEzQikmEtjRDQwyobEXAMPLE"
+
+  ## Settings required for connecting to another object store, the server is ignored
+  ## if provisioning minio during deployment.
+  server: "s3.amazonaws.com"
+
+  bucket: "confidentialcomputing-k8s-objectstore"
+
+  ## Settings for deploying standalone object store
+  ## https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
+  ## Can distribute the object store across multiple nodes.
   mode: "standalone"
-  #replicas: 5
   service.type: "ClusterIP"
   persistence:
-    size: 1000Gi
+    enabled: true
+    size: 50Gi
     storageClass: "default"
-  accessKey: "SNANDoWeruDenOCongsA"
-  secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
+
+
+provision:
+  # enable to deploy a standalone version of minio, otherwise connect minio to another service (e.g. S3)
+  minio: true
+  postgresql: true
+  redis: true
