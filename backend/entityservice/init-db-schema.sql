@@ -9,28 +9,29 @@ CREATE TYPE MAPPINGRESULT AS ENUM (
 -- The table of entity matching jobs
 CREATE TABLE projects (
   -- Table index
-  id           SERIAL PRIMARY KEY,
+  id                  SERIAL PRIMARY KEY,
 
   -- The resource identifier
-  project_id   CHAR(48)      NOT NULL UNIQUE,
+  project_id          CHAR(48)      NOT NULL UNIQUE,
 
   -- When was this project added
-  time_added   TIMESTAMP DEFAULT current_timestamp,
+  time_added          TIMESTAMP DEFAULT current_timestamp,
 
   -- currently 1:1, but this could be own table too
-  access_token TEXT          NOT NULL,
+  access_token        TEXT          NOT NULL,
 
   -- not required by the server, but is shared to all parties
-  schema       JSONB         NOT NULL,
+  schema              JSONB         NOT NULL,
 
   -- human readable name for display purposes
-  name         TEXT,
-  notes        TEXT,
+  name                TEXT,
+  notes               TEXT,
 
-  parties      SMALLINT  DEFAULT 2,
+  parties             SMALLINT  DEFAULT 2,
 
-  result_type  MAPPINGRESULT NOT NULL
+  result_type         MAPPINGRESULT NOT NULL,
 
+  marked_for_deletion boolean   DEFAULT FALSE
 );
 
 CREATE TYPE RUNSTATE AS ENUM (

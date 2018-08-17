@@ -7,8 +7,7 @@ logger = get_logger()
 
 def delete_project(db, project_id):
     """
-    Deletes the database entries for a particular project and returns
-    a list of object store files referenced.
+    Deletes the database entry for a particular project.
 
     This is very manual, looking forward to https://github.com/n1analytics/entity-service/issues/133
     """

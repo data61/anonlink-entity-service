@@ -55,27 +55,20 @@ def projects_post(project):
 def project_delete(project_id):
     log = logger.bind(pid=project_id)
     log.info('Request to delete project')
-    # Check the resource exists
+    # Check the resource exists and hasn't already been marked for deletion
     abort_if_project_doesnt_exist(project_id)
 
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
-
-    dbinstance = get_db()
-    mc = connect_to_object_store()
-    project_from_db = db.get_project(dbinstance, project_id)
-
     log.info("Authorized request to delete a project resource and all data")
 
-    # If result_type is similarity_scores, delete the corresponding similarity_scores file
-    if project_from_db['result_type'] == 'similarity_scores':
-        log.debug("Deleting the similarity scores file from object store")
-        filename = db.get_similarity_scores_filename(dbinstance, project_id)
-        mc.remove_object(config.MINIO_BUCKET, filename)
+    dbinstance = get_db()
+    db.mark_project_deleted(dbinstance, project_id)
+    mc = connect_to_object_store()
 
     log.info("Deleting project resourced from database")
     object_store_files = db.delete_project(get_db(), project_id)
-    log.info("Object store files associated with project:")
+    log.info("Removing object store files associated with project.")
 
     for filename in object_store_files:
         log.info("Deleting {}".format(filename))

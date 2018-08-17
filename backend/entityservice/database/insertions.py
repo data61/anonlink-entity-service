@@ -206,6 +206,17 @@ def update_run_mark_queued(db, run_id):
         cur.execute(sql_query, [run_id])
 
 
+def mark_project_deleted(db, project_id):
+    with db.cursor() as cur:
+        sql_query = """
+            UPDATE projects SET
+              marked_for_deletion = TRUE 
+            WHERE
+              project_id = %s
+            """
+        cur.execute(sql_query, [project_id])
+
+
 def progress_run_stage(db, run_id):
     try:
         with db.cursor() as cur:
