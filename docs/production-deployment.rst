@@ -156,13 +156,14 @@ Object Store Deployment Options
 -------------------------------
 
 At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3. Note that there is
-a trade off between using a local deployment of minio vs S3. Minio is noticeably faster, but both more expensive and far
-less reliable than AWS S3.
+a trade off between using a local deployment of minio vs S3.
 
-To configure simple set ``provision.minio`` to ``false`` and add appropriate connection configuration in the ``minio``
-section.
+In our AWS based experimentation Minio is noticeably faster, but more expensive and less reliable than AWS S3, your own
+millage may vary.
 
-To use AWS S3 simply provide your access credentials and disable provisioning minio::
+To configure a deployment to use an external object store, simply set ``provision.minio`` to ``false`` and add
+appropriate connection configuration in the ``minio`` section. For example to use AWS S3 simply provide your access
+credentials (and disable provisioning minio)::
 
     helm install entity-service --name="es-s3" --set provision.minio=false --set minio.accessKey=XXX --set minio.secretKey=YYY --set minio.bucket=<bucket>
 
