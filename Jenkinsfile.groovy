@@ -242,6 +242,10 @@ node('helm && kubectl') {
                 # Watch the output
                 kubectl logs -f $jobPodName
 
+                # Try fetch the results
+                kubectl cp $NAMESPACE/$jobPodName:results.xml results.xml
+                cat results.xml
+
                 # Clean up
                 kubectl delete job ${DEPLOYMENT}-test
                 helm delete --purge ${DEPLOYMENT}
@@ -312,7 +316,8 @@ String writeDicKubernetesVariables(String deploymentName, String imageNameWithTa
                               "python",
                               "-m",
                               "pytest",
-                              "entityservice/tests"
+                              "entityservice/tests",
+                              "--junit-xml=results.xml"
                           ]
                       ]
                   ],
