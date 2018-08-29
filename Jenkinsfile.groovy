@@ -211,6 +211,10 @@ node('helm && kubectl') {
                     --set api.app.image.tag=${TAG} \
                     --set workers.image.tag=${TAG} \
                     --set workers.replicaCount=2 \
+                    --set workers.resources.requests.memory="256Mi" \
+                    --set workers.highmemory.replicaCount=1 \
+                    --set workers.highmemory.resources.requests.memory="1Gi" \
+                    --set workers.highmemory.resources.requests.cpu="50m" \
                     --set minio.mode="standalone" \
                     --set minio.persistence.size="4Gi" \
                     --set api.ingress.enabled=false \
