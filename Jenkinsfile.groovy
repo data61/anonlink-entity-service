@@ -203,6 +203,7 @@ node('helm && kubectl') {
               }
               writeYaml(file: "test-versions.yaml", data: dicTestVersions)
               sh """
+                helm version
                 helm dependency update
                 helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f test-versions.yaml \
