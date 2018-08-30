@@ -22,13 +22,14 @@ import os
 import requests
 from clkhash import rest_client
 
+EXP_LOOKUP = {
+    '100K': 100000,
+    '1M': 1000000,
+    '10M': 10000000}
 
-EXP_LOOKUP = {'100K': 100000,
-              '1M': 1000000,
-              '10M': 10000000}
 THRESHOLD = 0.85
 TIMEOUT = 1200  # in sec
-DATA_FOLDER = '/tmp/datasets'
+DATA_FOLDER = './data'
 logger = logging
 logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
@@ -37,9 +38,9 @@ def read_env_vars():
     global SERVER, SCHEMA, EXPERIMENT_LIST, TIMEOUT
     try:
         SERVER = os.getenv('SERVER')
-        schema_path = os.getenv('SCHEMA')
+        schema_path = os.getenv('SCHEMA', DATA_FOLDER + '/schema.json')
         exp_list = os.getenv('EXPERIMENT_LIST', '')
-        TIMEOUT = os.getenv('TIMEOUT', TIMEOUT)
+        TIMEOUT = float(os.getenv('TIMEOUT', TIMEOUT))
         rest_client.server_get_status(SERVER)
         with open(schema_path, 'rt') as f:
             SCHEMA = json.load(f)
@@ -134,7 +135,7 @@ def score_mapping(mapping, truth_a, truth_b, mask_a, mask_b):
 def compose_result(status, tt, experiment, sizes):
     tp, tn, fp, fn = tt
     result = {'name': experiment, 'sizes': {'size_a': sizes[0], 'size_b': sizes[1]}, 'status': 'completed',
-              'match_results':{'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}}
+              'match_results': {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}}
     timings = {'started': status['time_started'], 'added:': status['time_added'], 'completed': status['time_completed']}
     start = arrow.get(status['time_started']).datetime
     end = arrow.get(status['time_completed']).datetime
@@ -153,56 +154,83 @@ def delete_resources(credentials, run):
         logger.warning('Error while deleting resources... {}'.format(e))
 
 
+def download_file_if_not_present(url_base, local_base, filename):
+    local_path = os.path.join(local_base, filename)
+    if os.path.exists(local_path):
+        logger.debug(f'Skipping already downloaded file: {filename}')
+    else:
+        logger.info(f'Downloading {filename} to {local_base}')
+        response = requests.get(url_base + filename, stream=True)
+        assert response.status_code == 200, f"{response.status_code} was not 200"
+
+        with open(local_path, 'wb') as f:
+            for chunk in response:
+                f.write(chunk)
+
+
 def download_data():
+    logger.info('Downloading synthetic datasets from S3')
     base = "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/"
+    download_file_if_not_present(base, DATA_FOLDER, 'schema.json')
+
     for user in ('a', 'b'):
-        for size in ('100K', '1M'):
-
+        for size in ['100K', '1M', '10M']:
             pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
-            res = requests.get(base + pii_file)
-            with open(DATA_FOLDER + pii_file, 'w') as f:
-                f.write(res.text)
+            clk_file = f"clk_{user}_{EXP_LOOKUP[size]}.bin"
+            download_file_if_not_present(base, DATA_FOLDER, pii_file)
+            download_file_if_not_present(base, DATA_FOLDER, clk_file)
+
+    logger.info('Downloads complete')
 
 
-try:
-    read_env_vars()
-    results = {'experiments': []}
-    for experiment in EXPERIMENT_LIST:
-        try:
-            logger.info('running experiment: {}'.format(experiment))
-            size_a, size_b = get_exp_sizes(experiment)
-            # create project
-            credentials = rest_client.project_create(SERVER, SCHEMA, 'mapping', "benchy_{}".format(experiment))
+def main():
+    try:
+        read_env_vars()
+        results = {'experiments': []}
+        for experiment in EXPERIMENT_LIST:
             try:
-                # upload clks
-                upload_binary_clks(size_a, size_b, credentials)
-                # create run
-                run = rest_client.run_create(SERVER, credentials['project_id'], credentials['result_token'], THRESHOLD,
-                                             "{}_{}".format(experiment, THRESHOLD))
-                # wait for result
-                logger.info('waiting for run to finish')
-                status = rest_client.wait_for_run(SERVER, credentials['project_id'], run['run_id'],
-                                                  credentials['result_token'], timeout=TIMEOUT)
-                if status['state'] != 'completed':
-                    raise RuntimeError('run did not finish!\n{}'.format(status))
-                logger.info('experiment successful. Evaluating results now...')
-                mapping = rest_client.run_get_result_text(SERVER, credentials['project_id'], run['run_id'],
-                                                          credentials['result_token'])
-                mapping = json.loads(mapping)['mapping']
-                mapping = {int(k): int(v) for k, v in mapping.items()}
-                tt = score_mapping(mapping, *load_truth(size_a, size_b))
-                result = compose_result(status, tt, experiment, (size_a, size_b))
-                results['experiments'].append(result)
-                logger.info('cleaning up...')
-                delete_resources(credentials, run)
+                logger.info('running experiment: {}'.format(experiment))
+                size_a, size_b = get_exp_sizes(experiment)
+                # create project
+                credentials = rest_client.project_create(SERVER, SCHEMA, 'mapping', "benchy_{}".format(experiment))
+                try:
+                    # upload clks
+                    upload_binary_clks(size_a, size_b, credentials)
+                    # create run
+                    run = rest_client.run_create(SERVER, credentials['project_id'], credentials['result_token'],
+                                                 THRESHOLD,
+                                                 "{}_{}".format(experiment, THRESHOLD))
+                    # wait for result
+                    run_id = run['run_id']
+                    logger.info(f'waiting for run {run_id} to finish')
+                    status = rest_client.wait_for_run(SERVER, credentials['project_id'], run['run_id'],
+                                                      credentials['result_token'], timeout=TIMEOUT)
+                    if status['state'] != 'completed':
+                        raise RuntimeError('run did not finish!\n{}'.format(status))
+                    logger.info('experiment successful. Evaluating results now...')
+                    mapping = rest_client.run_get_result_text(SERVER, credentials['project_id'], run['run_id'],
+                                                              credentials['result_token'])
+                    mapping = json.loads(mapping)['mapping']
+                    mapping = {int(k): int(v) for k, v in mapping.items()}
+                    tt = score_mapping(mapping, *load_truth(size_a, size_b))
+                    result = compose_result(status, tt, experiment, (size_a, size_b))
+                    results['experiments'].append(result)
+                    logger.info('cleaning up...')
+                    delete_resources(credentials, run)
+                except Exception as e:
+                    delete_resources(credentials, run)
+                    raise e
             except Exception as e:
-                delete_resources(credentials, run)
-                raise e
-        except Exception as e:
-            e_trace = format_exc()
-            logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
-            results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
-except Exception as e:
-    results = {'status': 'ERROR',
-               'description': format_exc()}
-pprint(results)
+                e_trace = format_exc()
+                logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
+                results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+    except Exception as e:
+        results = {'status': 'ERROR',
+                   'description': format_exc()}
+        raise e
+    pprint(results)
+
+
+if __name__ == '__main__':
+    download_data()
+    main()
