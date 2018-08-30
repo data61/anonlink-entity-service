@@ -244,7 +244,7 @@ node('helm && kubectl') {
 
             resultFile = getResultsFromK8s(DEPLOYMENT, pvc)
 
-
+            junit resultFile
 
             sh """
                 # Clean up
@@ -287,11 +287,13 @@ void createK8sFromManifest(LinkedHashMap<String, Object> manifest) {
 }
 
 String getResultsFromK8s(String deploymentName, String pvcName) {
-  def k8s_pod_manifest = [
+    String pod_name = "${BRANCH_NAME}-${BUILD_NUMBER}-tmppod"
+
+    def k8s_pod_manifest = [
           "apiVersion": "v1",
           "kind": "Pod",
           "metadata": [
-                  "name": "tmppod",
+                  "name": pod_name,
                   "labels"    : [
                           "deployment": deploymentName
                   ]
@@ -330,16 +332,16 @@ String getResultsFromK8s(String deploymentName, String pvcName) {
   String out = "k8s-results.xml"
   sh """
       # fetch the results from the running pod
-      kubectl cp $NAMESPACE/$jobPodName:/mnt/results.xml $out
+      kubectl cp $NAMESPACE/$pod_name:/mnt/results.xml $out
 
       # delete the temp pod
-      kubectl delete pod tmppod
+      kubectl delete pod $pod_name
   """
   return out
 }
 
 String createK8sTestJob(String deploymentName, String imageNameWithTag, String serviceIP) {
-  String pvc_name =  deploymentName + "-test-results";
+  String pvc_name =  deploymentName + "-test-results"
 
   def k8s_pvc_manifest = [
       "apiVersion": "v1",
@@ -440,5 +442,5 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
   createK8sFromManifest(k8s_pvc_manifest)
   createK8sFromManifest(k8s_job_manifest)
 
-  return pvc_name;
+  return pvc_name
 }
