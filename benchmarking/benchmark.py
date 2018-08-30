@@ -1,3 +1,15 @@
+"""
+Script to benchmark linkage runs on the entity service.
+
+Configured via environment variables:
+
+- SERVER : the url of the server
+- SCHEMA : path to the / a schema file (unused by ES for now, thus can be any json file)
+- EXPERIMENT_LIST: list of experiments to run in the form "axb,axc, ..." with a,b,c in ('100k', '1M', '10M')
+                    and a <= b. Example: "100Kx100K, 100Kx1M, 1Mx1M"
+- TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
+"""
+
 import json
 import logging
 import time
@@ -11,21 +23,12 @@ import requests
 from clkhash import rest_client
 
 
-# script to benchmark linkage runs on the entity service.
-# configured via environment variables:
-#   -SERVER : the url of the server
-#   -SCHEMA : path to the / a schema file (unused by ES for now, thus can be any json file)
-#   -EXPERIMENT_LIST: list of experiments to run in the form "axb,axc, ..." with a,b,c in ('100k', '1M', '10M') 
-#                     and a <= b. Example: "100Kx100K, 100Kx1M, 1Mx1M"
-#   -TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
-
-
 EXP_LOOKUP = {'100K': 100000,
               '1M': 1000000,
               '10M': 10000000}
 THRESHOLD = 0.85
 TIMEOUT = 1200  # in sec
-DATA_FOLDER = 'datasets/bench'
+DATA_FOLDER = '/tmp/datasets'
 logger = logging
 logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
@@ -148,6 +151,17 @@ def delete_resources(credentials, run):
         rest_client.project_delete(SERVER, credentials['project_id'], credentials['result_token'])
     except Exception as e:
         logger.warning('Error while deleting resources... {}'.format(e))
+
+
+def download_data():
+    base = "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/"
+    for user in ('a', 'b'):
+        for size in ('100K', '1M'):
+
+            pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
+            res = requests.get(base + pii_file)
+            with open(DATA_FOLDER + pii_file, 'w') as f:
+                f.write(res.text)
 
 
 try:
