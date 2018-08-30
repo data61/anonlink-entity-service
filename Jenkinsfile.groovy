@@ -336,6 +336,9 @@ String getResultsFromK8s(String deploymentName, String pvcName) {
 
       # delete the temp pod
       kubectl delete pod $pod_name
+
+      # delete the pvc
+      kubectl delete pvc -l deployment=$deploymentName
   """
   return out
 }
