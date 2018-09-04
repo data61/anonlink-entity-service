@@ -1,0 +1,40 @@
+{
+  "definitions": {},
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schema.n1analytics.com/linkage-experiments.json",
+  "type": "array",
+  "title": "Schema describing a list of linkage experiments",
+  "items": {
+    "$id": "#/items",
+    "type": "object",
+    "title": "Experiment",
+    "required": [
+      "sizes",
+      "threshold"
+    ],
+    "properties": {
+      "sizes": {
+        "$id": "#/items/properties/sizes",
+        "type": "array",
+        "title": "Test size",
+        "items": {
+          "enum": ["10K", "100K", "1M", "10M"]
+        },
+        "examples": [
+          ["10K", "10K"]
+        ]
+      },
+      "threshold": {
+        "$id": "#/items/properties/thresholds/items",
+        "type": "number",
+        "title": "Threshold for the experiment",
+        "default": 0.85,
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "examples": [
+          0.80, 0.9, 0.95
+        ]
+      }
+    }
+  }
+}

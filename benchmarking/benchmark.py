@@ -5,9 +5,10 @@ Configured via environment variables:
 
 - SERVER : the url of the server
 - SCHEMA : path to the / a schema file (unused by ES for now, thus can be any json file)
-- EXPERIMENT_LIST: list of experiments to run in the form "axb,axc, ..." with a,b,c in ('100k', '1M', '10M')
-                    and a <= b. Example: "100Kx100K, 100Kx1M, 1Mx1M"
+- EXPERIMENT: json file containing a list of experiments to run. Schema defined in `./schema/experiments.json`
+
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
+
 """
 
 import json
@@ -25,32 +26,56 @@ from clkhash import rest_client
 EXP_LOOKUP = {
     '100K': 100000,
     '1M': 1000000,
-    '10M': 10000000}
+    '10M': 10000000
+}
 
-THRESHOLD = 0.85
-TIMEOUT = 1200  # in sec
-DATA_FOLDER = './data'
+
 logger = logging
 logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
-def read_env_vars():
-    global SERVER, SCHEMA, EXPERIMENT_LIST, TIMEOUT
+def load_experiments(filepath):
+    with open(filepath, 'rt') as f:
+        experiments = json.load(f)
+    # todo validate schema
+
+    #for experiment in experiments:
+    #    # transform sizes "10K"
+    #EXPERIMENT_LIST = exp_list.replace(' ', '').upper().split(',')
+    return experiments
+
+
+def read_config():
+
+    # Defaults
+    DEFAULT_THRESHOLD = 0.85
+    DEFAULT_TIMEOUT = 1200  # in sec
+    DEFAULT_DATA_FOLDER = './data'
+
     try:
-        SERVER = os.getenv('SERVER')
-        schema_path = os.getenv('SCHEMA', DATA_FOLDER + '/schema.json')
-        exp_list = os.getenv('EXPERIMENT_LIST', '')
-        TIMEOUT = float(os.getenv('TIMEOUT', TIMEOUT))
-        rest_client.server_get_status(SERVER)
+        server = os.getenv('SERVER')
+        data_path = os.getenv('DATA_PATH', DEFAULT_DATA_FOLDER)
+        experiments_file = os.getenv('EXPERIMENT')
+        schema_path = os.getenv('SCHEMA', DEFAULT_DATA_FOLDER + '/schema.json')
+        timeout = float(os.getenv('TIMEOUT', DEFAULT_TIMEOUT))
+
         with open(schema_path, 'rt') as f:
-            SCHEMA = json.load(f)
-        EXPERIMENT_LIST = exp_list.replace(' ', '').upper().split(',')
+            schema = json.load(f)
+
+        experiments = load_experiments(experiments_file)
+
+        return {
+            'server': server,
+            'experiments': experiments,
+            'timeout': timeout,
+            'data_path': data_path
+        }
     except Exception as e:
         raise ValueError(
             'Error loading environment variables!\n'
-            ' SERVER: {}, SCHEMA: {}, EXPERIMENT_LIST: {}'.format(SERVER,
+            ' SERVER: {}, SCHEMA: {}, EXPERIMENT_LIST: {}'.format(server,
                                                                   schema_path,
-                                                                  exp_list)) from e
+                                                                  experiments)) from e
 
 
 def get_exp_sizes(experiment):
@@ -132,10 +157,17 @@ def score_mapping(mapping, truth_a, truth_b, mask_a, mask_b):
     return tp, tn, fp, fn
 
 
-def compose_result(status, tt, experiment, sizes):
+def compose_result(status, tt, experiment, sizes, threshold):
     tp, tn, fp, fn = tt
-    result = {'name': experiment, 'sizes': {'size_a': sizes[0], 'size_b': sizes[1]}, 'status': 'completed',
-              'match_results': {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}}
+    result = {'name': experiment,
+              'threshold': threshold,
+              'sizes': {
+                  'size_a': sizes[0],
+                  'size_b': sizes[1]
+              },
+              'status': 'completed',
+              'match_results': {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}
+              }
     timings = {'started': status['time_started'], 'added:': status['time_added'], 'completed': status['time_completed']}
     start = arrow.get(status['time_started']).datetime
     end = arrow.get(status['time_completed']).datetime
@@ -183,12 +215,14 @@ def download_data():
     logger.info('Downloads complete')
 
 
-def main():
-    try:
-        read_env_vars()
-        results = {'experiments': []}
-        for experiment in EXPERIMENT_LIST:
-            try:
+def run_experiments():
+    config = read_config()
+    rest_client.server_get_status(config['server'])
+
+    results = {'experiments': []}
+    for experiment in EXPERIMENT_LIST:
+        try:
+            for threshold in [THRESHOLD]:
                 logger.info('running experiment: {}'.format(experiment))
                 size_a, size_b = get_exp_sizes(experiment)
                 # create project
@@ -198,8 +232,8 @@ def main():
                     upload_binary_clks(size_a, size_b, credentials)
                     # create run
                     run = rest_client.run_create(SERVER, credentials['project_id'], credentials['result_token'],
-                                                 THRESHOLD,
-                                                 "{}_{}".format(experiment, THRESHOLD))
+                                                 threshold,
+                                                 "{}_{}".format(experiment, threshold))
                     # wait for result
                     run_id = run['run_id']
                     logger.info(f'waiting for run {run_id} to finish')
@@ -213,17 +247,21 @@ def main():
                     mapping = json.loads(mapping)['mapping']
                     mapping = {int(k): int(v) for k, v in mapping.items()}
                     tt = score_mapping(mapping, *load_truth(size_a, size_b))
-                    result = compose_result(status, tt, experiment, (size_a, size_b))
+                    result = compose_result(status, tt, experiment, (size_a, size_b), threshold)
                     results['experiments'].append(result)
                     logger.info('cleaning up...')
                     delete_resources(credentials, run)
                 except Exception as e:
                     delete_resources(credentials, run)
                     raise e
-            except Exception as e:
-                e_trace = format_exc()
-                logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
-                results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+        except Exception as e:
+            e_trace = format_exc()
+            logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
+            results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+
+def main():
+    try:
+        run_experiments()
     except Exception as e:
         results = {'status': 'ERROR',
                    'description': format_exc()}
