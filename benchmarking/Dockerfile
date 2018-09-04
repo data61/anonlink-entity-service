@@ -21,6 +21,6 @@ RUN adduser -D -H -h /app user && \
     chown user:user /app /var/log
 USER user
 
-ADD benchmark.py /app
+ADD . /app
 
-CMD python benchmark.py
+CMD SERVER=https://testing.es.data61.xyz python benchmark.py
