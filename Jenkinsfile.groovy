@@ -12,6 +12,7 @@ String gitContextIntegrationTests = "required-integration-tests"
 String gitContextDocumentation = "required-build-documentation"
 String gitContextPublish = "required-publish-docker-images"
 String gitContextKubernetesDeployment = "optional-kubernetes-deployment"
+String gitContextLocalBenchmark = "jenkins-benchmark"
 DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
@@ -43,6 +44,10 @@ node('docker&&multicore&&ram') {
         }
         dir("docs") {
           String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":doc-builder"
+          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+        }
+        dir("benchmarking") {
+          String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":benchmark"
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         gitCommit.setSuccessStatus(gitContextDockerBuild)
@@ -90,7 +95,28 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
         gitCommit.setFailStatus(gitContextIntegrationTests)
-        throw err;
+        throw err
+      }
+    }
+
+    stage('Benchmark') {
+      gitCommit.setInProgressStatus(gitContextLocalBenchmark);
+      try {
+        timeout(time: 10, unit: 'MINUTES') {
+          String dockerContainerName = composeProject + "benchmark"
+          sh """
+          mkdir -p benchmark-results
+          docker run -it -v `pwd`/benchmark-results:/results --name ${dockerContainerName} quay.io/n1analytics/entity-app:benchmark
+          ls benchmark-results
+          """
+
+          archiveArtifacts artifacts: "benchmark-results/*.json", fingerprint: false
+          gitCommit.setSuccessStatus(gitContextLocalBenchmark)
+        }
+      } catch (err) {
+        print("Error in benchmarking stage:\n" + err)
+        gitCommit.setFailStatus(gitContextLocalBenchmark)
+        throw err
       }
     }
 
