@@ -256,13 +256,15 @@ node('helm && kubectl') {
         } catch (error) { // timeout reached or input false
           print("Error in k8s deployment stage:\n" + error)
           gitCommit.setFailStatus(gitContextKubernetesDeployment)
-          throw error
+          throw new Exception("The k8s integration tests failed.")
         } finally {
           try {
             sh """
             helm delete --purge ${DEPLOYMENT}
             kubectl delete job -lapp=${DEPLOYMENT}-entity-service
             kubectl delete job ${DEPLOYMENT}-test
+            kubectl delete all -ldeployment=${DEPLOYMENT}
+            kubectl delete all -lrelease=${DEPLOYMENT}
             """
           } catch(Exception err) {
             print("Error in final cleanup, Ignoring:\n" + err)
