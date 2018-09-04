@@ -54,7 +54,7 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in docker build stage:\n" + err)
         gitCommit.setFailStatus(gitContextDockerBuild)
-        throw err;
+        throw err
       }
     }
 
@@ -69,7 +69,7 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
         gitCommit.setFailStatus(gitContextComposeDeploy)
-        throw err;
+        throw err
       }
     }
 
