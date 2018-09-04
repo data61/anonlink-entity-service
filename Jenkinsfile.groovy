@@ -107,18 +107,16 @@ node('docker&&multicore&&ram') {
           String localserver = dockerUtils.dockerCommand("port ${composeProject}_nginx_1  8851")
 
           sh """
-          mkdir -p benchmark-results
-
           docker run \
-                -v `pwd`/benchmark-results:/results \
                 --name ${dockerContainerName} \
                 -e SERVER=${localserver} \
-                -e RESULTS_PATH=/results/results.json \
+                -e RESULTS_PATH=/app/results.json \
                 quay.io/n1analytics/entity-app:benchmark
-          ls benchmark-results
+          docker cp ${dockerContainerName}:/app/results.json results.json
+          
           """
 
-          archiveArtifacts artifacts: "benchmark-results/results.json", fingerprint: true
+          archiveArtifacts artifacts: "results.json", fingerprint: true
           gitCommit.setSuccessStatus(gitContextLocalBenchmark)
         }
       } catch (err) {
