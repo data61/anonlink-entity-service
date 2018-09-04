@@ -106,7 +106,7 @@ node('docker&&multicore&&ram') {
           String dockerContainerName = composeProject + "benchmark"
           sh """
           mkdir -p benchmark-results
-          docker run -it -v `pwd`/benchmark-results:/results --name ${dockerContainerName} quay.io/n1analytics/entity-app:benchmark
+          docker run -v `pwd`/benchmark-results:/results --name ${dockerContainerName} quay.io/n1analytics/entity-app:benchmark
           ls benchmark-results
           """
 
