@@ -48,7 +48,6 @@ def load_experiments(filepath):
 def read_config():
 
     # Defaults
-    DEFAULT_THRESHOLD = 0.85
     DEFAULT_TIMEOUT = 1200  # in sec
     DEFAULT_DATA_FOLDER = './data'
 
@@ -68,7 +67,9 @@ def read_config():
             'server': server,
             'experiments': experiments,
             'timeout': timeout,
-            'data_path': data_path
+            'schema': schema,
+            'data_path': data_path,
+            'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/"
         }
     except Exception as e:
         raise ValueError(
@@ -79,57 +80,47 @@ def read_config():
 
 
 def get_exp_sizes(experiment):
-    sizes = experiment.split('X')
+    sizes = experiment['sizes']
     assert len(sizes) == 2
     return EXP_LOOKUP[sizes[0]], EXP_LOOKUP[sizes[1]]
 
 
-def upload_binary_clks(length_a, length_b, credentials):
+def upload_binary_clks(config, length_a, length_b, credentials):
+    data_path = config['data_path']
+    server = config['server']
     tick = time.perf_counter
-    start = tick()
 
-    with open(os.path.join(DATA_FOLDER, "clk_a_{}.bin".format(length_a)), 'rb') as f:
-        facs_data = f.read()
-    try:
-        r = requests.post(
-            SERVER + '/api/v1/projects/{}/clks'.format(credentials['project_id']),
-            headers={
-                'Authorization': credentials['update_tokens'][0],
-                'Content-Type': 'application/octet-stream',
-                'Hash-Count': str(int(len(facs_data) / 134)),
-                'Hash-Size': '128'
-            },
-            data=facs_data
-        )
-        logger.debug('upload result: {}'.format(r.json()))
-    except Exception as e:
-        logger.warning('oh no...\n{}'.format(e))
-    logger.info('uploading clks for a took {}'.format(tick() - start))
-    start = tick()
-    with open(os.path.join(DATA_FOLDER, "clk_b_{}.bin".format(length_b)), 'rb') as f:
-        facs_data = f.read()
-    try:
-        r = requests.post(
-            SERVER + '/api/v1/projects/{}/clks'.format(credentials['project_id']),
-            headers={
-                'Authorization': credentials['update_tokens'][1],
-                'Content-Type': 'application/octet-stream',
-                'Hash-Count': str(int(len(facs_data) / 134)),
-                'Hash-Size': '128'
-            },
-            data=facs_data
-        )
-        logger.debug('upload result: {}'.format(r.json()))
-    except Exception as e:
-        logger.warning('oh no...\n{}'.format(e))
-    logger.info('uploading clks for b took {}'.format(tick() - start))
+    def upload_data(participant, auth_token):
+        start = tick()
+
+        with open(os.path.join(data_path, "clk_{}_{}.bin".format(participant, length_a)), 'rb') as f:
+            facs_data = f.read()
+        try:
+            r = requests.post(
+                server + '/api/v1/projects/{}/clks'.format(credentials['project_id']),
+                headers={
+                    'Authorization': auth_token,
+                    'Content-Type': 'application/octet-stream',
+                    'Hash-Count': str(int(len(facs_data) / 134)),
+                    'Hash-Size': '128'
+                },
+                data=facs_data
+            )
+            logger.debug('upload result: {}'.format(r.json()))
+        except Exception as e:
+            logger.warning('oh no...\n{}'.format(e))
+        logger.info('uploading clks for {} took {:.3f}'.format(participant, tick() - start))
+
+    upload_data('a', credentials['update_tokens'][0])
+    upload_data('b', credentials['update_tokens'][1])
 
 
-def load_truth(size_a, size_b):
-    with open(os.path.join(DATA_FOLDER, f'PII_a_{size_a}.csv'), 'rt') as f:
+def load_truth(config, size_a, size_b):
+    data_path = config['data_path']
+    with open(os.path.join(data_path, f'PII_a_{size_a}.csv'), 'rt') as f:
         dfa = pd.read_csv(f)
         a_ids = dfa['entity_id'].values
-    with open(os.path.join(DATA_FOLDER, f'PII_b_{size_b}.csv'), 'rt') as f:
+    with open(os.path.join(data_path, f'PII_b_{size_b}.csv'), 'rt') as f:
         dfb = pd.read_csv(f)
         b_ids = dfb['entity_id'].values
     mask_a = np.isin(a_ids, b_ids)
@@ -177,11 +168,11 @@ def compose_result(status, tt, experiment, sizes, threshold):
     return result
 
 
-def delete_resources(credentials, run):
+def delete_resources(config, credentials, run):
     try:
         if run is not None and 'run_id' in run:
-            rest_client.run_delete(SERVER, credentials['project_id'], run['run_id'], credentials['result_token'])
-        rest_client.project_delete(SERVER, credentials['project_id'], credentials['result_token'])
+            rest_client.run_delete(config['server'], credentials['project_id'], run['run_id'], credentials['result_token'])
+        rest_client.project_delete(config['server'], credentials['project_id'], credentials['result_token'])
     except Exception as e:
         logger.warning('Error while deleting resources... {}'.format(e))
 
@@ -200,75 +191,87 @@ def download_file_if_not_present(url_base, local_base, filename):
                 f.write(chunk)
 
 
-def download_data():
-    logger.info('Downloading synthetic datasets from S3')
-    base = "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/"
-    download_file_if_not_present(base, DATA_FOLDER, 'schema.json')
+def download_data(config):
+    """
+    Download data used in the configured experiments.
 
+    """
+    logger.info('Downloading synthetic datasets from S3')
+    base = config['data_base_url']
+    data_folder = config['data_path']
+    download_file_if_not_present(base, data_folder, 'schema.json')
+
+    sizes = set()
+    for experiment in config['experiments']:
+        sizes.update(set(experiment['sizes']))
     for user in ('a', 'b'):
-        for size in ['100K', '1M', '10M']:
+        for size in sizes:
             pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
             clk_file = f"clk_{user}_{EXP_LOOKUP[size]}.bin"
-            download_file_if_not_present(base, DATA_FOLDER, pii_file)
-            download_file_if_not_present(base, DATA_FOLDER, clk_file)
+            download_file_if_not_present(base, data_folder, pii_file)
+            download_file_if_not_present(base, data_folder, clk_file)
 
     logger.info('Downloads complete')
 
 
-def run_experiments():
-    config = read_config()
-    rest_client.server_get_status(config['server'])
+def run_experiments(config):
+    server = config['server']
+    rest_client.server_get_status(server)
 
     results = {'experiments': []}
-    for experiment in EXPERIMENT_LIST:
+    for experiment in config['experiments']:
         try:
-            for threshold in [THRESHOLD]:
-                logger.info('running experiment: {}'.format(experiment))
-                size_a, size_b = get_exp_sizes(experiment)
-                # create project
-                credentials = rest_client.project_create(SERVER, SCHEMA, 'mapping', "benchy_{}".format(experiment))
-                try:
-                    # upload clks
-                    upload_binary_clks(size_a, size_b, credentials)
-                    # create run
-                    run = rest_client.run_create(SERVER, credentials['project_id'], credentials['result_token'],
-                                                 threshold,
-                                                 "{}_{}".format(experiment, threshold))
-                    # wait for result
-                    run_id = run['run_id']
-                    logger.info(f'waiting for run {run_id} to finish')
-                    status = rest_client.wait_for_run(SERVER, credentials['project_id'], run['run_id'],
-                                                      credentials['result_token'], timeout=TIMEOUT)
-                    if status['state'] != 'completed':
-                        raise RuntimeError('run did not finish!\n{}'.format(status))
-                    logger.info('experiment successful. Evaluating results now...')
-                    mapping = rest_client.run_get_result_text(SERVER, credentials['project_id'], run['run_id'],
-                                                              credentials['result_token'])
-                    mapping = json.loads(mapping)['mapping']
-                    mapping = {int(k): int(v) for k, v in mapping.items()}
-                    tt = score_mapping(mapping, *load_truth(size_a, size_b))
-                    result = compose_result(status, tt, experiment, (size_a, size_b), threshold)
-                    results['experiments'].append(result)
-                    logger.info('cleaning up...')
-                    delete_resources(credentials, run)
-                except Exception as e:
-                    delete_resources(credentials, run)
-                    raise e
+            threshold = experiment['threshold']
+            logger.info('running experiment: {}'.format(experiment))
+            size_a, size_b = get_exp_sizes(experiment)
+            # create project
+            credentials = rest_client.project_create(server, config['schema'], 'mapping', "benchy_{}".format(experiment))
+            try:
+                # upload clks
+                upload_binary_clks(config, size_a, size_b, credentials)
+                # create run
+                run = rest_client.run_create(server, credentials['project_id'], credentials['result_token'],
+                                             threshold,
+                                             "{}_{}".format(experiment, threshold))
+                # wait for result
+                run_id = run['run_id']
+                logger.info(f'waiting for run {run_id} to finish')
+                status = rest_client.wait_for_run(server, credentials['project_id'], run['run_id'],
+                                                  credentials['result_token'], timeout=config['timeout'])
+                if status['state'] != 'completed':
+                    raise RuntimeError('run did not finish!\n{}'.format(status))
+                logger.info('experiment successful. Evaluating results now...')
+                mapping = rest_client.run_get_result_text(server, credentials['project_id'], run['run_id'],
+                                                          credentials['result_token'])
+                mapping = json.loads(mapping)['mapping']
+                mapping = {int(k): int(v) for k, v in mapping.items()}
+                tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
+                result = compose_result(status, tt, experiment, (size_a, size_b), threshold)
+                results['experiments'].append(result)
+                logger.info('cleaning up...')
+                delete_resources(config, credentials, run)
+            except Exception as e:
+                delete_resources(config, credentials, run)
+                raise e
         except Exception as e:
             e_trace = format_exc()
             logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
             results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+    return results
+
 
 def main():
+    config = read_config()
+    download_data(config)
+
     try:
-        run_experiments()
+        results = run_experiments(config)
     except Exception as e:
-        results = {'status': 'ERROR',
-                   'description': format_exc()}
+        results = {'status': 'ERROR', 'description': format_exc()}
         raise e
-    pprint(results)
+    finally:
+        pprint(results)
 
 
 if __name__ == '__main__':
-    download_data()
     main()
