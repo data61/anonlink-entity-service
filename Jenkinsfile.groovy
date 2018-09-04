@@ -118,7 +118,7 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in documentation stage:\n" + err)
         gitCommit.setFailStatus(gitContextDocumentation)
-        throw err;
+        throw err
       }
     }
 
