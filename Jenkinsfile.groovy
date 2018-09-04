@@ -79,7 +79,7 @@ node('docker&&multicore&&ram') {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
         timeout(time: 30, unit: 'MINUTES') {
-          containerTests.watchLogs();
+          containerTests.watchLogs()
 
           sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
           sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
@@ -104,13 +104,21 @@ node('docker&&multicore&&ram') {
       try {
         timeout(time: 10, unit: 'MINUTES') {
           String dockerContainerName = composeProject + "benchmark"
+          String localserver = dockerUtils.dockerCommand("port ${composeProject}_nginx_1  8851")
+
           sh """
           mkdir -p benchmark-results
-          docker run -v `pwd`/benchmark-results:/results --name ${dockerContainerName} quay.io/n1analytics/entity-app:benchmark
+
+          docker run \
+                -v `pwd`/benchmark-results:/results \
+                --name ${dockerContainerName} \
+                -e SERVER=${localserver} \
+                -e RESULTS_PATH=/results/results.json \
+                quay.io/n1analytics/entity-app:benchmark
           ls benchmark-results
           """
 
-          archiveArtifacts artifacts: "benchmark-results/*.json", fingerprint: false
+          archiveArtifacts artifacts: "benchmark-results/results.json", fingerprint: true
           gitCommit.setSuccessStatus(gitContextLocalBenchmark)
         }
       } catch (err) {
