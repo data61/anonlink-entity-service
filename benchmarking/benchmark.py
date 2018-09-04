@@ -50,16 +50,16 @@ def read_config():
     # Defaults
     DEFAULT_TIMEOUT = 1200  # in sec
     DEFAULT_DATA_FOLDER = './data'
+    DEFAULT_RESULTS_PATH = 'results.json'
 
     try:
         server = os.getenv('SERVER')
         data_path = os.getenv('DATA_PATH', DEFAULT_DATA_FOLDER)
-        experiments_file = os.getenv('EXPERIMENT')
+        results_path = os.getenv('RESULTS_PATH', DEFAULT_RESULTS_PATH)
+        experiments_file = os.getenv('EXPERIMENT', 'default-experiments.json')
+
         schema_path = os.getenv('SCHEMA', DEFAULT_DATA_FOLDER + '/schema.json')
         timeout = float(os.getenv('TIMEOUT', DEFAULT_TIMEOUT))
-
-        with open(schema_path, 'rt') as f:
-            schema = json.load(f)
 
         experiments = load_experiments(experiments_file)
 
@@ -67,16 +67,15 @@ def read_config():
             'server': server,
             'experiments': experiments,
             'timeout': timeout,
-            'schema': schema,
+            'schema_path': schema_path,
             'data_path': data_path,
-            'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/"
+            'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
+            'results_path': results_path
         }
     except Exception as e:
         raise ValueError(
             'Error loading environment variables!\n'
-            ' SERVER: {}, SCHEMA: {}, EXPERIMENT_LIST: {}'.format(server,
-                                                                  schema_path,
-                                                                  experiments)) from e
+            'ENV: {}'.format(os.environ)) from e
 
 
 def get_exp_sizes(experiment):
@@ -150,7 +149,7 @@ def score_mapping(mapping, truth_a, truth_b, mask_a, mask_b):
 
 def compose_result(status, tt, experiment, sizes, threshold):
     tp, tn, fp, fn = tt
-    result = {'name': experiment,
+    result = {'experiment': experiment,
               'threshold': threshold,
               'sizes': {
                   'size_a': sizes[0],
@@ -199,6 +198,7 @@ def download_data(config):
     logger.info('Downloading synthetic datasets from S3')
     base = config['data_base_url']
     data_folder = config['data_path']
+    os.makedirs(data_folder, exist_ok=True)
     download_file_if_not_present(base, data_folder, 'schema.json')
 
     sizes = set()
@@ -264,6 +264,10 @@ def main():
     config = read_config()
     download_data(config)
 
+    with open(config['schema_path'], 'rt') as f:
+        schema = json.load(f)
+        config['schema'] = schema
+
     try:
         results = run_experiments(config)
     except Exception as e:
@@ -271,6 +275,8 @@ def main():
         raise e
     finally:
         pprint(results)
+        with open(config['results_path'], 'wt') as f:
+            json.dump(results, f)
 
 
 if __name__ == '__main__':
