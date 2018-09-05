@@ -18,6 +18,7 @@ echo "Tagging images: $ENTITY_APP_LABEL and $ENTITY_NGINX_LABEL and $ENTITY_BENC
 docker tag quay.io/n1analytics/entity-app:latest quay.io/n1analytics/entity-app:${ENTITY_APP_LABEL};
 docker tag quay.io/n1analytics/entity-nginx:latest quay.io/n1analytics/entity-nginx:${ENTITY_NGINX_LABEL};
 docker tag quay.io/n1analytics/entity-benchmark:latest quay.io/n1analytics/entity-benchmark:${ENTITY_BENCHMARK_LABEL};
+docker tag quay.io/n1analytics/entity-docs:latest quay.io/n1analytics/entity-docs:${ENTITY_APP_LABEL};
 
 echo "Pushing images to quay.io";
 docker push quay.io/n1analytics/entity-app:${ENTITY_APP_LABEL};
