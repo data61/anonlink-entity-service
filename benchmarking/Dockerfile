@@ -23,4 +23,5 @@ USER user
 
 ADD . /app
 
-CMD SERVER=https://testing.es.data61.xyz python benchmark.py
+ENV SERVER https://testing.es.data61.xyz
+CMD python benchmark.py
