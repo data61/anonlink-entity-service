@@ -43,7 +43,7 @@ node('docker&&multicore&&ram') {
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         dir("docs") {
-          String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":doc-builder"
+          String imageNameLabel = "quay.io/n1analytics/entity-docs:latest"
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         dir("benchmarking") {
