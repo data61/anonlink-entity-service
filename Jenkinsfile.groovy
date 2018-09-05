@@ -104,7 +104,7 @@ node('docker&&multicore&&ram') {
       try {
         timeout(time: 10, unit: 'MINUTES') {
           String dockerContainerName = composeProject + "benchmark"
-          String localserver = dockerUtils.dockerCommand("port ${composeProject}_nginx_1  8851")
+          String localserver = "http://" + dockerUtils.dockerCommand("port ${composeProject}_nginx_1  8851")
 
           sh """
           docker run \
