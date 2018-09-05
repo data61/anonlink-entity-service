@@ -47,7 +47,7 @@ node('docker&&multicore&&ram') {
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         dir("benchmarking") {
-          String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":benchmark"
+          String imageNameLabel = "quay.io/n1analytics/entity-benchmark:latest"
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         gitCommit.setSuccessStatus(gitContextDockerBuild)
@@ -111,7 +111,7 @@ node('docker&&multicore&&ram') {
                 --name ${dockerContainerName} \
                 -e SERVER=${localserver} \
                 -e RESULTS_PATH=/app/results.json \
-                quay.io/n1analytics/entity-app:benchmark
+                quay.io/n1analytics/entity-benchmark
           docker cp ${dockerContainerName}:/app/results.json results.json
           
           """
