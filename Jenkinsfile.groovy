@@ -103,17 +103,19 @@ node('docker&&multicore&&ram') {
       gitCommit.setInProgressStatus(gitContextLocalBenchmark);
       try {
         timeout(time: 10, unit: 'MINUTES') {
-          String dockerContainerName = composeProject + "benchmark"
-          String localserver = "http://" + dockerUtils.dockerCommand("port ${composeProject}_nginx_1  8851")
+          String benchmarkContainerName = composeProject + "benchmark"
+          String networkName = composeProject + "_default"
+          String localserver = "http://nginx:8851"
 
           sh """
           docker run \
-                --name ${dockerContainerName} \
+                --name ${benchmarkContainerName} \
+                --network ${networkName} \
                 -e SERVER=${localserver} \
                 -e RESULTS_PATH=/app/results.json \
-                quay.io/n1analytics/entity-benchmark
-          docker cp ${dockerContainerName}:/app/results.json results.json
-          
+                quay.io/n1analytics/entity-benchmark:latest
+          docker cp ${benchmarkContainerName}:/app/results.json results.json
+          docker rm ${benchmarkContainerName}
           """
 
           archiveArtifacts artifacts: "results.json", fingerprint: true

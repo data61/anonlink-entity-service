@@ -261,6 +261,7 @@ def run_experiments(config):
 
 def main():
     config = read_config()
+    logger.info(rest_client.server_get_status(config['server']))
     download_data(config)
 
     with open(config['schema_path'], 'rt') as f:
