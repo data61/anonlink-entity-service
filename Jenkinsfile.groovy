@@ -101,11 +101,12 @@ node('docker&&multicore&&ram') {
 
     stage('Benchmark') {
       gitCommit.setInProgressStatus(gitContextLocalBenchmark);
+      String benchmarkContainerName = composeProject + "benchmark"
+      String networkName = composeProject + "_default"
+      String localserver = "http://nginx:8851"
+
       try {
-        timeout(time: 10, unit: 'MINUTES') {
-          String benchmarkContainerName = composeProject + "benchmark"
-          String networkName = composeProject + "_default"
-          String localserver = "http://nginx:8851"
+        timeout(time: 15, unit: 'MINUTES') {
 
           sh """
           docker run \
@@ -114,17 +115,22 @@ node('docker&&multicore&&ram') {
                 -e SERVER=${localserver} \
                 -e RESULTS_PATH=/app/results.json \
                 quay.io/n1analytics/entity-benchmark:latest
-          docker cp ${benchmarkContainerName}:/app/results.json results.json
-          docker rm ${benchmarkContainerName}
+
           """
 
           archiveArtifacts artifacts: "results.json", fingerprint: true
           gitCommit.setSuccessStatus(gitContextLocalBenchmark)
         }
       } catch (err) {
-        print("Error in benchmarking stage:\n" + err)
+        print("Error or timeout in benchmarking stage:\n" + err)
         gitCommit.setFailStatus(gitContextLocalBenchmark)
+
         throw err
+      } finally {
+          sh """
+            docker cp ${benchmarkContainerName}:/app/results.json results.json
+            docker rm ${benchmarkContainerName}
+          """
       }
     }
 
