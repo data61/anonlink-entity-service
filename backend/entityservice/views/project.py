@@ -7,6 +7,7 @@ from structlog import get_logger
 import entityservice.database as db
 from entityservice.async_worker import handle_raw_upload, check_for_executable_runs
 from entityservice import app, fmt_bytes
+from entityservice.tasks.project_cleanup import delete_project
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, clks_uploaded_to_project
 
 from entityservice.database import get_db
@@ -64,15 +65,8 @@ def project_delete(project_id):
 
     dbinstance = get_db()
     db.mark_project_deleted(dbinstance, project_id)
-    mc = connect_to_object_store()
 
-    log.info("Deleting project resourced from database")
-    object_store_files = db.delete_project(get_db(), project_id)
-    log.info("Removing object store files associated with project.")
-
-    for filename in object_store_files:
-        log.info("Deleting {}".format(filename))
-        mc.remove_object(config.MINIO_BUCKET, filename)
+    delete_project.delay(project_id)
 
     return '', 204
 
