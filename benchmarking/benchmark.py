@@ -270,7 +270,9 @@ def run_experiments(config):
 
 def main():
     config = read_config()
-    logger.info(rest_client.server_get_status(config['server']))
+    server_status = rest_client.server_get_status(config['server'])
+    version = requests.get(config['server'] + "/api/v1/version")
+    logger.info(server_status)
     download_data(config)
 
     with open(config['schema_path'], 'rt') as f:
@@ -283,6 +285,9 @@ def main():
         results = {'status': 'ERROR', 'description': format_exc()}
         raise e
     finally:
+        results['server'] = config['server']
+        results['version'] = version
+
         pprint(results)
         with open(config['results_path'], 'wt') as f:
             json.dump(results, f)
