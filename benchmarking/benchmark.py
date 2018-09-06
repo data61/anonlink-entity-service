@@ -15,12 +15,15 @@ import logging
 import time
 from pprint import pprint
 from traceback import format_exc
+import os
+
 import pandas as pd
 import numpy as np
 import arrow
-import os
 import requests
 from clkhash import rest_client
+import jsonschema
+
 
 EXP_LOOKUP = {
     '100K': 100000,
@@ -34,13 +37,15 @@ logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
 def load_experiments(filepath):
+
+    with open(os.path.join('schema', 'experiments.json'), 'rt') as f:
+        experiment_schema = json.load(f)
+
     with open(filepath, 'rt') as f:
         experiments = json.load(f)
-    # todo validate schema
 
-    #for experiment in experiments:
-    #    # transform sizes "10K"
-    #EXPERIMENT_LIST = exp_list.replace(' ', '').upper().split(',')
+    jsonschema.validate(experiments, experiment_schema)
+
     return experiments
 
 
