@@ -4,8 +4,12 @@ Script to benchmark linkage runs on the entity service.
 Configured via environment variables:
 
 - SERVER: (required) the url of the server.
-- SCHEMA: path to the / a schema file (unused by ES for now, thus can be any json file)
-- EXPERIMENT: json file containing a list of experiments to run. Schema defined in `./schema/experiments.json`
+- EXPERIMENT: json file containing a list of experiments to run. Schema of experiments is
+  defined in `./schema/experiments.json`.
+- DATA_PATH: path to a directory to store test data (useful to cache).
+- RESULT_PATH: full filename to write results file.
+- SCHEMA: path to the linkage schema file used when creating projects. If not provided it is assumed
+  to be in the data directory.
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 """
