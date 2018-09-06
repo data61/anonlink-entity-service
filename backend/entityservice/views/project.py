@@ -61,7 +61,7 @@ def project_delete(project_id):
 
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
-    log.info("Authorized request to delete a project resource and all data")
+    log.info("Queuing authorized request to delete project resources")
 
     dbinstance = get_db()
     db.mark_project_deleted(dbinstance, project_id)
