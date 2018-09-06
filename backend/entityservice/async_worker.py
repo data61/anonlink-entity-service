@@ -6,7 +6,8 @@ import random
 import minio
 import structlog
 from celery import Celery, chord
-from celery.signals import task_prerun
+from celery.signals import task_prerun, task_postrun, worker_init
+import opentracing
 
 import anonlink
 
@@ -20,6 +21,7 @@ from entityservice.tasks.base_task import BaseTask
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
+from entityservice.tracing import initialize_tracer
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -56,6 +58,26 @@ def configure_structlog(sender, body=None, **kwargs):
         task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
+
+
+@worker_init.connect
+def configure_tracer(**kwargs):
+    tracer = initialize_tracer()
+
+
+@task_prerun.connect()
+def task_prerun(sender, body=None, **kwargs):
+    task = kwargs['task']
+    if task.name is not None:
+        logger.info("pre-run of {0} sender: {1}".format(task.name, sender))
+
+
+@task_postrun.connect()
+def task_postrun(sender, body=None, **kwargs):
+    # note that this hook runs even when there has been an exception thrown by the task
+    task = kwargs['task']
+    if task:
+        logger.info("post run of task {}".format(task.name))
 
 
 logger = structlog.wrap_logger(logging.getLogger('celery'))
@@ -198,6 +220,7 @@ def compute_run(project_id, run_id):
 @celery.task(base=BaseTask, ignore_result=True)
 def compute_similarity(project_id, run_id, dp_ids, threshold):
     log = logger.bind(pid=project_id, run_id=run_id)
+
     assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     conn = connect_db()
@@ -484,12 +507,15 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
     t2 = time.time()
 
-    log.debug("Calculating filter similarity")
-    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
-                                                                     threshold=threshold,
-                                                                     k=min(chunk_dp1_size, chunk_dp2_size),
-                                                                     use_python=False)
-    t3 = time.time()
+    parent_span = opentracing.tracer.get_span()
+
+    with opentracing.tracer.start_span('compute-filter-similarity', child_of=parent_span) as span:
+        log.debug("Calculating filter similarity")
+        chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
+                                                                         threshold=threshold,
+                                                                         k=min(chunk_dp1_size, chunk_dp2_size),
+                                                                         use_python=False)
+        t3 = time.time()
 
     # Update the number of comparisons completed
     comparisons_computed = chunk_dp1_size * chunk_dp2_size
@@ -507,31 +533,32 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
 
     t5 = time.time()
+    with opentracing.tracer.start_span('save-partial-similarity', child_of=parent_span) as span:
 
-    num_results = len(partial_sparse_result)
-    if num_results > 0:
-        result_filename = 'chunk-res-{}.csv'.format(generate_code(12))
-        log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+        num_results = len(partial_sparse_result)
+        if num_results > 0:
+            result_filename = 'chunk-res-{}.csv'.format(generate_code(12))
+            log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
 
-        with open(result_filename, 'wt') as f:
-            csvwriter = csv.writer(f)
-            csvwriter.writerows(partial_sparse_result)
+            with open(result_filename, 'wt') as f:
+                csvwriter = csv.writer(f)
+                csvwriter.writerows(partial_sparse_result)
 
-        # Now write these to the object store. and return the filename and summary
-        # Will write a csv file for now
-        mc = connect_to_object_store()
-        try:
-            mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
-        except minio.ResponseError as err:
-            log.warning("Failed to store result in minio")
-            raise
+            # Now write these to the object store. and return the filename and summary
+            # Will write a csv file for now
+            mc = connect_to_object_store()
+            try:
+                mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
+            except minio.ResponseError as err:
+                log.warning("Failed to store result in minio")
+                raise
 
-        # If we don't delete the file we *do* run out of space
-        os.remove(result_filename)
-    else:
-        result_filename = None
+            # If we don't delete the file we *do* run out of space
+            os.remove(result_filename)
+        else:
+            result_filename = None
+        t6 = time.time()
 
-    t6 = time.time()
     log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
     log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
         t1 - t0,
