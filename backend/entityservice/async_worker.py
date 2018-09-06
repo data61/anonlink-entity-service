@@ -6,7 +6,7 @@ import random
 import minio
 import structlog
 from celery import Celery, chord
-from celery.signals import setup_logging, after_setup_task_logger, after_setup_logger, task_prerun
+from celery.signals import task_prerun
 
 import anonlink
 
@@ -16,6 +16,7 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
+from entityservice.tasks.base_task import BaseTask
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
@@ -59,35 +60,6 @@ def configure_structlog(sender, body=None, **kwargs):
 
 logger = structlog.wrap_logger(logging.getLogger('celery'))
 logger.info("Setting up celery worker")
-
-
-class BaseTask(celery.Task):
-    """Abstract base class for all tasks in Entity Service"""
-
-    abstract = True
-    throws = (DBResourceMissing, psycopg2.IntegrityError)
-
-    def on_retry(self, exc, task_id, args, kwargs, einfo):
-        """Log the exceptions to some central logging system at retry."""
-        #todo captureException(exc)
-        logger.warning("Task {} is retrying after a '{}' exception".format(
-            task_id, exc.__class__.__name__))
-
-        super(BaseTask, self).on_retry(exc, task_id, args, kwargs, einfo)
-
-    def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """Log the exceptions"""
-        logger.info("An exception '{}' was raised in a task".format(exc.__class__.__name__))
-
-        if isinstance(exc, (DBResourceMissing, psycopg2.IntegrityError)):
-            logger.info("Task was running when a resource was deleted, or db was inconsistent. Ignoring")
-            # Note it will still be logged by celery
-            # http://docs.celeryproject.org/en/master/userguide/tasks.html#Task.throws
-            # todo captureException(exc)
-
-        else:
-            logger.exception(f"Unexpected exception raised in task {task_id}", exc_info=einfo)
-            super(BaseTask, self).on_failure(exc, task_id, args, kwargs, einfo)
 
 
 def convert_mapping_to_list(permutation):
