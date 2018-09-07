@@ -11,6 +11,7 @@ import entityservice.database as db
 from entityservice.async_worker import handle_raw_upload, check_for_executable_runs
 from entityservice import app, fmt_bytes
 from entityservice.tasks.project_cleanup import delete_project
+from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, clks_uploaded_to_project
 
 from entityservice.database import get_db
@@ -124,10 +125,10 @@ def project_clks_post(project_id):
             #       However, as connexion is very, very strict about input validation when it comes to json, it will always
             #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
             #       json into memory. -> issue #184
-            receipt_token, raw_file = upload_json_clk_data(dp_id, get_json())
+            receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span)
             # Schedule a task to deserialize the hashes, and carry
             # out a pop count.
-            handle_raw_upload.delay(project_id, dp_id, receipt_token)
+            handle_raw_upload.delay(project_id, dp_id, receipt_token, serialize_span(span))
             log.info("Job scheduled to handle user uploaded hashes")
         elif headers['Content-Type'] == "application/octet-stream":
             span.set_tag("content-type", 'binary')
@@ -240,7 +241,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     return receipt_token
 
 
-def upload_json_clk_data(dp_id, clk_json):
+def upload_json_clk_data(dp_id, clk_json, parent_span):
     """
     non-streaming version of the upload_clk_data from above.
     """
@@ -252,23 +253,28 @@ def upload_json_clk_data(dp_id, clk_json):
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     logger.info("Storing user {} supplied clks from json".format(dp_id))
 
-    count = len(clk_json['clks'])
-    data = b''.join(''.join(clk.split('\n')).encode() + b'\n' for clk in clk_json['clks'])
+    with opentracing.tracer.start_span('clk-splitting', child_of=parent_span) as span:
+        count = len(clk_json['clks'])
+        span.set_tag("clks", count)
+        data = b''.join(''.join(clk.split('\n')).encode() + b'\n' for clk in clk_json['clks'])
 
-    num_bytes = len(data)
-    buffer = io.BytesIO(data)
+        num_bytes = len(data)
+        span.set_tag("num_bytes", num_bytes)
+        buffer = io.BytesIO(data)
 
     logger.info("Processed {} CLKS".format(count))
     logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
-    mc = connect_to_object_store()
-    mc.put_object(
-        config.MINIO_BUCKET,
-        filename,
-        data=buffer,
-        length=len(data)
-    )
+    with opentracing.tracer.start_span('save-json-clks-to-minio', child_of=parent_span) as span:
+        mc = connect_to_object_store()
+        mc.put_object(
+            config.MINIO_BUCKET,
+            filename,
+            data=buffer,
+            length=len(data)
+        )
 
-    with db.DBConn() as conn:
-        db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
+    with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
+        with db.DBConn() as conn:
+            db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

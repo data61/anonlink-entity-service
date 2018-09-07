@@ -1,5 +1,7 @@
-from flask import request
+from flask import request, g
 from structlog import get_logger
+import opentracing
+
 from entityservice import app, database as db
 from entityservice.database import get_db, get_project_column
 from entityservice.serialization import get_similarity_scores
@@ -12,17 +14,23 @@ logger = get_logger()
 def get(project_id, run_id):
     log = logger.bind(pid=project_id, rid=run_id)
     log.info("Checking for results of run.")
-    # Check the project and run resources exist
-    abort_if_run_doesnt_exist(project_id, run_id)
-    # Check the caller has a valid results token.
-    token = request.headers.get('Authorization')
-    log.info("request to access run result authorized")
-    dbinstance = get_db()
-    state = db.get_run_state(dbinstance, run_id)
-    log.info("run state is '{}'".format(state))
+    parent_span = g.flask_tracer.get_span()
+    with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
+        # Check the project and run resources exist
+        abort_if_run_doesnt_exist(project_id, run_id)
+        # Check the caller has a valid results token.
+        token = request.headers.get('Authorization')
+        log.info("request to access run result authorized")
+
+    with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
+        dbinstance = get_db()
+        state = db.get_run_state(dbinstance, run_id)
+        log.info("run state is '{}'".format(state))
+
     # Check that the run is not in a terminal state, otherwise 404
     if state == 'completed':
-        return get_result(dbinstance, project_id, run_id, token)
+        with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
+            return get_result(dbinstance, project_id, run_id, token)
     elif state == 'error':
         safe_fail_request(500, message='Error during computation of run')
     else:
