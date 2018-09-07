@@ -8,6 +8,7 @@ import structlog
 from celery import Celery, chord
 from celery.signals import task_prerun, task_postrun, worker_init
 import opentracing
+from opentracing.propagation import Format
 
 import anonlink
 
@@ -21,7 +22,7 @@ from entityservice.tasks.base_task import BaseTask
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
-from entityservice.tracing import initialize_tracer
+from entityservice.tracing import initialize_tracer, deserialize_span_context, serialize_span
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -51,7 +52,7 @@ structlog.configure(
 )
 
 
-@task_prerun.connect
+@task_prerun.connect()
 def configure_structlog(sender, body=None, **kwargs):
     logger = structlog.get_logger()
     logger.new(
@@ -60,9 +61,10 @@ def configure_structlog(sender, body=None, **kwargs):
     )
 
 
-@worker_init.connect
-def configure_tracer(**kwargs):
-    tracer = initialize_tracer()
+@task_prerun.connect()
+def configure_tracer(sender, body=None, **kwargs):
+    # Note this is called for EVERY task...
+    tracer = initialize_tracer('anonlink-worker')
 
 
 @task_prerun.connect()
@@ -102,56 +104,60 @@ def convert_mapping_to_list(permutation):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def handle_raw_upload(project_id, dp_id, receipt_token):
+def handle_raw_upload(project_id, dp_id, receipt_token, tracer=None):
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user uploaded file")
-    with DBConn() as db:
-        expected_size = get_number_of_hashes(db, dp_id)
-    log.info("Expecting to handle {} hashes".format(expected_size))
+    parent_span = opentracing.tracer.extract(Format.TEXT_MAP, tracer)
 
-    mc = connect_to_object_store()
+    with opentracing.tracer.start_span('pull-json-clks-from-minio', child_of=parent_span) as span:
+        with DBConn() as db:
+            expected_size = get_number_of_hashes(db, dp_id)
+        log.info("Expecting to handle {} hashes".format(expected_size))
 
-    # Input file is text, base64 encoded. One hash per line.
-    raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
+        mc = connect_to_object_store()
 
-    # Output file is binary
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    num_bytes = expected_size * bit_packed_element_size
+        # Input file is text, base64 encoded. One hash per line.
+        raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
+        raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
 
-    # Set up streaming processing pipeline
-    buffered_stream = iterable_to_stream(raw_data_response.stream())
-    text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
+        # Output file is binary
+        filename = config.BIN_FILENAME_FMT.format(receipt_token)
+        num_bytes = expected_size * bit_packed_element_size
 
-    clkcounts = []
+        # Set up streaming processing pipeline
+        buffered_stream = iterable_to_stream(raw_data_response.stream())
+        text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
-    def filter_generator():
-        log.debug("Deserializing json filters")
-        for i, line in enumerate(text_stream):
-            ba = deserialize_bitarray(line)
-            yield (ba, i, ba.count())
-            clkcounts.append(ba.count())
+        clkcounts = []
 
-        log.info("Processed {} hashes".format(len(clkcounts)))
+        def filter_generator():
+            log.debug("Deserializing json filters")
+            for i, line in enumerate(text_stream):
+                ba = deserialize_bitarray(line)
+                yield (ba, i, ba.count())
+                clkcounts.append(ba.count())
 
-    python_filters = filter_generator()
-    # If small enough preload the data into our redis cache
-    if expected_size < config.ENTITY_CACHE_THRESHOLD:
-        log.info("Caching pickled clk data")
-        python_filters = list(python_filters)
-        cache.set_deserialized_filter(dp_id, python_filters)
-    else:
-        log.info("Not caching clk data as it is too large")
+            log.info("Processed {} hashes".format(len(clkcounts)))
 
-    packed_filters = binary_pack_filters(python_filters)
+        python_filters = filter_generator()
+        # If small enough preload the data into our redis cache
+        if expected_size < config.ENTITY_CACHE_THRESHOLD:
+            log.info("Caching pickled clk data")
+            python_filters = list(python_filters)
+            cache.set_deserialized_filter(dp_id, python_filters)
+        else:
+            log.info("Not caching clk data as it is too large")
 
-    packed_filter_stream = iterable_to_stream(packed_filters)
+        packed_filters = binary_pack_filters(python_filters)
 
-    log.debug("Creating binary file with index, base64 encoded CLK, popcount")
+        packed_filter_stream = iterable_to_stream(packed_filters)
 
-    # Upload to object store
-    log.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
-    mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
+        log.debug("Creating binary file with index, base64 encoded CLK, popcount")
+
+    with opentracing.tracer.start_span('upload-binary-packed-clks-to-minio', child_of=parent_span) as span:
+        # Upload to object store
+        log.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
+        mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
         update_filter_data(conn, filename, dp_id)
@@ -220,72 +226,76 @@ def compute_run(project_id, run_id):
 @celery.task(base=BaseTask, ignore_result=True)
 def compute_similarity(project_id, run_id, dp_ids, threshold):
     log = logger.bind(pid=project_id, run_id=run_id)
-
     assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+    parent_span = opentracing.tracer.start_span('compute-run', tags={'pid': project_id, 'run_id': run_id})
+
     conn = connect_db()
+    with opentracing.tracer.start_span('chunking-prep', child_of=parent_span) as span:
+        with opentracing.tracer.start_span('get-dataset-sizes', child_of=span):
+            dataset_sizes = get_project_dataset_sizes(conn, project_id)
+            if len(dataset_sizes) < 2:
+                log.warning("Unexpected number of dataset sizes in db. Stopping")
+                update_run_mark_failure(conn, run_id)
+                return
+            else:
+                lenf1, lenf2 = dataset_sizes
 
-    dataset_sizes = get_project_dataset_sizes(conn, project_id)
-    if len(dataset_sizes) < 2:
-        log.warning("Unexpected number of dataset sizes in db. Stopping")
-        update_run_mark_failure(conn, run_id)
-        return
-    else:
-        lenf1, lenf2 = dataset_sizes
+            size = lenf1 * lenf2
 
-    # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
-    # Although now we don't load any CLKS into the redis cache
-    # Prime the redis cache
-    #filters1 = cache.get_deserialized_filter(dp_ids[0])
-    #filters2 = cache.get_deserialized_filter(dp_ids[1])
-    #lenf1 = len(filters1)
-    #lenf2 = len(filters2)
-    size = lenf1 * lenf2
+        log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
 
-    log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
+        with opentracing.tracer.start_span('get-metadata', child_of=span):
+            filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
+            filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
 
-    log.info("Computing similarity using greedy method")
+    with opentracing.tracer.start_span('chunking', child_of=parent_span) as span:
+        log.debug("Chunking computation task")
+        chunk_size = config.get_task_chunk_size(size, threshold)
+        if chunk_size is None:
+            chunk_size = max(lenf1, lenf2)
+        log.info("Chunks will contain {} entities per task".format(chunk_size))
+        update_run_chunk(conn, project_id, chunk_size)
+        job_chunks = []
 
-    filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
-    filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
+        dp1_chunks = []
+        dp2_chunks = []
 
-    log.debug("Chunking computation task")
-    chunk_size = config.get_task_chunk_size(size, threshold)
-    if chunk_size is None:
-        chunk_size = max(lenf1, lenf2)
-    log.info("Chunks will contain {} entities per task".format(chunk_size))
-    update_run_chunk(conn, project_id, chunk_size)
-    job_chunks = []
+        for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
+            dp1_chunks.append(
+                (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
+            )
+        for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
+            dp2_chunks.append(
+                (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
+            )
 
-    dp1_chunks = []
-    dp2_chunks = []
+        # Every chunk in dp1 has to be run against every chunk in dp2
+        for dp1_chunk in dp1_chunks:
+            for dp2_chunk in dp2_chunks:
+                job_chunks.append((dp1_chunk, dp2_chunk, ))
 
-    for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
-        dp1_chunks.append(
-            (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
-        )
-    for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
-        dp2_chunks.append(
-            (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
-        )
+        log.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
+            len(job_chunks), chunk_size))
 
-    # Every chunk in dp1 has to be run against every chunk in dp2
-    for dp1_chunk in dp1_chunks:
-        for dp2_chunk in dp2_chunks:
-            job_chunks.append((dp1_chunk, dp2_chunk, ))
-
-    log.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
-        len(job_chunks), chunk_size))
+    scoring_span = opentracing.tracer.start_span('scoring', tags={'pid': project_id, 'run_id': run_id}, child_of=parent_span)
+    compute_span_serialized = serialize_span(parent_span)
+    scoring_span_serialized = serialize_span(scoring_span)
 
     # Prepare the Celery Chord that will compute all the similarity scores:
-    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for
+    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold, scoring_span_serialized) for
                      chunk_dp1, chunk_dp2 in job_chunks]
+    scoring_span.finish()
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
 
-    callback_task = aggregate_filter_chunks.s(project_id, run_id).on_error(on_chord_error.s(run_id=run_id))
-    mapping_future = chord(scoring_tasks)(callback_task)
+    callback_task = aggregate_filter_chunks.s(project_id, run_id, compute_span_serialized).on_error(on_chord_error.s(run_id=run_id))
+    future = chord(scoring_tasks)(callback_task)
+
+    # this is a bit crap but we can't block waiting for another celery task and we have to finish
+    # the span
+    parent_span.finish()
 
 
 @celery.task()
@@ -307,38 +317,40 @@ def on_chord_error(*args, **kwargs):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def save_and_permute(similarity_result, project_id, run_id):
+def save_and_permute(similarity_result, project_id, run_id, tracer):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
+    parent_span = deserialize_span_context(tracer)
 
-    # Note Postgres requires JSON object keys to be strings
-    # Celery actually converts the json arguments in the same way
+    with opentracing.tracer.start_span('save_and_permute', child_of=parent_span):
+        # Note Postgres requires JSON object keys to be strings
+        # Celery actually converts the json arguments in the same way
 
-    with DBConn() as db:
-        result_type = get_project_column(db, project_id, 'result_type')
+        with DBConn() as db:
+            result_type = get_project_column(db, project_id, 'result_type')
 
-        # Just save the raw "mapping"
-        log.debug("Saving the resulting map data to the db")
-        result_id = insert_mapping_result(db, run_id, mapping)
-        dp_ids = get_dataprovider_ids(db, project_id)
+            # Just save the raw "mapping"
+            log.debug("Saving the resulting map data to the db")
+            result_id = insert_mapping_result(db, run_id, mapping)
+            dp_ids = get_dataprovider_ids(db, project_id)
 
+        log.info("Mapping result saved to db with result id {}".format(result_id))
 
-    log.info("Mapping result saved to db with result id {}".format(result_id))
-
-    if result_type == "permutations":
-        log.debug("Submitting job to permute mapping")
-        permute_mapping_data.apply_async(
-            (
-                project_id,
-                run_id,
-                similarity_result['lenf1'],
-                similarity_result['lenf2']
+        if result_type == "permutations":
+            log.debug("Submitting job to permute mapping")
+            permute_mapping_data.apply_async(
+                (
+                    project_id,
+                    run_id,
+                    similarity_result['lenf1'],
+                    similarity_result['lenf2'],
+                    tracer
+                )
             )
-        )
-    else:
-        log.debug("Mark mapping job as complete")
-        mark_mapping_complete.delay(run_id)
+        else:
+            log.debug("Mark mapping job as complete")
+            mark_mapping_complete.delay(run_id)
 
     # Post similarity computation cleanup
     log.debug("Removing clk filters from redis cache")
@@ -349,7 +361,7 @@ def save_and_permute(similarity_result, project_id, run_id):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
+def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, tracer):
     """
     Task which will create a permutation after a mapping has been completed.
 
@@ -359,108 +371,112 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
 
     """
     log = logger.bind(pid=project_id, run_id=run_id)
-    db = connect_db()
-    mapping_str = get_run_result(db, run_id)
+    parent_span = deserialize_span_context(tracer)
 
-    # Convert to int: int
-    mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
+    with opentracing.tracer.start_span('permute_mapping_data', child_of=parent_span):
 
-    log.info("Creating random permutations")
-    log.debug("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
+        db = connect_db()
+        mapping_str = get_run_result(db, run_id)
 
-    """
-    Pack all the entities that match in the **same** random locations in both permutations.
-    Then fill in all the gaps!
+        # Convert to int: int
+        mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
 
-    Dictionaries first, then converted to lists.
-    """
-    smaller_dataset_size = min(len_filters1, len_filters2)
-    log.debug("Smaller dataset size is {}".format(smaller_dataset_size))
-    number_in_common = len(mapping)
-    a_permutation = {}  # Should be length of filters1
-    b_permutation = {}  # length of filters2
+        log.info("Creating random permutations")
+        log.debug("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
 
-    # By default mark all rows as NOT included in the mask
-    mask = {i: False for i in range(smaller_dataset_size)}
+        """
+        Pack all the entities that match in the **same** random locations in both permutations.
+        Then fill in all the gaps!
+    
+        Dictionaries first, then converted to lists.
+        """
+        smaller_dataset_size = min(len_filters1, len_filters2)
+        log.debug("Smaller dataset size is {}".format(smaller_dataset_size))
+        number_in_common = len(mapping)
+        a_permutation = {}  # Should be length of filters1
+        b_permutation = {}  # length of filters2
 
-    # start with all the possible indexes
-    remaining_new_indexes = list(range(smaller_dataset_size))
-    log.info("Shuffling indices for matched entities")
-    random.shuffle(remaining_new_indexes)
-    log.info("Assigning random indexes for {} matched entities".format(number_in_common))
+        # By default mark all rows as NOT included in the mask
+        mask = {i: False for i in range(smaller_dataset_size)}
 
-    for mapping_number, a_index in enumerate(mapping):
-        b_index = mapping[a_index]
+        # start with all the possible indexes
+        remaining_new_indexes = list(range(smaller_dataset_size))
+        log.info("Shuffling indices for matched entities")
+        random.shuffle(remaining_new_indexes)
+        log.info("Assigning random indexes for {} matched entities".format(number_in_common))
 
-        # Choose the index in the new mapping (randomly)
-        mapping_index = remaining_new_indexes[mapping_number]
+        for mapping_number, a_index in enumerate(mapping):
+            b_index = mapping[a_index]
 
-        a_permutation[a_index] = mapping_index
-        b_permutation[b_index] = mapping_index
-
-        # Mark the row included in the mask
-        mask[mapping_index] = True
-
-    remaining_new_indexes = set(remaining_new_indexes[number_in_common:])
-    log.info("Randomly adding all non matched entities")
-
-    # Note the a and b datasets could be of different size.
-    # At this point, both still have to use the remaining_new_indexes, and any
-    # indexes that go over the number_in_common
-    remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
-    remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
-
-    log.debug("Shuffle the remaining indices")
-    random.shuffle(remaining_a_values)
-    random.shuffle(remaining_b_values)
-
-    # For every element in a's permutation
-    for a_index in range(len_filters1):
-        # Check if it is not already present
-        if a_index not in a_permutation:
-            # This index isn't yet mapped
-
-            # choose and remove a random index from the extended list of those that remain
-            # note this "could" be the same row (a NOP 1-1 permutation)
-            mapping_index = remaining_a_values.pop()
+            # Choose the index in the new mapping (randomly)
+            mapping_index = remaining_new_indexes[mapping_number]
 
             a_permutation[a_index] = mapping_index
-
-    # For every eventual element in a's permutation
-    for b_index in range(len_filters2):
-        # Check if it is not already present
-        if b_index not in b_permutation:
-            # This index isn't yet mapped
-
-            # choose and remove a random index from the extended list of those that remain
-            # note this "could" be the same row (a NOP 1-1 permutation)
-            mapping_index = remaining_b_values.pop()
             b_permutation[b_index] = mapping_index
 
-    log.debug("Completed creating new permutations for each party")
+            # Mark the row included in the mask
+            mask[mapping_index] = True
 
-    with db.cursor() as cur:
-        dp_ids = get_dataprovider_ids(db, project_id)
+        remaining_new_indexes = set(remaining_new_indexes[number_in_common:])
+        log.info("Randomly adding all non matched entities")
 
-        for i, permutation in enumerate([a_permutation, b_permutation]):
-            # We convert here because celery and dicts with int keys don't play nice
+        # Note the a and b datasets could be of different size.
+        # At this point, both still have to use the remaining_new_indexes, and any
+        # indexes that go over the number_in_common
+        remaining_a_values = list(set(range(smaller_dataset_size, len_filters1)).union(remaining_new_indexes))
+        remaining_b_values = list(set(range(smaller_dataset_size, len_filters2)).union(remaining_new_indexes))
 
-            perm_list = convert_mapping_to_list(permutation)
-            log.debug("Saving a permutation")
+        log.debug("Shuffle the remaining indices")
+        random.shuffle(remaining_a_values)
+        random.shuffle(remaining_b_values)
 
-            insert_permutation(cur, dp_ids[i], run_id, perm_list)
+        # For every element in a's permutation
+        for a_index in range(len_filters1):
+            # Check if it is not already present
+            if a_index not in a_permutation:
+                # This index isn't yet mapped
 
-        log.debug("Raw permutation data saved. Now saving raw mask")
+                # choose and remove a random index from the extended list of those that remain
+                # note this "could" be the same row (a NOP 1-1 permutation)
+                mapping_index = remaining_a_values.pop()
 
-        # Convert the mask dict to a list of 0/1 ints
-        mask_list = convert_mapping_to_list({
-                                                int(key): 1 if value else 0
-                                                for key, value in mask.items()})
+                a_permutation[a_index] = mapping_index
 
-        log.debug("Saving the mask")
-        insert_permutation_mask(cur, project_id, run_id, mask_list)
-        log.info("Mask saved")
-    db.commit()
+        # For every eventual element in a's permutation
+        for b_index in range(len_filters2):
+            # Check if it is not already present
+            if b_index not in b_permutation:
+                # This index isn't yet mapped
+
+                # choose and remove a random index from the extended list of those that remain
+                # note this "could" be the same row (a NOP 1-1 permutation)
+                mapping_index = remaining_b_values.pop()
+                b_permutation[b_index] = mapping_index
+
+        log.debug("Completed creating new permutations for each party")
+
+        with db.cursor() as cur:
+            dp_ids = get_dataprovider_ids(db, project_id)
+
+            for i, permutation in enumerate([a_permutation, b_permutation]):
+                # We convert here because celery and dicts with int keys don't play nice
+
+                perm_list = convert_mapping_to_list(permutation)
+                log.debug("Saving a permutation")
+
+                insert_permutation(cur, dp_ids[i], run_id, perm_list)
+
+            log.debug("Raw permutation data saved. Now saving raw mask")
+
+            # Convert the mask dict to a list of 0/1 ints
+            mask_list = convert_mapping_to_list({
+                                                    int(key): 1 if value else 0
+                                                    for key, value in mask.items()})
+
+            log.debug("Saving the mask")
+            insert_permutation_mask(cur, project_id, run_id, mask_list)
+            log.info("Mask saved")
+        db.commit()
 
     mark_mapping_complete.delay(run_id)
 
@@ -476,7 +492,7 @@ def mark_mapping_complete(run_id):
 
 
 @celery.task(base=BaseTask)
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold):
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, tracer=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -491,6 +507,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
+    parent_span = opentracing.tracer.start_span('compute_filter_similarity', child_of=deserialize_span_context(tracer))
 
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
@@ -507,10 +524,9 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
     t2 = time.time()
 
-    parent_span = opentracing.tracer.get_span()
-
     with opentracing.tracer.start_span('compute-filter-similarity', child_of=parent_span) as span:
         log.debug("Calculating filter similarity")
+        span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
         chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
                                                                          threshold=threshold,
                                                                          k=min(chunk_dp1_size, chunk_dp2_size),
@@ -569,7 +585,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         t6 - t5,
         t6 - t0, )
     )
-
+    parent_span.finish()
     return num_results, result_filename
 
 
@@ -595,77 +611,86 @@ def save_current_progress(comparisons, run_id):
     ignore_result=True,
     autoretry_for=(minio.ResponseError,),
     retry_backoff=True)
-def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
+def aggregate_filter_chunks(similarity_result_files, project_id, run_id, serialised_scoring_span):
     log = logger.bind(pid=project_id, run_id=run_id)
     if similarity_result_files is None: return
     mc = connect_to_object_store()
     files = []
     data_size = 0
-    for num, filename in similarity_result_files:
-        if num > 0:
-            files.append(filename)
-            data_size += mc.stat_object(config.MINIO_BUCKET, filename).size
+    parent_span = deserialize_span_context(serialised_scoring_span)
 
-    log.debug("Aggregating result chunks from {} files, total size: {}".format(
-        len(files), fmt_bytes(data_size)))
+    with opentracing.tracer.start_span('aggregate_filter_chunks', references=opentracing.follows_from(parent_span)):
 
-    result_file_stream_generator = (mc.get_object(config.MINIO_BUCKET, result_filename) for result_filename in files)
+        for num, filename in similarity_result_files:
+            if num > 0:
+                files.append(filename)
+                data_size += mc.stat_object(config.MINIO_BUCKET, filename).size
 
-    log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
-    result_stream = chain_streams(result_file_stream_generator)
+        log.debug("Aggregating result chunks from {} files, total size: {}".format(
+            len(files), fmt_bytes(data_size)))
 
-    with DBConn() as db:
-        result_type = get_project_column(db, project_id, 'result_type')
+        result_file_stream_generator = (mc.get_object(config.MINIO_BUCKET, result_filename) for result_filename in files)
 
-        # Note: Storing the similarity scores for all result types
-        result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
+        log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
+        result_stream = chain_streams(result_file_stream_generator)
 
+        with DBConn() as db:
+            result_type = get_project_column(db, project_id, 'result_type')
+
+            # Note: Storing the similarity scores for all result types
+            result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
+
+            if result_type == "similarity_scores":
+                # Post similarity computation cleanup
+                dp_ids = get_dataprovider_ids(db, project_id)
+
+            else:
+                # we promote the run to the next stage
+                progress_stage(db, run_id)
+                lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+
+        # DB now committed, we can fire off tasks that depend on the new db state
         if result_type == "similarity_scores":
-            # Post similarity computation cleanup
-            dp_ids = get_dataprovider_ids(db, project_id)
+            log.info("Deleting intermediate similarity score files from object store")
+            mc.remove_objects(config.MINIO_BUCKET, files)
+            log.debug("Removing clk filters from redis cache")
+            cache.remove_from_cache(dp_ids[0])
+            cache.remove_from_cache(dp_ids[1])
 
+            # Complete the run
+            log.info("Marking run as complete")
+            mark_mapping_complete.delay(run_id)
         else:
-            # we promote the run to the next stage
-            progress_stage(db, run_id)
-            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+            solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2, serialised_scoring_span)
 
-    # DB now committed, we can fire off tasks that depend on the new db state
-    if result_type == "similarity_scores":
-        log.info("Deleting intermediate similarity score files from object store")
-        mc.remove_objects(config.MINIO_BUCKET, files)
-        log.debug("Removing clk filters from redis cache")
-        cache.remove_from_cache(dp_ids[0])
-        cache.remove_from_cache(dp_ids[1])
 
-        # Complete the run
-        log.info("Marking run as complete")
-        mark_mapping_complete.delay(run_id)
-    else:
-        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
+def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2, serialized_span_context):
     log = logger.bind(pid=project_id, run_id=run_id)
     mc = connect_to_object_store()
-    score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
-    log.debug("Creating python sparse matrix from bytes data")
-    sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
-    log.info("Calculating the optimal mapping from similarity matrix")
-    mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
+    parent_span = deserialize_span_context(serialized_span_context)
 
-    log.debug("Converting all indices to strings")
-    for key in mapping:
-        mapping[key] = str(mapping[key])
+    with opentracing.tracer.start_span('solver', child_of=parent_span):
+        score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
+        log.debug("Creating python sparse matrix from bytes data")
+        sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
+        log.info("Calculating the optimal mapping from similarity matrix")
+        mapping = anonlink.entitymatch.greedy_solver(sparse_matrix)
 
-    log.info("Entity mapping has been computed")
+        log.debug("Converting all indices to strings")
+        for key in mapping:
+            mapping[key] = str(mapping[key])
 
-    res = {
-        "mapping": mapping,
-        "lenf1": lenf1,
-        "lenf2": lenf2
-    }
-    save_and_permute.delay(res, project_id, run_id)
+        log.info("Entity mapping has been computed")
+
+        res = {
+            "mapping": mapping,
+            "lenf1": lenf1,
+            "lenf2": lenf2
+        }
+        save_and_permute.delay(res, project_id, run_id, serialized_span_context)
 
 
 def store_similarity_scores(buffer, run_id, length, conn):
