@@ -26,4 +26,13 @@ docker push quay.io/n1analytics/entity-docs:${ENTITY_APP_LABEL};
 docker push quay.io/n1analytics/entity-nginx:${ENTITY_NGINX_LABEL};
 docker push quay.io/n1analytics/entity-benchmark:${ENTITY_BENCHMARK_LABEL};
 
+if [[ $BRANCH_NAME = "develop" ]]
+then
+    echo "Also pushing images with tag 'latest' to quay.io"
+    docker push quay.io/n1analytics/entity-app:latest
+    docker push quay.io/n1analytics/entity-docs:latest
+    docker push quay.io/n1analytics/entity-nginx:latest
+    docker push quay.io/n1analytics/entity-benchmark:latest
+fi
+
 echo "Images uploaded";
