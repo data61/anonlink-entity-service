@@ -7,6 +7,7 @@ import structlog
 
 # Define the WSGI application object
 # Note we explicitly do this before importing our own code
+from entityservice.tracing import initialize_tracer
 
 con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
 app = con_app.app
@@ -16,6 +17,8 @@ try:
 except ImportError:
     import ijson
 
+
+from flask_opentracing import FlaskTracer
 
 from entityservice import database as db
 from entityservice.serialization import generate_scores
@@ -64,6 +67,9 @@ else:
 if config.LOGFILE is not None:
    app.logger.addHandler(fileHandler)
 
+# Tracer setup (currently just trace all requests)
+flask_tracer = FlaskTracer(initialize_tracer, True, app)
+
 
 @app.cli.command('initdb')
 def initdb_command():
@@ -76,13 +82,13 @@ def initdb_command():
 def before_request():
     log = logger.new(request=str(uuid.uuid4())[:8])
     g.db = db.connect_db()
+    g.flask_tracer = flask_tracer
 
 
 @app.teardown_request
 def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
-
 
 
 if __name__ == '__main__':

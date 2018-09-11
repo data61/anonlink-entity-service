@@ -1,5 +1,7 @@
-from flask import request
+from flask import request, g
 from structlog import get_logger
+import opentracing
+
 from entityservice import app, database as db, cache as cache
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token, \
@@ -12,18 +14,22 @@ logger = get_logger()
 
 def get(project_id, run_id):
     log = logger.bind(pid=project_id,rid=run_id)
-
+    parent_span = g.flask_tracer.get_span()
     log.debug("request run status")
-    # Check the project and run resources exist
-    abort_if_run_doesnt_exist(project_id, run_id)
+    with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
+        # Check the project and run resources exist
+        abort_if_run_doesnt_exist(project_id, run_id)
 
-    # Check the caller has a valid results token. Yes it should be renamed.
-    auth_token_type = get_authorization_token_type_or_abort(project_id, request.headers.get('Authorization'))
-    log.debug("Run status authorized using {} token".format(auth_token_type))
+        # Check the caller has a valid results token. Yes it should be renamed.
+        auth_token_type = get_authorization_token_type_or_abort(project_id, request.headers.get('Authorization'))
+        log.debug("Run status authorized using {} token".format(auth_token_type))
+        log.info("request for run status authorized")
 
-    log.info("request for run status authorized")
-    dbinstance = get_db()
-    run_status = db.get_run_status(dbinstance, run_id)
+    with opentracing.tracer.start_span('get-status-from-db', child_of=parent_span) as span:
+        dbinstance = get_db()
+        run_status = db.get_run_status(dbinstance, run_id)
+        span.set_tag('stage', run_status['stage'])
+
     run_type = RUN_TYPES[run_status['type']]
     state = run_status['state']
     stage = run_status['stage']
