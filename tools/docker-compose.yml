@@ -52,6 +52,7 @@ services:
   # A celery worker
   worker:
     image: quay.io/n1analytics/entity-app
+    scale: 2
     depends_on:
       - redis
       - db
