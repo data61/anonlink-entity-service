@@ -97,10 +97,10 @@ def upload_binary_clks(config, length_a, length_b, credentials):
     server = config['server']
     tick = time.perf_counter
 
-    def upload_data(participant, auth_token):
+    def upload_data(participant, auth_token, clk_length):
         start = tick()
 
-        with open(os.path.join(data_path, "clk_{}_{}.bin".format(participant, length_a)), 'rb') as f:
+        with open(os.path.join(data_path, "clk_{}_{}.bin".format(participant, clk_length)), 'rb') as f:
             facs_data = f.read()
         try:
             r = requests.post(
@@ -118,8 +118,8 @@ def upload_binary_clks(config, length_a, length_b, credentials):
             logger.warning('oh no...\n{}'.format(e))
         logger.info('uploading clks for {} took {:.3f}'.format(participant, tick() - start))
 
-    upload_data('a', credentials['update_tokens'][0])
-    upload_data('b', credentials['update_tokens'][1])
+    upload_data('a', credentials['update_tokens'][0], length_a)
+    upload_data('b', credentials['update_tokens'][1], length_b)
 
 
 def load_truth(config, size_a, size_b):
