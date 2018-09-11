@@ -29,7 +29,7 @@ def get(project_id, run_id):
 
     # Check that the run is not in a terminal state, otherwise 404
     if state == 'completed':
-        with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
+        with opentracing.tracer.start_span('get-run-result', child_of=parent_span) as span:
             return get_result(dbinstance, project_id, run_id, token)
     elif state == 'error':
         safe_fail_request(500, message='Error during computation of run')

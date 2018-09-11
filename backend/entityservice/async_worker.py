@@ -104,10 +104,10 @@ def convert_mapping_to_list(permutation):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def handle_raw_upload(project_id, dp_id, receipt_token, tracer=None):
+def handle_raw_upload(project_id, dp_id, receipt_token, parent_span_context=None):
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user uploaded file")
-    parent_span = opentracing.tracer.extract(Format.TEXT_MAP, tracer)
+    parent_span = opentracing.tracer.extract(Format.TEXT_MAP, parent_span_context)
 
     with opentracing.tracer.start_span('pull-json-clks-from-minio', child_of=parent_span) as span:
         with DBConn() as db:
@@ -228,7 +228,7 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     log = logger.bind(pid=project_id, run_id=run_id)
     assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
-    parent_span = opentracing.tracer.start_span('compute-run', tags={'pid': project_id, 'run_id': run_id})
+    parent_span = opentracing.tracer.start_span('compute-similarity', tags={'pid': project_id, 'run_id': run_id})
 
     conn = connect_db()
     with opentracing.tracer.start_span('chunking-prep', child_of=parent_span) as span:
@@ -317,11 +317,11 @@ def on_chord_error(*args, **kwargs):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def save_and_permute(similarity_result, project_id, run_id, tracer):
+def save_and_permute(similarity_result, project_id, run_id, parent_span_context):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
-    parent_span = deserialize_span_context(tracer)
+    parent_span = deserialize_span_context(parent_span_context)
 
     with opentracing.tracer.start_span('save_and_permute', child_of=parent_span):
         # Note Postgres requires JSON object keys to be strings
@@ -345,7 +345,7 @@ def save_and_permute(similarity_result, project_id, run_id, tracer):
                     run_id,
                     similarity_result['lenf1'],
                     similarity_result['lenf2'],
-                    tracer
+                    parent_span_context
                 )
             )
         else:
@@ -361,7 +361,7 @@ def save_and_permute(similarity_result, project_id, run_id, tracer):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, tracer):
+def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_span_context):
     """
     Task which will create a permutation after a mapping has been completed.
 
@@ -371,7 +371,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, tracer)
 
     """
     log = logger.bind(pid=project_id, run_id=run_id)
-    parent_span = deserialize_span_context(tracer)
+    parent_span = deserialize_span_context(parent_span_context)
 
     with opentracing.tracer.start_span('permute_mapping_data', child_of=parent_span):
 
@@ -492,7 +492,7 @@ def mark_mapping_complete(run_id):
 
 
 @celery.task(base=BaseTask)
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, tracer=None):
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, parent_span_context=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -504,10 +504,12 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param chunk_info_dp2:
     :param project_id:
     :param threshold:
+    :param parent_span_context: A serialized opentracing span context.
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
-    parent_span = opentracing.tracer.start_span('compute_filter_similarity', child_of=deserialize_span_context(tracer))
+    parent_span = opentracing.tracer.start_span('compute_filter_similarity',
+                                                child_of=deserialize_span_context(parent_span_context))
 
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
@@ -524,7 +526,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
     t2 = time.time()
 
-    with opentracing.tracer.start_span('compute-filter-similarity', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('compute-filter-similarity-in-anonlink', child_of=parent_span) as span:
         log.debug("Calculating filter similarity")
         span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
         chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,

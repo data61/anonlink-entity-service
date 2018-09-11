@@ -77,7 +77,8 @@ class Config(object):
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
-    JAEGER_HOST = "jaeger"
+    TRACING_HOST = "jaeger"
+    TRACING_PORT = "5775"
 
     @classmethod
     def get_task_chunk_size(cls, size, threshold):

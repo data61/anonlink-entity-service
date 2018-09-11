@@ -10,8 +10,8 @@ def initialize_tracer(service_name='anonlink'):
         config={
             'sampler': {'type': 'const', 'param': 1},
             'local_agent': {
-                'reporting_host': config.JAEGER_HOST,
-                'reporting_port': 5775,
+                'reporting_host': config.TRACING_HOST,
+                'reporting_port': config.TRACING_PORT,
             }
         },
         service_name=service_name)
