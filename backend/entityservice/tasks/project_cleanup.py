@@ -1,3 +1,4 @@
+from minio.error import MinioError
 
 import entityservice.database as db
 from entityservice import connect_to_object_store
@@ -30,7 +31,10 @@ def delete_project(project_id):
 
         for filename in object_store_files:
             log.info("Deleting {}".format(filename))
-            mc.remove_object(config.MINIO_BUCKET, filename)
+            try:
+                mc.remove_object(config.MINIO_BUCKET, filename)
+            except MinioError as e:
+                log.warning(f"Error occurred while removing object {filename}. Ignoring.")
 
     log.info("Project resources removed")
 
