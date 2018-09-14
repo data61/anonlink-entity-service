@@ -3,12 +3,14 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: {{ template "name" . }}-monitor
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: {{ template "fullname" . }}
+        {{- include "es.release_labels" . | indent 4 }}
         tier: aux
         run: celery-monitor
     spec:
@@ -20,10 +22,12 @@ spec:
           - containerPort: 8888
             name: celery-monitor
         command:
-          - "/usr/local/bin/celery"
-          - "-A"
-          - "async_worker"
+          - "celery"
           - "flower"
+          - "-A"
+          - "entityservice.async_worker"
+          - "--basic_auth=n1:paillier"
+          - "--url_prefix=monitor"
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
           - "-Q celery,compute"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ETCD_KEY="n1/services/entity/url"
 
@@ -17,11 +17,7 @@ fi
 
 
 # Tell nginx the address of the backend service to proxy to
-if [ ! -v TARGET_SERVICE ]; then
-    # Assume localhost
-    TARGET_SERVICE=localhost
-fi
-sed -i "s/{{TARGET_SERVICE}}/${TARGET_SERVICE}/g;" /etc/nginx/nginx.conf
+sed -i "s/{{TARGET_SERVICE}}/${TARGET_SERVICE:-localhost}/g;" /etc/nginx/nginx.conf
 echo "[INFO]  Starting web server"
 echo "[INFO]  Backend: $TARGET_SERVICE"
 exec nginx -g "daemon off;"

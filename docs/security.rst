@@ -66,14 +66,6 @@ Note the mask will be the length of the smaller data set and is applied after pe
 the entities. This means the owner of the larger data set learns a subset of her rows
 which are not in the smaller data set.
 
-Permutation and Encrypted Mask
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Similar to **Permutation and Mask**, except the mask is encrypted using
-a Paillier Public Key given when creating the mapping. The mask is
-provided along with the unenencrypted permutation to each organization
-with a valid ``receipt-token``.
-
 
 .. _auth:
 
@@ -92,7 +84,7 @@ There are three different types of tokens:
   :ref:`output type <result-types>`, either similarity scores, a direct mapping table, or a mask.
 - *receipt-token*: this token is returned to either party after uploading their respective CLKs. With this
   *receipt-token* they can then access their respective permutations, if the output type of the mapping is set to
-  permutation and (encrypted) mask.
+  permutation and mask.
 
 .. important::
    These tokens are the only artifacts that protect the sensitive data. Therefore it is paramount to make sure that only

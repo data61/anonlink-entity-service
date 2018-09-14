@@ -1,6 +1,6 @@
 # N1 Entity Matching Microservice
 
-[![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app) [![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
+[![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app) [![Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status?token=f669c554-1852-45bc-b595-29bb902a911a "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
 
 Allows two organizations to carry out private record linkage - without
 disclosing personally identifiable information.

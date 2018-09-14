@@ -1,9 +1,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "fullname" . }}
+  name: {{ template "es.fullname" . }}
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
 data:
-  REDIS_SERVER: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
+  {{ if .Values.provision.redis }}
+  REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}-master-svc
+  {{ else }}
+  REDIS_SERVER: {{ .Values.redis.server }}
+  {{ end }}
   DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
   DEBUG: {{ .Values.workers.debug | quote }}
   ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
@@ -15,4 +21,11 @@ data:
   CELERYD_MAX_TASKS_PER_CHILD: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
   CELERY_ACKS_LATE: {{ .Values.workers.celery.ACKS_LATE | quote }}
   ENCRYPTION_MIN_KEY_LENGTH: "1024"
-  MINIO_SERVER: "{{ .Release.Name }}-minio-svc:9000"
+  {{ if .Values.provision.minio }}
+  MINIO_SERVER: "{{ .Release.Name }}-minio:9000"
+  {{ else }}
+  MINIO_SERVER: {{ .Values.minio.server | quote }}
+  {{ end }}
+  MINIO_BUCKET: {{ .Values.minio.bucket | quote }}
+  CONNEXION_STRICT_VALIDATION: "true"
+  CONNEXION_RESPONSE_VALIDATION: "true"

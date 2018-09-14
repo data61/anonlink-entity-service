@@ -1,0 +1,72 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
+    component: "{{ .Values.workers.name }}"
+    tier: backend
+  name: {{ .Release.Name }}-highmemory-worker
+spec:
+  replicas: {{ .Values.workers.highmemory.replicaCount }}
+  {{- if .Values.workers.strategy }}
+  strategy:
+{{ toYaml .Values.workers.strategy | indent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- if .Values.workers.podAnnotations }}
+{{ toYaml .Values.workers.podAnnotations | indent 8 }}
+    {{- end }}
+      labels:
+        {{- include "es.release_labels" . | indent 8 }}
+        component: "{{ .Values.workers.name }}"
+        tier: backend
+    spec:
+      containers:
+        - name: celery-worker
+          image: {{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}
+          imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
+          resources:
+{{ toYaml .Values.workers.highmemory.resources | indent 12 }}
+          envFrom:
+          - configMapRef:
+              name: {{ template "es.fullname" . }}
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: redisPassword
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: postgresPassword
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: minioAccessKey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: minioSecretKey
+
+          command:
+            - "celery"
+            - "-A"
+            - "entityservice.async_worker"
+            - "worker"
+            - "--loglevel=info"
+            - "-Ofair"
+            - "-Q"
+            - "celery,compute,highmemory"
+          args:
+          {{- range $key, $value := .Values.workers.extraArgs }}
+            - --{{ $key }}={{ $value }}
+          {{- end }}
+      imagePullSecrets:
+      - name: {{ .Values.api.pullSecret }}
