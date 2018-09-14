@@ -212,7 +212,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     mc = connect_to_object_store()
     try:
         mc.put_object(config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
-    except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError):
+    except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError, minio.error.ResponseError):
         logger.info("Mismatch between expected stream length and header info")
         raise ValueError("Mismatch between expected stream length and header info")
 
