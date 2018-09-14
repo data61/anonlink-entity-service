@@ -2,12 +2,9 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: {{ template "fullname" . }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.workers.name }}"
-    heritage: {{ .Release.Service }}
     tier: backend
-    release: {{ .Release.Name }}
   name: {{ .Release.Name }}-worker
 spec:
   replicas: {{ .Values.workers.replicaCount }}
@@ -24,9 +21,8 @@ spec:
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
     {{- end }}
       labels:
-        app: {{ template "fullname" . }}
+        {{- include "es.release_labels" . | indent 8 }}
         component: "{{ .Values.workers.name }}"
-        release: {{ .Release.Name }}
         tier: backend
     spec:
       containers:
@@ -37,33 +33,33 @@ spec:
 {{ toYaml .Values.workers.resources | indent 12 }}
           envFrom:
           - configMapRef:
-              name: {{ template "fullname" . }}
+              name: {{ template "es.fullname" . }}
           env:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: redisPassword
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: postgresPassword
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: minioAccessKey
             - name: MINIO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: minioSecretKey
 
           command:
-            - "/usr/local/bin/celery"
+            - "celery"
             - "-A"
-            - "async_worker"
+            - "entityservice.async_worker"
             - "worker"
             - "--loglevel=info"
             - "-Ofair"

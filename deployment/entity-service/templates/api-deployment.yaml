@@ -3,12 +3,9 @@ kind: Deployment
 metadata:
   name: {{ .Release.Name }}-api
   labels:
-    app: {{ template "fullname" . }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    {{- include "es.release_labels" . | indent 4 }}
     component: "{{ .Values.api.name }}"
-    heritage: {{ .Release.Service }}
     tier: frontend
-    release: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.api.replicaCount }}
   {{- if .Values.api.strategy }}
@@ -22,9 +19,8 @@ spec:
 {{ toYaml .Values.api.podAnnotations | indent 8 }}
     {{- end }}
       labels:
-        app: {{ template "fullname" . }}
+        {{- include "es.release_labels" . | indent 8 }}
         component: "{{ .Values.api.name }}"
-        release: {{ .Release.Name }}
         tier: frontend
     spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}
@@ -52,34 +48,29 @@ spec:
           imagePullPolicy: {{ .Values.api.app.pullPolicy }}
           resources:
 {{ toYaml .Values.api.app.resources | indent 12 }}
+          envFrom:
+          - configMapRef:
+              name: {{ template "es.fullname" . }}
           env:
-            - name: REDIS_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.redis.nameOverride }}"
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: redisPassword
-            - name: DATABASE_SERVER
-              value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: postgresPassword
-            - name: DEBUG
-              value: {{default "false" .Values.api.app.debug | quote }}
-            - name: MINIO_SERVER
-              value: "{{ .Release.Name }}-minio-svc:9000"
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: minioAccessKey
             - name: MINIO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ template "fullname" . }}
+                  name: {{ template "es.fullname" . }}
                   key: minioSecretKey
           ports:
             - containerPort: 8000
@@ -91,5 +82,12 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 300
             timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: entity-flask
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
       imagePullSecrets:
         - name: {{ .Values.api.pullSecret }}

@@ -64,6 +64,8 @@ api:
     debug: "false"
 
   dbinit:
+    enabled: "true"
+
     ## Database init can only run during chart install
     ## It cannot be updated! So we have a separate image + tag
     image:
@@ -72,7 +74,7 @@ api:
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
-  pullSecret: n1-coreos-pull-secret
+  pullSecret: n1-quay-pull-secret
 
   ingress:
     enabled: true
@@ -143,7 +145,7 @@ workers:
     repository: "quay.io/n1analytics/entity-app"
     tag: "v1.7.2"
     pullPolicy: Always
-    pullSecret: "n1-coreos-pull-secret"
+    pullSecret: "n1-quay-pull-secret"
 
   ## Usually this is set to 1 per compute node
   replicaCount: 6
@@ -239,3 +241,4 @@ minio:
   accessKey: "SNANDoWeruDenOCongsA"
   secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
+  imageTag: "RELEASE.2018-05-04T23-13-12Z"
