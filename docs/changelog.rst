@@ -4,6 +4,19 @@
 Changelog
 =========
 
+Version 1.9.0
+-------------
+
+- minio and redis services are now optional for kubernetes deployment.
+- Introduction of a high memory worker and associated task queue.
+- Fix issue where we could start tasks twice.
+- Structlog now used for celery workers.
+- CI now tests a kubernetes deployment.
+- Many Jenkins CI updates and fixes.
+- Updates to Jupyter notebooks and docs.
+- Updates to Python and Helm chart dependencies and docker base images.
+
+
 Version 1.8.1 (2018-06-14)
 --------------------------
 
