@@ -271,7 +271,7 @@ def run_experiments(config):
 def main():
     config = read_config()
     server_status = rest_client.server_get_status(config['server'])
-    version = requests.get(config['server'] + "/api/v1/version")
+    version = requests.get(config['server'] + "/api/v1/version").json()
     logger.info(server_status)
     download_data(config)
 
