@@ -17,16 +17,16 @@ Version 1.9.0
 - Updates to Python and Helm chart dependencies and docker base images.
 
 
-Version 1.8.1 (2018-06-14)
---------------------------
+Version 1.8.1
+-------------
 
 Improve system stability while handling large intermediate results.
 Intermediate results are now stored in files instead of in Redis. This permits us to stream them instead of loading
 everything into memory.
 
 
-Version 1.8 (2018-06-01)
-------------------------
+Version 1.8
+-----------
 
 Version 1.8 introduces breaking changes to the REST API to allow an analyst to reuse uploaded CLKs.
 
@@ -57,8 +57,8 @@ Other improvements
 - Substantial internal refactoring - especially of views.
 - Move to pytest for end to end tests.
 
-Version 1.7.3 (2018-03-16)
---------------------------
+Version 1.7.3
+-------------
 
 Deployment and documentation sprint.
 
@@ -72,21 +72,21 @@ Deployment and documentation sprint.
 - Update to latest versions of anonlink and clkhash. #94
 - Documentation updates.
 
-Version 1.7.2 (2018-01-09)
---------------------------
+Version 1.7.2
+-------------
 
 Dependency and deployment updates.
 We now pin versions of Python, anonlink, clkhash, phe and docker images nginx and postgres.
 
 
-Version 1.7.0 (2017-10-10)
---------------------------
+Version 1.7.0
+-------------
 
 Added a view type that returns similarity scores of potential matches.
 
 
-Version 1.6.8 (2017-08-21)
---------------------------
+Version 1.6.8
+-------------
 
 Scalability sprint.
 
