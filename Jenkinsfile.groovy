@@ -26,7 +26,10 @@ node('docker&&multicore&&ram') {
     dockerUtils = new DockerUtils(this)
     dockerUtils.dockerLoginQuayIO(QuayIORepo.ENTITY_SERVICE_APP)
 
-    composeProject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("-", "").replaceAll("_", "").toLowerCase();
+    composeProject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".toLowerCase()
+    composeProject = composeProject.replaceAll("-", "")
+    composeProject = composeProject.replaceAll("_", "")
+    composeProject = composeProject.replaceAll(".", "")
   }
 
   try {
