@@ -6,6 +6,8 @@ import com.n1analytics.git.GitUtils;
 import com.n1analytics.git.GitCommit;
 import com.n1analytics.git.GitRepo;
 
+import groovy.json.JsonSlurper;
+
 String gitContextDockerBuild = "required-docker-images-build"
 String gitContextComposeDeploy = "required-dockercompose-deploy"
 String gitContextIntegrationTests = "required-integration-tests"
@@ -126,7 +128,7 @@ node('docker&&multicore&&ram') {
                 --network ${networkName} \
                 -e SERVER=${localserver} \
                 -e DATA_PATH=/cache \
-                -e EXPERIMENT=/tmp/esbenchcache/experiments.json \
+                -e EXPERIMENT=/cache/experiments.json \
                 -e RESULTS_PATH=/app/results.json \
                 -v /tmp/esbenchcache:/cache \
                 quay.io/n1analytics/entity-benchmark:latest
