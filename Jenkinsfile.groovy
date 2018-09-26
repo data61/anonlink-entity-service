@@ -107,13 +107,28 @@ node('docker&&multicore&&ram') {
 
       try {
         timeout(time: 15, unit: 'MINUTES') {
+            def jsonSlurper = new JsonSlurper()
+            def experiments = jsonSlurper.parseText("""
+            [
+              {
+                "sizes": ["100K", "100K"],
+                "threshold": 0.95
+              }
+            ]
+            """)
+
+            writeJSON(experiments, '/tmp/esbenchcache/experiments.json')
 
           sh """
+          mkdir -p /tmp/esbenchcache
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
                 -e SERVER=${localserver} \
+                -e DATA_PATH=/cache \
+                -e EXPERIMENT=/tmp/esbenchcache/experiments.json \
                 -e RESULTS_PATH=/app/results.json \
+                -v /tmp/esbenchcache:/cache \
                 quay.io/n1analytics/entity-benchmark:latest
 
           """
