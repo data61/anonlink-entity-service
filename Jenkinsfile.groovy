@@ -108,7 +108,7 @@ node('docker&&multicore&&ram') {
       String localserver = "http://nginx:8851"
 
       try {
-        timeout(time: 15, unit: 'MINUTES') {
+          timeout(time: 15, unit: 'MINUTES') {
             def jsonSlurper = new JsonSlurper()
             def experiments = jsonSlurper.parseText("""
             [
@@ -119,7 +119,7 @@ node('docker&&multicore&&ram') {
             ]
             """)
 
-            writeJSON(experiments, '/tmp/esbenchcache/experiments.json')
+            writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
 
           sh """
           mkdir -p /tmp/esbenchcache
