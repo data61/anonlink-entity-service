@@ -300,11 +300,6 @@ node('helm && kubectl') {
 
             junit resultFile
 
-            sh """
-                # Clean up
-                kubectl delete job ${DEPLOYMENT}-test
-                helm delete --purge ${DEPLOYMENT}
-            """
           }
           gitCommit.setSuccessStatus(gitContextKubernetesDeployment)
         } catch (error) { // timeout reached or input false
