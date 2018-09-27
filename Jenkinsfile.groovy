@@ -107,13 +107,27 @@ node('docker&&multicore&&ram') {
 
       try {
         timeout(time: 15, unit: 'MINUTES') {
+          def experiments = readJSON text: """
+          [
+            {
+              "sizes": ["100K", "100K"],
+              "threshold": 0.95
+            }
+          ]
+          """
+
+          writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
 
           sh """
+          mkdir -p /tmp/esbenchcache
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
                 -e SERVER=${localserver} \
+                -e DATA_PATH=/cache \
+                -e EXPERIMENT=/cache/experiments.json \
                 -e RESULTS_PATH=/app/results.json \
+                -v /tmp/esbenchcache:/cache \
                 quay.io/n1analytics/entity-benchmark:latest
 
           """

@@ -66,7 +66,7 @@ def read_config():
         results_path = os.getenv('RESULTS_PATH', DEFAULT_RESULTS_PATH)
         experiments_file = os.getenv('EXPERIMENT', 'default-experiments.json')
 
-        schema_path = os.getenv('SCHEMA', DEFAULT_DATA_FOLDER + '/schema.json')
+        schema_path = os.getenv('SCHEMA', './schema/default-linking-schema.json')
         timeout = float(os.getenv('TIMEOUT', DEFAULT_TIMEOUT))
 
         experiments = load_experiments(experiments_file)
