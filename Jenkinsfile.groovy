@@ -6,8 +6,6 @@ import com.n1analytics.git.GitUtils;
 import com.n1analytics.git.GitCommit;
 import com.n1analytics.git.GitRepo;
 
-import groovy.json.JsonSlurper;
-
 String gitContextDockerBuild = "required-docker-images-build"
 String gitContextComposeDeploy = "required-dockercompose-deploy"
 String gitContextIntegrationTests = "required-integration-tests"
@@ -108,18 +106,17 @@ node('docker&&multicore&&ram') {
       String localserver = "http://nginx:8851"
 
       try {
-          timeout(time: 15, unit: 'MINUTES') {
-            def jsonSlurper = new JsonSlurper()
-            def experiments = jsonSlurper.parseText("""
-            [
-              {
-                "sizes": ["100K", "100K"],
-                "threshold": 0.95
-              }
-            ]
-            """)
+        timeout(time: 15, unit: 'MINUTES') {
+          def experiments = readJSON text: """
+          [
+            {
+              "sizes": ["100K", "100K"],
+              "threshold": 0.95
+            }
+          ]
+          """
 
-            writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
+          writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
 
           sh """
           mkdir -p /tmp/esbenchcache
