@@ -130,6 +130,7 @@ node('docker&&multicore&&ram') {
                 -v /tmp/esbenchcache:/cache \
                 quay.io/n1analytics/entity-benchmark:latest
 
+          docker cp ${benchmarkContainerName}:/app/results.json results.json
           """
 
           archiveArtifacts artifacts: "results.json", fingerprint: true
@@ -142,8 +143,7 @@ node('docker&&multicore&&ram') {
         throw err
       } finally {
           sh """
-            docker cp ${benchmarkContainerName}:/app/results.json results.json
-            docker rm ${benchmarkContainerName}
+            docker rm -v ${benchmarkContainerName}
           """
       }
     }
