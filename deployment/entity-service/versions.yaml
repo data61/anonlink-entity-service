@@ -4,11 +4,11 @@ api:
       tag: "v1.4.0-develop"
   app:
     image:
-      tag: "v1.8.2-develop"
+      tag: "v1.9.0-develop"
   dbinit:
     image:
-      tag: "v1.8.2-develop"
+      tag: "v1.9.0-develop"
 
 workers:
   image:
-    tag: "v1.8.2-develop"
+    tag: "v1.9.0-develop"
