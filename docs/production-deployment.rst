@@ -116,11 +116,10 @@ This can take around 10 minutes the first time you deploy to a new cluster.
 Run integration tests and an end to end test
 --------------------------------------------
 
-
-::
+Update the server url by editing the yaml file then create a new job on the cluster::
 
     kubectl create -f jobs/integration-test-job.yaml
-    kubectl create -f jobs/e2e-test-job.yaml
+
 
 To view the celery monitor:
 ---------------------------
@@ -142,6 +141,9 @@ Updating a running chart is usually straight forward. For example if the release
 
     helm upgrade es entity-service --namespace=testing --set workers.replicas="20"
 
+
+However note you may wish to instead keep all configurable values in a yaml file and track that in
+version control.
 
 Minimal Deployment
 ------------------
