@@ -118,6 +118,7 @@ def project_clks_post(project_id):
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
     with opentracing.tracer.start_span('upload-data', child_of=parent_span) as span:
+        span.set_tag("project_id", project_id)
         if headers['Content-Type'] == "application/json":
             span.set_tag("content-type", 'json')
             # TODO: Previously, we were accessing the CLKs in a streaming fashion to avoid parsing the json in one hit. This
@@ -128,7 +129,7 @@ def project_clks_post(project_id):
             receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span)
             # Schedule a task to deserialize the hashes, and carry
             # out a pop count.
-            handle_raw_upload.delay(project_id, dp_id, receipt_token, serialize_span(span))
+            handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
             log.info("Job scheduled to handle user uploaded hashes")
         elif headers['Content-Type'] == "application/octet-stream":
             span.set_tag("content-type", 'binary')
@@ -236,7 +237,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
         logger.info("All parties data present. Scheduling any queued runs")
-        check_for_executable_runs.delay(project_id)
+        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
 
     return receipt_token
 
