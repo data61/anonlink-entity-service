@@ -1,3 +1,5 @@
+frontend/static/
+
 # Created by .ignore support plugin (hsz.mobi)
 ### IPythonNotebook template
 # Temporary data
@@ -86,6 +88,9 @@ celerybeat-schedule
 # virtualenv
 venv/
 ENV/
+
+# InteliJ project settings
+.idea
 
 # Spyder project settings
 .spyderproject

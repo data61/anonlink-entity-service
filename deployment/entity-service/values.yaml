@@ -27,7 +27,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.3.2"
+      tag: "v1.4.0"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -46,7 +46,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.7.2"
+      tag: "v1.8.1"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -56,35 +56,37 @@ api:
     resources:
       limits:
         cpu: 1
-        memory: 1Gi
+        memory: 8Gi
       requests:
         cpu: 500m
-        memory: 1Gi
+        memory: 512Mi
 
     debug: "false"
 
   dbinit:
+    enabled: "true"
+
     ## Database init can only run during chart install
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.7.2"
+      tag: "v1.8.2"
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
-  pullSecret: n1-coreos-pull-secret
+  pullSecret: n1-quay-pull-secret
 
   ingress:
     enabled: true
 
     ## Ingress annotations
     ##
-    annotations: []
+    annotations: #{}
      # kubernetes.io/ingress.class: nginx
-     # certmanager.k8s.io/issuer: letsencrypt
+     # certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
      ## To handle large uploads we increase the nginx buffer size
-     # nginx.org/client-max-body-size: 4096m
-     # ingress.kubernetes.io/proxy-body-size: 4096m
+     ingress.kubernetes.io/proxy-body-size: 4096m
+     nginx.ingress.kubernetes.io/proxy-body-size: 4096m
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
@@ -104,7 +106,7 @@ api:
 
   # Configure a cert-manager Certificate (caution experimental!)
   certManager:
-    enabled: true
+    enabled: false
     secretName: es-tls
     issuerRef:
       #name: letsencrypt
@@ -141,13 +143,15 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.7.2"
+    tag: "v1.8.2"
     pullPolicy: Always
-    pullSecret: "n1-coreos-pull-secret"
+    pullSecret: "n1-quay-pull-secret"
 
   ## Usually this is set to 1 per compute node
   replicaCount: 6
-  debug: "true"
+  autoscaler:
+    enabled: false
+  debug: true
 
   podAnnotations: {}
 
@@ -190,6 +194,14 @@ workers:
 #      memory: 2Gi
 #      cpu: 200m
 
+  # At least one "high memory" worker is also required
+  highmemory:
+    replicaCount: 2
+    resources:
+      requests:
+        memory: 16Gi
+        cpu: 800m
+
 postgresql:
   # See available settings and defaults at:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql
@@ -210,32 +222,62 @@ postgresql:
       #memory: 1Gi
       cpu: 100m
 
+
 redis:
-  # https://github.com/kubernetes/charts/tree/master/stable/redis#configuration
-  redisPassword: "gOgRockEPtiN"
-  persistence:
-    enabled: true
-    storageClass: "default"
-    size: "10Gi"
-  metrics:
-    enabled: true
+  ## Note the redis server is ignored if provisioning redis during deployment.
+  server: ""
+  ## Note if deploying redis-ha you should have the same password below!
+  password: "9X9RFrRnQHcB"
+
+redis-ha:
+  ## Settings for configuration of a provisioned redis ha cluster.
+  ## Provisioning is controlled in the `provision` section
+  auth: true
+  redisPassword: "9X9RFrRnQHcB"
   resources:
-    requests:
-      #memory: 8Gi
-      cpu: 200m
-    limits:
-      #memory: 20Gi
-      cpu: 300m
-  nameOverride: "redis"
+    server:
+      requests:
+        memory: 512Mi
+        cpu: 100m
+      limits:
+        memory: 10Gi
+    sentinel:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+  nameOverride: "memstore"
+
 
 minio:
-  # https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
-  ## Can distribute the object store across multiple nodes...
-  #mode: "distributed"
-  serviceType: "ClusterIP"
+  # Configure the object storage
+  # https://github.com/helm/charts/blob/master/stable/minio/values.yaml
+
+  ## Access credentials for the object store
+  accessKey: "xtoNfbmB7cUaW4sLPzKBXVPXd8oAvVbvkAosxsEXAMPLE"
+  secretKey: "6hkE6FzMLBd4tkzhVjXjPdEzQikmEtjRDQwyobEXAMPLE"
+
+  ## Settings required for connecting to another object store, the server is ignored
+  ## if provisioning minio during deployment.
+  server: "s3.amazonaws.com"
+
+  bucket: "confidentialcomputing-k8s-objectstore"
+
+  ## Settings for deploying standalone object store
+  ## https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
+  ## Can distribute the object store across multiple nodes.
+  mode: "standalone"
+  service.type: "ClusterIP"
   persistence:
-    size: 100Gi
+    enabled: true
+    size: 50Gi
     storageClass: "default"
-  accessKey: "SNANDoWeruDenOCongsA"
-  secretKey: "onimoUBRANeRNaLDeTyWrENTipHErYPrON"
   nameOverride: "minio"
+
+
+provision:
+  # enable to deploy a standalone version of minio, otherwise connect minio to another service (e.g. S3)
+  minio: true
+  postgresql: true
+  redis: true

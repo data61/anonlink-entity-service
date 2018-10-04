@@ -62,8 +62,8 @@ Monitoring
 ----------
 
 A celery monitor tool `flower` is also part of the docker-compose file - this graphical interface
-allows administration and monitoring of the celery tasks and workers. Access this via the nginx
-container - e.g. http://localhost:8851/monitor
+allows administration and monitoring of the celery tasks and workers. Access this via the monitor
+container.
 
 Testing with docker-compose
 ---------------------------
@@ -73,21 +73,9 @@ this can be added in to run along with the rest of the service::
 
     docker-compose -p n1estest -f tools/docker-compose.yml -f tools/ci.yml  up -d
 
-    docker logs -f n1estest_ci_1
+    docker logs -f n1estest_tests_1
 
     docker-compose -p n1estest -f tools/docker-compose.yml -f tools/ci.yml down
-
-Data generation
----------------
-
-::
-
-    docker run -it \
-        -v <place-to-put-generated-data>:/var/www/data \
-        -e ENTITY_SERVICE_TEST_SIZE=10000 \
-        quay.io/n1analytics/entity-app python generate_test_data.py
-
-Note: the folder in which the generated data will be stored needs to exist.
 
 
 Docker Compose Tips

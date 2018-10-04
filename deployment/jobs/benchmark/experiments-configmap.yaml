@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: entityservice-benchmark-experiments
+  labels:
+    app: entityservice
+    tier: aux
+data:
+  experiments.json: |-
+    [
+      {
+        "sizes": ["100K", "100K"],
+        "threshold": 0.95
+      },
+      {
+        "sizes": ["100K", "100K"],
+        "threshold": 0.9
+      },
+      {
+        "sizes": ["100K", "100K"],
+        "threshold": 0.85
+      },
+      {
+        "sizes": ["100K", "100K"],
+        "threshold": 0.80
+      },
+      {
+        "sizes": ["100K", "1M"],
+        "threshold": 0.95
+      },
+      {
+        "sizes": ["100K", "1M"],
+        "threshold": 0.85
+      }
+    ]

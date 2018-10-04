@@ -158,10 +158,4 @@ Note the mask will be the length of the smaller data set and is applied after pe
 This means the owner of the larger data set learns a subset of her rows which are not in the smaller
 data set.
 
-Permutation and Encrypted Mask
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Similar to **Permutation and Mask**, except the mask is encrypted using
-a Paillier Public Key given when creating the mapping. The encrypted mask is
-provided along with the unenencrypted permutation to each organization
-with a valid ``receipt-token``.
+The ``result_type`` should be set to ``"permutations"``.

@@ -3,32 +3,36 @@ set -e
 script_name=$(basename "$0")
 cd $(dirname "$0")
 
-export APPVERSION=$(cat ../backend/VERSION)
-export NGINXVERSION=$(cat ../frontend/VERSION)
-
 if [ -z ${BRANCH_NAME+x} ]; then
     export BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
 else
     echo "BRANCH_NAME is set to '$BRANCH_NAME'";
 fi
 
-if [ "$BRANCH_NAME" = "master" ];
-then
-    export ENTITY_APP_LABEL="$APPVERSION";
-    export ENTITY_NGINX_LABEL="$NGINXVERSION";
-else
-    export ENTITY_APP_LABEL="$APPVERSION-$BRANCH_NAME";
-    export ENTITY_NGINX_LABEL="$NGINXVERSION-$BRANCH_NAME";
-fi
+export ENTITY_APP_LABEL=$(python get_docker_tag.py $BRANCH_NAME app)
+export ENTITY_NGINX_LABEL=$(python get_docker_tag.py $BRANCH_NAME nginx)
+export ENTITY_BENCHMARK_LABEL=$(python get_docker_tag.py $BRANCH_NAME benchmark)
 
-echo "Tagging images: $ENTITY_APP_LABEL and $ENTITY_NGINX_LABEL";
+echo "Tagging images: $ENTITY_APP_LABEL and $ENTITY_NGINX_LABEL and $ENTITY_BENCHMARK_LABEL";
 
 docker tag quay.io/n1analytics/entity-app:latest quay.io/n1analytics/entity-app:${ENTITY_APP_LABEL};
 docker tag quay.io/n1analytics/entity-nginx:latest quay.io/n1analytics/entity-nginx:${ENTITY_NGINX_LABEL};
+docker tag quay.io/n1analytics/entity-benchmark:latest quay.io/n1analytics/entity-benchmark:${ENTITY_BENCHMARK_LABEL};
+docker tag quay.io/n1analytics/entity-docs:latest quay.io/n1analytics/entity-docs:${ENTITY_APP_LABEL};
 
 echo "Pushing images to quay.io";
 docker push quay.io/n1analytics/entity-app:${ENTITY_APP_LABEL};
-docker push quay.io/n1analytics/entity-app:doc-builder;
+docker push quay.io/n1analytics/entity-docs:${ENTITY_APP_LABEL};
 docker push quay.io/n1analytics/entity-nginx:${ENTITY_NGINX_LABEL};
+docker push quay.io/n1analytics/entity-benchmark:${ENTITY_BENCHMARK_LABEL};
+
+if [[ $BRANCH_NAME = "develop" ]]
+then
+    echo "Also pushing images with tag 'latest' to quay.io"
+    docker push quay.io/n1analytics/entity-app:latest
+    docker push quay.io/n1analytics/entity-docs:latest
+    docker push quay.io/n1analytics/entity-nginx:latest
+    docker push quay.io/n1analytics/entity-benchmark:latest
+fi
 
 echo "Images uploaded";

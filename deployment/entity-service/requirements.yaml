@@ -1,10 +1,13 @@
 dependencies:
-  - name: redis
-    version: 0.8.1
+  - name: redis-ha
+    version: 2.2.1
     repository: https://kubernetes-charts.storage.googleapis.com
+    condition: provision.redis
   - name: minio
-    version: 0.5.7
+    version: 1.6.2
     repository: https://kubernetes-charts.storage.googleapis.com
+    condition: provision.minio
   - name: postgresql
-    version: 0.7.1
+    version: 0.14.4
     repository: https://kubernetes-charts.storage.googleapis.com
+    condition: provision.postgresql

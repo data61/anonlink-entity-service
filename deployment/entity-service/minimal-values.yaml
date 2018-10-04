@@ -4,21 +4,21 @@ api:
   app:
     resources:
       limits:
-        memory: 128Mi
+        memory: 512Mi
         cpu: 100m
       requests:
         cpu: 50m
-        memory: 128Mi
+        memory: 256Mi
 
 workers:
   replicaCount: 1
 
   resources:
     requests:
-      memory: 128Mi
+      memory: 256Mi
       cpu: 100m
     limits:
-      memory: 128Mi
+      memory: 512Mi
       cpu: 200m
 
 postgresql:
@@ -32,16 +32,8 @@ postgresql:
   persistence:
     size: 1Gi
 
-redis:
-  persistence:
-    size: 1Gi
-  resources:
-    limits:
-      memory: 200Mi
-    requests:
-      memory: 100Mi
-      cpu: 100m
 
 minio:
   persistence:
+    enabled: false
     size: 1Gi
