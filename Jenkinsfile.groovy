@@ -12,6 +12,7 @@ String gitContextIntegrationTests = "required-integration-tests"
 String gitContextDocumentation = "required-build-documentation"
 String gitContextPublish = "required-publish-docker-images"
 String gitContextKubernetesDeployment = "optional-kubernetes-deployment"
+String gitContextLocalBenchmark = "jenkins-benchmark"
 DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
@@ -25,7 +26,7 @@ node('docker&&multicore&&ram') {
     dockerUtils = new DockerUtils(this)
     dockerUtils.dockerLoginQuayIO(QuayIORepo.ENTITY_SERVICE_APP)
 
-    composeProject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("-", "").replaceAll("_", "").toLowerCase();
+    composeProject = "es-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("[-_.]", "").toLowerCase()
   }
 
   try {
@@ -42,14 +43,18 @@ node('docker&&multicore&&ram') {
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         dir("docs") {
-          String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":doc-builder"
+          String imageNameLabel = "quay.io/n1analytics/entity-docs:latest"
+          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+        }
+        dir("benchmarking") {
+          String imageNameLabel = "quay.io/n1analytics/entity-benchmark:latest"
           dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
         }
         gitCommit.setSuccessStatus(gitContextDockerBuild)
       } catch (err) {
         print("Error in docker build stage:\n" + err)
         gitCommit.setFailStatus(gitContextDockerBuild)
-        throw err;
+        throw err
       }
     }
 
@@ -64,7 +69,7 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
         gitCommit.setFailStatus(gitContextComposeDeploy)
-        throw err;
+        throw err
       }
     }
 
@@ -74,7 +79,7 @@ node('docker&&multicore&&ram') {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
         timeout(time: 30, unit: 'MINUTES') {
-          containerTests.watchLogs();
+          containerTests.watchLogs()
 
           sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
           sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
@@ -90,7 +95,56 @@ node('docker&&multicore&&ram') {
       } catch (err) {
         print("Error in integration tests stage:\n" + err)
         gitCommit.setFailStatus(gitContextIntegrationTests)
-        throw err;
+        throw err
+      }
+    }
+
+    stage('Benchmark') {
+      gitCommit.setInProgressStatus(gitContextLocalBenchmark);
+      String benchmarkContainerName = composeProject + "benchmark"
+      String networkName = composeProject + "_default"
+      String localserver = "http://nginx:8851"
+
+      try {
+        timeout(time: 15, unit: 'MINUTES') {
+          def experiments = readJSON text: """
+          [
+            {
+              "sizes": ["100K", "100K"],
+              "threshold": 0.95
+            }
+          ]
+          """
+
+          writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
+
+          sh """
+          mkdir -p /tmp/esbenchcache
+          docker run \
+                --name ${benchmarkContainerName} \
+                --network ${networkName} \
+                -e SERVER=${localserver} \
+                -e DATA_PATH=/cache \
+                -e EXPERIMENT=/cache/experiments.json \
+                -e RESULTS_PATH=/app/results.json \
+                -v /tmp/esbenchcache:/cache \
+                quay.io/n1analytics/entity-benchmark:latest
+
+          docker cp ${benchmarkContainerName}:/app/results.json results.json
+          """
+
+          archiveArtifacts artifacts: "results.json", fingerprint: true
+          gitCommit.setSuccessStatus(gitContextLocalBenchmark)
+        }
+      } catch (err) {
+        print("Error or timeout in benchmarking stage:\n" + err)
+        gitCommit.setFailStatus(gitContextLocalBenchmark)
+
+        throw err
+      } finally {
+          sh """
+            docker rm -v ${benchmarkContainerName}
+          """
       }
     }
 
@@ -246,11 +300,6 @@ node('helm && kubectl') {
 
             junit resultFile
 
-            sh """
-                # Clean up
-                kubectl delete job ${DEPLOYMENT}-test
-                helm delete --purge ${DEPLOYMENT}
-            """
           }
           gitCommit.setSuccessStatus(gitContextKubernetesDeployment)
         } catch (error) { // timeout reached or input false

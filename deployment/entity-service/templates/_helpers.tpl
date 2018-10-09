@@ -34,7 +34,7 @@ chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 # It is useful for admins who want to see what releases a particular tool
 # is responsible for.
 heritage: {{ .Release.Service }}
-version: {{ .Chart.Version }}
+version: {{ .Chart.Version | quote }}
 # The "release" convention makes it easy to tie a release to all of the
 # Kubernetes resources that were created as part of that release.
 release: {{ .Release.Name }}

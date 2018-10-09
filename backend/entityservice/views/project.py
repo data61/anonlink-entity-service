@@ -65,7 +65,7 @@ def project_delete(project_id):
 
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
-    log.info("Authorized request to delete a project resource and all data")
+    log.info("Queuing authorized request to delete project resources")
 
     dbinstance = get_db()
     db.mark_project_deleted(dbinstance, project_id)
@@ -225,7 +225,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
         mc = connect_to_object_store()
         try:
             mc.put_object(config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
-        except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError):
+        except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError, minio.error.ResponseError):
             logger.info("Mismatch between expected stream length and header info")
             raise ValueError("Mismatch between expected stream length and header info")
 

@@ -1,12 +1,12 @@
 """
 This Python script outputs the tag for the entity service images depending on the git branch.
 
-    $ python get_docker_tag.py <BRANCH> <app|nginx>
+    $ python get_docker_tag.py <BRANCH> <app|nginx|benchmark>
     tag
 
 
 Example:
-    python get_docker_tag.py feature-fix-x nginx
+    $ python get_docker_tag.py feature-fix-x nginx
     v1.4.0-feature-fix-x
 
 """
@@ -16,11 +16,13 @@ import os.path
 
 
 def get_version(image):
-    assert image in {'app', 'nginx'}
+    assert image in {'app', 'nginx', 'benchmark'}
     if image == 'app':
         file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'backend', 'entityservice', 'VERSION'))
     elif image == 'nginx':
         file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'frontend', 'VERSION'))
+    elif image == 'benchmark':
+        file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'benchmarking', 'VERSION'))
     return open(file_path).read().strip()
 
 

@@ -90,6 +90,5 @@ def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
 
-
 if __name__ == '__main__':
     con_app.run(debug=True, port=8851)

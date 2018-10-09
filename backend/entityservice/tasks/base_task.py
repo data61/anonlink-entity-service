@@ -7,6 +7,9 @@ from entityservice.tracing import create_tracer
 from opentracing.propagation import Format
 
 import time
+from entityservice.errors import DBResourceMissing
+import psycopg2
+from structlog import get_logger
 
 logger = get_logger()
 
@@ -16,10 +19,6 @@ class BaseTask(celery.Task):
 
     abstract = True
     throws = (DBResourceMissing, psycopg2.IntegrityError)
-
-    def __call__(self, *args, **kwargs):
-        logger.info('TASK STARTING: {0.name}[{0.request.id}]'.format(self))
-        return super(BaseTask, self).__call__(*args, **kwargs)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """Log the exceptions to some central logging system at retry."""

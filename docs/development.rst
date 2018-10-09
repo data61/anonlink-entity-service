@@ -44,6 +44,7 @@ At a high level the testing covers:
 - building the docker containers
 - deploying using Docker Compose
 - running the integration tests against the local deployment
+- running a benchmark suite against the local deployment
 - building and packaging the documentation
 - publishing the containers to quay.io
 - deploying to kubernetes
