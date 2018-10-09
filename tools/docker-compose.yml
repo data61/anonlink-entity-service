@@ -1,4 +1,4 @@
-version: '2.2'
+version: '2.1'
 services:
 
   db:
@@ -52,7 +52,6 @@ services:
   # A celery worker
   worker:
     image: quay.io/n1analytics/entity-app
-    scale: 2
     depends_on:
       - redis
       - db
