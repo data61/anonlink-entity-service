@@ -86,13 +86,13 @@ services:
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment. Access via the nginx container with url `/monitor`
-  celery_monitor:
-    image: quay.io/n1analytics/entity-app
-    depends_on:
-      - redis
-    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=/ --port=8888 -Q celery,compute
-    ports:
-      - 8888:8888
+#  celery_monitor:
+#    image: quay.io/n1analytics/entity-app
+#    depends_on:
+#      - redis
+#    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=/ --port=8888 -Q celery,compute
+#    ports:
+#      - 8888:8888
 
   jaeger:
     image: jaegertracing/all-in-one:latest
