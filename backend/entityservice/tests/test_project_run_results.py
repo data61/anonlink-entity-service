@@ -1,5 +1,3 @@
-import pytest
-
 from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time
 
 
