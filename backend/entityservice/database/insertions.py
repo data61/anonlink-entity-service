@@ -19,6 +19,7 @@ def insert_new_project(cur, result_type, schema, access_token, project_id, num_p
                                  result_type])
 
 
+# noinspection PyShadowingBuiltins
 def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
     sql_query = """
         INSERT INTO runs
@@ -80,14 +81,16 @@ def insert_similarity_score_file(db, run_id, filename):
               (%s, %s)
             RETURNING id;
             """
+        # noinspection PyUnresolvedReferences
         try:
             result_id = execute_returning_id(cur, insertion_query, [run_id, filename])
-        except psycopg2.IntegrityError as e:
+        except psycopg2.IntegrityError:
             raise RunDeleted(run_id)
     return result_id
 
 
 def insert_mapping_result(db, run_id, mapping):
+    # noinspection PyUnresolvedReferences
     try:
         with db.cursor() as cur:
             insertion_query = """
@@ -98,7 +101,7 @@ def insert_mapping_result(db, run_id, mapping):
                 RETURNING id;
                 """
             result_id = execute_returning_id(cur, insertion_query, [run_id, psycopg2.extras.Json(mapping)])
-    except psycopg2.IntegrityError as e:
+    except psycopg2.IntegrityError:
         raise RunDeleted(run_id)
     return result_id
 
@@ -110,6 +113,7 @@ def insert_permutation(cur, dp_id, run_id, perm_list):
         VALUES
           (%s, %s, %s)
         """
+    # noinspection PyUnresolvedReferences
     try:
         cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
     except psycopg2.IntegrityError:
@@ -124,6 +128,7 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
           (%s, %s, %s)
         """
     json_mask = psycopg2.extras.Json(mask_list)
+    # noinspection PyUnresolvedReferences
     try:
         cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
     except psycopg2.IntegrityError:
@@ -142,7 +147,7 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
 
     logger.info("Updating database with info about hashes")
     with db.cursor() as cur:
-        cur.execute(sql_query, [state, clks_filename, dp_id,])
+        cur.execute(sql_query, [state, clks_filename, dp_id, ])
 
 
 def update_run_chunk(db, resource_id, chunk_size):
@@ -218,6 +223,7 @@ def mark_project_deleted(db, project_id):
 
 
 def progress_run_stage(db, run_id):
+    # noinspection PyUnresolvedReferences
     try:
         with db.cursor() as cur:
             sql_query = """

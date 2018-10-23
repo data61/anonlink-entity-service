@@ -1,7 +1,6 @@
 import entityservice.database as db
-from entityservice import app
 from entityservice import cache
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.utils import generate_code
 
 from structlog import get_logger
@@ -71,7 +70,7 @@ class Run(object):
     @staticmethod
     def from_json(data, project_id):
         # Get optional fields from JSON data
-        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
+        threshold = data.get('threshold', Config.ENTITY_MATCH_THRESHOLD)
         if threshold <= 0.0 or threshold > 1.0:
             raise InvalidRunParametersException("Threshold parameter out of range")
         logger.info("Threshold for run is: {}".format(threshold))

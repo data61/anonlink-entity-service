@@ -6,16 +6,16 @@ from flask import request
 from structlog import get_logger
 import entityservice.database as db
 from entityservice.async_worker import handle_raw_upload, check_for_executable_runs
-from entityservice import app, fmt_bytes
+from entityservice import fmt_bytes
 from entityservice.tasks.project_cleanup import delete_project
-from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, clks_uploaded_to_project
+from entityservice.utils import safe_fail_request, get_json, generate_code, clks_uploaded_to_project
 
 from entityservice.database import get_db
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
 
 logger = get_logger()
@@ -33,24 +33,21 @@ def projects_post(project):
     There are multiple result types, see documentation for how these effect information leakage
     and the resulting data.
     """
-    logger = get_logger()
+    local_logger = get_logger()
     logger.debug("Processing request to add a new project", project=project)
     try:
         project_model = models.Project.from_json(project)
-        logger = logger.bind(pid=project_model.project_id)
+        local_logger = logger.bind(pid=project_model.project_id)
+
+        # Persist the new project
+        local_logger.info("Adding new project to database")
+        project_model.save(get_db())
+        return NewProjectResponse().dump(project_model), 201
     except models.InvalidProjectParametersException as e:
         safe_fail_request(400, message=e.msg)
-
-    # Persist the new project
-    logger.info("Adding new project to database")
-
-    try:
-        project_model.save(get_db())
     except Exception as e:
-        logger.warn(e)
+        local_logger.warn(e)
         safe_fail_request(500, 'Problem creating new project')
-
-    return NewProjectResponse().dump(project_model), 201
 
 
 def project_delete(project_id):
@@ -111,6 +108,8 @@ def project_clks_post(project_id):
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
 
+    receipt_token = None
+
     if headers['Content-Type'] == "application/json":
         # TODO: Previously, we were accessing the CLKs in a streaming fashion to avoid parsing the json in one hit. This
         #       enables running the web frontend with less memory.
@@ -126,14 +125,14 @@ def project_clks_post(project_id):
         log.info("Handling binary CLK upload")
         try:
             count, size = check_binary_upload_headers(headers)
-        except:
+        except Exception:
             log.warning("Upload failed due to problem with headers in binary upload")
             raise
 
         # TODO actually stream the upload data straight to Minio. Currently we can't because
         # connexion has already read the data before our handler is called!
         # https://github.com/zalando/connexion/issues/592
-        #stream = get_stream()
+        # stream = get_stream()
         stream = BytesIO(request.data)
         if len(request.data) != (6 + size) * count:
             safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
@@ -151,18 +150,19 @@ def check_binary_upload_headers(headers):
     if not all(extra_header in headers for extra_header in {'Hash-Count', 'Hash-Size'}):
         safe_fail_request(400, "Binary upload requires 'Hash-Count' and 'Hash-Size' headers")
 
+    # noinspection PyShadowingBuiltins
     def get_header_int(header, min=None, max=None):
+        # noinspection PyPep8Naming
         INVALID_HEADER_NUMBER = "Invalid value for {} header".format(header)
         try:
             value = int(headers[header])
+            if min is not None and value < min:
+                safe_fail_request(400, INVALID_HEADER_NUMBER)
+            if max is not None and value > max:
+                safe_fail_request(400, INVALID_HEADER_NUMBER)
+            return value
         except ValueError:
             safe_fail_request(400, INVALID_HEADER_NUMBER)
-
-        if min is not None and value < min:
-            safe_fail_request(400, INVALID_HEADER_NUMBER)
-        if max is not None and value > max:
-            safe_fail_request(400, INVALID_HEADER_NUMBER)
-        return value
 
     size = get_header_int('Hash-Size', min=1)
     count = get_header_int('Hash-Count', min=1)
@@ -197,7 +197,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
 
     """
     receipt_token = generate_code()
-    filename = config.RAW_FILENAME_FMT.format(receipt_token)
+    filename = Config.RAW_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with db.DBConn() as conn:
         db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
@@ -211,7 +211,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     logger.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
     mc = connect_to_object_store()
     try:
-        mc.put_object(config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
+        mc.put_object(Config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
     except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError, minio.error.ResponseError):
         logger.info("Mismatch between expected stream length and header info")
         raise ValueError("Mismatch between expected stream length and header info")
@@ -237,7 +237,7 @@ def upload_json_clk_data(dp_id, clk_json):
 
     receipt_token = generate_code()
 
-    filename = config.RAW_FILENAME_FMT.format(receipt_token)
+    filename = Config.RAW_FILENAME_FMT.format(receipt_token)
     logger.info("Storing user {} supplied clks from json".format(dp_id))
 
     count = len(clk_json['clks'])
@@ -250,7 +250,7 @@ def upload_json_clk_data(dp_id, clk_json):
     logger.info("Uploading {} to object store".format(fmt_bytes(num_bytes)))
     mc = connect_to_object_store()
     mc.put_object(
-        config.MINIO_BUCKET,
+        Config.MINIO_BUCKET,
         filename,
         data=buffer,
         length=len(data)

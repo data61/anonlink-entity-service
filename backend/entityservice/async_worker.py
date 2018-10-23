@@ -2,6 +2,7 @@ import csv
 import io
 import os
 import random
+import logging
 
 import minio
 import structlog
@@ -15,25 +16,25 @@ from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, bit_packed_element_size, deserialize_bitarray
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.tasks.base_task import BaseTask
-from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
-    chain_streams
+from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, \
+    similarity_matrix_from_csv_bytes, chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
 
 celery = Celery('tasks',
-                broker=config.BROKER_URL,
-                backend=config.CELERY_RESULT_BACKEND
+                broker=Config.BROKER_URL,
+                backend=Config.CELERY_RESULT_BACKEND
                 )
 
 celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
-celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
-celery.conf.CELERYD_PREFETCH_MULTIPLIER = config.CELERYD_PREFETCH_MULTIPLIER
-celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
-celery.conf.CELERY_ACKS_LATE = config.CELERY_ACKS_LATE
-celery.conf.CELERY_ROUTES = config.CELERY_ROUTES
+celery.conf.CELERY_ANNOTATIONS = Config.CELERY_ANNOTATIONS
+celery.conf.CELERYD_PREFETCH_MULTIPLIER = Config.CELERYD_PREFETCH_MULTIPLIER
+celery.conf.CELERYD_MAX_TASKS_PER_CHILD = Config.CELERYD_MAX_TASKS_PER_CHILD
+celery.conf.CELERY_ACKS_LATE = Config.CELERY_ACKS_LATE
+celery.conf.CELERY_ROUTES = Config.CELERY_ROUTES
 
 structlog.configure(
     processors=[
@@ -49,10 +50,11 @@ structlog.configure(
 )
 
 
+# noinspection PyUnusedLocal
 @task_prerun.connect
 def configure_structlog(sender, body=None, **kwargs):
-    logger = structlog.get_logger()
-    logger.new(
+    local_logger = structlog.get_logger()
+    local_logger.new(
         task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
@@ -71,10 +73,10 @@ def convert_mapping_to_list(permutation):
     Returns a list of the values from the passed dict - in the order
     defined by the keys.
     """
-    l = len(permutation)
+    length = len(permutation)
 
     perm_list = []
-    for j in range(l):
+    for j in range(length):
         perm_list.append(permutation[j])
     return perm_list
 
@@ -90,11 +92,11 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
     mc = connect_to_object_store()
 
     # Input file is text, base64 encoded. One hash per line.
-    raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
+    raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
+    raw_data_response = mc.get_object(Config.MINIO_BUCKET, raw_file)
 
     # Output file is binary
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
+    filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     num_bytes = expected_size * bit_packed_element_size
 
     # Set up streaming processing pipeline
@@ -114,7 +116,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     python_filters = filter_generator()
     # If small enough preload the data into our redis cache
-    if expected_size < config.ENTITY_CACHE_THRESHOLD:
+    if expected_size < Config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
         python_filters = list(python_filters)
         cache.set_deserialized_filter(dp_id, python_filters)
@@ -129,7 +131,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     # Upload to object store
     log.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
-    mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
+    mc.put_object(Config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
         update_filter_data(conn, filename, dp_id)
@@ -213,10 +215,10 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
     # Although now we don't load any CLKS into the redis cache
     # Prime the redis cache
-    #filters1 = cache.get_deserialized_filter(dp_ids[0])
-    #filters2 = cache.get_deserialized_filter(dp_ids[1])
-    #lenf1 = len(filters1)
-    #lenf2 = len(filters2)
+    # filters1 = cache.get_deserialized_filter(dp_ids[0])
+    # filters2 = cache.get_deserialized_filter(dp_ids[1])
+    # lenf1 = len(filters1)
+    # lenf2 = len(filters2)
     size = lenf1 * lenf2
 
     log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
@@ -227,7 +229,7 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
 
     log.debug("Chunking computation task")
-    chunk_size = config.get_task_chunk_size(size, threshold)
+    chunk_size = Config.get_task_chunk_size(size, threshold)
     if chunk_size is None:
         chunk_size = max(lenf1, lenf2)
     log.info("Chunks will contain {} entities per task".format(chunk_size))
@@ -262,19 +264,22 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
         scoring_tasks.append(celery_bug_fix.si())
 
     callback_task = aggregate_filter_chunks.s(project_id, run_id).on_error(on_chord_error.s(run_id=run_id))
+    # noinspection PyUnusedLocal
     mapping_future = chord(scoring_tasks)(callback_task)
 
 
+# noinspection PyUnusedLocal
 @celery.task()
 def celery_bug_fix(*args, **kwargs):
-    '''
+    """
     celery chords only correctly handle errors with at least 2 tasks,
     so we append a celery_bug_fix task.
     https://github.com/celery/celery/issues/3709
-    '''
+    """
     return [0, None]
 
 
+# noinspection PyUnusedLocal
 @celery.task(base=BaseTask, ignore_result=True)
 def on_chord_error(*args, **kwargs):
     logger.info("An error occurred while processing the chord's tasks")
@@ -299,7 +304,6 @@ def save_and_permute(similarity_result, project_id, run_id):
         log.debug("Saving the resulting map data to the db")
         result_id = insert_mapping_result(db, run_id, mapping)
         dp_ids = get_dataprovider_ids(db, project_id)
-
 
     log.info("Mapping result saved to db with result id {}".format(result_id))
 
@@ -330,6 +334,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
     """
     Task which will create a permutation after a mapping has been completed.
 
+    :param run_id:
     :param project_id: The project resource
     :param len_filters1:
     :param len_filters2:
@@ -457,6 +462,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
+    :param run_id:
     :param chunk_info_dp1:
         A tuple containing:
             - object store filename
@@ -521,8 +527,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         # Will write a csv file for now
         mc = connect_to_object_store()
         try:
-            mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
-        except minio.ResponseError as err:
+            mc.fput_object(Config.MINIO_BUCKET, result_filename, result_filename)
+        except minio.ResponseError:
             log.warning("Failed to store result in minio")
             raise
 
@@ -532,16 +538,17 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         result_filename = None
 
     t6 = time.time()
-    log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
-    log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
-        t1 - t0,
-        t2 - t1,
-        t3 - t2,
-        t4 - t3,
-        t4 - t4,
-        t6 - t5,
-        t6 - t0, )
-    )
+    log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed,
+                                                                        len(chunk_results)))
+    log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".
+             format(t1 - t0,
+                    t2 - t1,
+                    t3 - t2,
+                    t4 - t3,
+                    t4 - t4,
+                    t6 - t5,
+                    t6 - t0, )
+             )
 
     return num_results, result_filename
 
@@ -551,7 +558,8 @@ def get_chunk_from_object_store(chunk_info):
     assert bit_packed_element_size == 134, "bit packed size doesn't match expectations"
     chunk_length = chunk_info[2] - chunk_info[1]
     chunk_bytes = bit_packed_element_size * chunk_length
-    chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
+    chunk_stream = mc.get_partial_object(Config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1],
+                                         chunk_bytes)
 
     chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes)
 
@@ -570,58 +578,63 @@ def save_current_progress(comparisons, run_id):
     retry_backoff=True)
 def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
     log = logger.bind(pid=project_id, run_id=run_id)
-    if similarity_result_files is None: return
+    if similarity_result_files is None:
+        return
     mc = connect_to_object_store()
     files = []
     data_size = 0
     for num, filename in similarity_result_files:
         if num > 0:
             files.append(filename)
-            data_size += mc.stat_object(config.MINIO_BUCKET, filename).size
+            data_size += mc.stat_object(Config.MINIO_BUCKET, filename).size
 
     log.debug("Aggregating result chunks from {} files, total size: {}".format(
         len(files), fmt_bytes(data_size)))
 
-    result_file_stream_generator = (mc.get_object(config.MINIO_BUCKET, result_filename) for result_filename in files)
+    result_file_stream_generator = (mc.get_object(Config.MINIO_BUCKET, result_filename) for result_filename in files)
 
     log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
     result_stream = chain_streams(result_file_stream_generator)
 
-    with DBConn() as db:
-        result_type = get_project_column(db, project_id, 'result_type')
+    def QueryDb():
+        with DBConn() as db:
+            result_type = get_project_column(db, project_id, 'result_type')
 
-        # Note: Storing the similarity scores for all result types
-        result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
+            # Note: Storing the similarity scores for all result types
+            result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
 
-        if result_type == "similarity_scores":
-            # Post similarity computation cleanup
-            dp_ids = get_dataprovider_ids(db, project_id)
+            if result_type == "similarity_scores":
+                # Post similarity computation cleanup
+                dp_ids = get_dataprovider_ids(db, project_id)
+                return dict(dp_ids=dp_ids)
 
-        else:
-            # we promote the run to the next stage
-            progress_stage(db, run_id)
-            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+            else:
+                # we promote the run to the next stage
+                progress_stage(db, run_id)
+                lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+                return dict(result_filename=result_filename, lenf1=lenf1, lenf2=lenf2)
+    result = QueryDb()
 
     # DB now committed, we can fire off tasks that depend on the new db state
-    if result_type == "similarity_scores":
+    if 'dp_ids' in result.keys():
         log.info("Deleting intermediate similarity score files from object store")
-        mc.remove_objects(config.MINIO_BUCKET, files)
+        mc.remove_objects(Config.MINIO_BUCKET, files)
         log.debug("Removing clk filters from redis cache")
-        cache.remove_from_cache(dp_ids[0])
-        cache.remove_from_cache(dp_ids[1])
+        cache.remove_from_cache(result['dp_ids'][0])
+        cache.remove_from_cache(result['dp_ids'][1])
 
         # Complete the run
         log.info("Marking run as complete")
         mark_mapping_complete.delay(run_id)
     else:
-        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
+        solver_task.delay(result['result_filename'], project_id, run_id, result['lenf1'], result['lenf2'])
 
 
 @celery.task(base=BaseTask, ignore_result=True)
 def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
     log = logger.bind(pid=project_id, run_id=run_id)
     mc = connect_to_object_store()
-    score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
+    score_file = mc.get_object(Config.MINIO_BUCKET, similarity_scores_filename)
     log.debug("Creating python sparse matrix from bytes data")
     sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
     log.info("Calculating the optimal mapping from similarity matrix")
@@ -649,22 +662,24 @@ def store_similarity_scores(buffer, run_id, length, conn):
                                 - the index of an entity from dataprovider 1
                                 - the index of an entity from dataprovider 1
                                 - the similarity score between 0 and 1 of the best match
-    :param run_id:
     :param length:
+    :param run_id:
+    :param conn:
     """
     log = logger.bind(run_id=run_id)
-    filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(run_id)
+    filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(run_id)
 
     log.info("Storing similarity score results in CSV file: {}".format(filename))
     mc = connect_to_object_store()
     mc.put_object(
-        config.MINIO_BUCKET,
+        Config.MINIO_BUCKET,
         filename,
         data=buffer,
         length=length,
         content_type='application/csv'
     )
 
+    # noinspection PyUnresolvedReferences
     try:
         log.debug("Storing the CSV filename '{}' in the database".format(filename))
         result_id = insert_similarity_score_file(conn, run_id, filename)

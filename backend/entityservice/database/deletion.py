@@ -1,5 +1,4 @@
-from entityservice.database.util import query_db, execute_returning_id
-from entityservice.database.selections import get_project, get_all_objects_for_project
+from entityservice.database.selections import get_all_objects_for_project
 from structlog import get_logger
 
 logger = get_logger()

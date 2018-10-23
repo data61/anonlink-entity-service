@@ -1,10 +1,10 @@
 from flask import request
 from structlog import get_logger
-from entityservice import app, database as db
+from entityservice import database as db
 from entityservice.database import get_db, get_project_column
 from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
-from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort, abort_if_invalid_results_token
+from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 
 logger = get_logger()
 
@@ -84,4 +84,5 @@ def get_permutations_result(project_id, run_id, dbinstance, token, auth_token_ty
     else:
         logger.warning("Didn't recognize the auth token type of {}".format(auth_token_type))
         safe_fail_request(500, "Unknown error. Please report to the developers")
+        result = {}     # Even though the previous call should raise an exception, this ensures that result is set
     return result

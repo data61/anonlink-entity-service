@@ -1,10 +1,11 @@
-from entityservice import database as db, app
+from entityservice import database as db
 from entityservice.database import get_db, get_project_column
 from entityservice.messages import INVALID_ACCESS_MSG
 from entityservice.utils import safe_fail_request
 from structlog import get_logger
 
 logger = get_logger()
+
 
 def abort_if_project_doesnt_exist(project_id):
     resource_exists = db.check_project_exists(get_db(), project_id)
@@ -32,10 +33,7 @@ def is_results_token_valid(project_id, results_token):
 
 
 def is_receipt_token_valid(resource_id, receipt_token):
-    if db.select_dataprovider_id(get_db(), resource_id, receipt_token) is None:
-        return False
-    else:
-        return True
+    return db.select_dataprovider_id(get_db(), resource_id, receipt_token) is not None
 
 
 def abort_if_invalid_results_token(resource_id, results_token):

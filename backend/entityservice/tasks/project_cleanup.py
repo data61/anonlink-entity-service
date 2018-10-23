@@ -3,7 +3,7 @@ from minio.error import MinioError
 import entityservice.database as db
 from entityservice import connect_to_object_store
 from entityservice.tasks.base_task import BaseTask
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 
 import structlog
 import celery
@@ -32,9 +32,8 @@ def delete_project(project_id):
         for filename in object_store_files:
             log.info("Deleting {}".format(filename))
             try:
-                mc.remove_object(config.MINIO_BUCKET, filename)
-            except MinioError as e:
+                mc.remove_object(Config.MINIO_BUCKET, filename)
+            except MinioError:
                 log.warning(f"Error occurred while removing object {filename}. Ignoring.")
 
     log.info("Project resources removed")
-
