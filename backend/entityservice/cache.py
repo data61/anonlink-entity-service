@@ -7,11 +7,11 @@ import structlog
 from entityservice import serialization
 from entityservice import database
 from entityservice.object_store import connect_to_object_store
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 
 logger = structlog.get_logger()
-redis_host = config.REDIS_SERVER
-redis_pass = config.REDIS_PASSWORD
+redis_host = Config.REDIS_SERVER
+redis_pass = Config.REDIS_PASSWORD
 
 
 def connect_to_redis():
@@ -20,7 +20,7 @@ def connect_to_redis():
 
 
 def set_deserialized_filter(dp_id, python_filters):
-    if len(python_filters) <= config.MAX_CACHE_SIZE:
+    if len(python_filters) <= Config.MAX_CACHE_SIZE:
         logger.debug("Pickling filters and storing in redis")
         key = 'clk-pkl-{}'.format(dp_id)
         pickled_filters = pickle.dumps(python_filters)
@@ -51,7 +51,7 @@ def get_deserialized_filter(dp_id):
 
         # Note this uses already calculated popcounts unlike
         # serialization.deserialize_filters()
-        raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
+        raw_data_response = mc.get_object(Config.MINIO_BUCKET, serialized_filters_file)
         python_filters = serialization.binary_unpack_filters(raw_data_response)
 
         set_deserialized_filter(dp_id, python_filters)

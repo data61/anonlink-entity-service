@@ -25,7 +25,7 @@ class ProjectDescription(Schema):
 
 class NewProjectResponse(Schema):
     project_id = fields.String()
-    update_tokens = fields.List(fields.String)
+    update_tokens = fields.List(fields.String())
     result_token = fields.String()
 
 
@@ -64,19 +64,19 @@ class RunStatus(Schema):
     current_stage = fields.Nested(RunStage)
 
 
-class completed(RunStatus):
+class Completed(RunStatus):
     time_started = fields.DateTime(format='iso8601', required=True)
     time_completed = fields.DateTime(format='iso8601', required=True)
 
 
-class queued(RunStatus):
+class Queued(RunStatus):
     time_started = fields.DateTime(format='iso8601', required=True)
 
 
-class running(RunStatus):
+class Running(RunStatus):
     time_started = fields.DateTime(format='iso8601', required=True)
 
 
-class error(RunStatus):
+class Error(RunStatus):
     message = fields.String(required=True)
     detail = fields.String()

@@ -1,10 +1,11 @@
 from flask import request
 from structlog import get_logger
-from entityservice import app, database as db
+from entityservice import database as db
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token
 from entityservice.views.serialization import RunDescription
 
 logger = get_logger()
+
 
 def get(project_id, run_id):
     log = logger.bind(pid=project_id, rid=run_id)

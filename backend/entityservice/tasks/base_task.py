@@ -1,3 +1,5 @@
+from abc import ABC
+
 import celery
 from entityservice.errors import DBResourceMissing
 import psycopg2
@@ -6,15 +8,16 @@ from structlog import get_logger
 logger = get_logger()
 
 
-class BaseTask(celery.Task):
+class BaseTask(celery.Task, ABC):
     """Abstract base class for all tasks in Entity Service"""
 
     abstract = True
+    # noinspection PyUnresolvedReferences
     throws = (DBResourceMissing, psycopg2.IntegrityError)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """Log the exceptions to some central logging system at retry."""
-        #todo captureException(exc)
+        # todo captureException(exc)
         logger.warning("Task {} is retrying after a '{}' exception".format(
             task_id, exc.__class__.__name__))
 
@@ -24,6 +27,7 @@ class BaseTask(celery.Task):
         """Log the exceptions"""
         logger.info("An exception '{}' was raised in a task".format(exc.__class__.__name__))
 
+        # noinspection PyUnresolvedReferences
         if isinstance(exc, (DBResourceMissing, psycopg2.IntegrityError)):
             logger.info("Task was running when a resource was deleted, or db was inconsistent. Ignoring")
             # Note it will still be logged by celery

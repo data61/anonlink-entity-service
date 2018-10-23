@@ -1,12 +1,11 @@
-import logging
 import time
 
 import psycopg2
 import psycopg2.extras
 from flask import current_app, g
 from structlog import get_logger
-from entityservice import database as db
-from entityservice.errors import DatabaseInconsistent, DBResourceMissing
+from entityservice import database
+# noinspection PyPep8Naming
 from entityservice.settings import Config as config
 
 logger = get_logger()
@@ -34,7 +33,9 @@ def connect_db():
 
     logger.debug("Trying to connect to postgres db")
     # We nest the try/except blocks to allow one re-attempt with defaults
+    # noinspection PyUnresolvedReferences
     try:
+        # noinspection PyUnresolvedReferences
         try:
             conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
         except psycopg2.OperationalError:
@@ -72,6 +73,7 @@ class DBConn:
             self.conn.close()
         else:
             # There was an exception in the DBConn body
+            # noinspection PyUnresolvedReferences
             if isinstance(exc_type, psycopg2.Error):
                 # It was a Postgres exception
                 logger.warning(f"{exc_val.diag.severity} - {exc_val.pgerror}")
@@ -80,6 +82,7 @@ class DBConn:
 
 
 def execute_returning_id(cur, query, args):
+    # noinspection PyUnresolvedReferences
     try:
         cur.execute(query, args)
     except psycopg2.Error as e:
@@ -100,5 +103,5 @@ def get_db():
     """
     conn = getattr(g, '_db', None)
     if conn is None:
-        conn = g._db = db.connect_db()
+        conn = g._db = database.connect_db()
     return conn

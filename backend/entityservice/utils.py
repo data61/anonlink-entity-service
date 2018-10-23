@@ -47,9 +47,9 @@ def iterable_to_stream(iterable, buffer_size=io.DEFAULT_BUFFER_SIZE):
 
         def readinto(self, b):
             try:
-                l = len(b)  # We're supposed to return at most this much
+                length = len(b)  # We're supposed to return at most this much
                 chunk = self.leftover or next(iterable)
-                output, self.leftover = chunk[:l], chunk[l:]
+                output, self.leftover = chunk[:length], chunk[length:]
                 b[:len(output)] = output
                 return len(output)
             except StopIteration:
@@ -131,10 +131,10 @@ def safe_fail_request(status_code, message, **kwargs):
     # Connection reset by peer) (See issue #195)
     if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
         chunk_size = 4096
-        for data in request.input_stream.read(chunk_size):
+        for _ in request.input_stream.read(chunk_size):
             pass
     else:
-        data = request.get_json()
+        _ = request.get_json()
     raise ProblemException(status=status_code, detail=message, **kwargs)
 
 

@@ -78,7 +78,7 @@ class Config(object):
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
     @classmethod
-    def get_task_chunk_size(cls, size, threshold):
+    def get_task_chunk_size(cls, size, _):
         # TODO use threshold to scale chunk size
         if size <= cls.SMALL_JOB_SIZE:
             return None
@@ -86,7 +86,8 @@ class Config(object):
             chunk_size = cls.LARGE_COMPARISON_CHUNK_SIZE
         else:
             # Interpolate
-            gradient = (cls.LARGE_COMPARISON_CHUNK_SIZE - cls.SMALL_COMPARISON_CHUNK_SIZE) / (cls.LARGE_JOB_SIZE - cls.SMALL_JOB_SIZE)
+            gradient = (cls.LARGE_COMPARISON_CHUNK_SIZE - cls.SMALL_COMPARISON_CHUNK_SIZE) / \
+                       (cls.LARGE_JOB_SIZE - cls.SMALL_JOB_SIZE)
             chunk_size = cls.SMALL_COMPARISON_CHUNK_SIZE + size * gradient
 
         return math.ceil(math.sqrt(chunk_size))

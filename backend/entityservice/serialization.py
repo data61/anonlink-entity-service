@@ -7,9 +7,8 @@ import struct
 from structlog import get_logger
 from flask import Response
 
-from entityservice import app
 from entityservice.object_store import connect_to_object_store
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
 import concurrent.futures
 
@@ -160,11 +159,11 @@ def get_similarity_scores(filename):
 
     mc = connect_to_object_store()
 
-    details = mc.stat_object(config.MINIO_BUCKET, filename)
+    details = mc.stat_object(Config.MINIO_BUCKET, filename)
     logger.info("Starting download stream of similarity scores.", filename=filename, filesize=details.size)
 
     try:
-        csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
+        csv_data_stream = iterable_to_stream(mc.get_object(Config.MINIO_BUCKET, filename).stream())
 
         # Process the CSV into JSON
         csv_text_stream = io.TextIOWrapper(csv_data_stream, encoding="utf-8")

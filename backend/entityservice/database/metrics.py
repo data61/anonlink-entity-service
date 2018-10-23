@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from entityservice.database.util import query_db, execute_returning_id, logger
+from entityservice.database.util import query_db, execute_returning_id
 
 
 def get_latest_rate(db):
