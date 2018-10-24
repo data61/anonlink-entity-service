@@ -120,6 +120,7 @@ node('docker&&multicore&&ram') {
 
           sh """
           mkdir -p /tmp/esbenchcache
+          chown -R 1000:1000 /tmp/esbenchcache
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
