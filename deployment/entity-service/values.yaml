@@ -72,6 +72,15 @@ api:
       repository: quay.io/n1analytics/entity-app
       tag: "v1.8.2"
 
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
+
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
   pullSecret: n1-quay-pull-secret
