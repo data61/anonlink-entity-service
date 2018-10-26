@@ -272,7 +272,10 @@ node('helm && kubectl') {
                     -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
                     --set api.ingress.enabled=false \
-                    --set api.certManager.enabled=false
+                    --set api.certManager.enabled=false \
+                    --set provision.redis=false \
+                    --set redis.server="shared-redis-master" \
+                    --set redis.password="qDOaxxfrGG"
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 120, unit: "SECONDS")
