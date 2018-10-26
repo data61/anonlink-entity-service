@@ -116,11 +116,17 @@ node('docker&&multicore&&ram') {
           ]
           """
 
-          writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
+          sh '''
+          ./tools/create-benchmark-cache.sh
+          '''
+
+          // We use a custom experiments for jenkins
+          writeJSON file: 'linkage-bench-cache-experiments.json', json: experiments
 
           sh """
-          mkdir -p /tmp/esbenchcache
-          chown -R 1000:1000 /tmp/esbenchcache
+          echo "Copying experiments into cache volume"
+          docker run --rm -v `pwd`:/src -v linkage-benchmark-data:/data busybox cp -r /src/linkage-bench-cache-experiments.json /data
+          echo "Starting benchmarks"
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
@@ -128,7 +134,7 @@ node('docker&&multicore&&ram') {
                 -e DATA_PATH=/cache \
                 -e EXPERIMENT=/cache/experiments.json \
                 -e RESULTS_PATH=/app/results.json \
-                -v /tmp/esbenchcache:/cache \
+                --mount source=linkage-benchmark-data,target=/cache \
                 quay.io/n1analytics/entity-benchmark:latest
 
           docker cp ${benchmarkContainerName}:/app/results.json results.json
