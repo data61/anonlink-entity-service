@@ -46,7 +46,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.8.1"
+      tag: "v1.9.0"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -70,7 +70,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.8.2"
+      tag: "v1.9.0"
 
     resources:
       requests:
@@ -152,7 +152,7 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.8.2"
+    tag: "v1.9.0"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
