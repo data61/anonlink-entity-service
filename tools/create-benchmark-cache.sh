@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 docker volume inspect linkage-benchmark-data &> /dev/null
-if [ \$? -eq 0 ];
+if [ $? -eq 0 ];
 then
   echo "Volume exists"
 else

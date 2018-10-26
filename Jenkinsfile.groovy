@@ -125,14 +125,16 @@ node('docker&&multicore&&ram') {
 
           sh """
           echo "Copying experiments into cache volume"
-          docker run --rm -v `pwd`:/src -v linkage-benchmark-data:/data busybox cp -r /src/linkage-bench-cache-experiments.json /data
+          docker run --rm -v `pwd`:/src \
+                -v linkage-benchmark-data:/data busybox \
+                sh -c "cp -r /src/linkage-bench-cache-experiments.json /data; chown -R 1000:1000 /data"
           echo "Starting benchmarks"
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
                 -e SERVER=${localserver} \
                 -e DATA_PATH=/cache \
-                -e EXPERIMENT=/cache/experiments.json \
+                -e EXPERIMENT=/cache/linkage-bench-cache-experiments.json \
                 -e RESULTS_PATH=/app/results.json \
                 --mount source=linkage-benchmark-data,target=/cache \
                 quay.io/n1analytics/entity-benchmark:latest
