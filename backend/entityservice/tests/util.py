@@ -1,13 +1,15 @@
+import os
+
 import base64
 import datetime
 import math
 import random
 import time
 import warnings
+from bitarray import bitarray
 from enum import IntEnum
 
 import iso8601
-from anonlink.util import generate_clks
 
 from entityservice.tests.config import url
 
@@ -25,9 +27,27 @@ def serialize_filters(filters):
         serialize_bitarray(f[0]) for f in filters
     ]
 
+def generate_bitarray(length):
+    a = bitarray(endian=['little', 'big'][random.randint(0, 1)])
+    a.frombytes(os.urandom(length))
+    return a
 
-def generate_serialized_clks(size):
-    clks = generate_clks(size)
+
+def generate_clks(count, size):
+    """Generate random clks of given size.
+
+    :param count: The number of clks to generate
+    :param size: The number of bytes per generated clk.
+    """
+    res = []
+    for i in range(count):
+        ba = generate_bitarray(size)
+        res.append((ba, i, ba.count()))
+    return res
+
+
+def generate_json_serialized_clks(count, size=128):
+    clks = generate_clks(count, size)
     return [serialize_bitarray(clk) for clk,_ ,_ in clks]
 
 
@@ -35,7 +55,7 @@ def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
 
     datasets = []
     for size in dataset_sizes:
-        datasets.append(generate_serialized_clks(size))
+        datasets.append(generate_json_serialized_clks(size))
 
     overlap_to = math.floor(min(dataset_sizes)*overlap)
     for ds in datasets[1:]:
@@ -120,7 +140,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        if status['state'] in ok_statuses:
+        if status['state'] in ok_statuses or status['state'] == 'error':
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
@@ -297,21 +317,25 @@ def is_run_status(status):
         assert 'relative' in cur_stage['progress']
 
 
-def upload_binary_data(requests, file_path, project_id, token, count, expected_status_code=201):
-    with open(file_path, 'rb') as f:
-        r = requests.post(
-            url + '/projects/{}/clks'.format(project_id),
-            headers={
-                'Authorization': token,
-                'Content-Type': 'application/octet-stream',
-                'Hash-Count': str(count),
-                'Hash-Size':  '128'
-            },
-            data=f
-        )
-    assert r.status_code == expected_status_code
+def upload_binary_data(requests, data, project_id, token, count, size=128, expected_status_code=201):
+    r = requests.post(
+        url + '/projects/{}/clks'.format(project_id),
+        headers={
+            'Authorization': token,
+            'Content-Type': 'application/octet-stream',
+            'Hash-Count': str(count),
+            'Hash-Size': str(size)
+        },
+        data=data
+    )
+    assert r.status_code == expected_status_code, 'I received this instead: {}'.format(r.text)
 
     upload_response = r.json()
     if expected_status_code == 201:
         assert 'receipt_token' in upload_response
     return upload_response
+
+
+def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, status=201):
+    with open(file_path, 'rb') as f:
+        return upload_binary_data(requests, f, project_id, token, count, size, status)

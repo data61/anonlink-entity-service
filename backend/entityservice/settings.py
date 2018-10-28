@@ -80,6 +80,10 @@ class Config(object):
     TRACING_HOST = "jaeger"
     TRACING_PORT = "5775"
 
+    # Encoding size (in bytes)
+    MIN_ENCODING_SIZE = 1
+    MAX_ENCODING_SIZE = 1024
+
     @classmethod
     def get_task_chunk_size(cls, size, threshold):
         # TODO use threshold to scale chunk size

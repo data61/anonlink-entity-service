@@ -36,21 +36,27 @@ def deserialize_bitarray(bytes_data):
     return ba
 
 
-"""
-The binary format used:
+def binary_format(encoding_size):
+    """
+    The binary format used:
 
-- "!" Use network byte order (big-endian).
-- "1I" Store the index in 4 bytes as an unsigned int.
-- "128s" Store the 128 raw bytes of the bitarray
-- "1H" The popcount stored in 2 bytes (unsigned short)
+    - "!" Use network byte order (big-endian).
+    - "1I" Store the index in 4 bytes as an unsigned int.
+    - "128s" Store the 128 raw bytes of the bitarray
+    - "1H" The popcount stored in 2 bytes (unsigned short)
 
-https://docs.python.org/3/library/struct.html#format-strings
-"""
-bit_packing_fmt = "!1I128s1H"
-bit_packed_element_size = struct.calcsize(bit_packing_fmt)
+    https://docs.python.org/3/library/struct.html#format-strings
+    """
+    bit_packing_fmt = f"!1I{encoding_size}s1H"
+    bit_packed_element_size = struct.calcsize(bit_packing_fmt)
+    return bit_packing_fmt, bit_packed_element_size
 
 
-def binary_pack_filters(filters):
+# Mostly for test purposes we assume 128B encodings
+#bit_packing_fmt, bit_packed_element_size = binary_format(128)
+
+
+def binary_pack_filters(filters, encoding_size=128):
     """Efficient packing of bloomfilters with index and popcount.
 
     :param filters:
@@ -59,6 +65,8 @@ def binary_pack_filters(filters):
     :return:
         An iterable of bytes.
     """
+    bit_packing_fmt, _ = binary_format(encoding_size)
+
     for ba_clk, indx, count in filters:
         yield struct.pack(
           bit_packing_fmt,
@@ -68,21 +76,24 @@ def binary_pack_filters(filters):
         )
 
 
-def binary_unpack_one(data):
+def binary_unpack_one(data, encoding_size=128):
+    bit_packing_fmt, _ = binary_format(encoding_size)
     index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
-    assert len(clk_bytes) == 128
+    assert len(clk_bytes) == encoding_size
 
     ba = bitarray(endian="big")
     ba.frombytes(clk_bytes)
     return ba, index, count
 
 
-def binary_unpack_filters(streamable_data, max_bytes=None):
+def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=128):
+    _, bit_packed_element_size = binary_format(encoding_size)
     filters = []
     bytes_consumed = 0
+    logger.info(f"Unpacking stream of encodings with size {encoding_size} - packed as {bit_packed_element_size}")
     for raw_bytes in streamable_data.stream(bit_packed_element_size):
-        assert len(raw_bytes) == 134
-        filters.append(binary_unpack_one(raw_bytes))
+        assert len(raw_bytes) == (encoding_size + 6), f"Got {len(raw_bytes)} bytes but expected {encoding_size + 6}"
+        filters.append(binary_unpack_one(raw_bytes, encoding_size))
 
         bytes_consumed += bit_packed_element_size
         if max_bytes is not None and bytes_consumed >= max_bytes:
