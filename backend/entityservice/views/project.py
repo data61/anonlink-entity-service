@@ -92,7 +92,7 @@ def project_get(project_id):
 
 def project_clks_post(project_id):
     """
-    Update a project to provide data.
+    Update a project to provide encoded PII data.
     """
     log = logger.bind(pid=project_id)
     headers = request.headers
@@ -117,15 +117,17 @@ def project_clks_post(project_id):
         #       However, as connexion is very, very strict about input validation when it comes to json, it will always
         #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
         #       json into memory. -> issue #184
-        receipt_token, raw_file = upload_json_clk_data(dp_id, get_json())
+        encoding_size = 128
+        receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), encoding_size)
         # Schedule a task to deserialize the hashes, and carry
         # out a pop count.
-        handle_raw_upload.delay(project_id, dp_id, receipt_token)
+        handle_raw_upload.delay(project_id, dp_id, receipt_token, encoding_size)
         log.info("Job scheduled to handle user uploaded hashes")
     elif headers['Content-Type'] == "application/octet-stream":
         log.info("Handling binary CLK upload")
         try:
             count, size = check_binary_upload_headers(headers)
+            log.info(f"Headers tell us to expect {count} encodings of {size} bytes")
         except:
             log.warning("Upload failed due to problem with headers in binary upload")
             raise
@@ -135,6 +137,8 @@ def project_clks_post(project_id):
         # https://github.com/zalando/connexion/issues/592
         #stream = get_stream()
         stream = BytesIO(request.data)
+        # 6 bytes from the index + popcount
+        log.debug(f"Stream size is {len(request.data)} B, and we expect {(6 + size)* count} B")
         if len(request.data) != (6 + size) * count:
             safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
         try:
@@ -164,10 +168,9 @@ def check_binary_upload_headers(headers):
             safe_fail_request(400, INVALID_HEADER_NUMBER)
         return value
 
-    size = get_header_int('Hash-Size', min=1)
+    size = get_header_int('Hash-Size', min=config.MIN_ENCODING_SIZE, max=config.MAX_ENCODING_SIZE)
     count = get_header_int('Hash-Count', min=1)
-    if size != 128:
-        safe_fail_request(400, "We don't currently support a CLK size other than 128 bytes")
+
     return count, size
 
 
@@ -200,15 +203,15 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     filename = config.RAW_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with db.DBConn() as conn:
-        db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
-    logger.info("Storing supplied binary clks")
+        db.insert_filter_data(conn, filename, dp_id, receipt_token, count, size)
+    logger.info(f"Storing supplied binary clks of individual size {size}")
 
     num_bytes = count * (size + 6)
 
     logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
 
     # Upload to object store
-    logger.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
+    logger.info(f"Uploading {count} binary encodings to object store. Total size: {fmt_bytes(num_bytes)}")
     mc = connect_to_object_store()
     try:
         mc.put_object(config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
@@ -228,7 +231,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     return receipt_token
 
 
-def upload_json_clk_data(dp_id, clk_json):
+def upload_json_clk_data(dp_id, clk_json, size=128):
     """
     non-streaming version of the upload_clk_data from above.
     """
@@ -257,6 +260,6 @@ def upload_json_clk_data(dp_id, clk_json):
     )
 
     with db.DBConn() as conn:
-        db.insert_filter_data(conn, filename, dp_id, receipt_token, count)
+        db.insert_filter_data(conn, filename, dp_id, receipt_token, count, size)
 
     return receipt_token, filename

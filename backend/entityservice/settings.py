@@ -77,6 +77,10 @@ class Config(object):
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
+    # Encoding size (in bytes)
+    MIN_ENCODING_SIZE = 1
+    MAX_ENCODING_SIZE = 1024
+
     @classmethod
     def get_task_chunk_size(cls, size, threshold):
         # TODO use threshold to scale chunk size

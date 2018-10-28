@@ -99,7 +99,7 @@ CREATE TYPE UPLOADSTATE AS ENUM (
   'error'
 );
 
--- The uploaded CLK data for each dataprovider
+-- The encoded PII data for each dataprovider
 CREATE TABLE bloomingdata (
   id    SERIAL PRIMARY KEY,
 
@@ -115,7 +115,11 @@ CREATE TABLE bloomingdata (
 
   state UPLOADSTATE NOT NULL,
 
-  size  INT         NOT NULL
+  -- Size in bytes of the encoding
+  size  INT         NOT NULL,
+
+  -- Number of encoded entries.
+  count  INT         NOT NULL
 );
 
 

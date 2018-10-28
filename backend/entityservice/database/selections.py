@@ -157,7 +157,7 @@ def get_run_result(db, resource_id):
 
 def get_project_dataset_sizes(db, project_id):
     sql_query = """
-        SELECT bloomingdata.size
+        SELECT bloomingdata.size, bloomingdata.count
         FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
@@ -165,12 +165,14 @@ def get_project_dataset_sizes(db, project_id):
         ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id], one=False)
-    return [r['size'] for r in query_result]
+    dataset_lengths = [r['count'] for r in query_result]
+    encoding_sizes = [r['size'] for r in query_result]
+    return dataset_lengths, encoding_sizes
 
 
 def get_smaller_dataset_size_for_project(db, project_id):
     sql_query = """
-        SELECT MIN(bloomingdata.size) as smaller
+        SELECT MIN(bloomingdata.count) as smaller
         FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
@@ -185,7 +187,7 @@ def get_total_comparisons_for_project(db, project_id):
     :return total number of comparisons for this project
     """
     sql_query = """
-        SELECT bloomingdata.size as rows
+        SELECT bloomingdata.count as rows
         from dataproviders, bloomingdata
         where
           bloomingdata.dp=dataproviders.id AND
@@ -212,7 +214,7 @@ def get_dataprovider_id(db, update_token):
 
 
 def get_bloomingdata_column(db, dp_id, column):
-    assert column in {'ts', 'token', 'file', 'state', 'size'}
+    assert column in {'ts', 'token', 'file', 'state', 'size', 'count'}
     sql_query = """
         SELECT {} 
         FROM bloomingdata
@@ -234,9 +236,9 @@ def get_filter_metadata(db, dp_id):
 
 def get_number_of_hashes(db, dp_id):
     """
-    :return: The size of the uploaded raw clks.
+    :return: The count of the uploaded encodings.
     """
-    return get_bloomingdata_column(db, dp_id, 'size')
+    return get_bloomingdata_column(db, dp_id, 'count')
 
 
 def get_permutation_result(db, dp_id, run_id):

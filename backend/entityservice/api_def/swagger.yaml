@@ -272,7 +272,7 @@ paths:
   '/projects/{project_id}/clks':
     post:
       operationId: entityservice.views.project.project_clks_post
-      summary: Upload CLK data to a linkage project.
+      summary: Upload encoded PII data to a linkage project.
       consumes:
         - application/json
         - application/octet-stream

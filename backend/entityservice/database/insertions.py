@@ -44,17 +44,17 @@ def insert_dataprovider(cur, auth_token, project_id):
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
 
 
-def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
-    logger.info("Adding CLK data to database")
+def insert_filter_data(db, clks_filename, dp_id, receipt_token, count, size):
+    logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
         INSERT INTO bloomingdata
-        (dp, token, file, size, state)
+        (dp, token, file, count, size, state)
         VALUES
-        (%s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s)
         """
 
     with db.cursor() as cur:
-        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
+        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, size, 'pending'])
 
     set_dataprovider_upload_state(db, dp_id, True)
 
@@ -142,7 +142,11 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
 
     logger.info("Updating database with info about hashes")
     with db.cursor() as cur:
-        cur.execute(sql_query, [state, clks_filename, dp_id,])
+        cur.execute(sql_query, [
+            state,
+            clks_filename,
+            dp_id,
+        ])
 
 
 def update_run_chunk(db, resource_id, chunk_size):

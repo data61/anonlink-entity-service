@@ -4,6 +4,7 @@ import os
 import random
 
 import minio
+import struct
 import structlog
 from celery import Celery, chord
 from celery.signals import task_prerun
@@ -14,7 +15,7 @@ from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
-    binary_pack_filters, bit_packed_element_size, deserialize_bitarray
+    binary_pack_filters, deserialize_bitarray, binary_format
 from entityservice.settings import Config as config
 from entityservice.tasks.base_task import BaseTask
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
@@ -58,8 +59,11 @@ def configure_structlog(sender, body=None, **kwargs):
     )
 
 
+if config.DEBUG:
+    logging.getLogger('celery').setLevel(logging.DEBUG)
 logger = structlog.wrap_logger(logging.getLogger('celery'))
 logger.info("Setting up celery worker")
+logger.debug("Debug logging enabled")
 
 
 def convert_mapping_to_list(permutation):
@@ -80,12 +84,12 @@ def convert_mapping_to_list(permutation):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def handle_raw_upload(project_id, dp_id, receipt_token):
+def handle_raw_upload(project_id, dp_id, receipt_token, encoding_size):
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user uploaded file")
     with DBConn() as db:
-        expected_size = get_number_of_hashes(db, dp_id)
-    log.info("Expecting to handle {} hashes".format(expected_size))
+        expected_count = get_number_of_hashes(db, dp_id)
+    log.info(f"Expecting to handle {expected_count} hashes")
 
     mc = connect_to_object_store()
 
@@ -95,7 +99,8 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     # Output file is binary
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    num_bytes = expected_size * bit_packed_element_size
+    _, bit_packed_element_size = binary_format(encoding_size)
+    num_bytes = expected_count * bit_packed_element_size
 
     # Set up streaming processing pipeline
     buffered_stream = iterable_to_stream(raw_data_response.stream())
@@ -110,25 +115,25 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
             yield (ba, i, ba.count())
             clkcounts.append(ba.count())
 
-        log.info("Processed {} hashes".format(len(clkcounts)))
+        log.info(f"Processed {len(clkcounts)} hashes")
 
     python_filters = filter_generator()
     # If small enough preload the data into our redis cache
-    if expected_size < config.ENTITY_CACHE_THRESHOLD:
+    if expected_count < config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
         python_filters = list(python_filters)
         cache.set_deserialized_filter(dp_id, python_filters)
     else:
         log.info("Not caching clk data as it is too large")
 
-    packed_filters = binary_pack_filters(python_filters)
+    packed_filters = binary_pack_filters(python_filters, encoding_size)
 
     packed_filter_stream = iterable_to_stream(packed_filters)
 
     log.debug("Creating binary file with index, base64 encoded CLK, popcount")
 
     # Upload to object store
-    log.info("Uploading binary packed clks to object store. Size: {}".format(fmt_bytes(num_bytes)))
+    log.info(f"Uploading {expected_count} binary packed encodings to object store. Total Size: {fmt_bytes(num_bytes)}")
     mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
@@ -202,26 +207,23 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     conn = connect_db()
 
-    dataset_sizes = get_project_dataset_sizes(conn, project_id)
-    if len(dataset_sizes) < 2:
+    dataset_sizes, encoding_sizes = get_project_dataset_sizes(conn, project_id)
+    if len(dataset_sizes) < 2 or len(encoding_sizes) < 2:
         log.warning("Unexpected number of dataset sizes in db. Stopping")
         update_run_mark_failure(conn, run_id)
         return
     else:
         lenf1, lenf2 = dataset_sizes
 
-    # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
-    # Although now we don't load any CLKS into the redis cache
-    # Prime the redis cache
-    #filters1 = cache.get_deserialized_filter(dp_ids[0])
-    #filters2 = cache.get_deserialized_filter(dp_ids[1])
-    #lenf1 = len(filters1)
-    #lenf2 = len(filters2)
+    encoding_size = encoding_sizes[0]
+    if not all(encoding_size == enc_size for enc_size in encoding_sizes):
+        log.warning("Mismatch in encoding sizes. Stopping")
+        update_run_mark_failure(conn, run_id)
+        return
+
     size = lenf1 * lenf2
 
     log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-
-    log.info("Computing similarity using greedy method")
 
     filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
     filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
@@ -255,8 +257,14 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
         len(job_chunks), chunk_size))
 
     # Prepare the Celery Chord that will compute all the similarity scores:
-    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for
-                     chunk_dp1, chunk_dp2 in job_chunks]
+    scoring_tasks = [compute_filter_similarity.si(
+        chunk_dp1,
+        chunk_dp2,
+        project_id,
+        run_id,
+        threshold,
+        encoding_size
+    ) for chunk_dp1, chunk_dp2 in job_chunks]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
@@ -299,7 +307,6 @@ def save_and_permute(similarity_result, project_id, run_id):
         log.debug("Saving the resulting map data to the db")
         result_id = insert_mapping_result(db, run_id, mapping)
         dp_ids = get_dataprovider_ids(db, project_id)
-
 
     log.info("Mapping result saved to db with result id {}".format(result_id))
 
@@ -453,7 +460,7 @@ def mark_mapping_complete(run_id):
 
 
 @celery.task(base=BaseTask)
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold):
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, encoding_size):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -465,6 +472,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param chunk_info_dp2:
     :param project_id:
     :param threshold:
+    :param encoding_size: The size in bytes of each encoded entry
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
@@ -475,9 +483,10 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
             log.info("Skipping as resource not found.")
             return None
 
+
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
-    chunk_dp1, chunk_dp1_size = get_chunk_from_object_store(chunk_info_dp1)
+    chunk_dp1, chunk_dp1_size = get_chunk_from_object_store(chunk_info_dp1, encoding_size)
 
     t1 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
@@ -546,9 +555,12 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     return num_results, result_filename
 
 
-def get_chunk_from_object_store(chunk_info):
+def get_chunk_from_object_store(chunk_info, encoding_size=128):
     mc = connect_to_object_store()
-    assert bit_packed_element_size == 134, "bit packed size doesn't match expectations"
+
+    bit_packing_fmt, bit_packed_element_size = binary_format(encoding_size)
+
+    assert bit_packed_element_size == (encoding_size + 6), "bit packed size doesn't match expectations"
     chunk_length = chunk_info[2] - chunk_info[1]
     chunk_bytes = bit_packed_element_size * chunk_length
     chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
