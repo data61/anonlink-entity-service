@@ -175,7 +175,7 @@ texinfo_documents = [
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'clkhash': ('http://clkhash.readthedocs.io/en/latest/', None),
-    'anonlink': ('http://anonlink.readthedocs.io/en/latest/', None)
+    #'anonlink': ('http://anonlink.readthedocs.io/en/latest/', None)
 }
 
 
