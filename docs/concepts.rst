@@ -33,9 +33,9 @@ CLKs for use with this service's `api <./api.html>`_.
 Bloom Filter Format
 -------------------
 
-A Bloom filter is simply a `bitarray` - currently the length is fixed to 1024 bit.
+A Bloom filter is simply an encoding of PII as a `bitarray`.
 
-This can easily be represented as 128 bytes (each being an 8 bit number between 0 and 255).
+This can easily be represented as bytes (each being an 8 bit number between 0 and 255).
 We serialize by `base64` encoding the raw bytes of the bit array.
 
 An example with a 64 bit filter::
@@ -43,7 +43,7 @@ An example with a 64 bit filter::
     # bloom filters binary value
     '0100110111010000101111011111011111011000110010101010010010100110'
 
-    # which corrosponds to the following bytes
+    # which corresponds to the following bytes
     [77, 208, 189, 247, 216, 202, 164, 166]
 
     # which gets base64 encoded to

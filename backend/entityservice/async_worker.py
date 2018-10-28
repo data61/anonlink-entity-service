@@ -60,7 +60,6 @@ def configure_structlog(sender, body=None, **kwargs):
         task_name=sender.__name__
     )
 
-
 @task_prerun.connect()
 def task_prerunn(sender, body=None, **kwargs):
     task = kwargs['task']
@@ -76,9 +75,9 @@ def task_postrun(sender, body=None, **kwargs):
         logger.info("post run of task {}".format(task.name))
 
 
+logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 if config.DEBUG:
-    logging.getLogger('celery').setLevel(logging.DEBUG)
-logger = structlog.wrap_logger(logging.getLogger('celery'))
+    logging.getLogger('celery.es').setLevel(logging.DEBUG)
 logger.info("Setting up celery worker")
 logger.debug("Debug logging enabled")
 
@@ -517,7 +516,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     t1 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
-    chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
+    chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2, encoding_size)
     t2 = time.time()
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
@@ -593,7 +592,7 @@ def get_chunk_from_object_store(chunk_info, encoding_size=128):
     chunk_bytes = bit_packed_element_size * chunk_length
     chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
 
-    chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes)
+    chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes, encoding_size)
 
     return chunk_data, chunk_length
 

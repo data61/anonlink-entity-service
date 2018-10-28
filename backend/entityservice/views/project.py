@@ -210,11 +210,11 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
 
     """
     receipt_token = generate_code()
-    filename = config.RAW_FILENAME_FMT.format(receipt_token)
+    filename = config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with db.DBConn() as conn:
         db.insert_filter_data(conn, filename, dp_id, receipt_token, count, size)
-    logger.info(f"Storing supplied binary clks of individual size {size}")
+    logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
 
     num_bytes = count * (size + 6)
 
