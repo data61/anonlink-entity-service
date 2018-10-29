@@ -2,7 +2,7 @@ version: '2.1'
 services:
 
   db:
-    image: postgres:10.3
+    image: postgres:11
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
@@ -20,7 +20,7 @@ services:
 
 
   redis:
-    image: redis:3.2
+    image: redis:5.0
 
 
   # The flask application server
