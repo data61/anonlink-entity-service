@@ -145,6 +145,13 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     encoding_size = len(peek[0])//8
     python_filters = itertools.chain([peek], _python_filters)
 
+    # This is the first time we've seen the encoding size so need to check it
+    if not config.MIN_ENCODING_SIZE < encoding_size < config.MAX_ENCODING_SIZE:
+        log.info("Setting dp's upload state to error as encoding size out of bounds")
+        with DBConn() as conn:
+            update_filter_data(conn, '', dp_id, state='error')
+        return
+
     # Output file is our custom binary packed file
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
     _, bit_packed_element_size = binary_format(encoding_size)

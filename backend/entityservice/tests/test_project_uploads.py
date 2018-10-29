@@ -137,16 +137,18 @@ def test_project_json_data_upload_with_too_small_encoded_size(requests):
 def test_project_json_data_upload_with_too_large_encoded_size(requests):
     new_project_data, r1, r2 = create_project_upload_fake_data(
         requests,
-        [500, 500],
+        [50, 50],
         overlap=0.95,
         result_type='mapping',
         encoding_size=4096
     )
-    project_description_1 = requests.get(
+    time.sleep(2)
+    project_description = requests.get(
         url + '/projects/{}'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['result_token']}
     ).json()
-    # TODO need a way to surface the error!
+    assert 'error' in project_description
+    assert project_description['error']
 
 
 def test_project_binary_data_invalid_buffer_size(requests):

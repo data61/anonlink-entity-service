@@ -758,6 +758,9 @@ definitions:
             type: string
           parties_contributed:
             type: number
+          error:
+            type: boolean
+
 
   NewProjectResponse:
     properties:

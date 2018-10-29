@@ -7,7 +7,7 @@ import itertools
 from entityservice.tests.util import create_project_upload_fake_data, delete_project
 
 
-THROTTLE_SLEEP = 0.1
+THROTTLE_SLEEP = 0.15
 
 
 @pytest.fixture(scope='session')

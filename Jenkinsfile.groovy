@@ -63,8 +63,18 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh """
-        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} up -d \
-          db minio redis backend db_init worker nginx tests
+        docker-compose \
+            -f tools/docker-compose.yml \
+            -f tools/ci.yml \
+            -p ${composeProject} up -d \
+            db minio redis backend db_init worker nginx tests
+        """
+        echo("Scaling to 2 workers")
+        sh """
+        docker-compose \
+            -f tools/docker-compose.yml \
+            -f tools/ci.yml \
+            -p ${composeProject} up -d --scale worker=2
         """
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
@@ -85,6 +95,7 @@ node('docker&&multicore&&ram') {
           sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
           sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
           sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
+          sh("docker logs " + composeProject + "_worker_2" + " &> worker_2.log")
           sh("docker logs " + composeProject + "_db_1" + " &> db.log")
 
           archiveArtifacts artifacts: "*.log", fingerprint: false

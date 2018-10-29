@@ -144,7 +144,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
-        time.sleep(0.2)
+        time.sleep(0.5)
 
     return status
 

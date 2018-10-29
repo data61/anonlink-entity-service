@@ -56,7 +56,7 @@ def check_run_exists(db, project_id, run_id):
     return query_result['count'] == 1
 
 
-def get_number_parties_uploaded(db, resource_id):
+def get_number_parties_uploaded(db, project_id):
     sql_query = """
         SELECT COUNT(*)
         FROM dataproviders, bloomingdata
@@ -65,8 +65,21 @@ def get_number_parties_uploaded(db, resource_id):
           bloomingdata.dp = dataproviders.id AND
           dataproviders.uploaded = TRUE
         """
-    query_result = query_db(db, sql_query, [resource_id], one=True)
+    query_result = query_db(db, sql_query, [project_id], one=True)
     return query_result['count']
+
+
+def get_encoding_error_count(db, project_id):
+    sql_query = """
+        SELECT dataproviders.id
+        FROM dataproviders, bloomingdata
+        WHERE
+          dataproviders.project = %s AND
+          bloomingdata.dp = dataproviders.id AND
+          bloomingdata.state != 'error'
+        """
+    return query_db(db, sql_query, [project_id], one=False)
+
 
 
 def get_number_parties_ready(db, resource_id):
