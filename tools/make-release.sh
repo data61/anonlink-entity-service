@@ -4,7 +4,7 @@
 
 set -e
 cd $(dirname "$0")
-export APPVERSION=$(cat ../backend/VERSION)
+export APPVERSION=$(cat ../backend/entityservice/VERSION)
 
 rm -fr /tmp/n1-es
 mkdir /tmp/n1-es

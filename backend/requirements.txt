@@ -19,3 +19,7 @@ connexion==1.4
 marshmallow==3.0.0b10
 structlog
 colorama
+opentracing<2
+jaeger-client
+Flask-Opentracing
+opentracing_instrumentation

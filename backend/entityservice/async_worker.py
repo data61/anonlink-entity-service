@@ -6,8 +6,9 @@ import random
 import minio
 import structlog
 from celery import Celery, chord
-from celery.signals import task_prerun
-
+from celery.signals import task_prerun, task_postrun, worker_init
+import opentracing
+from entityservice.tracing import initialize_tracer
 import anonlink
 
 from entityservice import cache
@@ -16,10 +17,12 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
     binary_pack_filters, bit_packed_element_size, deserialize_bitarray
 from entityservice.settings import Config as config
-from entityservice.tasks.base_task import BaseTask
+from entityservice.tasks.base_task import BaseTask, TracedTask
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
+
+
 
 celery = Celery('tasks',
                 broker=config.BROKER_URL,
@@ -35,6 +38,7 @@ celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
 celery.conf.CELERY_ACKS_LATE = config.CELERY_ACKS_LATE
 celery.conf.CELERY_ROUTES = config.CELERY_ROUTES
 
+
 structlog.configure(
     processors=[
         structlog.stdlib.add_logger_name,
@@ -49,13 +53,29 @@ structlog.configure(
 )
 
 
-@task_prerun.connect
+@task_prerun.connect()
 def configure_structlog(sender, body=None, **kwargs):
     logger = structlog.get_logger()
     logger.new(
         task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
+
+
+@task_prerun.connect()
+def task_prerunn(sender, body=None, **kwargs):
+    task = kwargs['task']
+    if task.name is not None:
+        logger.debug("pre-run of {0} sender: {1}".format(task.name, sender))
+
+
+@task_postrun.connect()
+def task_postrun(sender, body=None, **kwargs):
+    # note that this hook runs even when there has been an exception thrown by the task
+    task = kwargs['task']
+    if task:
+        logger.info("post run of task {}".format(task.name))
+
 
 
 logger = structlog.wrap_logger(logging.getLogger('celery'))
@@ -79,10 +99,11 @@ def convert_mapping_to_list(permutation):
     return perm_list
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def handle_raw_upload(project_id, dp_id, receipt_token):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
+def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user uploaded file")
+
     with DBConn() as db:
         expected_size = get_number_of_hashes(db, dp_id)
     log.info("Expecting to handle {} hashes".format(expected_size))
@@ -138,11 +159,12 @@ def handle_raw_upload(project_id, dp_id, receipt_token):
 
     if clks_uploaded_to_project(project_id, check_data_ready=True):
         log.info("All parties' data present. Scheduling any queued runs")
-        check_for_executable_runs.delay(project_id)
+        print('and the span is: {}'.format(handle_raw_upload.span))
+        check_for_executable_runs.delay(project_id, handle_raw_upload.get_serialized_span())
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def check_for_executable_runs(project_id):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id',))
+def check_for_executable_runs(project_id, parent_span=None):
     """
     This is called when a run is posted (if project is ready for runs), and also
     after all dataproviders have uploaded CLKs, and the CLKS are ready.
@@ -160,11 +182,11 @@ def check_for_executable_runs(project_id):
             log.info('Queueing run for computation', run_id=run_id)
             # Record that the run has reached a new stage
             progress_stage(conn, run_id)
-            compute_run.delay(project_id, run_id)
+            compute_run.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def compute_run(project_id, run_id):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
+def compute_run(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Sanity check that we need to compute run")
 
@@ -191,17 +213,17 @@ def compute_run(project_id, run_id):
         log.debug("Data providers: {}".format(dp_ids))
         assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
 
-    compute_similarity.delay(project_id, run_id, dp_ids, threshold)
+    compute_similarity.delay(project_id, run_id, dp_ids, threshold, compute_run.get_serialized_span())
     log.info("CLK similarity computation scheduled")
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def compute_similarity(project_id, run_id, dp_ids, threshold):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'threshold'))
+def compute_similarity(project_id, run_id, dp_ids, threshold, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+    current_span = compute_similarity.span
     conn = connect_db()
-
     dataset_sizes = get_project_dataset_sizes(conn, project_id)
     if len(dataset_sizes) < 2:
         log.warning("Unexpected number of dataset sizes in db. Stopping")
@@ -209,22 +231,14 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
         return
     else:
         lenf1, lenf2 = dataset_sizes
-
-    # WOW Optiization TODO - We load all CLKS into memory in this task AND into redis!
-    # Although now we don't load any CLKS into the redis cache
-    # Prime the redis cache
-    #filters1 = cache.get_deserialized_filter(dp_ids[0])
-    #filters2 = cache.get_deserialized_filter(dp_ids[1])
-    #lenf1 = len(filters1)
-    #lenf2 = len(filters2)
     size = lenf1 * lenf2
 
     log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-
-    log.info("Computing similarity using greedy method")
+    current_span.log_kv({"event": 'get-dataset-sizes'})
 
     filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
     filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
+    current_span.log_kv({"event": 'get-metadata'})
 
     log.debug("Chunking computation task")
     chunk_size = config.get_task_chunk_size(size, threshold)
@@ -253,16 +267,18 @@ def compute_similarity(project_id, run_id, dp_ids, threshold):
 
     log.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
         len(job_chunks), chunk_size))
+    current_span.log_kv({"event": "chunking", "chunksize": chunk_size, 'num_chunks': len(job_chunks)})
+    span_serialized = compute_similarity.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
-    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold) for
+    scoring_tasks = [compute_filter_similarity.si(chunk_dp1, chunk_dp2, project_id, run_id, threshold, span_serialized) for
                      chunk_dp1, chunk_dp2 in job_chunks]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
 
-    callback_task = aggregate_filter_chunks.s(project_id, run_id).on_error(on_chord_error.s(run_id=run_id))
-    mapping_future = chord(scoring_tasks)(callback_task)
+    callback_task = aggregate_filter_chunks.s(project_id, run_id, parent_span=span_serialized).on_error(on_chord_error.s(run_id=run_id))
+    future = chord(scoring_tasks)(callback_task)
 
 
 @celery.task()
@@ -283,8 +299,8 @@ def on_chord_error(*args, **kwargs):
     logger.warning("Marked run as failure")
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def save_and_permute(similarity_result, project_id, run_id):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
+def save_and_permute(similarity_result, project_id, run_id, parent_span):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Saving and possibly permuting data")
     mapping = similarity_result['mapping']
@@ -300,7 +316,6 @@ def save_and_permute(similarity_result, project_id, run_id):
         result_id = insert_mapping_result(db, run_id, mapping)
         dp_ids = get_dataprovider_ids(db, project_id)
 
-
     log.info("Mapping result saved to db with result id {}".format(result_id))
 
     if result_type == "permutations":
@@ -310,12 +325,13 @@ def save_and_permute(similarity_result, project_id, run_id):
                 project_id,
                 run_id,
                 similarity_result['lenf1'],
-                similarity_result['lenf2']
+                similarity_result['lenf2'],
+                save_and_permute.get_serialized_span()
             )
         )
     else:
         log.debug("Mark mapping job as complete")
-        mark_mapping_complete.delay(run_id)
+        mark_mapping_complete.delay(run_id, save_and_permute.get_serialized_span())
 
     # Post similarity computation cleanup
     log.debug("Removing clk filters from redis cache")
@@ -325,8 +341,8 @@ def save_and_permute(similarity_result, project_id, run_id):
     calculate_comparison_rate.delay()
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'len_filters1', 'len_filters2'))
+def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_span):
     """
     Task which will create a permutation after a mapping has been completed.
 
@@ -336,6 +352,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
 
     """
     log = logger.bind(pid=project_id, run_id=run_id)
+
     db = connect_db()
     mapping_str = get_run_result(db, run_id)
 
@@ -439,11 +456,11 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2):
         log.info("Mask saved")
     db.commit()
 
-    mark_mapping_complete.delay(run_id)
+    mark_mapping_complete.delay(run_id, permute_mapping_data.get_serialized_span())
 
 
-@celery.task(base=BaseTask, ignore_results=True)
-def mark_mapping_complete(run_id):
+@celery.task(base=TracedTask, ignore_results=True, args_as_tags=('run_id',))
+def mark_mapping_complete(run_id, parent_span=None):
     log = logger.bind(run_id=run_id)
     log.debug("Marking run complete")
     with DBConn() as db:
@@ -452,8 +469,8 @@ def mark_mapping_complete(run_id):
     log.info("Run marked as complete")
 
 
-@celery.task(base=BaseTask)
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold):
+@celery.task(base=TracedTask, args_as_tags=('project_id', 'run_id', 'threshold'))
+def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, parent_span=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -465,10 +482,11 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param chunk_info_dp2:
     :param project_id:
     :param threshold:
+    :param parent_span_context: A serialized opentracing span context.
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
-
+    span = compute_filter_similarity.span
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
         if not check_run_exists(db, project_id, run_id):
@@ -483,13 +501,15 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
     chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2)
     t2 = time.time()
-
+    span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
+    span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
     chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
                                                                      threshold=threshold,
                                                                      k=min(chunk_dp1_size, chunk_dp2_size),
                                                                      use_python=False)
     t3 = time.time()
+    span.log_kv({'event': 'similarities calculated'})
 
     # Update the number of comparisons completed
     comparisons_computed = chunk_dp1_size * chunk_dp2_size
@@ -530,8 +550,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         os.remove(result_filename)
     else:
         result_filename = None
-
     t6 = time.time()
+
     log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
     log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
         t1 - t0,
@@ -542,7 +562,6 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         t6 - t5,
         t6 - t0, )
     )
-
     return num_results, result_filename
 
 
@@ -564,16 +583,18 @@ def save_current_progress(comparisons, run_id):
 
 
 @celery.task(
-    base=BaseTask,
+    base=TracedTask,
     ignore_result=True,
     autoretry_for=(minio.ResponseError,),
-    retry_backoff=True)
-def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
+    retry_backoff=True,
+    args_as_tags=('project_id', 'run_id'))
+def aggregate_filter_chunks(similarity_result_files, project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     if similarity_result_files is None: return
     mc = connect_to_object_store()
     files = []
     data_size = 0
+
     for num, filename in similarity_result_files:
         if num > 0:
             files.append(filename)
@@ -612,15 +633,18 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
 
         # Complete the run
         log.info("Marking run as complete")
-        mark_mapping_complete.delay(run_id)
+        mark_mapping_complete.delay(run_id, aggregate_filter_chunks.get_serialized_span())
     else:
-        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2)
+        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2, aggregate_filter_chunks.get_serialized_span())
 
 
-@celery.task(base=BaseTask, ignore_result=True)
-def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
+
+
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
+def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2, parent_span):
     log = logger.bind(pid=project_id, run_id=run_id)
     mc = connect_to_object_store()
+
     score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
     log.debug("Creating python sparse matrix from bytes data")
     sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)
@@ -638,7 +662,7 @@ def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2):
         "lenf1": lenf1,
         "lenf2": lenf2
     }
-    save_and_permute.delay(res, project_id, run_id)
+    save_and_permute.delay(res, project_id, run_id, solver_task.get_serialized_span())
 
 
 def store_similarity_scores(buffer, run_id, length, conn):
