@@ -10,7 +10,8 @@ from flask import request
 from connexion import ProblemException
 from structlog import get_logger
 
-from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, get_number_parties_ready
+from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, \
+    get_number_parties_ready, check_project_exists
 
 logger = get_logger()
 

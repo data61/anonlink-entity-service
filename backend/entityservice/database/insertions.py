@@ -140,13 +140,27 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
           dp = %s
         """
 
-    logger.info("Updating database with info about hashes")
+    logger.info("Updating database with info about encodings")
     with db.cursor() as cur:
         cur.execute(sql_query, [
             state,
             clks_filename,
             dp_id,
         ])
+
+
+def update_encoding_size(db, dp_id, size):
+    sql_query = """
+        UPDATE bloomingdata
+        SET
+          size = %s
+        WHERE
+          dp = %s
+        """
+
+    logger.info("Updating database with info about encodings")
+    with db.cursor() as cur:
+        cur.execute(sql_query, [size, dp_id,])
 
 
 def update_run_chunk(db, resource_id, chunk_size):

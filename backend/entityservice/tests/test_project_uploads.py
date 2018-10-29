@@ -1,11 +1,12 @@
 import io
 import os
+import pytest
 
 from entityservice.serialization import binary_format, binary_pack_filters
 from entityservice.tests.config import url
 from entityservice.tests.util import generate_json_serialized_clks, upload_binary_data_from_file, post_run, \
     get_run_result, \
-    generate_clks, upload_binary_data
+    generate_clks, upload_binary_data, create_project_upload_fake_data, get_run, create_project_upload_data
 
 
 def test_project_single_party_data_uploaded(requests):
@@ -48,30 +49,73 @@ def test_project_binary_data_uploaded(requests):
         assert result['mapping'][str(i)] == str(i)
 
 
-def test_project_binary_data_upload_with_different_encoded_size(requests):
-    new_project_data = requests.post(url + '/projects',
-                                     json={
-                                         'schema': {},
-                                         'result_type': 'mapping',
-                                     }).json()
+def test_project_binary_data_upload_with_different_encoded_size(requests, encoding_size):
 
-    encoding_size = 64
-    g1 = binary_pack_filters(generate_clks(1000, encoding_size), encoding_size)
-    g2 = binary_pack_filters(generate_clks(1000, encoding_size), encoding_size)
+    new_project_data = requests.post(url + '/projects',
+                                 json={
+                                     'schema': {},
+                                     'result_type': 'mapping',
+                                 }).json()
+
+    g1 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
+    g2 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
+    g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)
 
     def convert_generator_to_bytes(g):
         return b''.join([b for b in g])
 
-    f1 = convert_generator_to_bytes(g1)
-    f2 = convert_generator_to_bytes(g2)
+    shared_entity = next(g3)
+    f1 = convert_generator_to_bytes(g1) + shared_entity
+    f2 = shared_entity + convert_generator_to_bytes(g2)
 
-    upload_binary_data(requests, f1, new_project_data['project_id'], new_project_data['update_tokens'][0], 1000, encoding_size)
-    upload_binary_data(requests, f2, new_project_data['project_id'], new_project_data['update_tokens'][1], 1000, encoding_size)
+    upload_binary_data(requests, f1, new_project_data['project_id'], new_project_data['update_tokens'][0], 500, encoding_size)
+    upload_binary_data(requests, f2, new_project_data['project_id'], new_project_data['update_tokens'][1], 500, encoding_size)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
     assert 'mapping' in result
-    print(result)
+    assert result['mapping']['499'] == '0'
+
+
+def test_project_json_data_upload_with_various_encoded_sizes(requests, encoding_size):
+    new_project_data, r1, r2 = create_project_upload_fake_data(
+        requests,
+        [500, 500],
+        overlap=0.95,
+        result_type='mapping',
+        encoding_size=encoding_size
+    )
+
+    run_id = post_run(requests, new_project_data, 0.9)
+    result = get_run_result(requests, new_project_data, run_id, wait=True)
+    assert 'mapping' in result
+    assert len(result['mapping']) > 450
+
+
+def test_project_json_data_upload_with_mismatched_encoded_size(requests):
+    d1 = generate_json_serialized_clks(500, 64)
+    d2 = generate_json_serialized_clks(500, 256)
+
+    new_project_data, r1, r2 = create_project_upload_data(requests, d1, d2, result_type='mapping')
+
+    run_id = post_run(requests, new_project_data, 0.9)
+    with pytest.raises(AssertionError):
+        get_run_result(requests, new_project_data, run_id, wait=True)
+
+
+def test_project_json_data_upload_with_invalid_encoded_size(requests):
+
+    new_project_data, r1, r2 = create_project_upload_fake_data(
+        requests,
+        [500, 500],
+        overlap=0.95,
+        result_type='mapping',
+        encoding_size=20    # not multiple of 8
+    )
+
+    run_id = post_run(requests, new_project_data, 0.9)
+    with pytest.raises(AssertionError):
+        get_run_result(requests, new_project_data, run_id, wait=True)
 
 
 def test_project_binary_data_invalid_buffer_size(requests):

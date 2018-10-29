@@ -1,3 +1,5 @@
+import itertools
+
 import csv
 import io
 import os
@@ -72,7 +74,7 @@ def task_postrun(sender, body=None, **kwargs):
     # note that this hook runs even when there has been an exception thrown by the task
     task = kwargs['task']
     if task:
-        logger.info("post run of task {}".format(task.name))
+        logger.debug("post run of task {}".format(task.name))
 
 
 logger = structlog.wrap_logger(logging.getLogger('celery.es'))
@@ -100,30 +102,29 @@ def convert_mapping_to_list(permutation):
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
-def handle_raw_upload(project_id, dp_id, receipt_token, encoding_size, parent_span=None):
+def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     log = logger.bind(pid=project_id, dp_id=dp_id)
-    log.info("Handling user uploaded file")
+    log.info("Handling user provided base64 encodings")
 
     with DBConn() as db:
+        if not check_project_exists(db, project_id):
+            log.info("Project deleted, stopping immediately")
+            return
         expected_count = get_number_of_hashes(db, dp_id)
-    log.info(f"Expecting to handle {expected_count} hashes")
 
+    log.info(f"Expecting to handle {expected_count} encodings")
     mc = connect_to_object_store()
 
-    # Input file is text, base64 encoded. One hash per line.
+    # Input file is line separated base64 record encodings.
     raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
-
-    # Output file is binary
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    _, bit_packed_element_size = binary_format(encoding_size)
-    num_bytes = expected_count * bit_packed_element_size
 
     # Set up streaming processing pipeline
     buffered_stream = iterable_to_stream(raw_data_response.stream())
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
     clkcounts = []
+    encoding_sizes = []
 
     def filter_generator():
         log.debug("Deserializing json filters")
@@ -131,10 +132,24 @@ def handle_raw_upload(project_id, dp_id, receipt_token, encoding_size, parent_sp
             ba = deserialize_bitarray(line)
             yield (ba, i, ba.count())
             clkcounts.append(ba.count())
+            encoding_sizes.append(len(ba))
 
         log.info(f"Processed {len(clkcounts)} hashes")
+        if not all(encoding_sizes[0] == encsize for encsize in encoding_sizes):
+            raise ValueError("Encodings were not all the same size")
 
-    python_filters = filter_generator()
+    # We peek at the first element as we need the encoding size
+    # for the ret of our processing pipeline
+    _python_filters = filter_generator()
+    peek = next(_python_filters)
+    encoding_size = len(peek[0])//8
+    python_filters = itertools.chain([peek], _python_filters)
+
+    # Output file is our custom binary packed file
+    filename = config.BIN_FILENAME_FMT.format(receipt_token)
+    _, bit_packed_element_size = binary_format(encoding_size)
+    num_bytes = expected_count * bit_packed_element_size
+
     # If small enough preload the data into our redis cache
     if expected_count < config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
@@ -144,20 +159,18 @@ def handle_raw_upload(project_id, dp_id, receipt_token, encoding_size, parent_sp
         log.info("Not caching clk data as it is too large")
 
     packed_filters = binary_pack_filters(python_filters, encoding_size)
-
     packed_filter_stream = iterable_to_stream(packed_filters)
 
-    log.debug("Creating binary file with index, base64 encoded CLK, popcount")
-
     # Upload to object store
-    log.info(f"Uploading {expected_count} binary packed encodings to object store. Total Size: {fmt_bytes(num_bytes)}")
+    log.info(f"Uploading {expected_count} encodings of size {encoding_size} to object store. " +
+             f"Total Size: {fmt_bytes(num_bytes)}")
     mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
         update_filter_data(conn, filename, dp_id)
+        update_encoding_size(conn, dp_id, encoding_size)
 
     # Now work out if all parties have added their data
-
     if clks_uploaded_to_project(project_id, check_data_ready=True):
         log.info("All parties' data present. Scheduling any queued runs")
         print('and the span is: {}'.format(handle_raw_upload.span))
@@ -192,8 +205,11 @@ def compute_run(project_id, run_id, parent_span=None):
     log.debug("Sanity check that we need to compute run")
 
     with DBConn() as conn:
-        res = get_run(conn, run_id)
+        if not check_project_exists(conn, project_id):
+            log.info("Project not found. Skipping")
+            return
 
+        res = get_run(conn, run_id)
         if res is None:
             log.info(f"Run not found. Skipping")
             raise RunDeleted(run_id)
@@ -225,6 +241,10 @@ def compute_similarity(project_id, run_id, dp_ids, threshold, parent_span=None):
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     current_span = compute_similarity.span
     conn = connect_db()
+
+    if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
+        log.info("Skipping as project or run not found in database.")
+        return
 
     dataset_sizes, encoding_sizes = get_project_dataset_sizes(conn, project_id)
     if len(dataset_sizes) < 2 or len(encoding_sizes) < 2:
@@ -506,8 +526,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     span = compute_filter_similarity.span
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
-        if not check_run_exists(db, project_id, run_id):
-            log.info("Skipping as resource not found.")
+        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
+            log.info("Stopping as project or run not found in database.")
             return None
 
     t0 = time.time()
@@ -598,7 +618,7 @@ def get_chunk_from_object_store(chunk_info, encoding_size=128):
 
 
 def save_current_progress(comparisons, run_id):
-    logger.debug("Progress. Compared {} CLKS".format(comparisons), run_id=run_id)
+    logger.debug(f"Progress. Compared {comparisons} CLKS", run_id=run_id)
     cache.update_progress(comparisons, run_id)
 
 
@@ -641,7 +661,7 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, parent_
         else:
             # we promote the run to the next stage
             progress_stage(db, run_id)
-            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+            (lenf1, lenf2), (enc1, enc2) = get_project_dataset_sizes(db, project_id)
 
     # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
@@ -658,13 +678,11 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, parent_
         solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2, aggregate_filter_chunks.get_serialized_span())
 
 
-
-
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
 def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2, parent_span):
     log = logger.bind(pid=project_id, run_id=run_id)
     mc = connect_to_object_store()
-
+    solver_task.span.log_kv({'lenf1': lenf1, 'lenf2': lenf2, 'filename': similarity_scores_filename})
     score_file = mc.get_object(config.MINIO_BUCKET, similarity_scores_filename)
     log.debug("Creating python sparse matrix from bytes data")
     sparse_matrix = similarity_matrix_from_csv_bytes(score_file.data)

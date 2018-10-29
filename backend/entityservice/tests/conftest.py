@@ -35,6 +35,7 @@ def requests():
 ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
 THRESHOLDS = [0.6, 0.9, 0.99]
 OVERLAPS = [0.0, 0.2, 0.6, 0.9, 1.0]
+ENCODING_SIZES = [8, 16, 24, 32, 64, 72, 80, 128, 256, 512]
 SIZES = itertools.chain(
     # Default project sizes
     itertools.product([1, 100, 1000], repeat=2),
@@ -53,6 +54,7 @@ def create_project_response(requests, size, overlap, result_type):
 
     {
         "project_id": "ID",
+        "upload-mode": "BINARY" | "JSON",
         "size": [size 1, size 2],
         "overlap": float between 0 and 1,
         "result_token": "TOKEN",
@@ -65,6 +67,7 @@ def create_project_response(requests, size, overlap, result_type):
         requests, size, overlap=overlap, result_type=result_type)
     project.update({
         'size': size,
+        'upload-mode': 'JSON',
         'overlap': overlap,
         'dp_1': dp_1,
         'dp_2': dp_2
@@ -86,6 +89,11 @@ def similarity_scores_project(request, requests):
     prj = create_project_response(requests, size, overlap, 'similarity_scores')
     yield prj
     delete_project(requests, prj)
+
+
+@pytest.fixture(scope='function', params=ENCODING_SIZES)
+def encoding_size(request):
+    yield request.param
 
 
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)

@@ -51,11 +51,10 @@ def generate_json_serialized_clks(count, size=128):
     return [serialize_bitarray(clk) for clk,_ ,_ in clks]
 
 
-def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
-
+def generate_overlapping_clk_data(dataset_sizes, overlap=0.9, encoding_size=128):
     datasets = []
-    for size in dataset_sizes:
-        datasets.append(generate_json_serialized_clks(size))
+    for count in dataset_sizes:
+        datasets.append(generate_json_serialized_clks(count, encoding_size))
 
     overlap_to = math.floor(min(dataset_sizes)*overlap)
     for ds in datasets[1:]:
@@ -84,8 +83,8 @@ def create_project_no_data(requests, result_type='mapping'):
     return new_project_response.json()
 
 
-def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping'):
-    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap)
+def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):
+    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap, encoding_size=encoding_size)
     return create_project_upload_data(requests, d1, d2, result_type=result_type)
 
 
@@ -144,7 +143,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
-        time.sleep(0.1)
+        time.sleep(0.2)
 
     return status
 
@@ -165,7 +164,8 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     on slower CI systems.
     """
     size_1, size_2 = size
-    time.sleep(5 + size_1 * size_2 / assumed_rate)
+    time.sleep(3)
+    time.sleep(size_1 * size_2 / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):
@@ -225,7 +225,7 @@ def get_run(requests, project, run_id, expected_status = 200):
     return req.json()
 
 
-def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=30):
+def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=60):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
         final_status = wait_for_run_completion(requests, project, run_id, result_token, timeout)

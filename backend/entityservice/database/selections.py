@@ -241,6 +241,13 @@ def get_number_of_hashes(db, dp_id):
     return get_bloomingdata_column(db, dp_id, 'count')
 
 
+def get_encoding_size(db, dp_id):
+    """
+    :return: The count of the uploaded encodings.
+    """
+    return get_bloomingdata_column(db, dp_id, 'size')
+
+
 def get_permutation_result(db, dp_id, run_id):
     # Note doesn't include the mask, just the permutation for given dp
     sql_query = """
