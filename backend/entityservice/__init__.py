@@ -1,31 +1,22 @@
 import logging
 import pathlib
 
-import connexion
 from flask import g
 import structlog
 
-# Define the WSGI application object
-# Note we explicitly do this before importing our own code
+# Import the WSGI application object
+# Note we explicitly do this before importing the rest of our own code
+from entityservice.wsgi_app import con_app, app
 
-con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
-app = con_app.app
-
+from entityservice import database as db, con_app, app
+from entityservice.serialization import generate_scores
+from entityservice.object_store import connect_to_object_store
+from entityservice.settings import Config
+from entityservice.utils import fmt_bytes, iterable_to_stream
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
     import ijson
-
-# noinspection PyPep8
-from entityservice import database as db
-# noinspection PyPep8
-from entityservice.serialization import generate_scores
-# noinspection PyPep8
-from entityservice.object_store import connect_to_object_store
-# noinspection PyPep8
-from entityservice.settings import Config
-# noinspection PyPep8
-from entityservice.utils import fmt_bytes, iterable_to_stream
 
 
 con_app.add_api(pathlib.Path('swagger.yaml'),
@@ -77,7 +68,7 @@ def initdb_command():
 
 @app.before_request
 def before_request():
-    # log = logger.new(request=str(uuid.uuid4())[:8])
+    logger.new(request=str(uuid.uuid4())[:8])
     g.db = db.connect_db()
 
 

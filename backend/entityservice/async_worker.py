@@ -596,7 +596,7 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
     log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
     result_stream = chain_streams(result_file_stream_generator)
 
-    def QueryDb():
+    def query_database():
         with DBConn() as db:
             result_type = get_project_column(db, project_id, 'result_type')
 
@@ -613,10 +613,10 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id):
                 progress_stage(db, run_id)
                 lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
                 return dict(result_filename=result_filename, lenf1=lenf1, lenf2=lenf2)
-    result = QueryDb()
+    result = query_database()
 
     # DB now committed, we can fire off tasks that depend on the new db state
-    if 'dp_ids' in result.keys():
+    if 'dp_ids' in result:
         log.info("Deleting intermediate similarity score files from object store")
         mc.remove_objects(Config.MINIO_BUCKET, files)
         log.debug("Removing clk filters from redis cache")
