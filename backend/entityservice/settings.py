@@ -77,8 +77,8 @@ class Config(object):
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
-    TRACING_HOST = "jaeger"
-    TRACING_PORT = "5775"
+    TRACING_HOST = os.environ.get("TRACING_HOST", "jaeger")
+    TRACING_PORT = os.environ.get("TRACING_PORT", "5775")
 
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = int(os.environ.get('MIN_ENCODING_SIZE', '8'))
