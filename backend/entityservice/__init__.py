@@ -7,8 +7,6 @@ import structlog
 
 # Define the WSGI application object
 # Note we explicitly do this before importing our own code
-from entityservice.tracing import initialize_tracer
-
 con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
 app = con_app.app
 
@@ -18,8 +16,8 @@ except ImportError:
     import ijson
 
 
+from entityservice.tracing import initialize_tracer
 from flask_opentracing import FlaskTracer
-
 from entityservice import database as db
 from entityservice.serialization import generate_scores
 from entityservice.object_store import connect_to_object_store

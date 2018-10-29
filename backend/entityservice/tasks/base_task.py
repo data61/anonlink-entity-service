@@ -44,11 +44,12 @@ class BaseTask(celery.Task):
 
 class TracedTask(BaseTask):
     """
-    wraps an opentracing span around a task execution.
+    Wrap an opentracing span around a task execution.
+
     Adds two properties to a task:
         - tracer: the task-local tracer
         - span: the wrapper span
-    thus you can do things like:
+    Thus you can do things like:
         task.tracer.create_span('thus_span', child_of=task.span) as thus_span:
         or
         task.span.log_kv()
@@ -91,7 +92,6 @@ class TracedTask(BaseTask):
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
         time.sleep(2) # jaeger bug
-        #print('closing task tracer')
         self.tracer.close()
         self._tracer = None
         return super(TracedTask, self).after_return(status, retval, task_id, args, kwargs, einfo)

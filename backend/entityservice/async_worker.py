@@ -52,19 +52,6 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
 
-# from celery.signals import celeryd_init
-#
-# @celeryd_init.connect()
-# def configure_workers(sender=None, conf=None, **kwargs):
-#     print('before: {}'.format(opentracing.tracer))
-#     initialize_tracer('anonlink-workerle-{}'.format(sender))
-#     print('configured {}'.format(sender))
-#     print('tracer initialized: {}'.format(opentracing.tracer))
-#     with opentracing.tracer.start_span('hello_world') as span:
-#         print('sending span...')
-#         span.log_kv({'sender': str(sender)})
-
-
 
 @task_prerun.connect()
 def configure_structlog(sender, body=None, **kwargs):
@@ -76,18 +63,10 @@ def configure_structlog(sender, body=None, **kwargs):
 
 
 @task_prerun.connect()
-def configure_tracer(sender, body=None, **kwargs):
-    # Note this is called for EVERY task...
-    #tracer = create_tracer('anonlink-worker')
-    #print('then: {}'.format(tracer))
-    pass
-
-
-@task_prerun.connect()
 def task_prerunn(sender, body=None, **kwargs):
     task = kwargs['task']
     if task.name is not None:
-        logger.info("pre-run of {0} sender: {1}".format(task.name, sender))
+        logger.debug("pre-run of {0} sender: {1}".format(task.name, sender))
 
 
 @task_postrun.connect()
@@ -96,9 +75,7 @@ def task_postrun(sender, body=None, **kwargs):
     task = kwargs['task']
     if task:
         logger.info("post run of task {}".format(task.name))
-    #logger.info('closing tracer...')
-    #time.sleep(2)  # weird jaeger client bug, otherwise the root span will not be sent...
-    #tracer.close()
+
 
 
 logger = structlog.wrap_logger(logging.getLogger('celery'))
@@ -123,7 +100,6 @@ def convert_mapping_to_list(permutation):
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
-#@trace(args_as_tags=['project_id', 'dp_id'])
 def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user uploaded file")

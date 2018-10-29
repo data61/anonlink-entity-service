@@ -23,6 +23,7 @@ def initialize_tracer(service_name='anonlink'):
     # Note this call also sets opentracing.tracer
     return jaeger_config.initialize_tracer()
 
+
 def create_tracer(service_name='worker'):
     jaeger_config = jaeger_client.Config(
         config={
@@ -66,6 +67,7 @@ def trace(_func=None, *, span_name=None, args_as_tags=None, parent_span_arg='par
     def trace_decorator(func):
         with opentracing.tracer.start_span('in deco'):
             pass
+
         @functools.wraps(func)
         def tracing_wrapper(*args, **kwargs):
             op_name = func.__name__ if span_name is None else span_name
