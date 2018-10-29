@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    component: "{{ .Values.workers.name }}"
+    component: "{{ .Values.workers.name }}-highmemory"
     tier: backend
   name: {{ .Release.Name }}-highmemory-worker
 spec:
@@ -21,7 +21,7 @@ spec:
     {{- end }}
       labels:
         {{- include "es.release_labels" . | indent 8 }}
-        component: "{{ .Values.workers.name }}"
+        component: "{{ .Values.workers.name }}-highmemory"
         tier: backend
     spec:
       containers:

@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: entityservice-timing-test
+  name: entityservice-testing-bench
 spec:
   completions: 1
   parallelism: 1
@@ -12,23 +12,34 @@ spec:
         tier: aux
     spec:
       restartPolicy: Never
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /cache"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /cache
       containers:
       - name: entitytester
         image: quay.io/n1analytics/entity-benchmark:v0.1.0-feature-benchmark-container
         env:
           - name: SERVER
-            value: "http://testing.es.data61.xyz"
+            value: "https://testing.es.data61.xyz"
           - name: TIMEOUT
             value: "1200"
           - name: EXPERIMENT
             value: "/config/experiments.json"
           - name: DATA_PATH
-            value: "/data"
+            value: "/cache"
+          - name: SCHEMA
+            value: "/cache/schema.json"
+          - name: RESULTS_PATH
+            value: "/app/results.json"
         volumeMounts:
           - name: experiments-volume
             mountPath: /config
           - name: data-volume
-            mountPath: /data
+            mountPath: /cache
       imagePullSecrets:
         - name: n1-quay-pull-secret
       volumes:

@@ -33,8 +33,33 @@ against the configured ``SERVER``. The default experiments (listed below) are se
 
 The output will be printed and saved to a file pointed to by ``RESULTS_PATH`` (e.g. to ``/app/results.json``).
 
+Cache Volume
+~~~~~~~~~~~~
+
 For speeding up benchmarking when running multiple times you may wish to mount a volume at the ``DATA_PATH``
-to store the downloaded test data.
+to store the downloaded test data. Note the container runs as user ``1000``, so any mounted volume must be read
+and writable by that user. To create a volume using docker::
+
+    docker volume create linkage-benchmark-data
+
+To copy data from a local directory and change owner::
+
+    docker run --rm -v `pwd`:/src \
+        -v linkage-benchmark-data:/data busybox \
+        sh -c "cp -r /src/linkage-bench-cache-experiments.json /data; chown -R 1000:1000 /data"
+
+To run the benchmarks using the cache volume::
+
+    docker run \
+        --name ${benchmarkContainerName} \
+        --network ${networkName} \
+        -e SERVER=${localserver} \
+        -e DATA_PATH=/cache \
+        -e EXPERIMENT=/cache/linkage-bench-cache-experiments.json \
+        -e RESULTS_PATH=/app/results.json \
+        --mount source=linkage-benchmark-data,target=/cache \
+        quay.io/n1analytics/entity-benchmark:latest
+
 
 Experiments
 -----------
