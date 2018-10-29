@@ -130,7 +130,7 @@ def project_clks_post(project_id):
             receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), encoding_size, span)
             # Schedule a task to deserialize the hashes, and carry
             # out a pop count.
-            handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
+            handle_raw_upload.delay(project_id, dp_id, receipt_token, encoding_size, parent_span=serialize_span(span))
             log.info("Job scheduled to handle user uploaded hashes")
         elif headers['Content-Type'] == "application/octet-stream":
             span.set_tag("content-type", 'binary')
