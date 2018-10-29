@@ -18,7 +18,8 @@ import os.path
 def get_version(image):
     assert image in {'app', 'nginx', 'benchmark'}
     if image == 'app':
-        file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'backend', 'entityservice', 'VERSION'))
+        file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'backend', 'entityservice',
+                                                 'VERSION'))
     elif image == 'nginx':
         file_path = os.path.abspath(os.path.join(__file__, os.path.pardir, os.path.pardir, 'frontend', 'VERSION'))
     elif image == 'benchmark':

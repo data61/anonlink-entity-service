@@ -1,5 +1,6 @@
 import logging
 import pathlib
+import uuid
 
 from flask import g
 import structlog
