@@ -79,14 +79,14 @@ spec:
             httpGet:
               path: /status
               port: entity-flask
-            initialDelaySeconds: 10
-            periodSeconds: 300
+            initialDelaySeconds: 300
+            periodSeconds: 120
             timeoutSeconds: 30
           readinessProbe:
             httpGet:
               path: /version
               port: entity-flask
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 60
             timeoutSeconds: 5
       imagePullSecrets:

@@ -22,6 +22,8 @@ spec:
       containers:
       - name: db-init
         image: {{ .Values.api.dbinit.image.repository }}:{{ .Values.api.dbinit.image.tag }}
+        resources:
+{{ toYaml .Values.api.dbinit.resources | indent 10 }}
         env:
           - name: DATABASE_SERVER
             value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"

@@ -117,18 +117,28 @@ node('docker&&multicore&&ram') {
           ]
           """
 
-          writeJSON file: '/tmp/esbenchcache/experiments.json', json: experiments
+          // Create a docker volume to use as a cache (if it doesn't exist)
+          sh '''
+          ./tools/create-benchmark-cache.sh
+          '''
+
+          // We use a custom experiments for jenkins
+          writeJSON file: 'linkage-bench-cache-experiments.json', json: experiments
 
           sh """
-          mkdir -p /tmp/esbenchcache
+          echo "Copying experiments into cache volume"
+          docker run --rm -v `pwd`:/src \
+                -v linkage-benchmark-data:/data busybox \
+                sh -c "cp -r /src/linkage-bench-cache-experiments.json /data; chown -R 1000:1000 /data"
+          echo "Starting benchmarks"
           docker run \
                 --name ${benchmarkContainerName} \
                 --network ${networkName} \
                 -e SERVER=${localserver} \
                 -e DATA_PATH=/cache \
-                -e EXPERIMENT=/cache/experiments.json \
+                -e EXPERIMENT=/cache/linkage-bench-cache-experiments.json \
                 -e RESULTS_PATH=/app/results.json \
-                -v /tmp/esbenchcache:/cache \
+                --mount source=linkage-benchmark-data,target=/cache \
                 quay.io/n1analytics/entity-benchmark:latest
 
           docker cp ${benchmarkContainerName}:/app/results.json results.json
@@ -261,19 +271,11 @@ node('helm && kubectl') {
                 helm version
                 helm dependency update
                 helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
-                    -f values.yaml -f test-versions.yaml \
+                    -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
-                    --set api.app.image.tag=${TAG} \
-                    --set workers.image.tag=${TAG} \
-                    --set workers.replicaCount=2 \
-                    --set workers.resources.requests.memory="256Mi" \
-                    --set workers.highmemory.replicaCount=1 \
-                    --set workers.highmemory.resources.requests.memory="1Gi" \
-                    --set workers.highmemory.resources.requests.cpu="50m" \
-                    --set minio.mode="standalone" \
-                    --set minio.persistence.size="4Gi" \
                     --set api.ingress.enabled=false \
-                    --set api.certManager.enabled=false
+                    --set api.certManager.enabled=false \
+                    --set provision.redis=true
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 120, unit: "SECONDS")
