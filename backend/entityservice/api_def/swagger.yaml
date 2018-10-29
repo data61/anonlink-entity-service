@@ -288,6 +288,9 @@ paths:
         When the last party successfully uploads their data any existing project runs are queued
         for execution.
 
+        The encoding sizes must all match. Note a minimum and maximum encoding size can be set at
+        deployment time, and currently anonlink requires the size to be a multiple of 8.
+
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
 

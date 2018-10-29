@@ -81,8 +81,8 @@ class Config(object):
     TRACING_PORT = "5775"
 
     # Encoding size (in bytes)
-    MIN_ENCODING_SIZE = 8
-    MAX_ENCODING_SIZE = 1024
+    MIN_ENCODING_SIZE = int(os.environ.get('MIN_ENCODING_SIZE', '8'))
+    MAX_ENCODING_SIZE = int(os.environ.get('MAX_ENCODING_SIZE', '1024'))
 
     @classmethod
     def get_task_chunk_size(cls, size, threshold):

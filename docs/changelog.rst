@@ -7,6 +7,14 @@ Changelog
 Version 1.9.0
 -------------
 
+Adds support for (almost) arbitrary sized encodings. A minimum and
+maximum can be set at deployment time, and currently anonlink requires
+the size to be a multiple of 8.
+
+
+Version 1.9.0
+-------------
+
 - minio and redis services are now optional for kubernetes deployment.
 - Introduction of a high memory worker and associated task queue.
 - Fix issue where we could start tasks twice.
