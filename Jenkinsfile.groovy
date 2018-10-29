@@ -116,6 +116,7 @@ node('docker&&multicore&&ram') {
           ]
           """
 
+          // Create a docker volume to use as a cache (if it doesn't exist)
           sh '''
           ./tools/create-benchmark-cache.sh
           '''
