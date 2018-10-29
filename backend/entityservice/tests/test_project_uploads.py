@@ -1,3 +1,5 @@
+import time
+
 import io
 import os
 import pytest
@@ -116,6 +118,35 @@ def test_project_json_data_upload_with_invalid_encoded_size(requests):
     run_id = post_run(requests, new_project_data, 0.9)
     with pytest.raises(AssertionError):
         get_run_result(requests, new_project_data, run_id, wait=True)
+
+
+def test_project_json_data_upload_with_too_small_encoded_size(requests):
+    new_project_data, r1, r2 = create_project_upload_fake_data(
+        requests,
+        [500, 500],
+        overlap=0.95,
+        result_type='mapping',
+        encoding_size=4
+    )
+
+    run_id = post_run(requests, new_project_data, 0.9)
+    with pytest.raises(AssertionError):
+        get_run_result(requests, new_project_data, run_id, wait=True)
+
+
+def test_project_json_data_upload_with_too_large_encoded_size(requests):
+    new_project_data, r1, r2 = create_project_upload_fake_data(
+        requests,
+        [500, 500],
+        overlap=0.95,
+        result_type='mapping',
+        encoding_size=4096
+    )
+    project_description_1 = requests.get(
+        url + '/projects/{}'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['result_token']}
+    ).json()
+    # TODO need a way to surface the error!
 
 
 def test_project_binary_data_invalid_buffer_size(requests):

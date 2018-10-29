@@ -88,7 +88,7 @@ def project_get(project_id):
 
     # Expose the number of data providers who have uploaded clks
     parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-    log.info("{} parties have contributed hashes".format(parties_contributed))
+    log.info(f"{parties_contributed} parties have contributed hashes")
     project_object['parties_contributed'] = parties_contributed
 
     return ProjectDescription().dump(project_object)

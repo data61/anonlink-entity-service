@@ -81,7 +81,7 @@ class Config(object):
     TRACING_PORT = "5775"
 
     # Encoding size (in bytes)
-    MIN_ENCODING_SIZE = 1
+    MIN_ENCODING_SIZE = 8
     MAX_ENCODING_SIZE = 1024
 
     @classmethod
