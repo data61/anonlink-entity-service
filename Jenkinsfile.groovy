@@ -63,7 +63,8 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh """
-        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} up -d
+        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} up -d \
+          db minio redis backend db_init worker nginx tests
         """
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
@@ -116,6 +117,7 @@ node('docker&&multicore&&ram') {
           ]
           """
 
+          // Create a docker volume to use as a cache (if it doesn't exist)
           sh '''
           ./tools/create-benchmark-cache.sh
           '''
@@ -273,9 +275,7 @@ node('helm && kubectl') {
                     --set api.app.debug=true \
                     --set api.ingress.enabled=false \
                     --set api.certManager.enabled=false \
-                    --set provision.redis=false \
-                    --set redis.server="shared-redis-master" \
-                    --set redis.password="qDOaxxfrGG"
+                    --set provision.redis=true
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 120, unit: "SECONDS")

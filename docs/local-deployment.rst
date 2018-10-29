@@ -31,6 +31,7 @@ This will start the following containers:
 -  postgres database (named ``n1es_db_1``)
 -  redis job queue (named ``n1es_redis_1``)
 -  minio object store
+- jaeger opentracing
 
 The REST api for the service is exposed on port ``8851`` of the nginx container, which docker
 will map to a high numbered port on your host.

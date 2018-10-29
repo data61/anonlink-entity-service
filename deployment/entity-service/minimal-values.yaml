@@ -5,10 +5,21 @@ api:
     resources:
       limits:
         memory: 512Mi
-        cpu: 100m
+        cpu: 50m
       requests:
         cpu: 50m
         memory: 256Mi
+
+
+  dbinit:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
 
 workers:
   replicaCount: 1
@@ -16,7 +27,7 @@ workers:
   resources:
     requests:
       memory: 256Mi
-      cpu: 100m
+      cpu: 50m
     limits:
       memory: 512Mi
       cpu: 200m
@@ -36,7 +47,7 @@ postgresql:
       memory: 200Mi
     requests:
       memory: 100Mi
-      cpu: 100m
+      cpu: 50m
 
   persistence:
     size: 1Gi

@@ -165,7 +165,7 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     on slower CI systems.
     """
     size_1, size_2 = size
-    time.sleep(3 + size_1 * size_2 / assumed_rate)
+    time.sleep(5 + size_1 * size_2 / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):

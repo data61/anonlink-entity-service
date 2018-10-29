@@ -43,7 +43,6 @@ api:
         memory: 256Mi
 
   app:
-
     image:
       repository: quay.io/n1analytics/entity-app
       tag: "v1.9.0"

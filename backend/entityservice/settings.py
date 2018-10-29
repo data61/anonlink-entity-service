@@ -77,6 +77,9 @@ class Config(object):
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
 
+    TRACING_HOST = "jaeger"
+    TRACING_PORT = "5775"
+
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = 1
     MAX_ENCODING_SIZE = 1024

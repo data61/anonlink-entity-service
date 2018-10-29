@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, g
 from structlog import get_logger
 
 from entityservice import app, database as db
@@ -8,6 +8,7 @@ from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token
 from entityservice.views.serialization import RunList, RunDescription
+from entityservice.tracing import serialize_span
 
 logger = get_logger()
 
@@ -47,7 +48,10 @@ def post(project_id, run):
         log.info("Scheduling task to carry out all runs for project {} now".format(project_id))
         with db_conn:
             update_run_mark_queued(db_conn, run_model.run_id)
-        check_for_executable_runs.delay(project_id)
+        span = g.flask_tracer.get_span()
+        span.set_tag("run_id", run_model.run_id)
+        span.set_tag("project_id", run_model.project_id)
+        check_for_executable_runs.delay(project_id, serialize_span(span))
     else:
         log.info("Task queued but won't start until CLKs are all uploaded")
     return RunDescription().dump(run_model), 201
