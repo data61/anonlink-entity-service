@@ -62,6 +62,7 @@ def configure_structlog(sender, body=None, **kwargs):
         task_name=sender.__name__
     )
 
+
 @task_prerun.connect()
 def task_prerunn(sender, body=None, **kwargs):
     task = kwargs['task']
@@ -326,11 +327,11 @@ def compute_similarity(project_id, run_id, dp_ids, threshold, parent_span=None):
 
 @celery.task()
 def celery_bug_fix(*args, **kwargs):
-    '''
+    """
     celery chords only correctly handle errors with at least 2 tasks,
     so we append a celery_bug_fix task.
     https://github.com/celery/celery/issues/3709
-    '''
+    """
     return [0, None]
 
 
@@ -526,7 +527,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param project_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
-    :param parent_span_context: A serialized opentracing span context.
+    :param parent_span: A serialized opentracing span context.
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")

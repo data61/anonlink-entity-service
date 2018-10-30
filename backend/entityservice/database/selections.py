@@ -71,15 +71,14 @@ def get_number_parties_uploaded(db, project_id):
 
 def get_encoding_error_count(db, project_id):
     sql_query = """
-        SELECT dataproviders.id
+        SELECT count(*)
         FROM dataproviders, bloomingdata
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
           bloomingdata.state != 'error'
         """
-    return query_db(db, sql_query, [project_id], one=False)
-
+    return query_db(db, sql_query, [project_id], one=True)
 
 
 def get_number_parties_ready(db, resource_id):

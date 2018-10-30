@@ -91,10 +91,10 @@ def project_get(project_id):
     log.info(f"{parties_contributed} parties have contributed hashes")
     project_object['parties_contributed'] = parties_contributed
 
-    parties_with_error = db.get_encoding_error_count(db_conn, project_id)
-    if len(parties_with_error) > 0:
-        log.warning(f"There are {len(parties_with_error)} parties in error state")
-    project_object['error'] = len(parties_with_error) > 0
+    num_parties_with_error = db.get_encoding_error_count(db_conn, project_id)
+    if num_parties_with_error > 0:
+        log.warning(f"There are {num_parties_with_error} parties in error state")
+    project_object['error'] = num_parties_with_error > 0
 
     return ProjectDescription().dump(project_object)
 
