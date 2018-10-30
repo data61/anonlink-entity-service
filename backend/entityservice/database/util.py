@@ -45,6 +45,7 @@ def connect_db():
         logger.warning("Can't connect to database")
         raise ConnectionError("Issue connecting to database")
 
+    logger.debug("Database connection established")
     return conn
 
 

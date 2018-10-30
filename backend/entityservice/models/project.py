@@ -82,5 +82,5 @@ class Project(object):
 
             logger.debug("Added data providers")
 
-            logger.debug("Committing transaction")
-            conn.commit()
+        logger.debug("Committing transaction")
+        conn.commit()

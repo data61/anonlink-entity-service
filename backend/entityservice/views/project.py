@@ -14,7 +14,7 @@ from entityservice.tasks.project_cleanup import delete_project
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, clks_uploaded_to_project
 
-from entityservice.database import get_db
+from entityservice.database import get_db, DBConn
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
@@ -49,7 +49,8 @@ def projects_post(project):
     logger.info("Adding new project to database")
 
     try:
-        project_model.save(get_db())
+        with DBConn() as conn:
+            project_model.save(conn)
     except Exception as e:
         logger.warn(e)
         safe_fail_request(500, 'Problem creating new project')
@@ -69,6 +70,8 @@ def project_delete(project_id):
 
     dbinstance = get_db()
     db.mark_project_deleted(dbinstance, project_id)
+    dbinstance.commit()
+    dbinstance.close()
 
     delete_project.delay(project_id)
 
@@ -83,15 +86,14 @@ def project_get(project_id):
     log.info("Getting detail for a project")
     abort_if_project_doesnt_exist(project_id)
     authorise_get_request(project_id)
-    db_conn = db.get_db()
-    project_object = db.get_project(db_conn, project_id)
-
-    # Expose the number of data providers who have uploaded clks
-    parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
+    with DBConn() as db_conn:
+        project_object = db.get_project(db_conn, project_id)
+        # Expose the number of data providers who have uploaded clks
+        parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
+        num_parties_with_error = db.get_encoding_error_count(db_conn, project_id)
     log.info(f"{parties_contributed} parties have contributed hashes")
     project_object['parties_contributed'] = parties_contributed
 
-    num_parties_with_error = db.get_encoding_error_count(db_conn, project_id)
     if num_parties_with_error > 0:
         log.warning(f"There are {num_parties_with_error} parties in error state")
     project_object['error'] = num_parties_with_error > 0
@@ -118,7 +120,9 @@ def project_clks_post(project_id):
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
 
-    dp_id = db.get_dataprovider_id(get_db(), token)
+    with DBConn() as conn:
+        dp_id = db.get_dataprovider_id(conn, token)
+        project_encoding_size = db.get_project_schema_encoding_size(get_db(), project_id)
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
@@ -148,7 +152,6 @@ def project_clks_post(project_id):
                 log.warning("Upload failed due to problem with headers in binary upload")
                 raise
             # Check against project level encoding size (if it has been set)
-            project_encoding_size = db.get_project_schema_encoding_size(get_db(), project_id)
             if project_encoding_size is not None and size != project_encoding_size:
                 # fail fast - we haven't stored the encoded data yet
                 return safe_fail_request(400, "Upload 'Hash-Size' doesn't match project settings")
@@ -201,8 +204,8 @@ def authorise_get_request(project_id):
     dp_id = None
     # Check the resource exists
     abort_if_project_doesnt_exist(project_id)
-    dbinstance = get_db()
-    project_object = db.get_project(dbinstance, project_id)
+    with DBConn() as dbinstance:
+        project_object = db.get_project(dbinstance, project_id)
     logger.info("Checking credentials")
     if project_object['result_type'] == 'mapping' or project_object['result_type'] == 'similarity_scores':
         # Check the caller has a valid results token if we are including results
@@ -222,7 +225,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     receipt_token = generate_code()
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
-    with db.DBConn() as conn:
+    with DBConn() as conn:
         db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
         db.set_uploaded_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
@@ -244,7 +247,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
             raise ValueError("Mismatch between expected stream length and header info")
 
     with opentracing.tracer.start_span('update-database', child_of=parent_span) as span:
-        with db.DBConn() as conn:
+        with DBConn() as conn:
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
             db.set_dataprovider_upload_state(conn, dp_id, True)
 
@@ -292,7 +295,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
         )
 
     with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
-        with db.DBConn() as conn:
+        with DBConn() as conn:
             db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename
