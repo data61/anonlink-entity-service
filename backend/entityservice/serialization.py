@@ -52,11 +52,7 @@ def binary_format(encoding_size):
     return bit_packing_fmt, bit_packed_element_size
 
 
-# Mostly for test purposes we assume 128B encodings
-#bit_packing_fmt, bit_packed_element_size = binary_format(128)
-
-
-def binary_pack_filters(filters, encoding_size=128):
+def binary_pack_filters(filters, encoding_size):
     """Efficient packing of bloomfilters with index and popcount.
 
     :param filters:
@@ -76,7 +72,7 @@ def binary_pack_filters(filters, encoding_size=128):
         )
 
 
-def binary_unpack_one(data, encoding_size=128):
+def binary_unpack_one(data, encoding_size):
     bit_packing_fmt, _ = binary_format(encoding_size)
     index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
     assert len(clk_bytes) == encoding_size
@@ -86,7 +82,8 @@ def binary_unpack_one(data, encoding_size=128):
     return ba, index, count
 
 
-def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=128):
+def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=None):
+    assert encoding_size is not None
     _, bit_packed_element_size = binary_format(encoding_size)
     filters = []
     bytes_consumed = 0

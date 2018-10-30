@@ -1,4 +1,4 @@
-from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time, get_runs
+from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time
 
 
 def test_run_mapping_results(requests, mapping_project):

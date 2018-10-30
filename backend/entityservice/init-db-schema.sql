@@ -1,4 +1,8 @@
-DROP TABLE IF EXISTS projects, runs, dataproviders, bloomingdata, run_results, similarity_scores, permutations, permutation_masks, metrics;
+DROP TABLE
+IF EXISTS
+projects, runs, dataproviders, bloomingdata, run_results,
+similarity_scores, permutations, permutation_masks, metrics
+CASCADE;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
@@ -22,6 +26,9 @@ CREATE TABLE projects (
 
   -- not required by the server, but is shared to all parties
   schema              JSONB         NOT NULL,
+
+  -- Size in bytes of the encoding
+  encoding_size  INT    NULL,
 
   -- human readable name for display purposes
   name                TEXT,
@@ -115,10 +122,10 @@ CREATE TABLE bloomingdata (
 
   state UPLOADSTATE NOT NULL,
 
-  -- Size in bytes of the encoding
-  size  INT         NOT NULL,
+  -- Size in bytes of the uploaded encoding
+  encoding_size  INT    NULL,
 
-  -- Number of encoded entries.
+  -- Number of uploaded entries
   count  INT         NOT NULL
 );
 

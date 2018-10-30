@@ -172,7 +172,7 @@ def generate_code(length=24):
 
 
 def clks_uploaded_to_project(project_id, check_data_ready=False):
-    """ See if the given mapping has had all parties contribute data.
+    """ See if the given project has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
     conn = connect_db()

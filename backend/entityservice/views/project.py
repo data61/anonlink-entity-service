@@ -8,7 +8,7 @@ from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
-from entityservice.async_worker import handle_raw_upload, check_for_executable_runs
+from entityservice.tasks import handle_raw_upload, check_for_executable_runs
 from entityservice import app, fmt_bytes
 from entityservice.tasks.project_cleanup import delete_project
 from entityservice.tracing import serialize_span
@@ -147,6 +147,11 @@ def project_clks_post(project_id):
             except:
                 log.warning("Upload failed due to problem with headers in binary upload")
                 raise
+            # Check against project level encoding size (if it has been set)
+            project_encoding_size = db.get_project_schema_encoding_size(get_db(), project_id)
+            if project_encoding_size is not None and size != project_encoding_size:
+                # fail fast - we haven't stored the encoded data yet
+                return safe_fail_request(400, "Upload 'Hash-Size' doesn't match project settings")
 
             # TODO actually stream the upload data straight to Minio. Currently we can't because
             # connexion has already read the data before our handler is called!
@@ -218,7 +223,8 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with db.DBConn() as conn:
-        db.insert_filter_data(conn, filename, dp_id, receipt_token, count, size)
+        db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
+        db.set_uploaded_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
 
     num_bytes = count * (size + 6)
@@ -239,7 +245,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
 
     with opentracing.tracer.start_span('update-database', child_of=parent_span) as span:
         with db.DBConn() as conn:
-            db.update_filter_data(conn, filename, dp_id, 'ready')
+            db.update_encoding_metadata(conn, filename, dp_id, 'ready')
             db.set_dataprovider_upload_state(conn, dp_id, True)
 
     # Now work out if all parties have added their data
@@ -287,6 +293,6 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
 
     with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
         with db.DBConn() as conn:
-            db.insert_filter_data(conn, filename, dp_id, receipt_token, count, size=-1)
+            db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

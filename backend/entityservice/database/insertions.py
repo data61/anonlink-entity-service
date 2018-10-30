@@ -44,17 +44,17 @@ def insert_dataprovider(cur, auth_token, project_id):
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
 
 
-def insert_filter_data(db, clks_filename, dp_id, receipt_token, count, size):
+def insert_filter_metadata(db, clks_filename, dp_id, receipt_token, count):
     logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
         INSERT INTO bloomingdata
-        (dp, token, file, count, size, state)
+        (dp, token, file, count, state)
         VALUES
-        (%s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s)
         """
 
     with db.cursor() as cur:
-        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, size, 'pending'])
+        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, 'pending'])
 
     set_dataprovider_upload_state(db, dp_id, True)
 
@@ -130,7 +130,7 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
         raise RunDeleted(run_id)
 
 
-def update_filter_data(db, clks_filename, dp_id, state='ready'):
+def update_encoding_metadata(db, clks_filename, dp_id, state='ready'):
     sql_query = """
         UPDATE bloomingdata
         SET
@@ -149,18 +149,34 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
         ])
 
 
-def update_encoding_size(db, dp_id, size):
+def set_uploaded_encoding_size(db, dp_id, encoding_size):
     sql_query = """
         UPDATE bloomingdata
         SET
-          size = %s
+          encoding_size = %s
         WHERE
           dp = %s
         """
 
     logger.info("Updating database with info about encodings")
     with db.cursor() as cur:
-        cur.execute(sql_query, [size, dp_id,])
+        cur.execute(sql_query, [
+            encoding_size,
+            dp_id,
+        ])
+
+
+def set_project_encoding_size(db, project_id, encoding_size):
+    sql_query = """
+        UPDATE projects
+        SET
+          encoding_size = %s
+        WHERE
+          project_id = %s
+        """
+
+    with db.cursor() as cur:
+        cur.execute(sql_query, [encoding_size, project_id])
 
 
 def update_run_chunk(db, resource_id, chunk_size):

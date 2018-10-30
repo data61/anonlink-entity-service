@@ -1,27 +1,21 @@
-import itertools
-
 import csv
-import io
 import os
 import random
 
-import minio
-import struct
-import structlog
 from celery import Celery, chord
-from celery.signals import task_prerun, task_postrun, worker_init
-import opentracing
-from entityservice.tracing import initialize_tracer
+from celery.signals import task_prerun, task_postrun
+import minio
+import structlog
 import anonlink
 
 from entityservice import cache
 from entityservice.database import *
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_unpack_filters, \
-    binary_pack_filters, deserialize_bitarray, binary_format
+    binary_format
 from entityservice.settings import Config as config
-from entityservice.tasks.base_task import BaseTask, TracedTask
-from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project, generate_code, similarity_matrix_from_csv_bytes, \
+from entityservice.tasks import BaseTask, TracedTask
+from entityservice.utils import fmt_bytes, generate_code, similarity_matrix_from_csv_bytes, \
     chain_streams
 from entityservice.models.run import progress_run_stage as progress_stage
 
@@ -102,111 +96,6 @@ def convert_mapping_to_list(permutation):
     return perm_list
 
 
-@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
-def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
-    log = logger.bind(pid=project_id, dp_id=dp_id)
-    log.info("Handling user provided base64 encodings")
-
-    with DBConn() as db:
-        if not check_project_exists(db, project_id):
-            log.info("Project deleted, stopping immediately")
-            return
-        expected_count = get_number_of_hashes(db, dp_id)
-
-    log.info(f"Expecting to handle {expected_count} encodings")
-    mc = connect_to_object_store()
-
-    # Input file is line separated base64 record encodings.
-    raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
-
-    # Set up streaming processing pipeline
-    buffered_stream = iterable_to_stream(raw_data_response.stream())
-    text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
-
-    clkcounts = []
-    encoding_sizes = []
-
-    def filter_generator():
-        log.debug("Deserializing json filters")
-        for i, line in enumerate(text_stream):
-            ba = deserialize_bitarray(line)
-            yield (ba, i, ba.count())
-            clkcounts.append(ba.count())
-            encoding_sizes.append(len(ba))
-
-        log.info(f"Processed {len(clkcounts)} hashes")
-        if not all(encoding_sizes[0] == encsize for encsize in encoding_sizes):
-            raise ValueError("Encodings were not all the same size")
-
-    # We peek at the first element as we need the encoding size
-    # for the ret of our processing pipeline
-    _python_filters = filter_generator()
-    peek = next(_python_filters)
-    encoding_size = len(peek[0])//8
-    python_filters = itertools.chain([peek], _python_filters)
-
-    # This is the first time we've seen the encoding size so need to check it
-    if not config.MIN_ENCODING_SIZE < encoding_size < config.MAX_ENCODING_SIZE:
-        log.info("Setting dp's upload state to error as encoding size out of bounds")
-        with DBConn() as conn:
-            update_filter_data(conn, '', dp_id, state='error')
-        return
-
-    # Output file is our custom binary packed file
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    _, bit_packed_element_size = binary_format(encoding_size)
-    num_bytes = expected_count * bit_packed_element_size
-
-    # If small enough preload the data into our redis cache
-    if expected_count < config.ENTITY_CACHE_THRESHOLD:
-        log.info("Caching pickled clk data")
-        python_filters = list(python_filters)
-        cache.set_deserialized_filter(dp_id, python_filters)
-    else:
-        log.info("Not caching clk data as it is too large")
-
-    packed_filters = binary_pack_filters(python_filters, encoding_size)
-    packed_filter_stream = iterable_to_stream(packed_filters)
-
-    # Upload to object store
-    log.info(f"Uploading {expected_count} encodings of size {encoding_size} to object store. " +
-             f"Total Size: {fmt_bytes(num_bytes)}")
-    mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
-
-    with DBConn() as conn:
-        update_filter_data(conn, filename, dp_id)
-        update_encoding_size(conn, dp_id, encoding_size)
-
-    # Now work out if all parties have added their data
-    if clks_uploaded_to_project(project_id, check_data_ready=True):
-        log.info("All parties' data present. Scheduling any queued runs")
-        print('and the span is: {}'.format(handle_raw_upload.span))
-        check_for_executable_runs.delay(project_id, handle_raw_upload.get_serialized_span())
-
-
-@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id',))
-def check_for_executable_runs(project_id, parent_span=None):
-    """
-    This is called when a run is posted (if project is ready for runs), and also
-    after all dataproviders have uploaded CLKs, and the CLKS are ready.
-    """
-    log = logger.bind(pid=project_id)
-    log.info("Checking for runs that need to be executed")
-    if not clks_uploaded_to_project(project_id, check_data_ready=True):
-        return
-
-    with DBConn() as conn:
-        new_runs = get_created_runs_and_queue(conn, project_id)
-        log.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
-        for qr in new_runs:
-            run_id = qr[0]
-            log.info('Queueing run for computation', run_id=run_id)
-            # Record that the run has reached a new stage
-            progress_stage(conn, run_id)
-            compute_run.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
-
-
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
 def compute_run(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
@@ -254,19 +143,16 @@ def compute_similarity(project_id, run_id, dp_ids, threshold, parent_span=None):
         log.info("Skipping as project or run not found in database.")
         return
 
-    dataset_sizes, encoding_sizes = get_project_dataset_sizes(conn, project_id)
-    if len(dataset_sizes) < 2 or len(encoding_sizes) < 2:
+    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+
+    if len(dataset_sizes) < 2:
         log.warning("Unexpected number of dataset sizes in db. Stopping")
         update_run_mark_failure(conn, run_id)
         return
     else:
         lenf1, lenf2 = dataset_sizes
 
-    encoding_size = encoding_sizes[0]
-    if not all(encoding_size == enc_size for enc_size in encoding_sizes):
-        log.warning("Mismatch in encoding sizes. Stopping")
-        update_run_mark_failure(conn, run_id)
-        return
+    encoding_size = get_project_encoding_size(conn, project_id)
 
     size = lenf1 * lenf2
 
@@ -669,7 +555,7 @@ def aggregate_filter_chunks(similarity_result_files, project_id, run_id, parent_
         else:
             # we promote the run to the next stage
             progress_stage(db, run_id)
-            (lenf1, lenf2), (enc1, enc2) = get_project_dataset_sizes(db, project_id)
+            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
 
     # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
