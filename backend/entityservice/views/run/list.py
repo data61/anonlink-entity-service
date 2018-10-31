@@ -2,7 +2,7 @@ from flask import request, g
 from structlog import get_logger
 
 from entityservice import app, database as db
-from entityservice.tasks.check_for_runs import check_for_executable_runs
+from entityservice.tasks.run import check_for_executable_runs
 from entityservice.database import get_db, get_runs, update_run_mark_queued
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request

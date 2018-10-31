@@ -1,6 +1,10 @@
 from entityservice.tasks.base_task import BaseTask, TracedTask
-from entityservice.tasks.project_cleanup import delete_minio_objects
-from entityservice.tasks.check_for_runs import check_for_executable_runs
+
+from entityservice.tasks.stats import calculate_comparison_rate
+from entityservice.tasks.mark_run_complete import mark_run_complete
+from entityservice.tasks.project_cleanup import delete_minio_objects, remove_project
+from entityservice.tasks.run import check_for_executable_runs, compute_run
 from entityservice.tasks.encoding_uploading import handle_raw_upload
-
-
+from entityservice.tasks.comparing import create_comparison_jobs, compute_filter_similarity, aggregate_comparisons
+from entityservice.tasks.permutation import save_and_permute, permute_mapping_data
+from entityservice.tasks.solver import solver_task

@@ -76,7 +76,7 @@ def get_encoding_error_count(db, project_id):
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
-          bloomingdata.state != 'error'
+          bloomingdata.state = 'error'
         """
     return query_db(db, sql_query, [project_id], one=True)['count']
 
@@ -272,15 +272,35 @@ def get_project_schema_encoding_size(db, project_id):
     """
     sql_query = """
         SELECT
-            schema->'clkConfig'->'l' as num_bits
+            coalesce(
+                encoding_size,
+                case 
+                    when (schema->'clkConfig') IS NULL THEN null                
+                    when (schema->'clkConfig'->>'l') IS NULL THEN null
+                    else (schema->'clkConfig'->>'l')::integer/8
+                end
+            ) AS encoding_size
         FROM projects
         WHERE project_id = %s
         """.format(project_id)
-    res = query_db(db, sql_query, [project_id], one=True)
-    if res is not None and res['num_bits'] is not None:
-        return res['num_bits']//8
-    else:
-        return None
+    return query_db(db, sql_query, [project_id], one=True)['encoding_size']
+
+
+# def get_project_schema_encoding_size(db, project_id):
+#     """
+#     :return: The expected size of uploaded encodings.
+#     """
+#     sql_query = """
+#         SELECT
+#             schema->'clkConfig'->'l' as num_bits
+#         FROM projects
+#         WHERE project_id = %s
+#         """.format(project_id)
+#     res = query_db(db, sql_query, [project_id], one=True)
+#     if res is not None and res['num_bits'] is not None:
+#         return res['num_bits']//8
+#     else:
+#         return None
 
 
 def get_project_encoding_size(db, project_id):

@@ -1,7 +1,7 @@
 
 import io
 
-import celery
+
 import more_itertools
 import structlog
 
@@ -11,10 +11,9 @@ from entityservice.error_checking import check_dataproviders_encoding
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_pack_filters, deserialize_bitarray, binary_format
 from entityservice.settings import Config as config
+from entityservice.async_worker import celery, logger
 from entityservice.tasks import TracedTask, delete_minio_objects, check_for_executable_runs
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project
-
-logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 
 
 def handle_invalid_encoding_data(project_id, dp_id):

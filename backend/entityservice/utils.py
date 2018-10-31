@@ -193,3 +193,20 @@ def similarity_matrix_from_csv_bytes(data):
         index_1, index_2, score = row.split(',')
         # Note we rewrite in a different order because we love making work for ourselves
         yield (int(index_1), float(score), int(index_2))
+
+
+def convert_mapping_to_list(permutation):
+    """Convert the permutation from a dict mapping into a list
+
+    Assumes the keys and values of the given dict are numbers in the
+    inclusive range from 0 to length. Note the keys should be int.
+
+    Returns a list of the values from the passed dict - in the order
+    defined by the keys.
+    """
+    l = len(permutation)
+
+    perm_list = []
+    for j in range(l):
+        perm_list.append(permutation[j])
+    return perm_list

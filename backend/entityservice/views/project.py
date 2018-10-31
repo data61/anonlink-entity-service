@@ -8,12 +8,11 @@ from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
-from entityservice.tasks import handle_raw_upload, check_for_executable_runs
-from entityservice import app, fmt_bytes
-from entityservice.tasks.project_cleanup import delete_project
-from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, clks_uploaded_to_project
+from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
 
+from entityservice.tracing import serialize_span
+from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
+    clks_uploaded_to_project, fmt_bytes
 from entityservice.database import get_db, DBConn
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
@@ -66,14 +65,13 @@ def project_delete(project_id):
 
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
+    log.info("Marking project for deletion")
+
+    with DBConn() as db_conn:
+        db.mark_project_deleted(db_conn, project_id)
+
     log.info("Queuing authorized request to delete project resources")
-
-    dbinstance = get_db()
-    db.mark_project_deleted(dbinstance, project_id)
-    dbinstance.commit()
-    dbinstance.close()
-
-    delete_project.delay(project_id)
+    remove_project.delay(project_id)
 
     return '', 204
 

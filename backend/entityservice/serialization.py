@@ -7,7 +7,6 @@ import struct
 from structlog import get_logger
 from flask import Response
 
-from entityservice import app
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
@@ -182,3 +181,18 @@ def get_similarity_scores(filename):
     except urllib3.exceptions.ResponseError:
         logger.warning("Attempt to read the similarity scores file failed with an error response.", filename=filename)
         safe_fail_request(500, "Failed to retrieve similarity scores")
+
+
+def get_chunk_from_object_store(chunk_info, encoding_size=128):
+    mc = connect_to_object_store()
+
+    bit_packing_fmt, bit_packed_element_size = binary_format(encoding_size)
+
+    assert bit_packed_element_size == (encoding_size + 6), "bit packed size doesn't match expectations"
+    chunk_length = chunk_info[2] - chunk_info[1]
+    chunk_bytes = bit_packed_element_size * chunk_length
+    chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
+
+    chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes, encoding_size)
+
+    return chunk_data, chunk_length

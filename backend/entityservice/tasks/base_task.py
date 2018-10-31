@@ -1,5 +1,8 @@
 import celery
 
+from entityservice.async_worker import celery
+from entityservice.database import logger, DBConn, update_run_mark_failure
+
 from entityservice.errors import DBResourceMissing
 import psycopg2
 from structlog import get_logger
@@ -95,3 +98,21 @@ class TracedTask(BaseTask):
         self.tracer.close()
         self._tracer = None
         return super(TracedTask, self).after_return(status, retval, task_id, args, kwargs, einfo)
+
+
+@celery.task()
+def celery_bug_fix(*args, **kwargs):
+    """
+    celery chords only correctly handle errors with at least 2 tasks,
+    so we append a celery_bug_fix task.
+    https://github.com/celery/celery/issues/3709
+    """
+    return [0, None]
+
+
+@celery.task(base=BaseTask, ignore_result=True)
+def on_chord_error(*args, **kwargs):
+    logger.info("An error occurred while processing the chord's tasks")
+    with DBConn() as db:
+        update_run_mark_failure(db, kwargs['run_id'])
+    logger.warning("Marked run as failure")

@@ -1,10 +1,10 @@
-from entityservice import app
 from entityservice.messages import INVALID_RESULT_TYPE_MESSAGE
 from entityservice.utils import generate_code
 import entityservice.database as db
 from structlog import get_logger
 
 logger = get_logger()
+
 
 class InvalidProjectParametersException(ValueError):
 
@@ -82,5 +82,5 @@ class Project(object):
 
             logger.debug("Added data providers")
 
-        logger.debug("Committing transaction")
-        conn.commit()
+            logger.debug("Committing transaction")
+            conn.commit()
