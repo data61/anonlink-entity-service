@@ -25,6 +25,7 @@ def check_for_executable_runs(project_id, parent_span=None):
             check_and_set_project_encoding_size(project_id, conn)
         except ValueError as e:
             log.warning(e.args[0])
+            # todo make sure this can be exposed to user
             return
 
         new_runs = get_created_runs_and_queue(conn, project_id)
