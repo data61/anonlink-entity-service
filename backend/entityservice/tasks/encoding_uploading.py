@@ -40,19 +40,21 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
     clkcounts = []
-    encoding_sizes = []
 
     def filter_generator():
         log.debug("Deserializing json filters")
+        first_encoding_size = None
         for i, line in enumerate(text_stream):
             ba = deserialize_bitarray(line)
             yield (ba, i, ba.count())
             clkcounts.append(ba.count())
-            encoding_sizes.append(len(ba))
+            encsize = len(ba)
+            if i == 0:
+                first_encoding_size = encsize
+            if encsize != first_encoding_size:
+                raise ValueError("Encodings were not all the same size")
 
         log.info(f"Processed {len(clkcounts)} hashes")
-        if not all(encoding_sizes[0] == encsize for encsize in encoding_sizes):
-            raise ValueError("Encodings were not all the same size")
 
     # We peek at the first element as we need the encoding size
     # for the ret of our processing pipeline
