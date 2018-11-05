@@ -1,14 +1,13 @@
-import os
-
 import base64
 import datetime
+from enum import IntEnum
 import math
+import os
 import random
 import time
 import warnings
-from bitarray import bitarray
-from enum import IntEnum
 
+from bitarray import bitarray
 import iso8601
 
 from entityservice.tests.config import url
@@ -26,6 +25,7 @@ def serialize_filters(filters):
     return [
         serialize_bitarray(f[0]) for f in filters
     ]
+
 
 def generate_bitarray(length):
     a = bitarray(endian=['little', 'big'][random.randint(0, 1)])

@@ -1,4 +1,3 @@
-import io
 from io import BytesIO
 
 import minio
@@ -9,7 +8,6 @@ import opentracing
 
 import entityservice.database as db
 from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
-
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
     clks_uploaded_to_project, fmt_bytes
@@ -279,7 +277,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
 
         num_bytes = len(data)
         span.set_tag("num_bytes", num_bytes)
-        buffer = io.BytesIO(data)
+        buffer = BytesIO(data)
 
     logger.info(f"Received {count} encodings. Uploading {fmt_bytes(num_bytes)} to object store")
     with opentracing.tracer.start_span('save-to-quarantine', child_of=parent_span) as span:
