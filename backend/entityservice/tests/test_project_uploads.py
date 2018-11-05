@@ -35,9 +35,9 @@ def test_project_binary_data_uploaded(requests):
                                      }).json()
 
     small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
-    large_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
+
     upload_binary_data_from_file(requests, small_file_path, new_project_data['project_id'], new_project_data['update_tokens'][0], 1000)
-    upload_binary_data_from_file(requests, large_file_path, new_project_data['project_id'], new_project_data['update_tokens'][1], 1000)
+    upload_binary_data_from_file(requests, small_file_path, new_project_data['project_id'], new_project_data['update_tokens'][1], 1000)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)

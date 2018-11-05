@@ -1,6 +1,6 @@
 from entityservice.database import DBConn, logger, \
     check_project_exists, get_run, update_run_set_started, get_dataprovider_ids
-from entityservice.errors import RunDeleted
+from entityservice.errors import RunDeleted, ProjectDeleted
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.comparing import create_comparison_jobs
 from entityservice.async_worker import celery, logger
@@ -14,7 +14,7 @@ def compute_run(project_id, run_id, parent_span=None):
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.info("Project not found. Skipping")
-            return
+            raise ProjectDeleted(project_id)
 
         res = get_run(conn, run_id)
         if res is None:
