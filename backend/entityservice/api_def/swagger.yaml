@@ -288,8 +288,10 @@ paths:
         When the last party successfully uploads their data any existing project runs are queued
         for execution.
 
-        The encoding sizes must all match. Note a minimum and maximum encoding size can be set at
-        deployment time, and currently anonlink requires the size to be a multiple of 8.
+        The uploaded encodings must all have the same length in bytes. If the project's linkage schema
+        specifes an encoding size it will be checked and enforced before any runs are computed. Note a
+        minimum and maximum encoding size can be set at the server level at deployment time.
+        Currently anonlink requires this _encoding size_ to be a multiple of 8. An example value is 128 Bytes.
 
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
@@ -297,7 +299,7 @@ paths:
         ### JSON Upload
 
         This endpoint can be used with the Content-Type: application/json and uses the `CLKUpload`
-        structure.
+        structure of a JSON array of base64 encoded strings.
 
         ### Binary Upload
 

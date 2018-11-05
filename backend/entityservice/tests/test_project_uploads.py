@@ -62,7 +62,7 @@ def test_project_binary_data_upload_with_different_encoded_size(requests, encodi
     g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)
 
     def convert_generator_to_bytes(g):
-        return b''.join([b for b in g])
+        return b''.join(g)
 
     shared_entity = next(g3)
     f1 = convert_generator_to_bytes(g1) + shared_entity
