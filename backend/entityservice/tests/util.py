@@ -28,7 +28,7 @@ def serialize_filters(filters):
 
 
 def generate_bitarray(length):
-    a = bitarray(endian=['little', 'big'][random.randint(0, 1)])
+    a = bitarray(endian=random.choice(['little', 'big']))
     a.frombytes(os.urandom(length))
     return a
 
