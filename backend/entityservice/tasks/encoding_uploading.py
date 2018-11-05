@@ -5,20 +5,15 @@ import more_itertools
 
 from entityservice import cache
 from entityservice.database import *
-from entityservice.error_checking import check_dataproviders_encoding
+from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_pack_filters, deserialize_bitarray, binary_format
 from entityservice.settings import Config as config
 from entityservice.async_worker import celery, logger
-from entityservice.tasks import TracedTask, delete_minio_objects, check_for_executable_runs
+from entityservice.tasks.base_task import TracedTask
+from entityservice.tasks.pre_run_check import check_for_executable_runs
+
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project
-
-
-def handle_invalid_encoding_data(project_id, dp_id):
-    with DBConn() as conn:
-        filename = get_filter_metadata(conn, dp_id)
-        update_encoding_metadata(conn, '', dp_id, state='error')
-    delete_minio_objects.delay([filename], project_id)
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))

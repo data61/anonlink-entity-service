@@ -142,7 +142,8 @@ def test_project_json_data_upload_with_too_large_encoded_size(requests):
         result_type='mapping',
         encoding_size=4096
     )
-    time.sleep(10)
+
+    time.sleep(5)
     project_description = requests.get(
         url + '/projects/{}'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['result_token']}
