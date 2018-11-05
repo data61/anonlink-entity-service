@@ -1,10 +1,8 @@
 import time
-
-import io
 import os
 import pytest
 
-from entityservice.serialization import binary_format, binary_pack_filters
+from entityservice.serialization import binary_pack_filters
 from entityservice.tests.config import url
 from entityservice.tests.util import generate_json_serialized_clks, upload_binary_data_from_file, post_run, \
     get_run_result, \

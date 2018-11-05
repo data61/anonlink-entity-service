@@ -72,7 +72,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
 
     # Output file is our custom binary packed file
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
-    _, bit_packed_element_size = binary_format(uploaded_encoding_size)
+    bit_packed_element_size = binary_format(uploaded_encoding_size).size
     num_bytes = expected_count * bit_packed_element_size
 
     # If small enough preload the data into our redis cache

@@ -37,18 +37,19 @@ def deserialize_bitarray(bytes_data):
 
 def binary_format(encoding_size):
     """
-    The binary format used:
+    Return a Struct instance with the binary format of the encodings.
 
+    The binary format string can be understood as:
     - "!" Use network byte order (big-endian).
     - "1I" Store the index in 4 bytes as an unsigned int.
-    - "128s" Store the 128 raw bytes of the bitarray
+    - "<encoding size>s" Store the n (e.g. 128) raw bytes of the bitarray
     - "1H" The popcount stored in 2 bytes (unsigned short)
 
-    https://docs.python.org/3/library/struct.html#format-strings
+    https://docs.python.org/3/library/struct.html
     """
     bit_packing_fmt = f"!1I{encoding_size}s1H"
-    bit_packed_element_size = struct.calcsize(bit_packing_fmt)
-    return bit_packing_fmt, bit_packed_element_size
+    bit_packing_struct = struct.Struct(bit_packing_fmt)
+    return bit_packing_struct
 
 
 def binary_pack_filters(filters, encoding_size):
@@ -60,11 +61,10 @@ def binary_pack_filters(filters, encoding_size):
     :return:
         An iterable of bytes.
     """
-    bit_packing_fmt, _ = binary_format(encoding_size)
+    bit_packing_struct = binary_format(encoding_size)
 
     for ba_clk, indx, count in filters:
-        yield struct.pack(
-          bit_packing_fmt,
+        yield bit_packing_struct.pack(
           indx,
           ba_clk.tobytes(),
           count
@@ -72,8 +72,8 @@ def binary_pack_filters(filters, encoding_size):
 
 
 def binary_unpack_one(data, encoding_size):
-    bit_packing_fmt, _ = binary_format(encoding_size)
-    index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
+    bit_packing_struct = binary_format(encoding_size)
+    index, clk_bytes, count = bit_packing_struct.unpack(data)
     assert len(clk_bytes) == encoding_size
 
     ba = bitarray(endian="big")
@@ -83,9 +83,10 @@ def binary_unpack_one(data, encoding_size):
 
 def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=None):
     assert encoding_size is not None
-    _, bit_packed_element_size = binary_format(encoding_size)
+    bit_packed_element_size = binary_format(encoding_size).size
     filters = []
     bytes_consumed = 0
+
     logger.info(f"Unpacking stream of encodings with size {encoding_size} - packed as {bit_packed_element_size}")
     for raw_bytes in streamable_data.stream(bit_packed_element_size):
         assert len(raw_bytes) == (encoding_size + 6), f"Got {len(raw_bytes)} bytes but expected {encoding_size + 6}"
@@ -186,7 +187,7 @@ def get_similarity_scores(filename):
 def get_chunk_from_object_store(chunk_info, encoding_size=128):
     mc = connect_to_object_store()
 
-    bit_packing_fmt, bit_packed_element_size = binary_format(encoding_size)
+    bit_packed_element_size = binary_format(encoding_size).size
 
     assert bit_packed_element_size == (encoding_size + 6), "bit packed size doesn't match expectations"
     chunk_length = chunk_info[2] - chunk_info[1]
