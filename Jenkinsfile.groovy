@@ -69,13 +69,7 @@ node('docker&&multicore&&ram') {
             -p ${composeProject} up -d \
             db minio redis backend db_init worker nginx tests
         """
-        echo("Scaling to 2 workers")
-        sh """
-        docker-compose \
-            -f tools/docker-compose.yml \
-            -f tools/ci.yml \
-            -p ${composeProject} up -d --scale worker=2
-        """
+
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
