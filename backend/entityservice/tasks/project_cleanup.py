@@ -1,16 +1,9 @@
-import logging
-
 from minio.error import MinioError
-import structlog
 
-import entityservice.database as db
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
 from entityservice.settings import Config as config
-
-
-logger = structlog.wrap_logger(logging.getLogger('celery'))
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id',))

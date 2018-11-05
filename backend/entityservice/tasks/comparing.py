@@ -8,8 +8,8 @@ from celery import chord
 
 from entityservice.utils import fmt_bytes
 from entityservice.object_store import connect_to_object_store
-from entityservice.async_worker import celery
-from entityservice.database import logger, connect_db, check_project_exists, check_run_exists, \
+from entityservice.async_worker import celery, logger
+from entityservice.database import connect_db, check_project_exists, check_run_exists, \
     get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
     update_run_chunk, DBConn, get_project_column, get_dataprovider_ids
 from entityservice.models.run import progress_run_stage as progress_stage

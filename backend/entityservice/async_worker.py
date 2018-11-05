@@ -35,34 +35,20 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
 
+logger = structlog.wrap_logger(logging.getLogger('celery.es'))
+if config.DEBUG:
+    logging.getLogger('celery').setLevel(logging.INFO)
+    logging.getLogger('celery.es').setLevel(logging.DEBUG)
+
+logger.info("Setting up celery worker")
+logger.debug("Debug logging enabled")
+
 
 @task_prerun.connect()
 def configure_structlog(sender, body=None, **kwargs):
-    logger = structlog.get_logger()
-    logger.new(
+    task = kwargs['task']
+    task.logger = logger.new(
         task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
-
-
-@task_prerun.connect()
-def task_prerunn(sender, body=None, **kwargs):
-    task = kwargs['task']
-    if task.name is not None:
-        logger.debug("pre-run of {0} sender: {1}".format(task.name, sender))
-
-
-@task_postrun.connect()
-def task_postrun(sender, body=None, **kwargs):
-    # note that this hook runs even when there has been an exception thrown by the task
-    task = kwargs['task']
-    if task:
-        logger.debug("post run of task {}".format(task.name))
-
-
-logger = structlog.wrap_logger(logging.getLogger('celery'))
-if config.DEBUG:
-    logging.getLogger('celery').setLevel(logging.DEBUG)
-logger.info("Setting up celery worker")
-logger.debug("Debug logging enabled")
 

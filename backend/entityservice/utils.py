@@ -3,17 +3,18 @@
 import io
 import json
 import os
+import logging
 
 import binascii
 import bitmath
 from flask import request
 from connexion import ProblemException
-from structlog import get_logger
+import structlog
 
 from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, \
     get_number_parties_ready
 
-logger = get_logger()
+logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 
 
 def fmt_bytes(num_bytes):

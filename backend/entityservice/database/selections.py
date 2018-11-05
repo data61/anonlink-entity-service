@@ -183,7 +183,7 @@ def get_project_dataset_sizes(db, project_id):
 
 def get_uploaded_encoding_sizes(db, project_id):
     sql_query = """
-        SELECT bloomingdata.encoding_size
+        SELECT dp, encoding_size
         FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
@@ -191,8 +191,7 @@ def get_uploaded_encoding_sizes(db, project_id):
         ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id], one=False)
-    encoding_sizes = [r['encoding_size'] for r in query_result]
-    return encoding_sizes
+    return [(r['dp'], r['encoding_size']) for r in query_result]
 
 
 def get_smaller_dataset_size_for_project(db, project_id):

@@ -28,10 +28,11 @@ def get(project_id, run_id):
     with opentracing.tracer.start_span('get-status-from-db', child_of=parent_span) as span:
         dbinstance = get_db()
         run_status = db.get_run_status(dbinstance, run_id)
+        project_in_error = db.get_encoding_error_count(dbinstance, project_id) > 0
         span.set_tag('stage', run_status['stage'])
 
     run_type = RUN_TYPES[run_status['type']]
-    state = run_status['state']
+    state = 'error' if project_in_error else run_status['state']
     stage = run_status['stage']
     status = {
         "state": state,

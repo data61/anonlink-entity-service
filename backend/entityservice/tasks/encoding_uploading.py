@@ -1,9 +1,7 @@
 
 import io
 
-
 import more_itertools
-import structlog
 
 from entityservice import cache
 from entityservice.database import *
@@ -25,6 +23,7 @@ def handle_invalid_encoding_data(project_id, dp_id):
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
+    # User has uploaded base64 encodings as JSON
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user provided base64 encodings")
 

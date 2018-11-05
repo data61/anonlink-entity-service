@@ -1,7 +1,7 @@
 import random
 
 from entityservice import cache
-from entityservice.async_worker import celery
+from entityservice.async_worker import celery, logger
 from entityservice.database import logger, DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
     connect_db, get_run_result, insert_permutation, insert_permutation_mask
 from entityservice.tasks.base_task import TracedTask
