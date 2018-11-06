@@ -174,7 +174,7 @@ def set_project_encoding_size(db, project_id, encoding_size):
         WHERE
           project_id = %s
         """
-
+    logger.debug("Updating database with project encoding size")
     with db.cursor() as cur:
         cur.execute(sql_query, [encoding_size, project_id])
 

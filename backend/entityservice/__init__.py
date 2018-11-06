@@ -9,6 +9,8 @@ try:
 except ImportError:
     import ijson
 
+# Define the WSGI application object
+# Note we explicitly do this before importing our own code
 con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
 app = con_app.app
 

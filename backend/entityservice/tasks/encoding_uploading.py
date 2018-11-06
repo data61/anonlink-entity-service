@@ -60,6 +60,8 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     # We peek at the first element as we need the encoding size
     # for the ret of our processing pipeline
     python_filters = more_itertools.peekable(filter_generator())
+    # Note the len of a bitarray is returned in bits but we require
+    # this to be a multiple of 8 so we use bytes.
     uploaded_encoding_size = len(python_filters.peek()[0])//8
 
     # This is the first time we've seen the encoding size from this data provider

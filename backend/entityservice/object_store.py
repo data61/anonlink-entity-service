@@ -47,11 +47,11 @@ def store_similarity_scores(buffer, run_id, length, conn):
         content_type='application/csv'
     )
 
+    log.debug("Storing the CSV filename '{}' in the database".format(filename))
     try:
-        log.debug("Storing the CSV filename '{}' in the database".format(filename))
         result_id = insert_similarity_score_file(conn, run_id, filename)
-        log.debug("Saved path to similarity scores file to db with id {}".format(result_id))
     except psycopg2.IntegrityError:
         log.info("Error saving similarity score filename to database. Suspect that project has been deleted")
         raise RunDeleted(run_id)
+    log.debug("Saved path to similarity scores file to db with id {}".format(result_id))
     return filename
