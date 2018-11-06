@@ -89,7 +89,7 @@ def test_project_json_data_upload_with_various_encoded_sizes(requests, encoding_
     run_id = post_run(requests, new_project_data, 0.9)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
     assert 'mapping' in result
-    assert len(result['mapping']) > 450
+    assert len(result['mapping']) >= 475
 
 
 def test_project_json_data_upload_with_mismatched_encoded_size(requests):
