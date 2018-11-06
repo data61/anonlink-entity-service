@@ -71,11 +71,8 @@ def binary_pack_filters(filters, encoding_size):
         )
 
 
-def binary_unpack_one(data, encoding_size):
-    bit_packing_struct = binary_format(encoding_size)
+def binary_unpack_one(data, bit_packing_struct):
     index, clk_bytes, count = bit_packing_struct.unpack(data)
-    assert len(clk_bytes) == encoding_size
-
     ba = bitarray(endian="big")
     ba.frombytes(clk_bytes)
     return ba, index, count
@@ -83,14 +80,14 @@ def binary_unpack_one(data, encoding_size):
 
 def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=None):
     assert encoding_size is not None
-    bit_packed_element_size = binary_format(encoding_size).size
+    bit_packed_element = binary_format(encoding_size)
+    bit_packed_element_size = bit_packed_element.size
     filters = []
     bytes_consumed = 0
 
     logger.info(f"Unpacking stream of encodings with size {encoding_size} - packed as {bit_packed_element_size}")
     for raw_bytes in streamable_data.stream(bit_packed_element_size):
-        assert len(raw_bytes) == (encoding_size + 6), f"Got {len(raw_bytes)} bytes but expected {encoding_size + 6}"
-        filters.append(binary_unpack_one(raw_bytes, encoding_size))
+        filters.append(binary_unpack_one(raw_bytes, bit_packed_element))
 
         bytes_consumed += bit_packed_element_size
         if max_bytes is not None and bytes_consumed >= max_bytes:
@@ -186,10 +183,7 @@ def get_similarity_scores(filename):
 
 def get_chunk_from_object_store(chunk_info, encoding_size=128):
     mc = connect_to_object_store()
-
     bit_packed_element_size = binary_format(encoding_size).size
-
-    assert bit_packed_element_size == (encoding_size + 6), "bit packed size doesn't match expectations"
     chunk_length = chunk_info[2] - chunk_info[1]
     chunk_bytes = bit_packed_element_size * chunk_length
     chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
