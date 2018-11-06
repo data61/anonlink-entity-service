@@ -1,11 +1,10 @@
 import base64
 import datetime
-from enum import IntEnum
 import math
 import os
 import random
 import time
-import warnings
+from enum import IntEnum
 
 from bitarray import bitarray
 import iso8601

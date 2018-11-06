@@ -5,7 +5,8 @@ import more_itertools
 
 from entityservice import cache
 from entityservice.database import *
-from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data
+from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
+    InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_pack_filters, deserialize_bitarray, binary_format
 from entityservice.settings import Config as config

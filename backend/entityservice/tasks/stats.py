@@ -1,9 +1,9 @@
-from structlog import get_logger
 from datetime import timedelta
 
 from entityservice.async_worker import celery, logger
-from entityservice.database import connect_db, logger, query_db, get_total_comparisons_for_project, \
-    insert_comparison_rate
+from entityservice.database import connect_db, logger, query_db
+from entityservice.database import get_total_comparisons_for_project
+from entityservice.database import insert_comparison_rate
 
 
 @celery.task(ignore_result=True)

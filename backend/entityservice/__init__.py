@@ -1,10 +1,9 @@
-import connexion
 import logging
 import uuid
 
+import connexion
 from flask import g
 import structlog
-
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
