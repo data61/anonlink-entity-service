@@ -67,7 +67,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     # This is the first time we've seen the encoding size from this data provider
     try:
         check_dataproviders_encoding(project_id, uploaded_encoding_size)
-    except ValueError as e:
+    except InvalidEncodingError as e:
         log.warning(e.args[0])
         handle_invalid_encoding_data(project_id, dp_id)
 
