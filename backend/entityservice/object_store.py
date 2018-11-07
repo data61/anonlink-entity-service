@@ -1,9 +1,9 @@
 import minio
 from structlog import get_logger
+import psycopg2
 
-from entityservice.database import logger, insert_similarity_score_file
+from entityservice.database import insert_similarity_score_file
 from entityservice.errors import RunDeleted
-
 from entityservice.settings import Config as config
 
 logger = get_logger('objectstore')
@@ -27,12 +27,14 @@ def store_similarity_scores(buffer, run_id, length, conn):
     """
     Stores the similarity scores above a similarity threshold as a CSV in minio.
 
-    :param buffer: a stream of csv bytes where each row contains similarity_scores:
+    :param buffer: The file stream to store.
+        Expected to be a line per link (e.g. a candidate match) containing 3 fields separated by a comma:
                                 - the index of an entity from dataprovider 1
                                 - the index of an entity from dataprovider 1
                                 - the similarity score between 0 and 1 of the best match
     :param run_id:
-    :param length:
+    :param length: Number of candidate matches.
+    :param conn: database connection to reuse.
     """
     log = logger.bind(run_id=run_id)
     filename = config.SIMILARITY_SCORES_FILENAME_FMT.format(run_id)
