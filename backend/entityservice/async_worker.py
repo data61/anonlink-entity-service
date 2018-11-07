@@ -39,6 +39,7 @@ logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 if config.DEBUG:
     logging.getLogger('celery').setLevel(logging.INFO)
     logging.getLogger('celery.es').setLevel(logging.DEBUG)
+    logging.getLogger('jaeger_tracing').setLevel(logging.WARNING)
 
 logger.info("Setting up celery worker")
 logger.debug("Debug logging enabled")
