@@ -70,6 +70,9 @@ def get_number_parties_uploaded(db, project_id):
 
 
 def get_encoding_error_count(db, project_id):
+    """
+    Returns the count of uploads for the given project that are in the state "error".
+    """
     sql_query = """
         SELECT count(*)
         FROM dataproviders, bloomingdata

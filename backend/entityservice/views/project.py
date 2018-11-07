@@ -222,8 +222,8 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     filename = config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with DBConn() as conn:
-        db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
-        db.set_uploaded_encoding_size(conn, dp_id, size)
+        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
+        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
 
     num_bytes = count * (size + 6)
@@ -292,6 +292,6 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
 
     with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
         with DBConn() as conn:
-            db.insert_filter_metadata(conn, filename, dp_id, receipt_token, count)
+            db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

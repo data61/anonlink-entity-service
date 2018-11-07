@@ -73,7 +73,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
 
     with DBConn() as db:
         # Save the encoding size as metadata
-        set_uploaded_encoding_size(db, dp_id, uploaded_encoding_size)
+        update_encoding_metadata_set_encoding_size(db, dp_id, uploaded_encoding_size)
 
     # Output file is our custom binary packed file
     filename = config.BIN_FILENAME_FMT.format(receipt_token)

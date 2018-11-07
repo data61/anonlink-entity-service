@@ -44,7 +44,7 @@ def insert_dataprovider(cur, auth_token, project_id):
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
 
 
-def insert_filter_metadata(db, clks_filename, dp_id, receipt_token, count):
+def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, count):
     logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
         INSERT INTO bloomingdata
@@ -149,7 +149,7 @@ def update_encoding_metadata(db, clks_filename, dp_id, state):
         ])
 
 
-def set_uploaded_encoding_size(db, dp_id, encoding_size):
+def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
     sql_query = """
         UPDATE bloomingdata
         SET
