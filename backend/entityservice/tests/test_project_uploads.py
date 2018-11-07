@@ -98,8 +98,8 @@ def test_project_json_data_upload_with_mismatched_encoded_size(requests):
 
     new_project_data, r1, r2 = create_project_upload_data(requests, d1, d2, result_type='mapping')
 
-    run_id = post_run(requests, new_project_data, 0.9)
     with pytest.raises(AssertionError):
+        run_id = post_run(requests, new_project_data, 0.9)
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
@@ -113,8 +113,8 @@ def test_project_json_data_upload_with_invalid_encoded_size(requests):
         encoding_size=20    # not multiple of 8
     )
 
-    run_id = post_run(requests, new_project_data, 0.9)
     with pytest.raises(AssertionError):
+        run_id = post_run(requests, new_project_data, 0.9)
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
@@ -127,8 +127,8 @@ def test_project_json_data_upload_with_too_small_encoded_size(requests):
         encoding_size=4
     )
 
-    run_id = post_run(requests, new_project_data, 0.9)
     with pytest.raises(AssertionError):
+        run_id = post_run(requests, new_project_data, 0.9)
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
