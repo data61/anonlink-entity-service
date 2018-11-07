@@ -6,7 +6,8 @@ from entityservice.tasks import check_for_executable_runs
 from entityservice.database import get_db, get_runs, update_run_mark_queued
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
-from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token
+from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token, \
+    abort_if_project_in_error_state
 from entityservice.views.serialization import RunList, RunDescription
 from entityservice.tracing import serialize_span
 
@@ -32,6 +33,8 @@ def post(project_id, run):
 
     # Check the caller has a valid results token. Yes it should be renamed.
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
+
+    abort_if_project_in_error_state(project_id)
 
     run_model = Run.from_json(run, project_id)
 
