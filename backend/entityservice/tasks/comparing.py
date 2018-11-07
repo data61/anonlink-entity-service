@@ -11,7 +11,7 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
 from entityservice.database import connect_db, check_project_exists, check_run_exists, \
     get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
-    update_run_chunk, DBConn, get_project_column, get_dataprovider_ids
+    update_run_chunk, DBConn, get_project_column, get_dataprovider_ids, get_run
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.object_store import store_similarity_scores
 from entityservice.serialization import get_chunk_from_object_store
@@ -24,16 +24,21 @@ from entityservice.utils import generate_code, chain_streams
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'threshold'))
-def create_comparison_jobs(project_id, run_id, dp_ids, threshold, parent_span=None):
+def create_comparison_jobs(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
+    conn = connect_db()
+
+    dp_ids = get_dataprovider_ids(conn, project_id)
     assert len(dp_ids) >= 2, "Expected at least 2 data providers"
     log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
     current_span = create_comparison_jobs.span
-    conn = connect_db()
 
     if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
         log.info("Skipping as project or run not found in database.")
         return
+
+    run_info = get_run(conn, run_id)
+    threshold = run_info['threshold']
 
     dataset_sizes = get_project_dataset_sizes(conn, project_id)
 

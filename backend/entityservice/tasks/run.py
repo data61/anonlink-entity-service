@@ -7,7 +7,7 @@ from entityservice.async_worker import celery, logger
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
-def compute_run(project_id, run_id, parent_span=None):
+def prerun_check(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Sanity check that we need to compute run")
 
@@ -31,12 +31,12 @@ def compute_run(project_id, run_id, parent_span=None):
         log.debug("Setting run as in progress")
         update_run_set_started(conn, run_id)
 
-        threshold = res['threshold']
         log.debug("Getting dp ids for compute similarity task")
         dp_ids = get_dataprovider_ids(conn, project_id)
         log.debug("Data providers: {}".format(dp_ids))
-        assert len(dp_ids) == 2, "Only support two party comparisons at the moment"
+        if len(dp_ids) != 2:
+            log.warning(f"Only support two party comparisons at the moment. Got {len(dp_ids)}")
+            return
 
-    create_comparison_jobs.delay(project_id, run_id, dp_ids, threshold, compute_run.get_serialized_span())
+    create_comparison_jobs.delay(project_id, run_id, prerun_check.get_serialized_span())
     log.info("CLK similarity computation scheduled")
-

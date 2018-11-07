@@ -3,7 +3,7 @@ from entityservice.tasks.base_task import BaseTask, TracedTask
 from entityservice.tasks.stats import calculate_comparison_rate
 from entityservice.tasks.mark_run_complete import mark_run_complete
 from entityservice.tasks.project_cleanup import delete_minio_objects, remove_project
-from entityservice.tasks.run import compute_run
+from entityservice.tasks.run import prerun_check
 from entityservice.tasks.pre_run_check import check_for_executable_runs
 from entityservice.tasks.encoding_uploading import handle_raw_upload
 from entityservice.tasks.comparing import create_comparison_jobs, compute_filter_similarity, aggregate_comparisons

@@ -5,7 +5,7 @@ from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.settings import Config as config
 from entityservice.tasks.base_task import TracedTask
 from entityservice.error_checking import handle_invalid_encoding_data
-from entityservice.tasks.run import compute_run
+from entityservice.tasks.run import prerun_check
 from entityservice.utils import clks_uploaded_to_project
 
 
@@ -35,7 +35,7 @@ def check_for_executable_runs(project_id, parent_span=None):
             log.info('Queueing run for computation', run_id=run_id)
             # Record that the run has reached a new stage
             progress_stage(conn, run_id)
-            compute_run.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
+            prerun_check.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
 
 
 def check_and_set_project_encoding_size(project_id, conn):
