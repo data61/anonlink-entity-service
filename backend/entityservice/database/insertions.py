@@ -130,7 +130,7 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
         raise RunDeleted(run_id)
 
 
-def update_encoding_metadata(db, clks_filename, dp_id, state='ready'):
+def update_encoding_metadata(db, clks_filename, dp_id, state):
     sql_query = """
         UPDATE bloomingdata
         SET

@@ -97,7 +97,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
-        update_encoding_metadata(conn, filename, dp_id)
+        update_encoding_metadata(conn, filename, dp_id, 'ready')
 
     # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id, check_data_ready=True):
