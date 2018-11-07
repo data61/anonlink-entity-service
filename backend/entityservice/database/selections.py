@@ -267,7 +267,11 @@ def get_number_of_hashes(db, dp_id):
 
 def get_project_schema_encoding_size(db, project_id):
     """
-    :return: The expected size of uploaded encodings.
+    Return the project's `encoding_size`, first looking in the
+    project table's `encoding_size` column, with a fallback to
+    calculating it from the number of bits set in the linkage schema.
+
+    :return: The expected size of uploaded encodings in bytes or None.
     """
     sql_query = """
         SELECT
@@ -283,23 +287,6 @@ def get_project_schema_encoding_size(db, project_id):
         WHERE project_id = %s
         """.format(project_id)
     return query_db(db, sql_query, [project_id], one=True)['encoding_size']
-
-
-# def get_project_schema_encoding_size(db, project_id):
-#     """
-#     :return: The expected size of uploaded encodings.
-#     """
-#     sql_query = """
-#         SELECT
-#             schema->'clkConfig'->'l' as num_bits
-#         FROM projects
-#         WHERE project_id = %s
-#         """.format(project_id)
-#     res = query_db(db, sql_query, [project_id], one=True)
-#     if res is not None and res['num_bits'] is not None:
-#         return res['num_bits']//8
-#     else:
-#         return None
 
 
 def get_project_encoding_size(db, project_id):
