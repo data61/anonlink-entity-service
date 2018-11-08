@@ -63,6 +63,7 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh """
+        docker-compose -v
         docker-compose \
             -f tools/docker-compose.yml \
             -f tools/ci.yml \
@@ -83,7 +84,7 @@ node('docker&&multicore&&ram') {
       try {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
-        timeout(time: 30, unit: 'MINUTES') {
+        timeout(time: 60, unit: 'MINUTES') {
           containerTests.watchLogs()
 
           sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
