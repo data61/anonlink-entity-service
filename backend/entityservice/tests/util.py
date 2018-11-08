@@ -118,7 +118,9 @@ def delete_project(requests, project):
 
     # Note we allow for a 403 because the project may already have been deleted
     assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
-    time.sleep(0.1)
+    # Delete project is asynchronous so we generously allow the server some time to
+    # delete resources before running the next test
+    time.sleep(0.5)
 
 
 def get_run_status(requests, project, run_id, result_token = None):
