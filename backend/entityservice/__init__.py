@@ -1,4 +1,5 @@
 import logging
+import pathlib
 import uuid
 
 import connexion
@@ -23,7 +24,7 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream
 
-con_app.add_api('swagger.yaml',
+con_app.add_api(pathlib.Path("swagger.yaml"),
                 base_path='/',
                 strict_validation=config.CONNEXION_STRICT_VALIDATION,
                 validate_responses=config.CONNEXION_RESPONSE_VALIDATION)
@@ -76,8 +77,7 @@ def initdb_command():
 
 @app.before_request
 def before_request():
-    log = logger.new(request=str(uuid.uuid4())[:8])
-    g.db = db.connect_db()
+    g.log = logger.new(request=str(uuid.uuid4())[:8])
     g.flask_tracer = flask_tracer
 
 
