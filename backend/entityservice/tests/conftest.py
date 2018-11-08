@@ -33,9 +33,15 @@ def requests():
 # - threshold
 
 ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
-THRESHOLDS = [0.8, 0.9, 1.0]
-OVERLAPS = [0.0, 0.5, 0.9, 1.0]
-ENCODING_SIZES = [8, 128, 512]
+THRESHOLDS = [0.9, 1.0]
+OVERLAPS = [0.0, 0.9, 1.0]
+ENCODING_SIZES = [8]
+
+if os.getenv(ENVVAR_NAME):
+    ENCODING_SIZES.extend([64, 128, 512, 2048])
+    OVERLAPS.extend([0.2, 0.5])
+    THRESHOLDS.extend([0.6, 0.8, 0.95])
+
 SIZES = itertools.chain(
     # Default project sizes
     itertools.product([1, 100, 1000], repeat=2),
