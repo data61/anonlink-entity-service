@@ -20,6 +20,8 @@ spec:
         env:
           - name: ENTITY_SERVICE_URL
             value: https://beta.anonlink.data61.xyz/api/v1
+          - name: ENTITY_SERVICE_RUN_SLOW_TESTS
+            value: True
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
