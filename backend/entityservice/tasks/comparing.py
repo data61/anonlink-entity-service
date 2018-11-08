@@ -26,46 +26,46 @@ from entityservice.utils import generate_code, chain_streams
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'threshold'))
 def create_comparison_jobs(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
-    conn = connect_db()
+    with DBConn() as conn:
 
-    dp_ids = get_dataprovider_ids(conn, project_id)
-    assert len(dp_ids) >= 2, "Expected at least 2 data providers"
-    log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
-    current_span = create_comparison_jobs.span
+        dp_ids = get_dataprovider_ids(conn, project_id)
+        assert len(dp_ids) >= 2, "Expected at least 2 data providers"
+        log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+        current_span = create_comparison_jobs.span
 
-    if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
-        log.info("Skipping as project or run not found in database.")
-        return
+        if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
+            log.info("Skipping as project or run not found in database.")
+            return
 
-    run_info = get_run(conn, run_id)
-    threshold = run_info['threshold']
+        run_info = get_run(conn, run_id)
+        threshold = run_info['threshold']
 
-    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+        dataset_sizes = get_project_dataset_sizes(conn, project_id)
 
-    if len(dataset_sizes) < 2:
-        log.warning("Unexpected number of dataset sizes in db. Stopping")
-        update_run_mark_failure(conn, run_id)
-        return
-    else:
-        lenf1, lenf2 = dataset_sizes
+        if len(dataset_sizes) < 2:
+            log.warning("Unexpected number of dataset sizes in db. Stopping")
+            update_run_mark_failure(conn, run_id)
+            return
+        else:
+            lenf1, lenf2 = dataset_sizes
 
-    encoding_size = get_project_encoding_size(conn, project_id)
+        encoding_size = get_project_encoding_size(conn, project_id)
 
-    size = lenf1 * lenf2
+        size = lenf1 * lenf2
 
-    log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
-    current_span.log_kv({"event": 'get-dataset-sizes'})
+        log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
+        current_span.log_kv({"event": 'get-dataset-sizes'})
 
-    filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
-    filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
-    current_span.log_kv({"event": 'get-metadata'})
+        filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
+        filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
+        current_span.log_kv({"event": 'get-metadata'})
 
-    log.debug("Chunking computation task")
-    chunk_size = config.get_task_chunk_size(size, threshold)
-    if chunk_size is None:
-        chunk_size = max(lenf1, lenf2)
-    log.info("Chunks will contain {} entities per task".format(chunk_size))
-    update_run_chunk(conn, project_id, chunk_size)
+        log.debug("Chunking computation task")
+        chunk_size = config.get_task_chunk_size(size, threshold)
+        if chunk_size is None:
+            chunk_size = max(lenf1, lenf2)
+        log.info("Chunks will contain {} entities per task".format(chunk_size))
+        update_run_chunk(conn, project_id, chunk_size)
     job_chunks = []
 
     dp1_chunks = []
