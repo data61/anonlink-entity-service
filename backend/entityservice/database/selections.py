@@ -367,7 +367,7 @@ def get_all_objects_for_project(db, project_id):
               runs.run_id = similarity_scores.run AND
               runs.project = %s
             """, [project_id])
-        similarity_files = [res[0]['file'] for res in query_response]
+        similarity_files = [res['file'] for res in query_response]
         object_store_files.extend(similarity_files)
 
     return object_store_files
