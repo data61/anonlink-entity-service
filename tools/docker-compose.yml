@@ -28,7 +28,7 @@ services:
   backend:
     image: quay.io/n1analytics/entity-app
     environment:
-      - DEBUG=true
+      - DEBUG=false
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -61,8 +61,8 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
       - ENCRYPTION_MIN_KEY_LENGTH=1024
-      - DEBUG=true
-      - LOGGING_LEVEL=DEBUG
+      - DEBUG=false
+      - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true

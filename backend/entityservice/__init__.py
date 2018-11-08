@@ -72,7 +72,7 @@ flask_tracer = FlaskTracer(initialize_tracer, True, app)
 def initdb_command():
     """Initializes the database after a short delay."""
     db.init_db(5)
-    print('Initialized the database.')
+    print('Initialised the database.')
 
 
 @app.before_request
