@@ -102,5 +102,4 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id, check_data_ready=True):
         log.info("All parties' data present. Scheduling any queued runs")
-        print('and the span is: {}'.format(handle_raw_upload.span))
         check_for_executable_runs.delay(project_id, handle_raw_upload.get_serialized_span())
