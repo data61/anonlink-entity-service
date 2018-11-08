@@ -12,7 +12,7 @@ def delete_project_data(conn, project_id):
     # Note the first context manager begins a database transaction
     with conn:
         with conn.cursor() as cur:
-            logger.warning("Beginning db transaction to remove result data associated with project")
+            logger.debug("Beginning db transaction to remove result data associated with project")
             cur.execute("""
                 DELETE
                 FROM run_results
@@ -38,5 +38,5 @@ def delete_project_data(conn, project_id):
                     permutation_masks.project =  %s
                 """, [project_id])
 
-        logger.info("Committing removal of project resource")
+        logger.debug("Committing removal of project resource")
 
