@@ -44,7 +44,6 @@ def projects_post(project):
 
     # Persist the new project
     logger.info("Adding new project to database")
-
     try:
         with DBConn() as conn:
             project_model.save(conn)
