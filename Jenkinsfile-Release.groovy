@@ -58,7 +58,7 @@ node('helm && kubectl') {
               ]
           ]
 
-          timeout(time: 12, unit: 'HOURS') {
+          timeout(time: 24, unit: 'HOURS') {
             dir("deployment/entity-service") {
               if (fileExists("test-versions.yaml")) {
                 sh "rm test-versions.yaml"
@@ -92,9 +92,16 @@ node('helm && kubectl') {
             """, returnStdout: true).trim()
             echo jobPodName
 
+            sleep(time: 2, unit: "HOURS")
             sh """
-                # Watch the output
-                kubectl logs -f $jobPodName
+                # Show the output
+                kubectl logs $jobPodName
+            """
+
+            sleep(time: 2, unit: "HOURS")
+            sh """
+                # Show the output
+                kubectl logs $jobPodName
             """
 
             resultFile = getResultsFromK8s(DEPLOYMENT, pvc)
