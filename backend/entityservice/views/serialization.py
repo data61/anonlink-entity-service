@@ -19,8 +19,7 @@ class ProjectDescription(Schema):
     number_parties = fields.Integer(attribute='parties')
     name = fields.String()
     notes = fields.String()
-    public_key = fields.Raw()
-    paillier_context = fields.Raw()
+    error = fields.Boolean()
 
 
 class NewProjectResponse(Schema):

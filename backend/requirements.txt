@@ -23,3 +23,4 @@ opentracing<2
 jaeger-client
 Flask-Opentracing
 opentracing_instrumentation
+more_itertools

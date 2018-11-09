@@ -2,8 +2,7 @@ from flask import request, g
 from structlog import get_logger
 import opentracing
 
-from entityservice import app, database as db
-from entityservice.database import get_db, get_project_column
+from entityservice import database as db
 from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort, abort_if_invalid_results_token
@@ -23,7 +22,7 @@ def get(project_id, run_id):
         log.info("request to access run result authorized")
 
     with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
-        dbinstance = get_db()
+        dbinstance = db.get_db()
         state = db.get_run_state(dbinstance, run_id)
         log.info("run state is '{}'".format(state))
 
@@ -38,7 +37,7 @@ def get(project_id, run_id):
 
 
 def get_result(dbinstance, project_id, run_id, token):
-    result_type = get_project_column(dbinstance, project_id, 'result_type')
+    result_type = db.get_project_column(dbinstance, project_id, 'result_type')
     auth_token_type = get_authorization_token_type_or_abort(project_id, token)
 
     if result_type == 'mapping':

@@ -1,17 +1,12 @@
-import celery
+from entityservice.async_worker import celery, logger
+from entityservice.database import logger, DBConn, update_run_mark_failure
 
-from entityservice.errors import DBResourceMissing
-import psycopg2
-from structlog import get_logger
 from entityservice.tracing import create_tracer
 from opentracing.propagation import Format
 
 import time
 from entityservice.errors import DBResourceMissing
 import psycopg2
-from structlog import get_logger
-
-logger = get_logger()
 
 
 class BaseTask(celery.Task):
@@ -83,7 +78,7 @@ class TracedTask(BaseTask):
         except:
             pass
         if parent is None:
-            print('bugger, parent is None')
+            logger.info('bugger, parent is None')
         with self.tracer.start_span(getattr(self, 'span_name', self.name), child_of=parent) as wrapper_span:
             self._span = wrapper_span
             for span_tag in getattr(self, 'args_as_tags', []):
@@ -95,3 +90,21 @@ class TracedTask(BaseTask):
         self.tracer.close()
         self._tracer = None
         return super(TracedTask, self).after_return(status, retval, task_id, args, kwargs, einfo)
+
+
+@celery.task()
+def celery_bug_fix(*args, **kwargs):
+    """
+    celery chords only correctly handle errors with at least 2 tasks,
+    so we append a celery_bug_fix task.
+    https://github.com/celery/celery/issues/3709
+    """
+    return [0, None]
+
+
+@celery.task(base=BaseTask, ignore_result=True)
+def on_chord_error(*args, **kwargs):
+    logger.info("An error occurred while processing the chord's tasks")
+    with DBConn() as db:
+        update_run_mark_failure(db, kwargs['run_id'])
+    logger.warning("Marked run as failure")

@@ -3,16 +3,18 @@
 import io
 import json
 import os
+import logging
 
 import binascii
 import bitmath
 from flask import request
 from connexion import ProblemException
-from structlog import get_logger
+import structlog
 
-from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, get_number_parties_ready
+from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, \
+    get_number_parties_ready
 
-logger = get_logger()
+logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 
 
 def fmt_bytes(num_bytes):
@@ -171,7 +173,7 @@ def generate_code(length=24):
 
 
 def clks_uploaded_to_project(project_id, check_data_ready=False):
-    """ See if the given mapping has had all parties contribute data.
+    """ See if the given project has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
     conn = connect_db()
@@ -192,3 +194,20 @@ def similarity_matrix_from_csv_bytes(data):
         index_1, index_2, score = row.split(',')
         # Note we rewrite in a different order because we love making work for ourselves
         yield (int(index_1), float(score), int(index_2))
+
+
+def convert_mapping_to_list(permutation):
+    """Convert the permutation from a dict mapping into a list
+
+    Assumes the keys and values of the given dict are numbers in the
+    inclusive range from 0 to length. Note the keys should be int.
+
+    Returns a list of the values from the passed dict - in the order
+    defined by the keys.
+    """
+    l = len(permutation)
+
+    perm_list = []
+    for j in range(l):
+        perm_list.append(permutation[j])
+    return perm_list

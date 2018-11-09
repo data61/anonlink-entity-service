@@ -63,9 +63,14 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh """
-        docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} up -d \
-          db minio redis backend db_init worker nginx tests
+        docker-compose -v
+        docker-compose \
+            -f tools/docker-compose.yml \
+            -f tools/ci.yml \
+            -p ${composeProject} up -d \
+            db minio redis backend db_init worker nginx tests
         """
+
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
@@ -79,7 +84,7 @@ node('docker&&multicore&&ram') {
       try {
         DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
         sleep 2
-        timeout(time: 30, unit: 'MINUTES') {
+        timeout(time: 60, unit: 'MINUTES') {
           containerTests.watchLogs()
 
           sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
@@ -261,7 +266,7 @@ node('helm && kubectl') {
               ]
           ]
 
-          timeout(time: 30, unit: 'MINUTES') {
+          timeout(time: 60, unit: 'MINUTES') {
             dir("deployment/entity-service") {
               if (fileExists("test-versions.yaml")) {
                 sh "rm test-versions.yaml"

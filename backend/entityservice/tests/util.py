@@ -1,13 +1,13 @@
 import base64
 import datetime
 import math
+import os
 import random
 import time
-import warnings
 from enum import IntEnum
 
+from bitarray import bitarray
 import iso8601
-from anonlink.util import generate_clks
 
 from entityservice.tests.config import url
 
@@ -26,16 +26,34 @@ def serialize_filters(filters):
     ]
 
 
-def generate_serialized_clks(size):
-    clks = generate_clks(size)
+def generate_bitarray(length):
+    a = bitarray(endian=random.choice(['little', 'big']))
+    a.frombytes(os.urandom(length))
+    return a
+
+
+def generate_clks(count, size):
+    """Generate random clks of given size.
+
+    :param count: The number of clks to generate
+    :param size: The number of bytes per generated clk.
+    """
+    res = []
+    for i in range(count):
+        ba = generate_bitarray(size)
+        res.append((ba, i, ba.count()))
+    return res
+
+
+def generate_json_serialized_clks(count, size=128):
+    clks = generate_clks(count, size)
     return [serialize_bitarray(clk) for clk,_ ,_ in clks]
 
 
-def generate_overlapping_clk_data(dataset_sizes, overlap=0.9):
-
+def generate_overlapping_clk_data(dataset_sizes, overlap=0.9, encoding_size=128):
     datasets = []
-    for size in dataset_sizes:
-        datasets.append(generate_serialized_clks(size))
+    for count in dataset_sizes:
+        datasets.append(generate_json_serialized_clks(count, encoding_size))
 
     overlap_to = math.floor(min(dataset_sizes)*overlap)
     for ds in datasets[1:]:
@@ -64,8 +82,8 @@ def create_project_no_data(requests, result_type='mapping'):
     return new_project_response.json()
 
 
-def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping'):
-    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap)
+def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):
+    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap, encoding_size=encoding_size)
     return create_project_upload_data(requests, d1, d2, result_type=result_type)
 
 
@@ -100,6 +118,9 @@ def delete_project(requests, project):
 
     # Note we allow for a 403 because the project may already have been deleted
     assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
+    # Delete project is asynchronous so we generously allow the server some time to
+    # delete resources before running the next test
+    time.sleep(0.5)
 
 
 def get_run_status(requests, project, run_id, result_token = None):
@@ -120,11 +141,11 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
     start_time = time.time()
     while True:
         status = get_run_status(requests, project, run_id, result_token)
-        if status['state'] in ok_statuses:
+        if status['state'] in ok_statuses or status['state'] == 'error':
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
-        time.sleep(0.1)
+        time.sleep(0.5)
 
     return status
 
@@ -145,7 +166,8 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     on slower CI systems.
     """
     size_1, size_2 = size
-    time.sleep(5 + size_1 * size_2 / assumed_rate)
+    time.sleep(5)
+    time.sleep(size_1 * size_2 / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):
@@ -205,7 +227,7 @@ def get_run(requests, project, run_id, expected_status = 200):
     return req.json()
 
 
-def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=30):
+def get_run_result(requests, project, run_id, result_token = None, expected_status = 200, wait=True, timeout=60):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
         final_status = wait_for_run_completion(requests, project, run_id, result_token, timeout)
@@ -297,21 +319,25 @@ def is_run_status(status):
         assert 'relative' in cur_stage['progress']
 
 
-def upload_binary_data(requests, file_path, project_id, token, count, expected_status_code=201):
-    with open(file_path, 'rb') as f:
-        r = requests.post(
-            url + '/projects/{}/clks'.format(project_id),
-            headers={
-                'Authorization': token,
-                'Content-Type': 'application/octet-stream',
-                'Hash-Count': str(count),
-                'Hash-Size':  '128'
-            },
-            data=f
-        )
-    assert r.status_code == expected_status_code
+def upload_binary_data(requests, data, project_id, token, count, size=128, expected_status_code=201):
+    r = requests.post(
+        url + '/projects/{}/clks'.format(project_id),
+        headers={
+            'Authorization': token,
+            'Content-Type': 'application/octet-stream',
+            'Hash-Count': str(count),
+            'Hash-Size': str(size)
+        },
+        data=data
+    )
+    assert r.status_code == expected_status_code, 'I received this instead: {}'.format(r.text)
 
     upload_response = r.json()
     if expected_status_code == 201:
         assert 'receipt_token' in upload_response
     return upload_response
+
+
+def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, status=201):
+    with open(file_path, 'rb') as f:
+        return upload_binary_data(requests, f, project_id, token, count, size, status)

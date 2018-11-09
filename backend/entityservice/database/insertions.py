@@ -29,7 +29,6 @@ def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
         """
     with db.cursor() as cur:
         run_id = execute_returning_id(cur, sql_query, [run_id, project_id, name, notes, threshold, 'created', type])
-    db.commit()
     return run_id
 
 
@@ -44,17 +43,17 @@ def insert_dataprovider(cur, auth_token, project_id):
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
 
 
-def insert_filter_data(db, clks_filename, dp_id, receipt_token, size):
-    logger.info("Adding CLK data to database")
+def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, count):
+    logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
         INSERT INTO bloomingdata
-        (dp, token, file, size, state)
+        (dp, token, file, count, state)
         VALUES
         (%s, %s, %s, %s, %s)
         """
 
     with db.cursor() as cur:
-        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, size, 'pending'])
+        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, 'pending'])
 
     set_dataprovider_upload_state(db, dp_id, True)
 
@@ -103,7 +102,7 @@ def insert_mapping_result(db, run_id, mapping):
     return result_id
 
 
-def insert_permutation(cur, dp_id, run_id, perm_list):
+def insert_permutation(conn, dp_id, run_id, perm_list):
     sql_insertion_query = """
         INSERT INTO permutations
           (dp, run, permutation)
@@ -111,12 +110,13 @@ def insert_permutation(cur, dp_id, run_id, perm_list):
           (%s, %s, %s)
         """
     try:
-        cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
+        with conn.cursor() as cur:
+            cur.execute(sql_insertion_query, [dp_id, run_id, psycopg2.extras.Json(perm_list)])
     except psycopg2.IntegrityError:
         raise RunDeleted(run_id)
 
 
-def insert_permutation_mask(cur, project_id, run_id, mask_list):
+def insert_permutation_mask(conn, project_id, run_id, mask_list):
     sql_insertion_query = """
         INSERT INTO permutation_masks
           (project, run, raw)
@@ -125,12 +125,13 @@ def insert_permutation_mask(cur, project_id, run_id, mask_list):
         """
     json_mask = psycopg2.extras.Json(mask_list)
     try:
-        cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
+        with conn.cursor() as cur:
+            cur.execute(sql_insertion_query, [project_id, run_id, json_mask])
     except psycopg2.IntegrityError:
         raise RunDeleted(run_id)
 
 
-def update_filter_data(db, clks_filename, dp_id, state='ready'):
+def update_encoding_metadata(db, clks_filename, dp_id, state):
     sql_query = """
         UPDATE bloomingdata
         SET
@@ -140,9 +141,43 @@ def update_filter_data(db, clks_filename, dp_id, state='ready'):
           dp = %s
         """
 
-    logger.info("Updating database with info about hashes")
+    logger.info("Updating database with info about encodings")
     with db.cursor() as cur:
-        cur.execute(sql_query, [state, clks_filename, dp_id,])
+        cur.execute(sql_query, [
+            state,
+            clks_filename,
+            dp_id,
+        ])
+
+
+def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
+    sql_query = """
+        UPDATE bloomingdata
+        SET
+          encoding_size = %s
+        WHERE
+          dp = %s
+        """
+
+    logger.info("Updating database with info about encodings")
+    with db.cursor() as cur:
+        cur.execute(sql_query, [
+            encoding_size,
+            dp_id,
+        ])
+
+
+def set_project_encoding_size(db, project_id, encoding_size):
+    sql_query = """
+        UPDATE projects
+        SET
+          encoding_size = %s
+        WHERE
+          project_id = %s
+        """
+    logger.debug("Updating database with project encoding size")
+    with db.cursor() as cur:
+        cur.execute(sql_query, [encoding_size, project_id])
 
 
 def update_run_chunk(db, resource_id, chunk_size):
@@ -155,7 +190,6 @@ def update_run_chunk(db, resource_id, chunk_size):
         """
     with db.cursor() as cur:
         cur.execute(sql_query, [chunk_size, resource_id])
-    db.commit()
 
 
 def update_run_set_started(db, run_id):
@@ -182,8 +216,8 @@ def update_run_mark_complete(db, run_id):
         cur.execute(sql_query, [run_id])
 
 
-def update_run_mark_failure(db, run_id):
-    with db.cursor() as cur:
+def update_run_mark_failure(conn, run_id):
+    with conn.cursor() as cur:
         sql_query = """
             UPDATE runs SET
               state = 'error',
@@ -192,7 +226,6 @@ def update_run_mark_failure(db, run_id):
               run_id = %s
             """
         cur.execute(sql_query, [run_id])
-    db.commit()
 
 
 def update_run_mark_queued(db, run_id):
@@ -227,7 +260,6 @@ def progress_run_stage(db, run_id):
                   run_id = %s
                 """
             cur.execute(sql_query, [run_id])
-        db.commit()
     except psycopg2.Error as e:
         logger.warning(e)
         raise RunDeleted(run_id)

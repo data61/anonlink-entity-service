@@ -25,5 +25,6 @@ def test_posting_run_after_data_upload(requests, mapping_project):
     assert len(runs) == 1
     for run in runs:
         assert 'run_id' in run
+        assert run['run_id'] == run_id
         assert 'time_added' in run
         assert 'state' in run

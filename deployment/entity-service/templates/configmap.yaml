@@ -29,3 +29,5 @@ data:
   MINIO_BUCKET: {{ .Values.minio.bucket | quote }}
   CONNEXION_STRICT_VALIDATION: "true"
   CONNEXION_RESPONSE_VALIDATION: "true"
+  MIN_ENCODING_SIZE: "8"
+  MAX_ENCODING_SIZE: "1024"

@@ -4,6 +4,7 @@ from entityservice.tests.util import create_project_no_data, post_run, get_run_r
 def test_run_mapping_results(requests, mapping_project):
     run_id = post_run(requests, mapping_project, 0.95)
     wait_approx_run_time(mapping_project['size'])
+
     result = get_run_result(requests, mapping_project, run_id)
     assert 'mapping' in result
     assert isinstance(result['mapping'], dict)

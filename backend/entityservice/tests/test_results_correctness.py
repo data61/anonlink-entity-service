@@ -4,7 +4,7 @@ import os
 import anonlink
 import pytest
 
-from entityservice.tests.util import create_project_upload_data, post_run, get_run_result
+from entityservice.tests.util import create_project_upload_data, post_run, get_run_result, delete_project
 
 
 # !!! We assume that anonlink computes the right results.
@@ -44,6 +44,7 @@ def test_similarity_scores(requests, the_truth):
         assert es_score[0] == true_score[0] and es_score[1] == true_score[2]
         assert es_score[2] == pytest.approx(true_score[1], 1e-10), 'similarity scores are different'
 
+    delete_project(requests, project_data)
 
 def test_mapping(requests, the_truth):
     project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],

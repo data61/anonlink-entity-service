@@ -6,6 +6,7 @@ import structlog
 
 from entityservice import serialization
 from entityservice import database
+from entityservice.database import logger
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
@@ -102,3 +103,8 @@ def set_status(status):
     logger.debug("Saving the service status to redis cache")
     r = connect_to_redis()
     r.setex('entityservice-status', 30, pickle.dumps(status))
+
+
+def save_current_progress(comparisons, run_id):
+    logger.debug(f"Progress. Compared {comparisons} CLKS", run_id=run_id)
+    update_progress(comparisons, run_id)
