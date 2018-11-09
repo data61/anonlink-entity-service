@@ -58,7 +58,7 @@ node('helm && kubectl') {
               ]
           ]
 
-          timeout(time: 3, unit: 'HOURS') {
+          timeout(time: 12, unit: 'HOURS') {
             dir("deployment/entity-service") {
               if (fileExists("test-versions.yaml")) {
                 sh "rm test-versions.yaml"
@@ -68,8 +68,9 @@ node('helm && kubectl') {
                 helm version
                 helm dependency update
                 helm install --wait --namespace ${NAMESPACE} --name ${DEPLOYMENT} . \
-                    -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
+                    -f values.yaml -f test-versions.yaml \
                     --set api.app.debug=false \
+                    --set workers.debug=false \
                     --set api.ingress.enabled=false \
                     --set api.certManager.enabled=false \
                     --set provision.redis=true
@@ -84,7 +85,7 @@ node('helm && kubectl') {
 
             pvc = createK8sTestJob(DEPLOYMENT, QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG, serviceIP)
 
-            sleep(time: 60, unit: "SECONDS")
+            sleep(time: 120, unit: "SECONDS")
 
             def jobPodName = sh(script: """
                 kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"
