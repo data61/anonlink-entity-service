@@ -6,13 +6,8 @@ import com.n1analytics.git.GitUtils;
 import com.n1analytics.git.GitCommit;
 import com.n1analytics.git.GitRepo;
 
-String gitContextDockerBuild = "required-docker-images-build"
-String gitContextComposeDeploy = "required-dockercompose-deploy"
-String gitContextIntegrationTests = "required-integration-tests"
-String gitContextDocumentation = "required-build-documentation"
-String gitContextPublish = "required-publish-docker-images"
-String gitContextKubernetesDeployment = "optional-kubernetes-deployment"
-String gitContextLocalBenchmark = "jenkins-benchmark"
+
+String gitContextKubernetesDeployment = "release-kubernetes-deployment"
 DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
@@ -21,17 +16,18 @@ String composeProject
 node('helm && kubectl') {
 
   stage('K8s Deployment') {
-    gitCommit.setInProgressStatus(gitContextKubernetesDeployment)
-    GitUtils.checkoutFromSCM(this)
+      // Knowing this git commit will enable us to send to github the corresponding status.
+      gitCommit = GitUtils.checkoutFromSCM(this)
+      gitCommit.setInProgressStatus(gitContextKubernetesDeployment)
 
     // Pre-existant configuration file available from jenkins
     CLUSTER_CONFIG_FILE_ID = "awsClusterConfig"
 
-    DEPLOYMENT = composeProject
+    DEPLOYMENT = "linkage-${BRANCH_NAME}-${BUILD_NUMBER}".replaceAll("[-_./]", "").toLowerCase()
     NAMESPACE = "default"
 
-    def TAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME app""", returnStdout: true).trim()
-    def NGINXTAG = sh(script: """python tools/get_docker_tag.py $BRANCH_NAME nginx""", returnStdout: true).trim()
+    def TAG = sh(script: """python tools/get_docker_tag.py address-cr-282 app""", returnStdout: true).trim()
+    def NGINXTAG = sh(script: """python tools/get_docker_tag.py address-cr-282 nginx""", returnStdout: true).trim()
 
 
     configFileProvider([configFile(fileId: CLUSTER_CONFIG_FILE_ID, variable: 'KUBECONFIG')]) {
@@ -71,9 +67,9 @@ node('helm && kubectl') {
               sh """
                 helm version
                 helm dependency update
-                helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
-                    -f values.yaml -f -f test-versions.yaml \
-                    --set api.app.debug=true \
+                helm install --wait --namespace ${NAMESPACE} --name ${DEPLOYMENT} . \
+                    -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
+                    --set api.app.debug=false \
                     --set api.ingress.enabled=false \
                     --set api.certManager.enabled=false \
                     --set provision.redis=true
