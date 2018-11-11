@@ -242,19 +242,23 @@ redis-ha:
   ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "9X9RFrRnQHcB"
-  resources:
-    server:
+  redis:
+    #config:
+    resources:
       requests:
         memory: 512Mi
         cpu: 100m
       limits:
         memory: 10Gi
-    sentinel:
+  sentinel:
+    resources:
       requests:
         cpu: 100m
         memory: 256Mi
       limits:
         memory: 1Gi
+  persistantVolume:
+    enabled: true
   nameOverride: "memstore"
 
 
