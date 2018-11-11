@@ -9,9 +9,9 @@ Version 1.9.1
 
 - Adds support for (almost) arbitrary sized encodings. A minimum and maximum can be set at deployment time, and
   currently anonlink requires the size to be a multiple of 8.
-- Adds support for opentracing with jaeger.
+- Adds support for `opentracing <https://opentracing.io/>`_ with Jaeger.
 - improvements to the benchmarking container
-- rather large internal refactoring of tasks
+- internal refactoring of tasks
 
 Version 1.9.0
 -------------
