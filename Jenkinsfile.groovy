@@ -484,6 +484,7 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
                                                           "-m",
                                                           "pytest",
                                                           "entityservice/tests",
+                                                          "-x",
                                                           "--junit-xml=/mnt/results.xml"
                                                   ],
                                                   "volumeMounts": [[
