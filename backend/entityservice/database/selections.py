@@ -56,7 +56,7 @@ def check_run_exists(db, project_id, run_id):
     return query_result['count'] == 1
 
 
-def get_number_parties_uploaded(db, resource_id):
+def get_number_parties_uploaded(db, project_id):
     sql_query = """
         SELECT COUNT(*)
         FROM dataproviders, bloomingdata
@@ -65,8 +65,23 @@ def get_number_parties_uploaded(db, resource_id):
           bloomingdata.dp = dataproviders.id AND
           dataproviders.uploaded = TRUE
         """
-    query_result = query_db(db, sql_query, [resource_id], one=True)
+    query_result = query_db(db, sql_query, [project_id], one=True)
     return query_result['count']
+
+
+def get_encoding_error_count(db, project_id):
+    """
+    Returns the count of uploads for the given project that are in the state "error".
+    """
+    sql_query = """
+        SELECT count(*)
+        FROM dataproviders, bloomingdata
+        WHERE
+          dataproviders.project = %s AND
+          bloomingdata.dp = dataproviders.id AND
+          bloomingdata.state = 'error'
+        """
+    return query_db(db, sql_query, [project_id], one=True)['count']
 
 
 def get_number_parties_ready(db, resource_id):
@@ -124,7 +139,7 @@ def get_run(db, run_id):
 
 
 def get_project_column(db, project_id, column):
-    assert column in {'notes', 'schema', 'parties', 'result_type', 'deleted'}
+    assert column in {'notes', 'schema', 'parties', 'result_type', 'deleted', 'encoding_size'}
     sql_query = """
         SELECT {} 
         FROM projects
@@ -157,7 +172,7 @@ def get_run_result(db, resource_id):
 
 def get_project_dataset_sizes(db, project_id):
     sql_query = """
-        SELECT bloomingdata.size
+        SELECT bloomingdata.count
         FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
@@ -165,12 +180,26 @@ def get_project_dataset_sizes(db, project_id):
         ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id], one=False)
-    return [r['size'] for r in query_result]
+    dataset_lengths = [r['count'] for r in query_result]
+    return dataset_lengths
+
+
+def get_uploaded_encoding_sizes(db, project_id):
+    sql_query = """
+        SELECT dp, encoding_size
+        FROM dataproviders, bloomingdata
+        WHERE
+          bloomingdata.dp=dataproviders.id AND
+          dataproviders.project=%s
+        ORDER BY dataproviders.id
+        """
+    query_result = query_db(db, sql_query, [project_id], one=False)
+    return [(r['dp'], r['encoding_size']) for r in query_result]
 
 
 def get_smaller_dataset_size_for_project(db, project_id):
     sql_query = """
-        SELECT MIN(bloomingdata.size) as smaller
+        SELECT MIN(bloomingdata.count) as smaller
         FROM dataproviders, bloomingdata
         WHERE
           bloomingdata.dp=dataproviders.id AND
@@ -185,7 +214,7 @@ def get_total_comparisons_for_project(db, project_id):
     :return total number of comparisons for this project
     """
     sql_query = """
-        SELECT bloomingdata.size as rows
+        SELECT bloomingdata.count as rows
         from dataproviders, bloomingdata
         where
           bloomingdata.dp=dataproviders.id AND
@@ -212,7 +241,7 @@ def get_dataprovider_id(db, update_token):
 
 
 def get_bloomingdata_column(db, dp_id, column):
-    assert column in {'ts', 'token', 'file', 'state', 'size'}
+    assert column in {'ts', 'token', 'file', 'state', 'count'}
     sql_query = """
         SELECT {} 
         FROM bloomingdata
@@ -234,9 +263,37 @@ def get_filter_metadata(db, dp_id):
 
 def get_number_of_hashes(db, dp_id):
     """
-    :return: The size of the uploaded raw clks.
+    :return: The count of the uploaded encodings.
     """
-    return get_bloomingdata_column(db, dp_id, 'size')
+    return get_bloomingdata_column(db, dp_id, 'count')
+
+
+def get_project_schema_encoding_size(db, project_id):
+    """
+    Return the project's `encoding_size`, first looking in the
+    project table's `encoding_size` column, with a fallback to
+    calculating it from the number of bits set in the linkage schema.
+
+    :return: The expected size of uploaded encodings in bytes or None.
+    """
+    sql_query = """
+        SELECT
+            coalesce(
+                encoding_size,
+                case 
+                    when (schema->'clkConfig') IS NULL THEN null                
+                    when (schema->'clkConfig'->>'l') IS NULL THEN null
+                    else (schema->'clkConfig'->>'l')::integer/8
+                end
+            ) AS encoding_size
+        FROM projects
+        WHERE project_id = %s
+        """.format(project_id)
+    return query_db(db, sql_query, [project_id], one=True)['encoding_size']
+
+
+def get_project_encoding_size(db, project_id):
+    return get_project_column(db, project_id, 'encoding_size')
 
 
 def get_permutation_result(db, dp_id, run_id):
@@ -310,7 +367,7 @@ def get_all_objects_for_project(db, project_id):
               runs.run_id = similarity_scores.run AND
               runs.project = %s
             """, [project_id])
-        similarity_files = [res[0]['file'] for res in query_response]
+        similarity_files = [res['file'] for res in query_response]
         object_store_files.extend(similarity_files)
 
     return object_store_files

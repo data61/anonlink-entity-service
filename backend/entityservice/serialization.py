@@ -7,7 +7,6 @@ import struct
 from structlog import get_logger
 from flask import Response
 
-from entityservice import app
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
@@ -36,21 +35,24 @@ def deserialize_bitarray(bytes_data):
     return ba
 
 
-"""
-The binary format used:
+def binary_format(encoding_size):
+    """
+    Return a Struct instance with the binary format of the encodings.
 
-- "!" Use network byte order (big-endian).
-- "1I" Store the index in 4 bytes as an unsigned int.
-- "128s" Store the 128 raw bytes of the bitarray
-- "1H" The popcount stored in 2 bytes (unsigned short)
+    The binary format string can be understood as:
+    - "!" Use network byte order (big-endian).
+    - "1I" Store the index in 4 bytes as an unsigned int.
+    - "<encoding size>s" Store the n (e.g. 128) raw bytes of the bitarray
+    - "1H" The popcount stored in 2 bytes (unsigned short)
 
-https://docs.python.org/3/library/struct.html#format-strings
-"""
-bit_packing_fmt = "!1I128s1H"
-bit_packed_element_size = struct.calcsize(bit_packing_fmt)
+    https://docs.python.org/3/library/struct.html
+    """
+    bit_packing_fmt = f"!1I{encoding_size}s1H"
+    bit_packing_struct = struct.Struct(bit_packing_fmt)
+    return bit_packing_struct
 
 
-def binary_pack_filters(filters):
+def binary_pack_filters(filters, encoding_size):
     """Efficient packing of bloomfilters with index and popcount.
 
     :param filters:
@@ -59,30 +61,33 @@ def binary_pack_filters(filters):
     :return:
         An iterable of bytes.
     """
+    bit_packing_struct = binary_format(encoding_size)
+
     for ba_clk, indx, count in filters:
-        yield struct.pack(
-          bit_packing_fmt,
+        yield bit_packing_struct.pack(
           indx,
           ba_clk.tobytes(),
           count
         )
 
 
-def binary_unpack_one(data):
-    index, clk_bytes, count = struct.unpack(bit_packing_fmt, data)
-    assert len(clk_bytes) == 128
-
+def binary_unpack_one(data, bit_packing_struct):
+    index, clk_bytes, count = bit_packing_struct.unpack(data)
     ba = bitarray(endian="big")
     ba.frombytes(clk_bytes)
     return ba, index, count
 
 
-def binary_unpack_filters(streamable_data, max_bytes=None):
+def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=None):
+    assert encoding_size is not None
+    bit_packed_element = binary_format(encoding_size)
+    bit_packed_element_size = bit_packed_element.size
     filters = []
     bytes_consumed = 0
+
+    logger.info(f"Unpacking stream of encodings with size {encoding_size} - packed as {bit_packed_element_size}")
     for raw_bytes in streamable_data.stream(bit_packed_element_size):
-        assert len(raw_bytes) == 134
-        filters.append(binary_unpack_one(raw_bytes))
+        filters.append(binary_unpack_one(raw_bytes, bit_packed_element))
 
         bytes_consumed += bit_packed_element_size
         if max_bytes is not None and bytes_consumed >= max_bytes:
@@ -174,3 +179,15 @@ def get_similarity_scores(filename):
     except urllib3.exceptions.ResponseError:
         logger.warning("Attempt to read the similarity scores file failed with an error response.", filename=filename)
         safe_fail_request(500, "Failed to retrieve similarity scores")
+
+
+def get_chunk_from_object_store(chunk_info, encoding_size=128):
+    mc = connect_to_object_store()
+    bit_packed_element_size = binary_format(encoding_size).size
+    chunk_length = chunk_info[2] - chunk_info[1]
+    chunk_bytes = bit_packed_element_size * chunk_length
+    chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
+
+    chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes, encoding_size)
+
+    return chunk_data, chunk_length

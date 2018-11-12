@@ -6,6 +6,7 @@ from entityservice.views.serialization import RunDescription
 
 logger = get_logger()
 
+
 def get(project_id, run_id):
     log = logger.bind(pid=project_id, rid=run_id)
     logger.info("request description of a run")

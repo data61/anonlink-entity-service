@@ -1,13 +1,14 @@
-version: '2'
+version: '2.1'
 services:
 
   db:
-    image: postgres:10.3
+    image: postgres:11
     environment:
       - POSTGRES_PASSWORD=rX%QpV7Xgyrz
     volumes:
       - psql:/var/lib/postgresql/data
-
+    #ports:
+    #- 5432:5432
 
   minio:
     image: minio/minio:RELEASE.2017-02-16T01-47-30Z
@@ -20,14 +21,14 @@ services:
 
 
   redis:
-    image: redis:3.2
+    image: redis:5.0
 
 
   # The flask application server
   backend:
     image: quay.io/n1analytics/entity-app
     environment:
-      - DEBUG=true
+      - DEBUG=false
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -60,12 +61,12 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - ENTITY_MATCH_THRESHOLD=0.90
       - ENCRYPTION_MIN_KEY_LENGTH=1024
-      - DEBUG=true
-      - LOGGING_LEVEL=DEBUG
+      - DEBUG=false
+      - LOGGING_LEVEL=INFO
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
-      - CELERYD_MAX_TASKS_PER_CHILD=10
+      - CELERYD_MAX_TASKS_PER_CHILD=4096
       - SMALL_COMPARISON_CHUNK_SIZE=100000000
       - LARGE_COMPARISON_CHUNK_SIZE=1000000000
       - SMALL_JOB_SIZE=100000000
@@ -75,8 +76,8 @@ services:
 
   nginx:
     image: quay.io/n1analytics/entity-nginx
-    ports:
-      - 8851
+    #ports:
+    #  - 8851:8851
     depends_on:
       - backend
     environment:
@@ -86,11 +87,26 @@ services:
 
   # A celery monitor. Useful for debugging but okay to remain
   # commented out for deployment. Access via the nginx container with url `/monitor`
-  celery_monitor:
-    image: quay.io/n1analytics/entity-app
-    depends_on:
-      - redis
-    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=monitor --port=8888 -Q celery,compute
+#  celery_monitor:
+#    image: quay.io/n1analytics/entity-app
+#    depends_on:
+#      - redis
+#    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=/ --port=8888 -Q celery,compute
+#    ports:
+#      - 8888:8888
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+#    ports:
+#      - 5775:5775/udp
+#      - 6831:6831/udp
+#      - 6832:6832/udp
+#      - 5778:5778
+#      - 16686:16686
+#      - 14268:14268
+#      - 9411:9411
 
 volumes:
   psql:

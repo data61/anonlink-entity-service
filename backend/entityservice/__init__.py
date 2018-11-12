@@ -1,30 +1,30 @@
 import logging
+import pathlib
 import uuid
 
 import connexion
 from flask import g
 import structlog
-
-# Define the WSGI application object
-# Note we explicitly do this before importing our own code
-
-con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
-app = con_app.app
-
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
     import ijson
 
+# Define the WSGI application object
+# Note we explicitly do this before importing our own code
+con_app = connexion.FlaskApp(__name__, specification_dir='api_def', debug=True)
+app = con_app.app
 
+import entityservice.views
+from entityservice.tracing import initialize_tracer
+from flask_opentracing import FlaskTracer
 from entityservice import database as db
 from entityservice.serialization import generate_scores
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 from entityservice.utils import fmt_bytes, iterable_to_stream
 
-
-con_app.add_api('swagger.yaml',
+con_app.add_api(pathlib.Path("swagger.yaml"),
                 base_path='/',
                 strict_validation=config.CONNEXION_STRICT_VALIDATION,
                 validate_responses=config.CONNEXION_RESPONSE_VALIDATION)
@@ -64,24 +64,28 @@ else:
 if config.LOGFILE is not None:
    app.logger.addHandler(fileHandler)
 
+# Tracer setup (currently just trace all requests)
+flask_tracer = FlaskTracer(initialize_tracer, True, app)
+
 
 @app.cli.command('initdb')
 def initdb_command():
     """Initializes the database after a short delay."""
     db.init_db(5)
-    print('Initialized the database.')
+    print('Initialised the database.')
 
 
 @app.before_request
 def before_request():
-    log = logger.new(request=str(uuid.uuid4())[:8])
-    g.db = db.connect_db()
+    g.log = logger.new(request=str(uuid.uuid4())[:8])
+    g.flask_tracer = flask_tracer
 
 
 @app.teardown_request
 def teardown_request(exception):
     if hasattr(g, 'db'):
         g.db.close()
+
 
 if __name__ == '__main__':
     con_app.run(debug=True, port=8851)

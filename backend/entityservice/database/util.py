@@ -45,6 +45,7 @@ def connect_db():
         logger.warning("Can't connect to database")
         raise ConnectionError("Issue connecting to database")
 
+    logger.debug("Database connection established")
     return conn
 
 
@@ -96,9 +97,10 @@ def execute_returning_id(cur, query, args):
 
 def get_db():
     """Opens a new database connection if there is none yet for the
-    current application context.
+    current flask application context.
     """
-    conn = getattr(g, '_db', None)
+    conn = getattr(g, 'db', None)
     if conn is None:
-        conn = g._db = db.connect_db()
+        logger.debug("Caching a new database connection in application context")
+        conn = g.db = db.connect_db()
     return conn

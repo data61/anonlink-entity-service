@@ -130,6 +130,8 @@ def test_create_then_describe_valid_auth(requests):
     assert 'name' in project_description
     assert 'notes' in project_description
     assert 'schema' in project_description
+    assert 'error' in project_description
+    assert not project_description['error']
     assert 'public_key' not in project_description
     assert 'paillier_context' not in project_description
 

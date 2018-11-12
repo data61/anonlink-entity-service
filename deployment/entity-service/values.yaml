@@ -43,10 +43,9 @@ api:
         memory: 256Mi
 
   app:
-
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.8.1"
+      tag: "v1.9.1"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -70,7 +69,16 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.8.2"
+      tag: "v1.9.1"
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
@@ -143,7 +151,7 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.8.2"
+    tag: "v1.9.1"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
@@ -179,7 +187,7 @@ workers:
 
   celery:
     PREFETCH_MULTIPLIER: "1"
-    MAX_TASKS_PER_CHILD: "10"
+    MAX_TASKS_PER_CHILD: "4096"
     ACKS_LATE: "true"
 
   monitor:

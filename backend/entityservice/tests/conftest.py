@@ -7,7 +7,7 @@ import itertools
 from entityservice.tests.util import create_project_upload_fake_data, delete_project
 
 
-THROTTLE_SLEEP = 0.1
+THROTTLE_SLEEP = 0.2
 
 
 @pytest.fixture(scope='session')
@@ -33,8 +33,15 @@ def requests():
 # - threshold
 
 ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
-THRESHOLDS = [0.6, 0.9, 0.99]
-OVERLAPS = [0.0, 0.2, 0.6, 0.9, 1.0]
+THRESHOLDS = [0.9, 1.0]
+OVERLAPS = [0.0, 0.9, 1.0]
+ENCODING_SIZES = [8]
+
+if os.getenv(ENVVAR_NAME):
+    ENCODING_SIZES.extend([64, 128, 512, 2048])
+    OVERLAPS.extend([0.2, 0.5])
+    THRESHOLDS.extend([0.6, 0.8, 0.95])
+
 SIZES = itertools.chain(
     # Default project sizes
     itertools.product([1, 100, 1000], repeat=2),
@@ -42,10 +49,10 @@ SIZES = itertools.chain(
     () if not os.getenv(ENVVAR_NAME)
        else itertools.combinations([1, 10000, 100000, 1000000], 2))
 
-PROJECT_PARAMS = itertools.product(SIZES, OVERLAPS)
+PROJECT_PARAMS = list(itertools.product(SIZES, OVERLAPS, ENCODING_SIZES))
 
 
-def create_project_response(requests, size, overlap, result_type):
+def create_project_response(requests, size, overlap, result_type, encoding_size=128):
     """
     Create a project with the given size, overlap and result_type.
 
@@ -53,7 +60,9 @@ def create_project_response(requests, size, overlap, result_type):
 
     {
         "project_id": "ID",
+        "upload-mode": "BINARY" | "JSON",
         "size": [size 1, size 2],
+        "encoding-size": int number of bytes in each encoding e.g. 128,
         "overlap": float between 0 and 1,
         "result_token": "TOKEN",
         "upload_tokens": [TOKENS, ...],
@@ -62,9 +71,11 @@ def create_project_response(requests, size, overlap, result_type):
     }
     """
     project, dp_1, dp_2 = create_project_upload_fake_data(
-        requests, size, overlap=overlap, result_type=result_type)
+        requests, size, overlap=overlap, result_type=result_type, encoding_size=encoding_size)
     project.update({
         'size': size,
+        'encoding-size': encoding_size,
+        'upload-mode': 'JSON',
         'overlap': overlap,
         'dp_1': dp_1,
         'dp_2': dp_2
@@ -74,7 +85,7 @@ def create_project_response(requests, size, overlap, result_type):
 
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def mapping_project(request, requests):
-    size, overlap = request.param
+    size, overlap, encoding_size = request.param
     prj = create_project_response(requests, size, overlap, 'mapping')
     yield prj
     delete_project(requests, prj)
@@ -82,15 +93,25 @@ def mapping_project(request, requests):
 
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def similarity_scores_project(request, requests):
-    size, overlap = request.param
+    size, overlap, encoding_size = request.param
     prj = create_project_response(requests, size, overlap, 'similarity_scores')
     yield prj
     delete_project(requests, prj)
 
 
+@pytest.fixture(scope='function', params=ENCODING_SIZES)
+def encoding_size(request):
+    yield request.param
+
+
+@pytest.fixture(scope='function', params=THRESHOLDS)
+def threshold(request):
+    yield request.param
+
+
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def permutations_project(request, requests):
-    size, overlap = request.param
+    size, overlap, encoding_size = request.param
     prj = create_project_response(requests, size, overlap, 'permutations')
     yield prj
     delete_project(requests, prj)

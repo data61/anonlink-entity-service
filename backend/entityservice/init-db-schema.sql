@@ -1,4 +1,8 @@
-DROP TABLE IF EXISTS projects, runs, dataproviders, bloomingdata, run_results, similarity_scores, permutations, permutation_masks, metrics;
+DROP TABLE
+IF EXISTS
+projects, runs, dataproviders, bloomingdata, run_results,
+similarity_scores, permutations, permutation_masks, metrics
+CASCADE;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
@@ -22,6 +26,9 @@ CREATE TABLE projects (
 
   -- not required by the server, but is shared to all parties
   schema              JSONB         NOT NULL,
+
+  -- Size in bytes of the encoding
+  encoding_size  INT    NULL,
 
   -- human readable name for display purposes
   name                TEXT,
@@ -99,7 +106,7 @@ CREATE TYPE UPLOADSTATE AS ENUM (
   'error'
 );
 
--- The uploaded CLK data for each dataprovider
+-- The encoded PII data for each dataprovider
 CREATE TABLE bloomingdata (
   id    SERIAL PRIMARY KEY,
 
@@ -115,7 +122,11 @@ CREATE TABLE bloomingdata (
 
   state UPLOADSTATE NOT NULL,
 
-  size  INT         NOT NULL
+  -- Size in bytes of the uploaded encoding
+  encoding_size  INT    NULL,
+
+  -- Number of uploaded entries
+  count  INT         NOT NULL
 );
 
 

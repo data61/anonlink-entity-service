@@ -1,9 +1,12 @@
-import celery
+from entityservice.async_worker import celery, logger
+from entityservice.database import logger, DBConn, update_run_mark_failure
+
+from entityservice.tracing import create_tracer
+from opentracing.propagation import Format
+
+import time
 from entityservice.errors import DBResourceMissing
 import psycopg2
-from structlog import get_logger
-
-logger = get_logger()
 
 
 class BaseTask(celery.Task):
@@ -32,3 +35,76 @@ class BaseTask(celery.Task):
         else:
             logger.exception(f"Unexpected exception raised in task {task_id}", exc_info=einfo)
             super(BaseTask, self).on_failure(exc, task_id, args, kwargs, einfo)
+
+
+class TracedTask(BaseTask):
+    """
+    Wrap an opentracing span around a task execution.
+
+    Adds two properties to a task:
+        - tracer: the task-local tracer
+        - span: the wrapper span
+    Thus you can do things like:
+        task.tracer.create_span('thus_span', child_of=task.span) as thus_span:
+        or
+        task.span.log_kv()
+    But beware, this is not quite like standard opentracing principles, as
+    this is not a global tracer (opentracing.tracer will not work!!)
+    """
+    _tracer = None
+    _span = None
+
+    @property
+    def tracer(self):
+        if self._tracer is None:
+            self._tracer = create_tracer('anonlink-worker')
+        return self._tracer
+
+    @property
+    def span(self):
+        return self._span
+
+    def get_serialized_span(self):
+        serialized_span = {}
+        self.tracer.inject(self.span, Format.TEXT_MAP, serialized_span)
+        return serialized_span
+
+    def __call__(self, *args, **kwargs):
+        args_dict = dict(zip(self.run.__code__.co_varnames, args))
+        args_dict.update(kwargs)
+        parent = args_dict.get(getattr(self, 'parent_span_arg', 'parent_span'), None)
+        try:
+            parent = self.tracer.extract(Format.TEXT_MAP, parent)
+        except:
+            pass
+        if parent is None:
+            logger.info('bugger, parent is None')
+        with self.tracer.start_span(getattr(self, 'span_name', self.name), child_of=parent) as wrapper_span:
+            self._span = wrapper_span
+            for span_tag in getattr(self, 'args_as_tags', []):
+                wrapper_span.set_tag(span_tag, args_dict.get(span_tag, None))
+            return super(TracedTask, self).__call__(*args, **kwargs)
+
+    def after_return(self, status, retval, task_id, args, kwargs, einfo):
+        time.sleep(2) # jaeger bug
+        self.tracer.close()
+        self._tracer = None
+        return super(TracedTask, self).after_return(status, retval, task_id, args, kwargs, einfo)
+
+
+@celery.task()
+def celery_bug_fix(*args, **kwargs):
+    """
+    celery chords only correctly handle errors with at least 2 tasks,
+    so we append a celery_bug_fix task.
+    https://github.com/celery/celery/issues/3709
+    """
+    return [0, None]
+
+
+@celery.task(base=BaseTask, ignore_result=True)
+def on_chord_error(*args, **kwargs):
+    logger.info("An error occurred while processing the chord's tasks")
+    with DBConn() as db:
+        update_run_mark_failure(db, kwargs['run_id'])
+    logger.warning("Marked run as failure")

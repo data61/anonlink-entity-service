@@ -6,8 +6,17 @@ from structlog import get_logger
 
 logger = get_logger()
 
+
+def abort_if_project_in_error_state(project_id):
+    conn = get_db()
+    num_parties_with_error = db.get_encoding_error_count(conn, project_id)
+    if num_parties_with_error > 0:
+        safe_fail_request(500, message="Can't post run as project has errors")
+
+
 def abort_if_project_doesnt_exist(project_id):
-    resource_exists = db.check_project_exists(get_db(), project_id)
+    conn = get_db()
+    resource_exists = db.check_project_exists(conn, project_id)
     if not resource_exists:
         logger.info("Requested project resource with invalid identifier token")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)

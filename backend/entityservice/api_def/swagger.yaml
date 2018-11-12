@@ -272,7 +272,7 @@ paths:
   '/projects/{project_id}/clks':
     post:
       operationId: entityservice.views.project.project_clks_post
-      summary: Upload CLK data to a linkage project.
+      summary: Upload encoded PII data to a linkage project.
       consumes:
         - application/json
         - application/octet-stream
@@ -288,13 +288,18 @@ paths:
         When the last party successfully uploads their data any existing project runs are queued
         for execution.
 
+        The uploaded encodings must all have the same length in bytes. If the project's linkage schema
+        specifes an encoding size it will be checked and enforced before any runs are computed. Note a
+        minimum and maximum encoding size can be set at the server level at deployment time.
+        Currently anonlink requires this _encoding size_ to be a multiple of 8. An example value is 128 Bytes.
+
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
 
         ### JSON Upload
 
         This endpoint can be used with the Content-Type: application/json and uses the `CLKUpload`
-        structure.
+        structure of a JSON array of base64 encoded strings.
 
         ### Binary Upload
 
@@ -758,6 +763,9 @@ definitions:
             type: string
           parties_contributed:
             type: number
+          error:
+            type: boolean
+
 
   NewProjectResponse:
     properties:
