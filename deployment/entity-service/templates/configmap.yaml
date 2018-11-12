@@ -7,6 +7,7 @@ metadata:
 data:
   {{ if .Values.provision.redis }}
   REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}
+  CELERY_BROKER_URL: "sentinel://{{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}:26379"
   {{ else }}
   REDIS_SERVER: {{ .Values.redis.server }}
   {{ end }}
