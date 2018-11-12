@@ -82,8 +82,8 @@ node('docker&&multicore&&ram') {
     stage('Integration Tests') {
       gitCommit.setInProgressStatus(gitContextIntegrationTests);
       try {
-        DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
-        sleep 2
+
+        sleep 30
         timeout(time: 60, unit: 'MINUTES') {
           containerTests.watchLogs()
 
@@ -292,7 +292,7 @@ node('helm && kubectl') {
 
             pvc = createK8sTestJob(DEPLOYMENT, QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG, serviceIP)
 
-            sleep(time: 60, unit: "SECONDS")
+            sleep(time: 300, unit: "SECONDS")
 
             def jobPodName = sh(script: """
                 kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"

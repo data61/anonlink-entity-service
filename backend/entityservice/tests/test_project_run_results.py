@@ -16,7 +16,7 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
     assert 'similarity_scores' in result
 
 
-def test_run_permutation_unencrypted_results(requests, permutations_project, threshold):
+def test_run_permutations_results(requests, permutations_project, threshold):
     run_id = post_run(requests, permutations_project, threshold)
     mask_result = get_run_result(requests, permutations_project, run_id)
     assert 'mask' in mask_result
