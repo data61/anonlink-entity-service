@@ -243,7 +243,6 @@ redis-ha:
   auth: true
   redisPassword: "9X9RFrRnQHcB"
   redis:
-    #config:
     resources:
       requests:
         memory: 512Mi
@@ -259,6 +258,7 @@ redis-ha:
         memory: 1Gi
   persistantVolume:
     enabled: true
+    size: 10Gi
   nameOverride: "memstore"
 
 
