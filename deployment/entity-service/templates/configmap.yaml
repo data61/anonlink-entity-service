@@ -6,7 +6,7 @@ metadata:
     {{- include "es.release_labels" . | indent 4 }}
 data:
   {{ if .Values.provision.redis }}
-  REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}-master-svc
+  REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}
   {{ else }}
   REDIS_SERVER: {{ .Values.redis.server }}
   {{ end }}
