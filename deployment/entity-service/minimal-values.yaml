@@ -50,6 +50,7 @@ postgresql:
       cpu: 50m
 
   persistence:
+    enabled: false
     size: 1Gi
 
 
@@ -59,6 +60,8 @@ minio:
     size: 1Gi
 
 redis-ha:
+  persistentVolume:
+    enabled: false
   resources:
     server:
       requests:
