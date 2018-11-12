@@ -64,7 +64,7 @@ node('docker&&multicore&&ram') {
         echo("Start all the containers (including tests)")
         sh """
         docker-compose -v
-        docker-compose \
+        docker-compose --no-ansi \
             -f tools/docker-compose.yml \
             -f tools/ci.yml \
             -p ${composeProject} up -d \
@@ -82,15 +82,19 @@ node('docker&&multicore&&ram') {
     stage('Integration Tests') {
       gitCommit.setInProgressStatus(gitContextIntegrationTests);
       try {
-
+        testContainerID = sh (
+            script: "docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} ps -q tests",
+            returnStdout: true
+        ).trim()
+        DockerContainer containerTests = new DockerContainer(dockerUtils, testContainerID)
         sleep 30
         timeout(time: 60, unit: 'MINUTES') {
-          containerTests.watchLogs()
 
-          sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
-          sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
-          sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
-          sh("docker logs " + composeProject + "_db_1" + " &> db.log")
+          containerTests.watchLogs()
+          sh("docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} logs nginx &> nginx.log")
+          sh("docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} logs backend &> backend.log")
+          sh("docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} logs worker &> worker.log")
+          sh("docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p ${composeProject} logs db &> db.log")
 
           archiveArtifacts artifacts: "*.log", fingerprint: false
           if (containerTests.getExitCode() != "0") {
