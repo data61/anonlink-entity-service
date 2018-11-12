@@ -36,8 +36,8 @@ class Config(object):
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
 
     BROKER_URL = os.getenv('CELERY_BROKER_URL',
-                           'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
-
+                           'sentinel://:{}@{}:26379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
+    BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"}
     CELERY_RESULT_BACKEND = BROKER_URL
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
