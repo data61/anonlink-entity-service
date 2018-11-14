@@ -4,6 +4,7 @@ import math
 import os
 import random
 import time
+from contextlib import contextmanager
 from enum import IntEnum
 
 from bitarray import bitarray
@@ -80,6 +81,15 @@ def create_project_no_data(requests, result_type='mapping'):
                                      })
     assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.text)
     return new_project_response.json()
+
+
+@contextmanager
+def temporary_blank_project(requests, result_type='mapping'):
+    # Code to acquire resource, e.g.:
+    project = create_project_no_data(requests, result_type)
+    yield project
+    # Release project resource
+    delete_project(requests, project)
 
 
 def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):

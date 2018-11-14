@@ -17,6 +17,16 @@ DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
 
+String composeCmd(String composeProject, String cmd) {
+    return sh (
+            script: """ docker-compose --no-ansi \
+                                -f tools/docker-compose.yml \
+                                -f tools/ci.yml \
+                                -p ${composeProject} ${cmd}""",
+            returnStdout: true
+    ).trim()
+}
+
 node('docker&&multicore&&ram') {
 
   stage ('Initialisation') {
@@ -36,19 +46,19 @@ node('docker&&multicore&&ram') {
       try {
         dir("backend") {
           String imageNameLabel = QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":latest"
-          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
         dir("frontend") {
           String imageNameLabel = QuayIORepo.ENTITY_SERVICE_NGINX.getRepo() + ":latest"
-          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
         dir("docs") {
           String imageNameLabel = "quay.io/n1analytics/entity-docs:latest"
-          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
         dir("benchmarking") {
           String imageNameLabel = "quay.io/n1analytics/entity-benchmark:latest"
-          dockerUtils.dockerCommand("build -t " + imageNameLabel + " .")
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
         gitCommit.setSuccessStatus(gitContextDockerBuild)
       } catch (err) {
@@ -62,15 +72,8 @@ node('docker&&multicore&&ram') {
       gitCommit.setInProgressStatus(gitContextComposeDeploy);
       try {
         echo("Start all the containers (including tests)")
-        sh """
-        docker-compose -v
-        docker-compose \
-            -f tools/docker-compose.yml \
-            -f tools/ci.yml \
-            -p ${composeProject} up -d \
-            db minio redis backend db_init worker nginx tests
-        """
-
+        sh "docker-compose -v"
+          composeCmd(composeProject, "up -d db minio redis backend db_init worker nginx tests")
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
@@ -82,15 +85,16 @@ node('docker&&multicore&&ram') {
     stage('Integration Tests') {
       gitCommit.setInProgressStatus(gitContextIntegrationTests);
       try {
-        DockerContainer containerTests = new DockerContainer(dockerUtils, composeProject + "_tests_1")
-        sleep 2
+        testContainerID = composeCmd(composeProject,"ps -q tests")
+        DockerContainer containerTests = new DockerContainer(dockerUtils, testContainerID)
+        sleep 30
         timeout(time: 60, unit: 'MINUTES') {
-          containerTests.watchLogs()
 
-          sh("docker logs " + composeProject + "_nginx_1" + " &> nginx.log")
-          sh("docker logs " + composeProject + "_backend_1" + " &> backend.log")
-          sh("docker logs " + composeProject + "_worker_1" + " &> worker.log")
-          sh("docker logs " + composeProject + "_db_1" + " &> db.log")
+          containerTests.watchLogs()
+          composeCmd(composeProject, "logs nginx &> nginx.log")
+          composeCmd(composeProject, "logs backend &> backend.log")
+          composeCmd(composeProject, "logs worker &> worker.log")
+          composeCmd(composeProject, "logs db &> db.log")
 
           archiveArtifacts artifacts: "*.log", fingerprint: false
           if (containerTests.getExitCode() != "0") {
@@ -212,8 +216,7 @@ node('docker&&multicore&&ram') {
     stage("Cleaning") {
       try {
         dockerUtils.dockerLogoutQuayIOWithoutFail()
-        String cmdTearDown = "docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p " + composeProject + " down -v"
-        sh cmdTearDown
+        composeCmd(composeProject, " down -v")
       } catch(Exception err) {
         print("Error in cleaning stage, but do nothing about it:\n" + err)
         // Do nothing on purpose.
@@ -279,8 +282,7 @@ node('helm && kubectl') {
                     -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
                     --set api.ingress.enabled=false \
-                    --set api.certManager.enabled=false \
-                    --set provision.redis=true
+                    --set api.certManager.enabled=false                    
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 120, unit: "SECONDS")
@@ -292,7 +294,7 @@ node('helm && kubectl') {
 
             pvc = createK8sTestJob(DEPLOYMENT, QuayIORepo.ENTITY_SERVICE_APP.getRepo() + ":" + TAG, serviceIP)
 
-            sleep(time: 60, unit: "SECONDS")
+            sleep(time: 120, unit: "SECONDS")
 
             def jobPodName = sh(script: """
                 kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"
@@ -482,6 +484,7 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
                                                           "-m",
                                                           "pytest",
                                                           "entityservice/tests",
+                                                          "-x",
                                                           "--junit-xml=/mnt/results.xml"
                                                   ],
                                                   "volumeMounts": [[

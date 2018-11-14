@@ -35,11 +35,16 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
 
+# Set logging level of other python libraries that we use
+logging.getLogger('celery').setLevel(logging.WARNING)
+logging.getLogger('jaeger_tracing').setLevel(logging.WARNING)
+
+# Set up our logging
 logger = structlog.wrap_logger(logging.getLogger('celery.es'))
 if config.DEBUG:
-    logging.getLogger('celery').setLevel(logging.INFO)
     logging.getLogger('celery.es').setLevel(logging.DEBUG)
-    logging.getLogger('jaeger_tracing').setLevel(logging.WARNING)
+    logging.getLogger('celery').setLevel(logging.INFO)
+
 
 logger.info("Setting up celery worker")
 logger.debug("Debug logging enabled")

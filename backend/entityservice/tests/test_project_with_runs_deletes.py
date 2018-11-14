@@ -1,17 +1,8 @@
 
-from entityservice.tests.util import post_run, delete_project
+from entityservice.tests.util import post_run, delete_project, create_project_upload_fake_data
 
 
-def test_delete_mapping_project_after_creating_run_with_clks(requests, mapping_project):
-    post_run(requests, mapping_project, 0.9)
-    delete_project(requests, mapping_project)
-
-
-def test_delete_similarity_project_after_creating_run_with_clks(requests, similarity_scores_project):
-    post_run(requests, similarity_scores_project, 0.9)
-    delete_project(requests, similarity_scores_project)
-
-
-def test_delete_permutations_project_after_creating_run_with_clks(requests, permutations_project):
-    post_run(requests, permutations_project, 0.9)
-    delete_project(requests, permutations_project)
+def test_delete_project_after_creating_run_with_clks(requests, result_type):
+    project, dp1, dp2 = create_project_upload_fake_data(requests, [100, 100], overlap=0.5, result_type=result_type)
+    post_run(requests, project, 0.9)
+    delete_project(requests, project)
