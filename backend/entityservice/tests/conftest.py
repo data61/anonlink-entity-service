@@ -109,11 +109,9 @@ def result_type(request):
 def project(request, requests):
     result_type = request.param
     project = create_project_no_data(requests, result_type)
-    try:
-        yield project
-    finally:
-        # Release project resource
-        delete_project(requests, project)
+    yield project
+    # Release project resource
+    delete_project(requests, project)
 
 
 @pytest.fixture(scope='function', params=ENCODING_SIZES)

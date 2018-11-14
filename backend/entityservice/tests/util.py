@@ -87,11 +87,9 @@ def create_project_no_data(requests, result_type='mapping'):
 def temporary_blank_project(requests, result_type='mapping'):
     # Code to acquire resource, e.g.:
     project = create_project_no_data(requests, result_type)
-    try:
-        yield project
-    finally:
-        # Release project resource
-        delete_project(requests, project)
+    yield project
+    # Release project resource
+    delete_project(requests, project)
 
 
 def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):
