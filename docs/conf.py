@@ -178,11 +178,13 @@ intersphinx_mapping = {
     #'anonlink': ('http://anonlink.readthedocs.io/en/latest/', None)
 }
 
-
+# Configure OpenAPI rendering
+# https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 redoc = [
     {
         'name': 'Entity Service API',
         'page': 'api',
         'spec': '_static/swagger.yaml',
+        'embed': True
     }
 ]
