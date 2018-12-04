@@ -1,15 +1,16 @@
-from entityservice.async_worker import celery, logger
-from entityservice.database import logger, DBConn, update_run_mark_failure
-
-from entityservice.tracing import create_tracer
-from opentracing.propagation import Format
-
 import time
-from entityservice.errors import DBResourceMissing
+from abc import ABC
+
+from opentracing.propagation import Format
 import psycopg2
 
+from entityservice.async_worker import celery, logger
+from entityservice.database import DBConn, update_run_mark_failure
+from entityservice.tracing import create_tracer
+from entityservice.errors import DBResourceMissing
 
-class BaseTask(celery.Task):
+
+class BaseTask(celery.Task, ABC):
     """Abstract base class for all tasks in Entity Service"""
 
     abstract = True
@@ -86,7 +87,7 @@ class TracedTask(BaseTask):
             return super(TracedTask, self).__call__(*args, **kwargs)
 
     def after_return(self, status, retval, task_id, args, kwargs, einfo):
-        time.sleep(2) # jaeger bug
+        time.sleep(2)  # jaeger bug
         self.tracer.close()
         self._tracer = None
         return super(TracedTask, self).after_return(status, retval, task_id, args, kwargs, einfo)

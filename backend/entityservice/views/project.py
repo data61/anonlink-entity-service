@@ -16,7 +16,7 @@ from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
 
 logger = get_logger()
@@ -121,6 +121,8 @@ def project_clks_post(project_id):
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
+    receipt_token = None
+
     with opentracing.tracer.start_span('upload-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)
         if headers['Content-Type'] == "application/json":
@@ -143,7 +145,7 @@ def project_clks_post(project_id):
                 count, size = check_binary_upload_headers(headers)
                 log.info(f"Headers tell us to expect {count} encodings of {size} bytes")
                 span.log_kv({'count': count, 'size': size})
-            except:
+            except Exception:
                 log.warning("Upload failed due to problem with headers in binary upload")
                 raise
             # Check against project level encoding size (if it has been set)
@@ -154,7 +156,7 @@ def project_clks_post(project_id):
             # TODO actually stream the upload data straight to Minio. Currently we can't because
             # connexion has already read the data before our handler is called!
             # https://github.com/zalando/connexion/issues/592
-            #stream = get_stream()
+            # stream = get_stream()
             stream = BytesIO(request.data)
             log.debug(f"Stream size is {len(request.data)} B, and we expect {(6 + size)* count} B")
             if len(request.data) != (6 + size) * count:
@@ -177,16 +179,15 @@ def check_binary_upload_headers(headers):
         INVALID_HEADER_NUMBER = "Invalid value for {} header".format(header)
         try:
             value = int(headers[header])
+            if min is not None and value < min:
+                safe_fail_request(400, INVALID_HEADER_NUMBER)
+            if max is not None and value > max:
+                safe_fail_request(400, INVALID_HEADER_NUMBER)
+            return value
         except ValueError:
             safe_fail_request(400, INVALID_HEADER_NUMBER)
 
-        if min is not None and value < min:
-            safe_fail_request(400, INVALID_HEADER_NUMBER)
-        if max is not None and value > max:
-            safe_fail_request(400, INVALID_HEADER_NUMBER)
-        return value
-
-    size = get_header_int('Hash-Size', min=config.MIN_ENCODING_SIZE, max=config.MAX_ENCODING_SIZE)
+    size = get_header_int('Hash-Size', min=Config.MIN_ENCODING_SIZE, max=Config.MAX_ENCODING_SIZE)
     count = get_header_int('Hash-Count', min=1)
 
     return count, size
@@ -218,7 +219,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
 
     """
     receipt_token = generate_code()
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
+    filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with DBConn() as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
@@ -236,7 +237,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     with opentracing.tracer.start_span('save-to-minio', child_of=parent_span) as span:
         mc = connect_to_object_store()
         try:
-            mc.put_object(config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
+            mc.put_object(Config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
         except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError, minio.error.ResponseError):
             logger.info("Mismatch between expected stream length and header info")
             raise ValueError("Mismatch between expected stream length and header info")
@@ -266,7 +267,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
 
     receipt_token = generate_code()
 
-    filename = config.RAW_FILENAME_FMT.format(receipt_token)
+    filename = Config.RAW_FILENAME_FMT.format(receipt_token)
     logger.info("Storing user {} supplied clks from json".format(dp_id))
 
     with opentracing.tracer.start_span('clk-splitting', child_of=parent_span) as span:
@@ -283,7 +284,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
         span.set_tag('filename', filename)
         mc = connect_to_object_store()
         mc.put_object(
-            config.MINIO_BUCKET,
+            Config.MINIO_BUCKET,
             filename,
             data=buffer,
             length=num_bytes

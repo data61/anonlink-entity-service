@@ -1,8 +1,9 @@
-from entityservice import database as db, app
+from structlog import get_logger
+
+from entityservice import database as db
 from entityservice.database import get_db, get_project_column
 from entityservice.messages import INVALID_ACCESS_MSG
 from entityservice.utils import safe_fail_request
-from structlog import get_logger
 
 logger = get_logger()
 

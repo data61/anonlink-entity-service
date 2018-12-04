@@ -2,8 +2,8 @@ import random
 
 from entityservice import cache
 from entityservice.async_worker import celery, logger
-from entityservice.database import logger, DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
-    connect_db, get_run_result, insert_permutation, insert_permutation_mask
+from entityservice.database import DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
+    get_run_result, insert_permutation, insert_permutation_mask
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks import mark_run_complete
 from entityservice.tasks.stats import calculate_comparison_rate
@@ -57,7 +57,8 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_
     """
     Task which will create a permutation after a mapping has been completed.
 
-    :param project_id: The project resource
+    :param project_id: The project resource id
+    :param run_id: The run id
     :param len_filters1:
     :param len_filters2:
 

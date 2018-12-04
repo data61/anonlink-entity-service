@@ -1,5 +1,4 @@
 import anonlink
-from structlog import get_logger
 
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
