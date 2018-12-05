@@ -46,6 +46,7 @@ def test_similarity_scores(requests, the_truth):
 
     delete_project(requests, project_data)
 
+
 def test_mapping(requests, the_truth):
     project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                     result_type='mapping')
@@ -70,11 +71,25 @@ def test_permutation(requests, the_truth):
     permutation_a = inverse_of_permutation(perm_a_result['permutation'])
     permutation_b = inverse_of_permutation(perm_b_result['permutation'])
     mapping = the_truth['mapping']
+    number_correct = 0
+    number_incorrect = 0
     for a, b, m in zip(permutation_a, permutation_b, mask_result['mask']):
         if m == 1:
-            assert mapping[a] == b
+            if mapping[a] != b:
+                number_incorrect += 1
+            else:
+                number_correct += 1
         else:
-            assert a not in mapping
+            # Count a missed link as incorrect
+            if a not in mapping:
+                number_incorrect += 1
+
+    # get more mappings correct than wrong
+    assert number_incorrect <= number_correct, "Accuracy is lower than expected"
+
+    # If the dataset is large enough, require 10 times more correct than incorrect
+    if len(mapping) > 500:
+        assert number_incorrect * 10 <= number_correct, "Accuracy is lower than expected"
 
 
 def apply_permutation(items, permutation):
