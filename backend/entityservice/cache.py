@@ -108,3 +108,13 @@ def set_status(status):
 def save_current_progress(comparisons, run_id):
     logger.debug(f"Progress. Compared {comparisons} CLKS", run_id=run_id)
     update_progress(comparisons, run_id)
+
+
+def acquire_run_lock(run_id):
+    log = logger.bind(run_id=run_id)
+    log.debug(f"Acquiring lock")
+    r = connect_to_redis()
+    key = 'run-lock-{}'.format(run_id)
+    lock = r.lock(key)
+    return lock.acquire(blocking=False)
+

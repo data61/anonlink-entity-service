@@ -1,3 +1,4 @@
+from entityservice.cache import acquire_run_lock
 from entityservice.database import DBConn, check_project_exists, get_run
 from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
@@ -10,6 +11,9 @@ from entityservice.async_worker import celery, logger
 def prerun_check(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Sanity check that we need to compute run")
+    if not acquire_run_lock(run_id):
+        log.warning("Lock not acquired, another task bet us to it!")
+        return
 
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
