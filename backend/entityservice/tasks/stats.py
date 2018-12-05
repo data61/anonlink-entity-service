@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from entityservice.async_worker import celery, logger
-from entityservice.database import connect_db, logger, query_db
+from entityservice.database import connect_db, get_elapsed_run_times
 from entityservice.database import get_total_comparisons_for_project
 from entityservice.database import insert_comparison_rate
 
@@ -10,16 +10,10 @@ from entityservice.database import insert_comparison_rate
 def calculate_comparison_rate():
     dbinstance = connect_db()
     logger.info("Calculating global comparison rate")
-    elapsed_run_time_query = """
-        select run_id, project as project_id, (time_completed - time_started) as elapsed
-        from runs
-        WHERE
-          runs.state='completed'
-      """
 
     total_comparisons = 0
     total_time = timedelta(0)
-    for run in query_db(dbinstance, elapsed_run_time_query):
+    for run in get_elapsed_run_times(dbinstance):
 
         comparisons = get_total_comparisons_for_project(dbinstance, run['project_id'])
 

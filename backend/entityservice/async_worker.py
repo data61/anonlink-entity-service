@@ -1,25 +1,25 @@
 import logging
 
 from celery import Celery
-from celery.signals import task_prerun, task_postrun
+from celery.signals import task_prerun
 import structlog
 
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 
 
 celery = Celery('tasks',
-                broker=config.BROKER_URL,
-                backend=config.CELERY_RESULT_BACKEND
+                broker=Config.BROKER_URL,
+                backend=Config.CELERY_RESULT_BACKEND
                 )
 
 celery.conf.CELERY_TASK_SERIALIZER = 'json'
 celery.conf.CELERY_ACCEPT_CONTENT = ['json']
 celery.conf.CELERY_RESULT_SERIALIZER = 'json'
-celery.conf.CELERY_ANNOTATIONS = config.CELERY_ANNOTATIONS
-celery.conf.CELERYD_PREFETCH_MULTIPLIER = config.CELERYD_PREFETCH_MULTIPLIER
-celery.conf.CELERYD_MAX_TASKS_PER_CHILD = config.CELERYD_MAX_TASKS_PER_CHILD
-celery.conf.CELERY_ACKS_LATE = config.CELERY_ACKS_LATE
-celery.conf.CELERY_ROUTES = config.CELERY_ROUTES
+celery.conf.CELERY_ANNOTATIONS = Config.CELERY_ANNOTATIONS
+celery.conf.CELERYD_PREFETCH_MULTIPLIER = Config.CELERYD_PREFETCH_MULTIPLIER
+celery.conf.CELERYD_MAX_TASKS_PER_CHILD = Config.CELERYD_MAX_TASKS_PER_CHILD
+celery.conf.CELERY_ACKS_LATE = Config.CELERY_ACKS_LATE
+celery.conf.CELERY_ROUTES = Config.CELERY_ROUTES
 
 
 structlog.configure(
@@ -41,7 +41,7 @@ logging.getLogger('jaeger_tracing').setLevel(logging.WARNING)
 
 # Set up our logging
 logger = structlog.wrap_logger(logging.getLogger('celery.es'))
-if config.DEBUG:
+if Config.DEBUG:
     logging.getLogger('celery.es').setLevel(logging.DEBUG)
     logging.getLogger('celery').setLevel(logging.INFO)
 
@@ -57,4 +57,3 @@ def configure_structlog(sender, body=None, **kwargs):
         task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
-

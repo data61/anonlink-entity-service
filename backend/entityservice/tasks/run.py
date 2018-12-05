@@ -1,5 +1,5 @@
-from entityservice.database import DBConn, logger, \
-    check_project_exists, get_run, update_run_set_started, get_dataprovider_ids
+from entityservice.database import DBConn, check_project_exists, get_run
+from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.comparing import create_comparison_jobs
