@@ -16,7 +16,7 @@ def check_for_executable_runs(project_id, parent_span=None):
     after all dataproviders have uploaded CLKs, and the CLKS are ready.
     """
     log = logger.bind(pid=project_id)
-    log.info("Checking for runs that need to be executed")
+    log.debug("Checking for runs that need to be executed")
     if not clks_uploaded_to_project(project_id, check_data_ready=True):
         return
 
@@ -27,15 +27,20 @@ def check_for_executable_runs(project_id, parent_span=None):
             log.warning(e.args[0])
             # todo make sure this can be exposed to user
             return
-
         new_runs = get_created_runs_and_queue(conn, project_id)
-        log.info("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
+
+        log.debug("Progressing run stages")
         for qr in new_runs:
-            run_id = qr[0]
-            log.info('Queueing run for computation', run_id=run_id)
             # Record that the run has reached a new stage
+            run_id = qr[0]
             progress_stage(conn, run_id)
-            prerun_check.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
+
+    # commit db changes before scheduling following tasks
+    log.debug("Creating tasks for {} created runs for project {}".format(len(new_runs), project_id))
+    for qr in new_runs:
+        run_id = qr[0]
+        log.info('Queueing run for computation', run_id=run_id)
+        prerun_check.delay(project_id, run_id, check_for_executable_runs.get_serialized_span())
 
 
 def check_and_set_project_encoding_size(project_id, conn):
