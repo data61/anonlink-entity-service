@@ -46,6 +46,7 @@ def test_similarity_scores(requests, the_truth):
 
     delete_project(requests, project_data)
 
+
 def test_mapping(requests, the_truth):
     project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                     result_type='mapping')
@@ -72,9 +73,10 @@ def test_permutation(requests, the_truth):
     mapping = the_truth['mapping']
     for a, b, m in zip(permutation_a, permutation_b, mask_result['mask']):
         if m == 1:
-            assert mapping[a] == b
+            assert a in mapping, f"Unexpected link was included - run {run}"
+            assert mapping[a] == b, f"Expected link from {a} was incorrect - run {run}"
         else:
-            assert a not in mapping
+            assert a not in mapping, f"Expected link was masked out - run {run}"
 
 
 def apply_permutation(items, permutation):
