@@ -3,18 +3,17 @@
 import io
 import json
 import os
-import logging
 
 import binascii
 import bitmath
 from flask import request
 from connexion import ProblemException
-import structlog
+from structlog import get_logger
 
-from entityservice.database import connect_db, get_number_parties_uploaded, get_project_column, \
-    get_number_parties_ready
+from entityservice.database import connect_db, get_number_parties_uploaded, get_number_parties_ready
+from entityservice.database import get_project_column
 
-logger = structlog.wrap_logger(logging.getLogger('celery.es'))
+logger = get_logger()
 
 
 def fmt_bytes(num_bytes):
@@ -133,10 +132,10 @@ def safe_fail_request(status_code, message, **kwargs):
     # Connection reset by peer) (See issue #195)
     if 'Transfer-Encoding' in request.headers and request.headers['Transfer-Encoding'] == 'chunked':
         chunk_size = 4096
-        for data in request.input_stream.read(chunk_size):
+        for _ in request.input_stream.read(chunk_size):
             pass
     else:
-        data = request.get_json()
+        _ = request.get_json()
     raise ProblemException(status=status_code, detail=message, **kwargs)
 
 
@@ -199,15 +198,11 @@ def similarity_matrix_from_csv_bytes(data):
 def convert_mapping_to_list(permutation):
     """Convert the permutation from a dict mapping into a list
 
-    Assumes the keys and values of the given dict are numbers in the
-    inclusive range from 0 to length. Note the keys should be int.
-
-    Returns a list of the values from the passed dict - in the order
-    defined by the keys.
+    :param dict permutation:
+        Assumes the keys and values of the given dict are numbers in the
+        inclusive range from 0 to length. Note the keys should be int.
+    :return:
+        A list of the values from the passed dict - in the order
+        defined by the keys.
     """
-    l = len(permutation)
-
-    perm_list = []
-    for j in range(l):
-        perm_list.append(permutation[j])
-    return perm_list
+    return [permutation[i] for i in range(len(permutation))]

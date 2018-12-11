@@ -13,7 +13,7 @@ The container/script is configured via environment variables.
 - ``RESULT_PATH``: full filename to write results file.
 - ``SCHEMA``: path to the linkage schema file used when creating projects. If not provided it is assumed
   to be in the data directory.
-- ``TIMEOUT ``: this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
+- ``TIMEOUT``: this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 
 Run Benchmarking Container
@@ -82,5 +82,4 @@ Experiments to run can be configured as a simple json document. The default is::
     ]
 
 The schema of the experiments can be found in ``benchmarking/schema/experiments.json``.
-
 

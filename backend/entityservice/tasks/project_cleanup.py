@@ -4,7 +4,7 @@ import entityservice.database as db
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 
 
 @celery.task(base=TracedTask,
@@ -35,6 +35,6 @@ def delete_minio_objects(filenames, project_id):
     mc = connect_to_object_store()
     log.info(f"Deleting {len(filenames)} files from object store")
     try:
-        mc.remove_objects(config.MINIO_BUCKET, filenames)
+        mc.remove_objects(Config.MINIO_BUCKET, filenames)
     except MinioError as e:
-        log.warning(f"Error occurred while removing object {filename}. Ignoring.")
+        log.warning(f"Error occurred while removing object {filenames}. Ignoring.")

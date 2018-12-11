@@ -9,11 +9,10 @@ from entityservice.error_checking import check_dataproviders_encoding, handle_in
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_pack_filters, deserialize_bitarray, binary_format
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.pre_run_check import check_for_executable_runs
-
 from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_project
 
 
@@ -33,8 +32,8 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     mc = connect_to_object_store()
 
     # Input file is line separated base64 record encodings.
-    raw_file = config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(config.MINIO_BUCKET, raw_file)
+    raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
+    raw_data_response = mc.get_object(Config.MINIO_BUCKET, raw_file)
 
     # Set up streaming processing pipeline
     buffered_stream = iterable_to_stream(raw_data_response.stream())
@@ -76,12 +75,12 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         update_encoding_metadata_set_encoding_size(db, dp_id, uploaded_encoding_size)
 
     # Output file is our custom binary packed file
-    filename = config.BIN_FILENAME_FMT.format(receipt_token)
+    filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     bit_packed_element_size = binary_format(uploaded_encoding_size).size
     num_bytes = expected_count * bit_packed_element_size
 
     # If small enough preload the data into our redis cache
-    if expected_count < config.ENTITY_CACHE_THRESHOLD:
+    if expected_count < Config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
         python_filters = list(python_filters)
         cache.set_deserialized_filter(dp_id, python_filters)
@@ -94,7 +93,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     # Upload to object store
     log.info(f"Uploading {expected_count} encodings of size {uploaded_encoding_size} " +
              f"to object store. Total Size: {fmt_bytes(num_bytes)}")
-    mc.put_object(config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
+    mc.put_object(Config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
         update_encoding_metadata(conn, filename, dp_id, 'ready')

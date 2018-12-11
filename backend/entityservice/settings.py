@@ -36,7 +36,7 @@ class Config(object):
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
 
     BROKER_URL = os.getenv('CELERY_BROKER_URL',
-                                'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
+                           'redis://:{}@{}:6379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
 
     CELERY_RESULT_BACKEND = BROKER_URL
     CELERY_ANNOTATIONS = {

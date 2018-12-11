@@ -1,5 +1,7 @@
-from entityservice.database import DBConn, logger, \
-    check_project_exists, get_run, update_run_set_started, get_dataprovider_ids
+import psycopg2
+
+from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
+from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.comparing import create_comparison_jobs
@@ -13,19 +15,22 @@ def prerun_check(project_id, run_id, parent_span=None):
 
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
-            log.info("Project not found. Skipping")
+            log.debug("Project not found. Skipping")
             raise ProjectDeleted(project_id)
 
         res = get_run(conn, run_id)
         if res is None:
-            log.info(f"Run not found. Skipping")
+            log.debug(f"Run not found. Skipping")
             raise RunDeleted(run_id)
 
-        if res['state'] in {'completed', 'error'}:
-            log.info("Run is already finished. Skipping")
+        try:
+            state = get_run_state_for_update(conn, run_id)
+        except psycopg2.OperationalError:
+            log.warning("Run started in another task. Skipping this race.")
             return
-        if res['state'] == 'running':
-            log.info("Run already started. Skipping")
+
+        if state in {'running', 'completed', 'error'}:
+            log.warning("Run already started. Skipping")
             return
 
         log.debug("Setting run as in progress")

@@ -4,8 +4,8 @@ import pytest
 import requests as requests_library
 import itertools
 
-from entityservice.tests.util import create_project_upload_fake_data, delete_project
-
+from entityservice.tests.util import create_project_upload_fake_data, delete_project, temporary_blank_project, \
+    create_project_no_data
 
 THROTTLE_SLEEP = 0.2
 
@@ -50,6 +50,7 @@ SIZES = itertools.chain(
        else itertools.combinations([1, 10000, 100000, 1000000], 2))
 
 PROJECT_PARAMS = list(itertools.product(SIZES, OVERLAPS, ENCODING_SIZES))
+PROJECT_RESULT_TYPES = ['mapping', 'similarity_scores', 'permutations']
 
 
 def create_project_response(requests, size, overlap, result_type, encoding_size=128):
@@ -86,7 +87,7 @@ def create_project_response(requests, size, overlap, result_type, encoding_size=
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def mapping_project(request, requests):
     size, overlap, encoding_size = request.param
-    prj = create_project_response(requests, size, overlap, 'mapping')
+    prj = create_project_response(requests, size, overlap, 'mapping', encoding_size)
     yield prj
     delete_project(requests, prj)
 
@@ -94,9 +95,23 @@ def mapping_project(request, requests):
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def similarity_scores_project(request, requests):
     size, overlap, encoding_size = request.param
-    prj = create_project_response(requests, size, overlap, 'similarity_scores')
+    prj = create_project_response(requests, size, overlap, 'similarity_scores', encoding_size)
     yield prj
     delete_project(requests, prj)
+
+
+@pytest.fixture(scope='function', params=PROJECT_RESULT_TYPES)
+def result_type(request):
+    yield request.param
+
+
+@pytest.fixture(scope='function', params=PROJECT_RESULT_TYPES)
+def project(request, requests):
+    result_type = request.param
+    project = create_project_no_data(requests, result_type)
+    yield project
+    # Release project resource
+    delete_project(requests, project)
 
 
 @pytest.fixture(scope='function', params=ENCODING_SIZES)
@@ -112,6 +127,6 @@ def threshold(request):
 @pytest.fixture(scope='function', params=PROJECT_PARAMS)
 def permutations_project(request, requests):
     size, overlap, encoding_size = request.param
-    prj = create_project_response(requests, size, overlap, 'permutations')
+    prj = create_project_response(requests, size, overlap, 'permutations', encoding_size)
     yield prj
     delete_project(requests, prj)

@@ -1,12 +1,11 @@
-import logging
 import time
 
 import psycopg2
 import psycopg2.extras
 from flask import current_app, g
 from structlog import get_logger
-from entityservice import database as db
-from entityservice.errors import DatabaseInconsistent, DBResourceMissing
+
+from entityservice import database
 from entityservice.settings import Config as config
 
 logger = get_logger()
@@ -102,5 +101,5 @@ def get_db():
     conn = getattr(g, 'db', None)
     if conn is None:
         logger.debug("Caching a new database connection in application context")
-        conn = g.db = db.connect_db()
+        conn = g.db = database.connect_db()
     return conn

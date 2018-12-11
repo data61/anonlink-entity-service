@@ -71,8 +71,8 @@ def test_create_then_delete_valid_auth(requests):
     assert delete_project_response.status_code == 204
 
 
-def test_delete_mapping_project(requests, mapping_project):
-    delete_project(requests, mapping_project)
+def test_delete_project_types(requests, project):
+    delete_project(requests, project)
 
 
 def test_create_then_list(requests):

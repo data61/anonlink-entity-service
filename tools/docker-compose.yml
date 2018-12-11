@@ -59,10 +59,8 @@ services:
     entrypoint: celery -A entityservice.async_worker worker --loglevel=info -Q celery,compute,highmemory
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - ENTITY_MATCH_THRESHOLD=0.90
-      - ENCRYPTION_MIN_KEY_LENGTH=1024
-      - DEBUG=false
-      - LOGGING_LEVEL=INFO
+      - DEBUG=true
+      - LOGGING_LEVEL=DEBUG
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
@@ -76,8 +74,8 @@ services:
 
   nginx:
     image: quay.io/n1analytics/entity-nginx
-    #ports:
-    #  - 8851:8851
+    ports:
+      - 8851:8851
     depends_on:
       - backend
     environment:

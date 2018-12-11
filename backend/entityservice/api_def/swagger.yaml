@@ -193,10 +193,6 @@ paths:
         If the `result_type` is `"mapping"` or `"similarity_scores"` then the results can be accessed with the
         `result_token``token`, which is provided when initially creating the mapping.
 
-        - `"permutation"`\
-        If the `result_type` is `"permutation"` then the data provider can access their respective permutation and the
-        encrypted mask with their respective `receipt_token`, which they obtain when adding data to the mapping.
-
         - `"permutations"`\
         If the `result_type` is `permutations`, then the data providers can access their respective permutation with
         their individual `receipt_token`, which they obtain when adding data to the mapping.

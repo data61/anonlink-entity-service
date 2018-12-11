@@ -130,6 +130,20 @@ def get_runs(db, project_id):
     return query_db(db, select_query, [project_id], one=False)
 
 
+def get_run_state_for_update(db, run_id):
+    """
+    Get the current run state and acquire a row lock
+    (or fail fast if row already locked)
+    """
+    sql_query = """
+        SELECT state from runs
+        WHERE 
+            run_id = %s
+        FOR UPDATE NOWAIT
+        """
+    return query_db(db, sql_query, [run_id], one=True)['state']
+
+
 def get_run(db, run_id):
     sql_query = """
         SELECT * from runs

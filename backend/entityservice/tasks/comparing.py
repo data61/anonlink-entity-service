@@ -1,21 +1,22 @@
+
+import csv
+import os
 import time
 
 import anonlink
-import csv
 import minio
-import os
 from celery import chord
 
 from entityservice.utils import fmt_bytes
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
-from entityservice.database import connect_db, check_project_exists, check_run_exists, \
+from entityservice.database import check_project_exists, check_run_exists, \
     get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
     update_run_chunk, DBConn, get_project_column, get_dataprovider_ids, get_run
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.object_store import store_similarity_scores
 from entityservice.serialization import get_chunk_from_object_store
-from entityservice.settings import Config as config
+from entityservice.settings import Config
 from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
@@ -61,7 +62,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         current_span.log_kv({"event": 'get-metadata'})
 
         log.debug("Chunking computation task")
-        chunk_size = config.get_task_chunk_size(size, threshold)
+        chunk_size = Config.get_task_chunk_size(size, threshold)
         if chunk_size is None:
             chunk_size = max(lenf1, lenf2)
         log.info("Chunks will contain {} entities per task".format(chunk_size))
@@ -182,7 +183,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         # Will write a csv file for now
         mc = connect_to_object_store()
         try:
-            mc.fput_object(config.MINIO_BUCKET, result_filename, result_filename)
+            mc.fput_object(Config.MINIO_BUCKET, result_filename, result_filename)
         except minio.ResponseError as err:
             log.warning("Failed to store result in minio")
             raise
@@ -201,7 +202,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         t4 - t3,
         t4 - t4,
         t6 - t5,
-        t6 - t0, )
+        t6 - t0)
     )
     return num_results, result_filename
 
@@ -222,12 +223,12 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
     for num, filename in similarity_result_files:
         if num > 0:
             files.append(filename)
-            data_size += mc.stat_object(config.MINIO_BUCKET, filename).size
+            data_size += mc.stat_object(Config.MINIO_BUCKET, filename).size
 
     log.debug("Aggregating result chunks from {} files, total size: {}".format(
         len(files), fmt_bytes(data_size)))
 
-    result_file_stream_generator = (mc.get_object(config.MINIO_BUCKET, result_filename) for result_filename in files)
+    result_file_stream_generator = (mc.get_object(Config.MINIO_BUCKET, result_filename) for result_filename in files)
 
     log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
     result_stream = chain_streams(result_file_stream_generator)
@@ -250,7 +251,7 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
     # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
         log.info("Deleting intermediate similarity score files from object store")
-        mc.remove_objects(config.MINIO_BUCKET, files)
+        mc.remove_objects(Config.MINIO_BUCKET, files)
         log.debug("Removing clk filters from redis cache")
         remove_from_cache(dp_ids[0])
         remove_from_cache(dp_ids[1])

@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from entityservice.database.util import query_db, execute_returning_id, logger
+from entityservice.database.util import query_db, execute_returning_id
 
 
 def get_latest_rate(db):
@@ -37,3 +37,13 @@ def insert_comparison_rate(cur, rate):
         RETURNING id;
         """
     return execute_returning_id(cur, insertion_stmt, [rate])
+
+
+def get_elapsed_run_times(db):
+    elapsed_run_time_query = """
+        select run_id, project as project_id, (time_completed - time_started) as elapsed
+        from runs
+        WHERE
+          runs.state='completed'
+        """
+    return query_db(db, elapsed_run_time_query)

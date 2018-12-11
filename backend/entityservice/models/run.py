@@ -1,10 +1,10 @@
+from structlog import get_logger
+
 import entityservice.database as db
-from entityservice import app
 from entityservice import cache
 from entityservice.settings import Config as config
 from entityservice.utils import generate_code
 
-from structlog import get_logger
 
 logger = get_logger()
 

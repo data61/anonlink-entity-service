@@ -31,10 +31,6 @@ con_app.add_api(pathlib.Path("swagger.yaml"),
 
 # Logging setup
 logger = structlog.get_logger()
-if config.LOGFILE is not None:
-    fileHandler = logging.FileHandler(config.LOGFILE)
-    fileHandler.setLevel(logging.INFO)
-    fileHandler.setFormatter(config.fileFormat)
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
 structlog.configure(
@@ -62,7 +58,10 @@ else:
     app.logger.setLevel(gunicorn_logger.level)
 
 if config.LOGFILE is not None:
-   app.logger.addHandler(fileHandler)
+    fileHandler = logging.FileHandler(config.LOGFILE)
+    fileHandler.setLevel(logging.INFO)
+    fileHandler.setFormatter(config.fileFormat)
+    app.logger.addHandler(fileHandler)
 
 # Tracer setup (currently just trace all requests)
 flask_tracer = FlaskTracer(initialize_tracer, True, app)

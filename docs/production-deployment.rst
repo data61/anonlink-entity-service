@@ -161,7 +161,7 @@ At deployment time you can decide to deploy MINIO or instead use an existing ser
 a trade off between using a local deployment of minio vs S3.
 
 In our AWS based experimentation Minio is noticeably faster, but more expensive and less reliable than AWS S3, your own
-millage may vary.
+mileage may vary.
 
 To configure a deployment to use an external object store, simply set ``provision.minio`` to ``false`` and add
 appropriate connection configuration in the ``minio`` section. For example to use AWS S3 simply provide your access
