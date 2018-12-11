@@ -4,6 +4,13 @@
 Changelog
 =========
 
+Version 1.9.2
+-------------
+
+- 2 race conditions have been identified and fixed.
+- Integration tests are sped up and more focused. The test suite now fails after the first test failure.
+- Code tidy-ups to be more pep8 compliant.
+
 Version 1.9.1
 -------------
 
