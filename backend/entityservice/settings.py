@@ -24,6 +24,7 @@ class Config(object):
 
     REDIS_SERVER = os.getenv('REDIS_SERVER', 'redis')
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
+    REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false') == "true"
 
     MINIO_SERVER = os.getenv('MINIO_SERVER', 'minio:9000')
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
@@ -35,10 +36,17 @@ class Config(object):
     DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
 
-    BROKER_URL = os.getenv('CELERY_BROKER_URL',
-                           'sentinel://:{}@{}:26379/0'.format(REDIS_PASSWORD, REDIS_SERVER))
-    BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"}
+
+    BROKER_URL = os.getenv(
+        'CELERY_BROKER_URL',
+        ('redis://:{}@{}:26379/0' if REDIS_USE_SENTINEL else 'sentinel://:{}@{}:6379/0').format(REDIS_PASSWORD, REDIS_SERVER)
+    )
+
+    BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
+
     CELERY_RESULT_BACKEND = BROKER_URL
+    CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
+
     CELERY_ANNOTATIONS = {
         'async_worker.calculate_mapping': {'rate_limit': '1/s'}
     }

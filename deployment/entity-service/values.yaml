@@ -239,9 +239,11 @@ redis:
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
+  ## https://github.com/helm/charts/tree/master/stable/redis-ha
   ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "9X9RFrRnQHcB"
+  replicas: 3
   redis:
     resources:
       requests:
@@ -253,10 +255,10 @@ redis-ha:
     resources:
       requests:
         cpu: 100m
-        memory: 256Mi
+        memory: 128Mi
       limits:
-        memory: 1Gi
-  persistantVolume:
+        memory: 256Mi
+  persistentVolume:
     enabled: true
     size: 10Gi
   nameOverride: "memstore"

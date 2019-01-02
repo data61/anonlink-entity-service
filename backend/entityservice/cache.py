@@ -1,4 +1,5 @@
 import redis
+from redis.sentinel import Sentinel
 
 import pickle
 
@@ -15,8 +16,22 @@ redis_host = config.REDIS_SERVER
 redis_pass = config.REDIS_PASSWORD
 
 
-def connect_to_redis():
-    r = redis.StrictRedis(host=redis_host, password=redis_pass, port=6379, db=0)
+def connect_to_redis(read_only=False):
+    """
+    Get a connection to the master redis service.
+
+    """
+    logger.info("Connecting to redis")
+    if config.REDIS_USE_SENTINEL:
+        sentinel = Sentinel([(redis_host, 26379)], password=redis_pass)
+        if read_only:
+            logger.info("Looking up read only redis slave using sentinel protocol")
+            r = sentinel.slave_for('mymaster', )
+        else:
+            logger.info("Looking up redis master using sentinel protocol")
+            r = sentinel.master_for('mymaster')
+    else:
+        r = redis.StrictRedis(host=redis_host, password=redis_pass)
     return r
 
 
@@ -36,7 +51,7 @@ def get_deserialized_filter(dp_id):
     """
     logger.debug("Getting filters")
     key = 'clk-pkl-{}'.format(dp_id)
-    r = connect_to_redis()
+    r = connect_to_redis(read_only=True)
 
     # Check if this dp_id is already saved in redis?
     if r.exists(key):
@@ -73,7 +88,7 @@ def update_progress(comparisons, run_id):
 
 
 def get_progress(run_id):
-    r = connect_to_redis()
+    r = connect_to_redis(read_only=True)
     key = 'progress-{}'.format(run_id)
     res = r.get(key)
     # redis returns bytes, and None if not present
@@ -90,7 +105,7 @@ def clear_progress(run_id):
 
 
 def get_status():
-    r = connect_to_redis()
+    r = connect_to_redis(read_only=True)
     key = 'entityservice-status'
     if r.exists(key):
         logger.debug("returning status from cache")
