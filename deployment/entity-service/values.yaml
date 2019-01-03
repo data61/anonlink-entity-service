@@ -154,7 +154,7 @@ workers:
     pullSecret: "n1-quay-pull-secret"
 
   ## Usually this is set to 1 per compute node
-  replicaCount: 6
+  replicaCount: 2
   autoscaler:
     enabled: false
   debug: true
