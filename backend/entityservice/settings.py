@@ -14,8 +14,8 @@ class Config(object):
 
     DEBUG = os.getenv("DEBUG", "false") == "true"
 
-    CONNEXION_STRICT_VALIDATION = os.getenv("CONNEXION_STRICT_VALIDATION", "true") == "true"
-    CONNEXION_RESPONSE_VALIDATION = os.getenv("CONNEXION_RESPONSE_VALIDATION", "true") == "true"
+    CONNEXION_STRICT_VALIDATION = os.getenv("CONNEXION_STRICT_VALIDATION", "true").lower() == "true"
+    CONNEXION_RESPONSE_VALIDATION = os.getenv("CONNEXION_RESPONSE_VALIDATION", "true").lower() == "true"
 
     LOGFILE = os.getenv("LOGFILE")
     fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
@@ -24,7 +24,7 @@ class Config(object):
 
     REDIS_SERVER = os.getenv('REDIS_SERVER', 'redis')
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
-    REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false') == "true"
+    REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false').lower() == "true"
 
     MINIO_SERVER = os.getenv('MINIO_SERVER', 'minio:9000')
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
