@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: esintegrationtest
+  name: anonlinkintegrationtest
   labels:
-    jobgroup: linkage-integration
+    jobgroup: integration-test
 spec:
   completions: 1
   parallelism: 1
   template:
     metadata:
       labels:
-        jobgroup: linkage-integration
+        jobgroup: integration-test
     spec:
       restartPolicy: Never
       containers:
@@ -19,7 +19,7 @@ spec:
         imagePullPolicy: Always
         env:
           - name: ENTITY_SERVICE_URL
-            value: https://testing.es.data61.xyz/api/v1
+            value: https://beta.anonlink.data61.xyz/api/v1
           - name: LOGGING_LEVEL
             value: "INFO"
         command:
@@ -27,5 +27,6 @@ spec:
           - "-m"
           - "pytest"
           - "entityservice/tests"
+          - "-x"
       imagePullSecrets:
       - name: n1-quay-pull-secret
