@@ -10,6 +10,7 @@ data:
   REDIS_USE_SENTINEL: "true"
   {{ else }}
   REDIS_SERVER: {{ .Values.redis.server }}
+  REDIS_USE_SENTINEL: {{ .Values.redis.use_sentinel }}
   {{ end }}
   DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
   DEBUG: {{ .Values.workers.debug | quote }}
