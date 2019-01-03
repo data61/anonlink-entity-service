@@ -39,7 +39,7 @@ class Config(object):
 
     BROKER_URL = os.getenv(
         'CELERY_BROKER_URL',
-        ('redis://:{}@{}:26379/0' if REDIS_USE_SENTINEL else 'sentinel://:{}@{}:6379/0').format(REDIS_PASSWORD, REDIS_SERVER)
+        ('sentinel://:{}@{}:26379/0' if REDIS_USE_SENTINEL else 'redis://:{}@{}:26379/0').format(REDIS_PASSWORD, REDIS_SERVER)
     )
 
     BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
