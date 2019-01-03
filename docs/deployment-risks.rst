@@ -39,7 +39,7 @@ User coerces N1 to execute attacking code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Insecure deserialization.
-Comprimised shared host.
+Compromised shared host.
 
 An underlying component has a vulnerability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

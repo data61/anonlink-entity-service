@@ -174,14 +174,19 @@ credentials (and disable provisioning minio)::
 Redis Deployment Options
 ------------------------
 
-At deployment time you can decide to deploy redis or instead use an existing redis installation or managed service.
+At deployment time you can decide to provision redis using our chart, or instead use an existing redis installation or
+managed service. The provisioned redis is a highly available 3 node redis cluster using the `redis-ha` helm chart.
+Directly connecting to redis, and discovery via the sentinel protocol are supported. When using sentinel protocol
+for redis discovery read only requests are dispatched to redis replicas.
+
 Carefully read the comments in the default ``values.yaml`` file.
 
 To use a separate install of redis using the server ``shared-redis-ha-redis-ha.default.svc.cluster.local``
 
     helm install entity-service --name="es-shared-redis" \
          --set provision.redis=false \
-         --set redis.server=shared-redis-ha-redis-ha.default.svc.cluster.local
+         --set redis.server=shared-redis-ha-redis-ha.default.svc.cluster.local \
+         --set redis.use_sentinel=true
 
 
 Uninstalling
