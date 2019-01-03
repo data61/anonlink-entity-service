@@ -3,9 +3,9 @@ Werkzeug==0.12.2
 requests==2.18.4
 gunicorn==19.7.1
 psycopg2==2.7.5
-celery==4.1.1
+celery==4.2.1
 flower==0.9.2
-redis==2.10.5
+redis==3.0.1
 pympler==0.4.3
 setproctitle
 minio==4.0.4
