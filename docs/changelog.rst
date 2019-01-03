@@ -4,6 +4,11 @@
 Changelog
 =========
 
+Next Release
+------------
+
+- Redis can now be used in highly available mode.
+
 Version 1.9.2
 -------------
 

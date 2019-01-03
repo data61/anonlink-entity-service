@@ -230,7 +230,10 @@ postgresql:
 
 
 redis:
-  ## Note the redis server is ignored if provisioning redis during deployment.
+  ## Note the `server` and `use_sentinel` options are ignored if provisioning redis
+  ## using this chart.
+
+  ## External redis server url/ip
   server: ""
 
   ## Does the external redis server support the sentinel protocol?
