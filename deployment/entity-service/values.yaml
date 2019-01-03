@@ -232,7 +232,11 @@ postgresql:
 redis:
   ## Note the redis server is ignored if provisioning redis during deployment.
   server: ""
-  ## Note if deploying redis-ha you should have the same password below!
+
+  ## Does the external redis server support the sentinel protocol?
+  use_sentinel: false
+
+  ## Note if deploying redis-ha you MUST have the same password below!
   password: "9X9RFrRnQHcB"
 
 redis-ha:
