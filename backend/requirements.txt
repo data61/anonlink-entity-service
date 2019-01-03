@@ -17,10 +17,10 @@ pytest==3.5.1
 iso8601==0.1.12
 connexion==1.4
 marshmallow==3.0.0b10
-structlog
-colorama
-opentracing<2
-jaeger-client
-Flask-Opentracing
-opentracing_instrumentation
-more_itertools
+structlog==18.2.0
+colorama==0.4.0
+opentracing==1.3.0
+jaeger-client==3.12.0
+Flask-Opentracing==0.2.0
+opentracing_instrumentation==2.4.3
+more_itertools==4.3.0
