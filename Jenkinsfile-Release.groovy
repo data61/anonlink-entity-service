@@ -277,7 +277,7 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
                                                             ],
                                                             [
                                                                     "name" : "ENTITY_SERVICE_RUN_SLOW_TESTS",
-                                                                    "value": "True"
+                                                                    "value": "False"
                                                             ]
                                                     ],
                                                     "command"        : [
@@ -285,7 +285,8 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
                                                             "-m",
                                                             "pytest",
                                                             "entityservice/tests",
-                                                            "--junit-xml=/mnt/results.xml"
+                                                            "--junit-xml=/mnt/results.xml",
+                                                            "-x"
                                                     ],
                                                     "volumeMounts"   : [[
                                                                                 "mountPath": "/mnt",
