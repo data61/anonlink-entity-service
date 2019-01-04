@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-api
@@ -8,6 +8,11 @@ metadata:
     tier: frontend
 spec:
   replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "es.fullname" . }}
+      component: "{{ .Values.api.name }}"
+      tier: frontend
   {{- if .Values.api.strategy }}
   strategy:
 {{ toYaml .Values.api.strategy | indent 4 }}
