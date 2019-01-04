@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -8,6 +8,11 @@ metadata:
   name: {{ .Release.Name }}-worker
 spec:
   replicas: {{ .Values.workers.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "es.fullname" . }}
+      component: "{{ .Values.workers.name }}"
+      tier: backend
   {{- if .Values.workers.strategy }}
   strategy:
 {{ toYaml .Values.workers.strategy | indent 4 }}

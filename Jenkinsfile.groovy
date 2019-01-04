@@ -281,8 +281,7 @@ node('helm && kubectl') {
                 helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
-                    --set api.ingress.enabled=false \
-                    --set api.certManager.enabled=false                    
+                    --set api.ingress.enabled=false
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it
               sleep(time: 120, unit: "SECONDS")
