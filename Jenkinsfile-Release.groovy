@@ -8,9 +8,8 @@ import com.n1analytics.git.GitRepo;
 
 
 String gitContextKubernetesDeployment = "release-kubernetes-deployment"
-DockerUtils dockerUtils
+
 GitCommit gitCommit
-String composeProject
 
 
 node('helm && kubectl') {
@@ -87,21 +86,14 @@ node('helm && kubectl') {
                         sleep(time: 120, unit: "SECONDS")
 
                         def jobPodName = sh(script: """
-                kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"
-            """, returnStdout: true).trim()
+                            kubectl get pods -l deployment=${DEPLOYMENT} -o jsonpath="{.items[0].metadata.name}"
+                        """, returnStdout: true).trim()
                         echo jobPodName
 
-                        sleep(time: 2, unit: "HOURS")
                         sh """
-                # Show the output
-                kubectl logs $jobPodName
-            """
-
-                        sleep(time: 2, unit: "HOURS")
-                        sh """
-                # Show the output
-                kubectl logs $jobPodName
-            """
+                            # Show the output
+                            kubectl logs -f $jobPodName
+                        """
 
                         resultFile = getResultsFromK8s(DEPLOYMENT, pvc)
 
