@@ -90,8 +90,8 @@ api:
     ## Ingress annotations
     ##
     annotations: #{}
-     # kubernetes.io/ingress.class: nginx
-     # certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     kubernetes.io/ingress.class: nginx
+     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
      ## To handle large uploads we increase the nginx buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
