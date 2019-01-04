@@ -110,17 +110,6 @@ api:
       hosts:
       - beta.anonlink.data61.xyz
 
-  # Configure a cert-manager Certificate (caution experimental!)
-  certManager:
-    enabled: false
-    secretName: beta-anonlink-data61-tls
-    issuerRef:
-      #name: letsencrypt
-      name: letsencrypt-cluster-issuer
-      kind: ClusterIssuer
-    # Must be in api.ingress.hosts
-    commonName: beta.anonlink.data61.xyz
-
   service:
     annotations: []
     labels:
