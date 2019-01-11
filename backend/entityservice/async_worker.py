@@ -8,18 +8,17 @@ from entityservice.settings import Config
 
 
 celery = Celery('tasks',
-                broker=Config.BROKER_URL,
+                broker=Config.CELERY_BROKER_URL,
                 backend=Config.CELERY_RESULT_BACKEND
                 )
 
-celery.conf.CELERY_TASK_SERIALIZER = 'json'
-celery.conf.CELERY_ACCEPT_CONTENT = ['json']
-celery.conf.CELERY_RESULT_SERIALIZER = 'json'
-celery.conf.CELERY_ANNOTATIONS = Config.CELERY_ANNOTATIONS
-celery.conf.CELERYD_PREFETCH_MULTIPLIER = Config.CELERYD_PREFETCH_MULTIPLIER
-celery.conf.CELERYD_MAX_TASKS_PER_CHILD = Config.CELERYD_MAX_TASKS_PER_CHILD
-celery.conf.CELERY_ACKS_LATE = Config.CELERY_ACKS_LATE
-celery.conf.CELERY_ROUTES = Config.CELERY_ROUTES
+celery.conf.task_annotations = Config.CELERY_ANNOTATIONS
+celery.conf.task_acks_late = Config.CELERY_ACKS_LATE
+celery.conf.task_routes = Config.CELERY_ROUTES
+celery.conf.broker_transport_options = Config.CELERY_BROKER_TRANSPORT_OPTIONS
+celery.conf.result_backend_transport_options = Config.CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS
+celery.conf.worker_prefetch_multiplier = Config.CELERYD_PREFETCH_MULTIPLIER
+celery.conf.worker_max_tasks_per_child = Config.CELERYD_MAX_TASKS_PER_CHILD
 
 
 structlog.configure(

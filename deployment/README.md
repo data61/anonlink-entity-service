@@ -48,9 +48,15 @@ we will have to add one. The chart has been tested with nginx and treafik.
 
 Helm can be used to easily deploy the system to a kubernetes cluster.
 
-Pull the dependencies:
+Add the helm repository:
+
+    helm repo add n1charts https://n1analytics.github.io/charts
+    helm repo update
+
+Install the `entity-service`:
+
+    helm install n1charts/entity-service
     
-    helm dependency update
 
 ## Configuring the deployment
 

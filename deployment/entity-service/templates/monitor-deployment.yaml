@@ -1,12 +1,17 @@
 {{- if .Values.workers.monitor.enabled }}
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "name" . }}-monitor
+  name: {{ .Release.Name }}-monitor
   labels:
     {{- include "es.release_labels" . | indent 4 }}
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: {{ template "es.fullname" . }}
+      tier: aux
+      run: celery-monitor
   template:
     metadata:
       labels:

@@ -45,7 +45,7 @@ api:
   app:
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.9.1"
+      tag: "v1.9.2"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -69,7 +69,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.9.1"
+      tag: "v1.9.2"
 
     resources:
       requests:
@@ -90,8 +90,8 @@ api:
     ## Ingress annotations
     ##
     annotations: #{}
-     # kubernetes.io/ingress.class: nginx
-     # certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     kubernetes.io/ingress.class: nginx
+     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
      ## To handle large uploads we increase the nginx buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
@@ -99,29 +99,16 @@ api:
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
     hosts:
-     - beta.entityservice.edn.io
-     - www.beta.entityservice.edn.io
+     - beta.anonlink.data61.xyz
 
     ## Entity Service API Ingress TLS configuration
     ## This example setup is for nginx-ingress. We use certificate manager.
     ## to create the TLS secret in the namespace with the name
     ## below.
     tls: #[]
-    - secretName: es-tls
+    - secretName: beta-anonlink-data61-tls
       hosts:
-      - beta.entityservice.edn.io
-      - www.beta.entityservice.edn.io
-
-  # Configure a cert-manager Certificate (caution experimental!)
-  certManager:
-    enabled: false
-    secretName: es-tls
-    issuerRef:
-      #name: letsencrypt
-      name: letsencrypt-cluster-issuer
-      kind: ClusterIssuer
-    # Must be in api.ingress.hosts
-    commonName: beta.entityservice.edn.io
+      - beta.anonlink.data61.xyz
 
   service:
     annotations: []
@@ -151,12 +138,12 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.9.1"
+    tag: "v1.9.2"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
   ## Usually this is set to 1 per compute node
-  replicaCount: 6
+  replicaCount: 2
   autoscaler:
     enabled: false
   debug: true
@@ -232,29 +219,42 @@ postgresql:
 
 
 redis:
-  ## Note the redis server is ignored if provisioning redis during deployment.
+  ## Note the `server` and `use_sentinel` options are ignored if provisioning redis
+  ## using this chart.
+
+  ## External redis server url/ip
   server: ""
-  ## Note if deploying redis-ha you should have the same password below!
+
+  ## Does the external redis server support the sentinel protocol?
+  use_sentinel: false
+
+  ## Note if deploying redis-ha you MUST have the same password below!
   password: "9X9RFrRnQHcB"
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
+  ## https://github.com/helm/charts/tree/master/stable/redis-ha
   ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "9X9RFrRnQHcB"
-  resources:
-    server:
+  replicas: 3
+  redis:
+    resources:
       requests:
         memory: 512Mi
         cpu: 100m
       limits:
         memory: 10Gi
-    sentinel:
+  sentinel:
+    resources:
       requests:
         cpu: 100m
-        memory: 256Mi
+        memory: 128Mi
       limits:
-        memory: 1Gi
+        memory: 256Mi
+  persistentVolume:
+    enabled: true
+    size: 10Gi
   nameOverride: "memstore"
 
 

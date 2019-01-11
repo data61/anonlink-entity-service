@@ -24,10 +24,10 @@ components:
 -  A Minio object store (large files such as raw uploaded hashes, results)
 -  A postgres database stores the linking metadata.
 -  A redis task queue that interfaces between the flask app and the
-   celery backend.
+   celery backend. Redis also acts as an ephemeral cache.
 
-Each of these has been packaged as a docker image, however the use of an
-external postgres database can be configured through environment
+Each of these has been packaged as a docker image, however the use of
+external services (redis, postgres, minio) can be configured through environment
 variables. Multiple workers can be used to distribute the work beyond
 one machine - by default all cores will be used for computing similarity
 scores and encrypting the mask vector.

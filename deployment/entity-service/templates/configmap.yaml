@@ -6,9 +6,11 @@ metadata:
     {{- include "es.release_labels" . | indent 4 }}
 data:
   {{ if .Values.provision.redis }}
-  REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}-master-svc
+  REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}
+  REDIS_USE_SENTINEL: "true"
   {{ else }}
   REDIS_SERVER: {{ .Values.redis.server }}
+  REDIS_USE_SENTINEL: {{ .Values.redis.use_sentinel }}
   {{ end }}
   DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
   DEBUG: {{ .Values.workers.debug | quote }}
