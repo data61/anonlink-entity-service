@@ -7,7 +7,13 @@ Changelog
 Next Release
 ------------
 
-- Redis can now be used in highly available mode.
+
+Version 1.9.3
+-------------
+
+- Redis can now be used in highly available mode. Includes upstream fix where the redis sentinels crash.
+- The custom kubernetes certificate management templates have been removed.
+- Minor updates to the kubernetes resources. No longer using beta apis.
 
 Version 1.9.2
 -------------
