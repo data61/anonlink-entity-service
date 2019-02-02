@@ -56,3 +56,4 @@ Table Of Contents
    deployment
    development
    benchmarking
+   logging
