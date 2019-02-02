@@ -19,6 +19,6 @@ opentracing_instrumentation==2.4.3
 psycopg2==2.7.5
 pytest==3.5.1
 redis==3.0.1
-requests==2.18.4
+requests==2.21.0
 setproctitle==1.1.10 # used by celery to change process name
 structlog==18.2.0
