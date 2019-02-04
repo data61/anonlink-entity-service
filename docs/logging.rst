@@ -13,13 +13,13 @@ The following named loggers are used:
   * `entityservice.database`
 * `celery.es`
 
-The following environment variables effect logging:
+The following environment variables affect logging:
 
 * `DEBUG` - sets the logging level to debug for all application code.
 * `LOGFILE` - directs the log output to this file.
-* `LOG_HEADERS` - HTTP headers to include in the application logs.
+* `LOG_HTTP_HEADER_FIELDS` - HTTP headers to include in the application logs.
 
-Example logging output with `LOG_HEADERS=User-Agent,Host`::
+Example logging output with `LOG_HTTP_HEADER_FIELDS=User-Agent,Host`::
 
 
     [2019-02-02 23:17:23 +0000] [10] [INFO] Adding new project to database [entityservice.views.project] Host=nginx User-Agent=python-requests/2.18.4 pid=6408f4ceb90e25cdf910b00daff3dcf23e4c891c1cfa2383 request=6c2a3730

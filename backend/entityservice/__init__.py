@@ -77,9 +77,9 @@ def initdb_command():
 @app.before_request
 def before_request():
     g.log = logger.new(request=str(uuid.uuid4())[:8])
-    if config.LOG_HEADERS is not None:
+    if config.LOG_HTTP_HEADER_FIELDS is not None:
         headers = {}
-        for header in config.LOG_HEADERS.split(','):
+        for header in config.LOG_HTTP_HEADER_FIELDS.split(','):
             header = header.strip()
             if header in request.headers:
                 headers[header] = request.headers[header]

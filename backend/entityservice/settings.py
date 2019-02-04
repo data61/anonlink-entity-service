@@ -18,7 +18,7 @@ class Config(object):
     CONNEXION_RESPONSE_VALIDATION = os.getenv("CONNEXION_RESPONSE_VALIDATION", "true").lower() == "true"
 
     LOGFILE = os.getenv("LOGFILE")
-    LOG_HEADERS = os.getenv("LOG_HEADERS")
+    LOG_HTTP_HEADER_FIELDS = os.getenv("LOG_HTTP_HEADER_FIELDS")
 
     fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
     consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
