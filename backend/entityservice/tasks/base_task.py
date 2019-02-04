@@ -79,7 +79,7 @@ class TracedTask(BaseTask):
         except:
             pass
         if parent is None:
-            logger.info('bugger, parent is None')
+            logger.debug('bugger, parent is None')
         with self.tracer.start_span(getattr(self, 'span_name', self.name), child_of=parent) as wrapper_span:
             self._span = wrapper_span
             for span_tag in getattr(self, 'args_as_tags', []):
