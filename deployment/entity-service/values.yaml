@@ -201,15 +201,13 @@ postgresql:
   # See available settings and defaults at:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql
   nameOverride: "db"
-  postgresPassword: "x925SvzX6cuH"
+  #postgresqlDatabase: "postgres"
+  postgresqlPassword: "x925SvzX6cuH"
   persistence:
     enabled: true
-    storageClass: "default"
-    size: 4Gi
-  imageTag: 10.3
-  imagePullPolicy: IfNotPresent
+    size: 8Gi
   metrics:
-    enabled: true
+    enabled: false
   resources:
     #limits:
     #  memory: 8Gi
