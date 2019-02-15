@@ -7,6 +7,7 @@ Changelog
 Next Release
 ------------
 
+- Update to postgres chart, remove default postgresql password from template.
 
 Version 1.9.4
 -------------
