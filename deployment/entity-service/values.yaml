@@ -201,15 +201,27 @@ postgresql:
   # See available settings and defaults at:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql
   nameOverride: "db"
-  postgresPassword: "x925SvzX6cuH"
+
+  ## PostgreSQL admin user
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
+  #postgresqlUsername: postgres
+
+  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
+  ##
+  # postgresqlPassword:
+
+  ## PostgreSQL password using existing secret
+  ## existingSecret: secret
+
+  ## Mount PostgreSQL secret as a file instead of passing environment variable
+  # usePasswordFile: false
+
+
   persistence:
     enabled: true
-    storageClass: "default"
-    size: 4Gi
-  imageTag: 10.3
-  imagePullPolicy: IfNotPresent
+    size: 8Gi
   metrics:
-    enabled: true
+    enabled: false
   resources:
     #limits:
     #  memory: 8Gi
