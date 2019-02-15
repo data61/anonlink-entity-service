@@ -100,16 +100,30 @@ From the `deployment/entity-service` directory pull the dependencies:
 
     helm dependency update
 
-Carefully read through and adjust the ``values.yaml`` file to your deployment.
+Configuring the deployment
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-At a minimum consider setting the domain by changing ``api.domain``, change the workers' cpu
-and memory limits in ``workers.resources``.
+Create a new blank yaml file to hold your custom deployment settings ``my-deployment.yaml``.
+Carefully read through the default ``values.yaml`` file and override any values in your deployment
+configuration file.
 
+At a minimum consider setting up an ingress by changing ``api.ingress``, change the number of
+workers in ``workers.replicaCount`` (and possibly ``workers.highmemory.replicaCount``), check you're happy with
+the workers' cpu and memory limits in ``workers.resources``, and finally set the credentials:
+
+* ``postgresql.postgresqlPassword``
+* ``redis.password`` (and ``redis-ha.redisPassword`` if provisioning redis)
+* ``minio.accessKey`` and ``minio.secretKey``
+
+You may additionally want to check the persistent volume storageClass and sizes.
+
+Installation
+~~~~~~~~~~~~
 
 To install the whole system execute::
 
     cd deployment
-    helm install entityservice --namespace=es --name="n1entityservice"
+    helm install entityservice --namespace=es --name="n1entityservice" --values ``my-deployment.yaml``
 
 This can take around 10 minutes the first time you deploy to a new cluster.
 
@@ -153,6 +167,13 @@ set very small resource limits. Install the minimal system with::
 
     helm install entity-service --name="mini-es" --values entity-service/minimal-values.yaml
 
+
+Database Deployment Options
+---------------------------
+
+At deployment time you can configure the deployed postgresql database.
+
+In particular you should set the ``postgresql.postgresqlPassword`` in ``values.yaml``.
 
 Object Store Deployment Options
 -------------------------------
@@ -198,6 +219,6 @@ To uninstall a release called ``es``::
     helm del es
 
 
-If it has been installed into its own namespace you can simple delete the whole namespace with kubectl::
+If it has been installed into its own namespace you can simple delete the whole namespace with ``kubectl``::
 
     kubectl delete namespace miniestest
