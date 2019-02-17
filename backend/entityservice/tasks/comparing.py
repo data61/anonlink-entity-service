@@ -220,7 +220,13 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
     files = []
     data_size = 0
 
-    for num, filename in similarity_result_files:
+    for res in similarity_result_files:
+        if res is None:
+            log.warning("Missing results during aggregation. Stopping processing.")
+            return
+        else:
+            num, filename = res
+
         if num > 0:
             files.append(filename)
             data_size += mc.stat_object(Config.MINIO_BUCKET, filename).size
