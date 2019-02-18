@@ -10,6 +10,7 @@ from celery import chord
 from entityservice.utils import fmt_bytes
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
+from entityservice.errors import DBResourceMissing
 from entityservice.database import check_project_exists, check_run_exists, \
     get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
     update_run_chunk, DBConn, get_project_column, get_dataprovider_ids, get_run
@@ -132,8 +133,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
         if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Stopping as project or run not found in database.")
-            return None
+            log.info("Failing task as project or run not found in database.")
+            raise DBResourceMissing("project or run not found in database")
 
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")

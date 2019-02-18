@@ -105,7 +105,10 @@ def celery_bug_fix(*args, **kwargs):
 
 @celery.task(base=BaseTask, ignore_result=True)
 def on_chord_error(*args, **kwargs):
-    logger.info("An error occurred while processing the chord's tasks")
+    logger.bind(run_id=kwargs['run_id'])
+    logger.info("An error occurred while processing.")
+    logger.debug(args)
+    logger.debug(kwargs)
     with DBConn() as db:
         update_run_mark_failure(db, kwargs['run_id'])
     logger.warning("Marked run as failure")
