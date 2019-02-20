@@ -79,7 +79,7 @@ class TracedTask(BaseTask):
         except:
             pass
         if parent is None:
-            logger.debug('bugger, parent is None')
+            logger.debug('Unable to trace across tasks as parent span is None')
         with self.tracer.start_span(getattr(self, 'span_name', self.name), child_of=parent) as wrapper_span:
             self._span = wrapper_span
             for span_tag in getattr(self, 'args_as_tags', []):
@@ -105,10 +105,16 @@ def celery_bug_fix(*args, **kwargs):
 
 @celery.task(base=BaseTask, ignore_result=True)
 def on_chord_error(*args, **kwargs):
+    """
+    Record that a task has encountered an error, mark the run as failed.
+
+    :param args: A 1-tuple starting with the taskid.
+    :param kwargs: Keyord arguments to the task e.g. {'run_id': '...', }
+    """
+    task_id = args[0]
     logger.bind(run_id=kwargs['run_id'])
-    logger.info("An error occurred while processing.")
-    logger.debug(args)
-    logger.debug(kwargs)
+    logger.info("An error occurred while processing task", task_id=task_id)
+
     with DBConn() as db:
         update_run_mark_failure(db, kwargs['run_id'])
     logger.warning("Marked run as failure")

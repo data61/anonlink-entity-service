@@ -126,6 +126,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
     :param parent_span: A serialized opentracing span context.
+    @returns A 2-tuple: (num_results, results_filename_in_object_store)
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
