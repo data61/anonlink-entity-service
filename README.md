@@ -1,8 +1,8 @@
-# anonlink 
+# entity-service
 
-Allows two organizations to carry out private record linkage - without
-disclosing personally identifiable information.
+A service for carrying out privacy preserving record linkage. Allows organizations to carry out record linkage without disclosing personally identifiable information.
 
+Clients should use [clkhash](https://github.com/n1analytics/clkhash/) or the [encoding-service](https://github.com/n1analytics/encoding-service/).
 
 ## Documentation
 
@@ -15,8 +15,8 @@ description of the service is available in [docs/index.rst](./docs/index.rst).
 To build and serve the html docs run:
 
     pip install -r docs/doc-requirements.txt
-    sphinx-build -b html docs n1esdocs
-    cd n1esdocs
+    sphinx-build -b html docs html-docs
+    cd html-docs
     python -m http.server
 
 
@@ -37,17 +37,14 @@ or using docker:
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
 
-Note developers should have quay.io credentials - in which case you can skip this step and 
-docker will pull the latest images when you start the service.
+Note docker images are also pushed to quay.io which can be used instead of building containers manually.
 
 | Component       | Quay.io |
 |-----------------|---------|
-|  Backend/Worker | [![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app)         |
-|  Nginx          |  [![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status?token=f669c554-1852-45bc-b595-29bb902a911a "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx)
-       |
-| Benchmark       |  [![Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-benchmark/status?token=642a6f47-e8db-4714-9508-f6f209915e33 "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-benchmark)       |
-| Docs            |  [![Docs Builder Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-docs/status?token=38232319-38cb-4749-91ef-1bdca20c4363 "Docs Builder Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-docs)
-       |
+|  Backend/Worker | [![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app) |
+|  Nginx          | [![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status?token=f669c554-1852-45bc-b595-29bb902a911a "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx) |
+| Benchmark       |  [![Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-benchmark/status?token=642a6f47-e8db-4714-9508-f6f209915e33 "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-benchmark) |
+| Docs            |  [![Docs Builder Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-docs/status?token=38232319-38cb-4749-91ef-1bdca20c4363 "Docs Builder Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-docs) |
 
 
 ## Running Locally
@@ -72,16 +69,6 @@ A simple query with curl should tell you the status of the service:
         "status": "ok"
     }
 
-With docker you can run benchmarks against the service:
-
-    docker run -it \
-        -e SERVER=<ENTITY-SERVER-HOST> \
-        --net=host \
-        quay.io/n1analytics/entity-benchmark
-
-Note the `--net` parameter is only required if connecting to a service running locally
-with docker compose. If the network is not recognized, use `docker network ls` to
-see the available docker networks and find which network was created by docker-compose.
 
 ### Testing with docker-compose
 
@@ -90,16 +77,4 @@ this can be added to run tests along with the rest of the service:
 
     docker-compose -f tools/docker-compose.yml -f tools/ci.yml -p entityservicetest up -d
 
-## Development Tips
-
-There are two libraries `anonlink` and `clkhash` which should be installed in your 
-virtual environment for local development.
-
-
-### Volumes
-
-You might need to destroy the docker volumes used for the object store
-and the postgres database:
-
-    docker-compose -f tools/docker-compose.yml rm --all
 
