@@ -1,6 +1,6 @@
 # entity-service
 
-A service for carrying out privacy preserving record linkage. Allows organizations to carry out record linkage without disclosing personally identifiable information.
+A service for performing privacy preserving record linkage. Allows organizations to carry out record linkage without disclosing personally identifiable information.
 
 Clients should use [clkhash](https://github.com/n1analytics/clkhash/) or the [encoding-service](https://github.com/n1analytics/encoding-service/).
 
@@ -37,7 +37,7 @@ or using docker:
 Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
 images used by `docker-compose`.
 
-Note docker images are also pushed to quay.io which can be used instead of building containers manually.
+Note docker images are also pushed to quay.io, which can be used instead of building containers manually.
 
 | Component       | Quay.io |
 |-----------------|---------|
