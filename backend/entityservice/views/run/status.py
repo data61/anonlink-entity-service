@@ -23,7 +23,6 @@ def get(project_id, run_id):
         # Check the caller has a valid results token. Yes it should be renamed.
         auth_token_type = get_authorization_token_type_or_abort(project_id, request.headers.get('Authorization'))
         log.debug("Run status authorized using {} token".format(auth_token_type))
-        log.info("request for run status authorized")
 
     with opentracing.tracer.start_span('get-status-from-db', child_of=parent_span) as span:
         dbinstance = get_db()
