@@ -217,7 +217,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     args_as_tags=('project_id', 'run_id'))
 def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
-    if similarity_result_files is None: return
+    if similarity_result_files is None:
+        raise TypeError("Inappropriate argument type - missing results files.")
     mc = connect_to_object_store()
     files = []
     data_size = 0
@@ -225,7 +226,7 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
     for res in similarity_result_files:
         if res is None:
             log.warning("Missing results during aggregation. Stopping processing.")
-            return
+            raise TypeError("Inappropriate argument type - results missing at aggregation step.")
         else:
             num, filename = res
 

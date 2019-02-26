@@ -108,8 +108,8 @@ def on_chord_error(*args, **kwargs):
     """
     Record that a task has encountered an error, mark the run as failed.
 
-    :param args: A 1-tuple starting with the taskid.
-    :param kwargs: Keyord arguments to the task e.g. {'run_id': '...', }
+    :param args: A 1-tuple starting with the result id.
+    :param kwargs: Keyword arguments to the task e.g. {'run_id': '...', }
     """
     task_id = args[0]
     logger.bind(run_id=kwargs['run_id'])
