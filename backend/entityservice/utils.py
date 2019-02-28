@@ -196,9 +196,9 @@ def similarity_matrix_from_csv_bytes(data):
     rec_is1 = array.array('I')
     for row in rows:
         rec_i0_str, rec_i1_str, sim_str = row.split(',')
-        sims.append(float(score))
-        rec_is0.append(int(rec_is0))
-        rec_is1.append(int(rec_is1))
+        sims.append(float(sim_str))
+        rec_is0.append(int(rec_i0_str))
+        rec_is1.append(int(rec_i1_str))
     length = len(sims)
     assert length == len(rec_is0)
     assert length == len(rec_is1)
