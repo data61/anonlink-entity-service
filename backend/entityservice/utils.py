@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import array
 import io
+import itertools
 import json
 import os
 
@@ -189,10 +191,21 @@ def clks_uploaded_to_project(project_id, check_data_ready=False):
 
 def similarity_matrix_from_csv_bytes(data):
     rows = data.decode().splitlines()
+    sims = array.array('d')
+    rec_is0 = array.array('I')
+    rec_is1 = array.array('I')
     for row in rows:
-        index_1, index_2, score = row.split(',')
-        # Note we rewrite in a different order because we love making work for ourselves
-        yield (int(index_1), float(score), int(index_2))
+        rec_i0_str, rec_i1_str, sim_str = row.split(',')
+        sims.append(float(sim_str))
+        rec_is0.append(int(rec_i0_str))
+        rec_is1.append(int(rec_i1_str))
+    length = len(sims)
+    assert length == len(rec_is0)
+    assert length == len(rec_is1)
+    dset_is0 = array.array('I', itertools.repeat(0, length))
+    dset_is1 = array.array('I', itertools.repeat(1, length))
+
+    return sims, (dset_is0, dset_is1), (rec_is0, rec_is1)
 
 
 def convert_mapping_to_list(permutation):
