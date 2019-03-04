@@ -148,10 +148,11 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
     span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
-    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
-                                                                     threshold=threshold,
-                                                                     k=min(chunk_dp1_size, chunk_dp2_size),
-                                                                     use_python=False)
+    chunk_results = anonlink.candidate_generation.find_candidate_pairs(
+        (chunk_dp1, chunk_dp2),
+        anonlink.similarities.dice_coefficient_accelerated,
+        threshold,
+        k=min(chunk_dp1_size, chunk_dp2_size))
     t3 = time.time()
     span.log_kv({'event': 'similarities calculated'})
 
@@ -167,7 +168,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     offset_dp2 = chunk_info_dp2[1]
 
     log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
-    for (ia, score, ib) in chunk_results:
+    sims, _, (rec_is0, rec_is1) = chunk_results
+    for score, ia, ib in zip(sims, rec_is0, rec_is1):
         partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
 
     t5 = time.time()

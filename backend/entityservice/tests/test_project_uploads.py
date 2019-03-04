@@ -57,9 +57,9 @@ def test_project_binary_data_upload_with_different_encoded_size(requests, encodi
                                      'result_type': 'mapping',
                                  }).json()
 
-    g1 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
-    g2 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
-    g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)
+    g1 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)  # JNTODO
+    g2 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)  # JNTODO
+    g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)  # JNTODO
 
     def convert_generator_to_bytes(g):
         return b''.join(g)
