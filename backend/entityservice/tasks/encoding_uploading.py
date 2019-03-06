@@ -1,4 +1,3 @@
-
 import io
 
 from entityservice import cache
@@ -37,17 +36,16 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     buffered_stream = iterable_to_stream(raw_data_response.stream())
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
-    uploaded_encoding_size = None
+    first_hash_bytes = deserialize_bytes(next(text_stream))
+    encoding_size = len(first_hash_bytes)
 
     def filter_generator():
-        nonlocal uploaded_encoding_size
         log.debug("Deserializing json filters")
-        for i, line in enumerate(text_stream):
+        i = 0
+        yield first_hash_bytes
+        for i, line in enumerate(text_stream, start=1):
             hash_bytes = deserialize_bytes(line)
-            encsize = len(hash_bytes)
-            if i == 0:
-                uploaded_encoding_size = encsize
-            if encsize != uploaded_encoding_size:
+            if len(hash_bytes) != encoding_size:
                 raise ValueError("Encodings were not all the same size")
             yield hash_bytes
 
@@ -59,33 +57,33 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
 
     # This is the first time we've seen the encoding size from this data provider
     try:
-        check_dataproviders_encoding(project_id, uploaded_encoding_size)
+        check_dataproviders_encoding(project_id, encoding_size)
     except InvalidEncodingError as e:
         log.warning(e.args[0])
         handle_invalid_encoding_data(project_id, dp_id)
 
     with DBConn() as db:
         # Save the encoding size as metadata
-        update_encoding_metadata_set_encoding_size(db, dp_id, uploaded_encoding_size)
+        update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size)
 
     # Output file is our custom binary packed file
     filename = Config.BIN_FILENAME_FMT.format(receipt_token)
-    bit_packed_element_size = binary_format(uploaded_encoding_size).size
+    bit_packed_element_size = binary_format(encoding_size).size
     num_bytes = expected_count * bit_packed_element_size
 
     # If small enough preload the data into our redis cache
     if expected_count < Config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
         python_filters = list(python_filters)
-        cache.set_deserialized_filter(dp_id, python_filters)  # JNTODO
+        cache.set_deserialized_filter(dp_id, python_filters)
     else:
         log.info("Not caching clk data as it is too large")
 
-    packed_filters = binary_pack_filters(python_filters, uploaded_encoding_size)
+    packed_filters = binary_pack_filters(python_filters, encoding_size)
     packed_filter_stream = iterable_to_stream(packed_filters)
 
     # Upload to object store
-    log.info(f"Uploading {expected_count} encodings of size {uploaded_encoding_size} " +
+    log.info(f"Uploading {expected_count} encodings of size {encoding_size} " +
              f"to object store. Total Size: {fmt_bytes(num_bytes)}")
     mc.put_object(Config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 

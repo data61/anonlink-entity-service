@@ -28,7 +28,7 @@ def serialize_filters(filters):
 
 
 def generate_bytes(length):
-    return random.getrandbits(length).to_bytes(length // 8, 'big')
+    return random.getrandbits(length * 8).to_bytes(length, 'big')
 
 
 def generate_clks(count, size):
