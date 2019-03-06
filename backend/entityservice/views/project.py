@@ -157,7 +157,7 @@ def project_clks_post(project_id):
             # TODO actually stream the upload data straight to Minio. Currently we can't because
             # connexion has already read the data before our handler is called!
             # https://github.com/zalando/connexion/issues/592
-            # stream = get_stream()Uploaded data did not match the expected size. Check request headers are correct
+            # stream = get_stream()
             stream = BytesIO(request.data)
             expected_bytes = binary_format(size).size * count
             log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
