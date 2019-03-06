@@ -56,7 +56,6 @@ def binary_pack_filters(filters, encoding_size):
     :return:
         An iterable of bytes.
     """
-    # NB: 
     bit_packing_struct = binary_format(encoding_size)
 
     for hash_bytes in filters:
