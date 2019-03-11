@@ -35,6 +35,7 @@ EXP_LOOKUP = {
     '10M': 10000000
 }
 
+SIZE_PER_CLK = 128  # As per serialization.py.
 
 logger = logging
 logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
@@ -78,7 +79,7 @@ def read_config():
             'schema_path': schema_path,
             'data_path': data_path,
             'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
-            'results_path': results_path
+            'results_path': results_path,
         }
     except Exception as e:
         raise ValueError(
@@ -102,13 +103,14 @@ def upload_binary_clks(config, length_a, length_b, credentials):
 
         with open(os.path.join(data_path, "clk_{}_{}.bin".format(participant, clk_length)), 'rb') as f:
             facs_data = f.read()
+        assert len(facs_data) % SIZE_PER_CLK == 0
         try:
             r = requests.post(
                 server + '/api/v1/projects/{}/clks'.format(credentials['project_id']),
                 headers={
                     'Authorization': auth_token,
                     'Content-Type': 'application/octet-stream',
-                    'Hash-Count': str(int(len(facs_data) / 134)),
+                    'Hash-Count': str(len(facs_data) // SIZE_PER_CLK),
                     'Hash-Size': '128'
                 },
                 data=facs_data
