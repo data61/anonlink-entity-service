@@ -79,7 +79,7 @@ def read_config():
             'schema_path': schema_path,
             'data_path': data_path,
             'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
-            'results_path': results_path,
+            'results_path': results_path
         }
     except Exception as e:
         raise ValueError(
