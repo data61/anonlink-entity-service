@@ -101,7 +101,7 @@ def upload_binary_clks(config, length_a, length_b, credentials):
     def upload_data(participant, auth_token, clk_length):
         start = tick()
 
-        with open(os.path.join(data_path, "clk_{}_{}.bin".format(participant, clk_length)), 'rb') as f:
+        with open(os.path.join(data_path, "clk_{}_{}_v2.bin".format(participant, clk_length)), 'rb') as f:
             facs_data = f.read()
         assert len(facs_data) % SIZE_PER_CLK == 0
         try:
@@ -217,7 +217,7 @@ def download_data(config):
     for user in ('a', 'b'):
         for size in sizes:
             pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
-            clk_file = f"clk_{user}_{EXP_LOOKUP[size]}.bin"
+            clk_file = f"clk_{user}_{EXP_LOOKUP[size]}_v2.bin"
             download_file_if_not_present(base, data_folder, pii_file)
             download_file_if_not_present(base, data_folder, clk_file)
 
