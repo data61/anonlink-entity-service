@@ -16,6 +16,7 @@ from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
+from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
 
@@ -158,8 +159,9 @@ def project_clks_post(project_id):
             # https://github.com/zalando/connexion/issues/592
             # stream = get_stream()
             stream = BytesIO(request.data)
-            log.debug(f"Stream size is {len(request.data)} B, and we expect {(6 + size)* count} B")
-            if len(request.data) != (6 + size) * count:
+            expected_bytes = binary_format(size).size * count
+            log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
+            if len(request.data) != expected_bytes:
                 safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
             try:
                 receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
@@ -226,7 +228,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
 
-    num_bytes = count * (size + 6)
+    num_bytes = binary_format(size).size * count
 
     logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
 
