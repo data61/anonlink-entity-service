@@ -100,7 +100,7 @@ def celery_bug_fix(*args, **kwargs):
     so we append a celery_bug_fix task.
     https://github.com/celery/celery/issues/3709
     """
-    return [0, None]
+    return [0, None, None]
 
 
 @celery.task(base=BaseTask, ignore_result=True)

@@ -59,11 +59,6 @@ def test_similarity_scores(requests, the_truth):
     delete_project(requests, project_data)
 
 
-@pytest.mark.skip(
-    reason="ES does not currently sort similarity scores before "
-           "solving but anonlink does. This causes the solved mapping "
-           "to not be the same as anonlink. There are plans to fix "
-           "this: see #335.")
 def test_mapping(requests, the_truth):
     project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                     result_type='mapping')
@@ -71,17 +66,16 @@ def test_mapping(requests, the_truth):
     result = get_run_result(requests, project_data, run)
     # compare mapping with the truth
     mapping = {int(k): int(result['mapping'][k]) for k in result['mapping']}
+
+    # NB: Anonlink is more strict on enforcing the k parameter, so there
+    # is a small chance the below won't hold. This should only be the
+    # case for more noisy problems.
     assert mapping.keys() == the_truth['mapping'].keys()
     for key, value in mapping.items():
         assert value == the_truth['mapping'][key]
         assert the_truth['entity_ids_a'][key] == the_truth['entity_ids_b'][value]
 
 
-@pytest.mark.skip(
-    reason="ES does not currently sort similarity scores before "
-           "solving but anonlink does. This causes the solved mapping "
-           "(and thus the permutation) to not be the same as anonlink. "
-           "There are plans to fix this: see #335.")
 def test_permutation(requests, the_truth):
     project_data, r_a, r_b = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
                                                         result_type='permutations')
@@ -93,6 +87,10 @@ def test_permutation(requests, the_truth):
     permutation_a = inverse_of_permutation(perm_a_result['permutation'])
     permutation_b = inverse_of_permutation(perm_b_result['permutation'])
     mapping = the_truth['mapping']
+
+    # NB: Anonlink is more strict on enforcing the k parameter, so there
+    # is a small chance the below won't hold. This should only be the
+    # case for more noisy problems.
     for a, b, m in zip(permutation_a, permutation_b, mask_result['mask']):
         if m == 1:
             assert a in mapping, f"Unexpected link was included - run {run}"

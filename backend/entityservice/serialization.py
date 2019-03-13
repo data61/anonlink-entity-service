@@ -4,8 +4,10 @@ import urllib3
 from bitarray import bitarray
 import base64
 import struct
-from structlog import get_logger
+
+import anonlink
 from flask import Response
+from structlog import get_logger
 
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
@@ -118,14 +120,17 @@ def deserialize_filters_concurrent(filters):
     return res
 
 
-def generate_scores(csv_text_stream):
+def generate_scores(sims_iter):
     """
     Processes a TextIO stream of csv similarity scores into
     a json generator.
 
     """
+    cs_sims_iter = (
+        f'{rec_i0}, {rec_i1}, {sim}'
+        for sim, _, _, rec_i0, rec_i1 in sims_iter)
     yield '{"similarity_scores": ['
-    line_iter = csv_text_stream.__iter__()
+    line_iter = iter(cs_sims_iter)
 
     try:
         prev_line = next(line_iter)
@@ -158,12 +163,13 @@ def get_similarity_scores(filename):
     logger.info("Starting download stream of similarity scores.", filename=filename, filesize=details.size)
 
     try:
-        csv_data_stream = iterable_to_stream(mc.get_object(config.MINIO_BUCKET, filename).stream())
+        sims_data_stream = mc.get_object(config.MINIO_BUCKET, filename)
+        # TODO: Below is an Anonlink 'private' API. It should be made
+        # public.
+        sims_iter, *_ = anonlink.serialization._load_to_iterable(
+            sims_data_stream)
 
-        # Process the CSV into JSON
-        csv_text_stream = io.TextIOWrapper(csv_data_stream, encoding="utf-8")
-
-        return Response(generate_scores(csv_text_stream), mimetype='application/json')
+        return Response(generate_scores(sims_iter), mimetype='application/json')
 
     except urllib3.exceptions.ResponseError:
         logger.warning("Attempt to read the similarity scores file failed with an error response.", filename=filename)
