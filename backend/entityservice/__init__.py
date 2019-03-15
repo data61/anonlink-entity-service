@@ -3,7 +3,7 @@ import pathlib
 import uuid
 
 import connexion
-from flask import g
+from flask import g, request
 import structlog
 try:
     import ijson.backends.yajl2_cffi as ijson
@@ -77,6 +77,13 @@ def initdb_command():
 @app.before_request
 def before_request():
     g.log = logger.new(request=str(uuid.uuid4())[:8])
+    if config.LOG_HTTP_HEADER_FIELDS is not None:
+        headers = {}
+        for header in config.LOG_HTTP_HEADER_FIELDS.split(','):
+            header = header.strip()
+            if header in request.headers:
+                headers[header] = request.headers[header]
+        g.log.bind(**headers)
     g.flask_tracer = flask_tracer
 
 

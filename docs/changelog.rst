@@ -8,6 +8,12 @@ Next Release
 ------------
 
 
+Version 1.9.4
+-------------
+
+- Introduces configurable logging of HTTP headers.
+- Dependency issue resolved.
+
 Version 1.9.3
 -------------
 
