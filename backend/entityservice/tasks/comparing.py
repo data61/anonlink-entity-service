@@ -10,6 +10,7 @@ from celery import chord
 from entityservice.utils import fmt_bytes
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
+from entityservice.errors import DBResourceMissing
 from entityservice.database import check_project_exists, check_run_exists, \
     get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
     update_run_chunk, DBConn, get_project_column, get_dataprovider_ids, get_run
@@ -125,6 +126,7 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
     :param parent_span: A serialized opentracing span context.
+    @returns A 2-tuple: (num_results, results_filename_in_object_store)
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
@@ -132,8 +134,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     log.debug("Checking that the resource exists (in case of job being canceled)")
     with DBConn() as db:
         if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Stopping as project or run not found in database.")
-            return None
+            log.info("Failing task as project or run not found in database.")
+            raise DBResourceMissing("project or run not found in database")
 
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
@@ -146,10 +148,11 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
     span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
-    chunk_results = anonlink.entitymatch.calculate_filter_similarity(chunk_dp1, chunk_dp2,
-                                                                     threshold=threshold,
-                                                                     k=min(chunk_dp1_size, chunk_dp2_size),
-                                                                     use_python=False)
+    chunk_results = anonlink.candidate_generation.find_candidate_pairs(
+        (chunk_dp1, chunk_dp2),
+        anonlink.similarities.dice_coefficient_accelerated,
+        threshold,
+        k=min(chunk_dp1_size, chunk_dp2_size))
     t3 = time.time()
     span.log_kv({'event': 'similarities calculated'})
 
@@ -165,7 +168,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     offset_dp2 = chunk_info_dp2[1]
 
     log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
-    for (ia, score, ib) in chunk_results:
+    sims, _, (rec_is0, rec_is1) = chunk_results
+    for score, ia, ib in zip(sims, rec_is0, rec_is1):
         partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
 
     t5 = time.time()
@@ -215,12 +219,19 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
     args_as_tags=('project_id', 'run_id'))
 def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
-    if similarity_result_files is None: return
+    if similarity_result_files is None:
+        raise TypeError("Inappropriate argument type - missing results files.")
     mc = connect_to_object_store()
     files = []
     data_size = 0
 
-    for num, filename in similarity_result_files:
+    for res in similarity_result_files:
+        if res is None:
+            log.warning("Missing results during aggregation. Stopping processing.")
+            raise TypeError("Inappropriate argument type - results missing at aggregation step.")
+        else:
+            num, filename = res
+
         if num > 0:
             files.append(filename)
             data_size += mc.stat_object(Config.MINIO_BUCKET, filename).size

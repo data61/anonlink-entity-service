@@ -3,33 +3,30 @@ import unittest
 import random
 
 import json
-from bitarray import bitarray
-from entityservice.serialization import deserialize_bitarray, generate_scores
-from entityservice.tests.util import serialize_bitarray
+from entityservice.serialization import deserialize_bytes, generate_scores
+from entityservice.tests.util import serialize_bytes
 
 
-def random_bitarray(l=1024):
-    return bitarray(
-        ''.join('1' if random.random() > 0.5 else '0' for _ in range(l))
-    )
+def random_bytes(l=1024):
+    return random.getrandbits(l).to_bytes(l // 8, 'big')
 
 
 class SerializationTest(unittest.TestCase):
 
     def test_bitarray(self):
-        ba = bitarray('1110110011011101010101010101010101010101010101010101111001100110')
+        ba = b'\xec\xddUUUU^f'
 
-        serialized_bitarray1 = serialize_bitarray(ba)
+        serialized_bitarray1 = serialize_bytes(ba)
 
-        banew = deserialize_bitarray(serialized_bitarray1)
+        banew = deserialize_bytes(serialized_bitarray1)
 
         self.assertEqual(banew, ba)
 
-    def test_random_bitarray(self):
-        ba = random_bitarray(2048)
-        sba = serialize_bitarray(ba)
-        dsba = deserialize_bitarray(sba)
-        self.assertEqual(dsba, ba)
+    def test_random_bytes(self):
+        rb = random_bytes(2048)
+        srb = serialize_bytes(rb)
+        dsrb = deserialize_bytes(srb)
+        self.assertEqual(dsrb, rb)
 
 
     def test_csv_to_json(self):

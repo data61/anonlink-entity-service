@@ -25,12 +25,12 @@ Run docker compose::
 
 This will start the following containers:
 
--  nginx frontend (named ``n1es_nginx_1``)
--  gunicorn/flask backend (named ``n1es_backend_1``)
--  celery backend worker (named ``n1es_worker_1``)
--  postgres database (named ``n1es_db_1``)
--  redis job queue (named ``n1es_redis_1``)
--  minio object store
+- nginx frontend (named ``n1es_nginx_1``)
+- gunicorn/flask backend (named ``n1es_backend_1``)
+- celery backend worker (named ``n1es_worker_1``)
+- postgres database (named ``n1es_db_1``)
+- redis job queue (named ``n1es_redis_1``)
+- minio object store
 - jaeger opentracing
 
 The REST api for the service is exposed on port ``8851`` of the nginx container, which docker

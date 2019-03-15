@@ -13,24 +13,22 @@ import iso8601
 from entityservice.tests.config import url
 
 
-def serialize_bitarray(ba):
-    """ Serialize a bitarray (bloomfilter)
+def serialize_bytes(hash_bytes):
+    """ Serialize bloomfilter bytes
 
     """
-    return base64.encodebytes(ba.tobytes()).decode('utf8')
+    return base64.b64encode(hash_bytes).decode()
 
 
 def serialize_filters(filters):
     """Serialize filters as clients are required to."""
     return [
-        serialize_bitarray(f[0]) for f in filters
+        serialize_bytes(f) for f in filters
     ]
 
 
-def generate_bitarray(length):
-    a = bitarray(endian=random.choice(['little', 'big']))
-    a.frombytes(os.urandom(length))
-    return a
+def generate_bytes(length):
+    return random.getrandbits(length * 8).to_bytes(length, 'big')
 
 
 def generate_clks(count, size):
@@ -41,14 +39,14 @@ def generate_clks(count, size):
     """
     res = []
     for i in range(count):
-        ba = generate_bitarray(size)
-        res.append((ba, i, ba.count()))
+        hash_bytes = generate_bytes(size)
+        res.append(hash_bytes)
     return res
 
 
 def generate_json_serialized_clks(count, size=128):
     clks = generate_clks(count, size)
-    return [serialize_bitarray(clk) for clk,_ ,_ in clks]
+    return [serialize_bytes(hash_bytes) for hash_bytes in clks]
 
 
 def generate_overlapping_clk_data(dataset_sizes, overlap=0.9, encoding_size=128):

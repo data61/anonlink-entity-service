@@ -17,7 +17,7 @@ def check_dataproviders_encoding(project_id, encoding_size):
     :raises ValueError if encoding_size invalid.
     """
     if not config.MIN_ENCODING_SIZE <= encoding_size <= config.MAX_ENCODING_SIZE:
-        raise InvalidEncodingError(dedent("""Encoding size out of bounds.
+        raise InvalidEncodingError(dedent(f"""Encoding size out of bounds.
         Expected encoding size to be between {config.MIN_ENCODING_SIZE} and {config.MAX_ENCODING_SIZE}
         """))
     with DBConn() as db:

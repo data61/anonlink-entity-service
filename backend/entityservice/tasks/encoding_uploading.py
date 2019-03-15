@@ -1,14 +1,11 @@
-
 import io
-
-import more_itertools
 
 from entityservice import cache
 from entityservice.database import *
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
-from entityservice.serialization import binary_pack_filters, deserialize_bitarray, binary_format
+from entityservice.serialization import binary_pack_filters, deserialize_bytes, binary_format
 from entityservice.settings import Config
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
@@ -39,29 +36,24 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     buffered_stream = iterable_to_stream(raw_data_response.stream())
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
-    clkcounts = []
+    first_hash_bytes = deserialize_bytes(next(text_stream))
+    uploaded_encoding_size = len(first_hash_bytes)
 
     def filter_generator():
         log.debug("Deserializing json filters")
-        first_encoding_size = None
-        for i, line in enumerate(text_stream):
-            ba = deserialize_bitarray(line)
-            yield (ba, i, ba.count())
-            clkcounts.append(ba.count())
-            encsize = len(ba)
-            if i == 0:
-                first_encoding_size = encsize
-            if encsize != first_encoding_size:
+        i = 0
+        yield first_hash_bytes
+        for i, line in enumerate(text_stream, start=1):
+            hash_bytes = deserialize_bytes(line)
+            if len(hash_bytes) != uploaded_encoding_size:
                 raise ValueError("Encodings were not all the same size")
+            yield hash_bytes
 
-        log.info(f"Processed {len(clkcounts)} hashes")
+        log.info(f"Processed {i + 1} hashes")
 
     # We peek at the first element as we need the encoding size
     # for the ret of our processing pipeline
-    python_filters = more_itertools.peekable(filter_generator())
-    # Note the len of a bitarray is returned in bits but we require
-    # this to be a multiple of 8 so we use bytes.
-    uploaded_encoding_size = len(python_filters.peek()[0])//8
+    python_filters = filter_generator()
 
     # This is the first time we've seen the encoding size from this data provider
     try:

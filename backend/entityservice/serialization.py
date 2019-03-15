@@ -28,11 +28,8 @@ def list_to_bytes(python_object):
     raise TypeError(repr(python_object) + ' is not valid bytes')
 
 
-def deserialize_bitarray(bytes_data):
-    ba = bitarray(endian='big')
-    data_as_bytes = base64.decodebytes(bytes_data.encode())
-    ba.frombytes(data_as_bytes)
-    return ba
+def deserialize_bytes(bytes_data):
+    return base64.b64decode(bytes_data)
 
 
 def binary_format(encoding_size):
@@ -41,41 +38,33 @@ def binary_format(encoding_size):
 
     The binary format string can be understood as:
     - "!" Use network byte order (big-endian).
-    - "1I" Store the index in 4 bytes as an unsigned int.
     - "<encoding size>s" Store the n (e.g. 128) raw bytes of the bitarray
-    - "1H" The popcount stored in 2 bytes (unsigned short)
 
     https://docs.python.org/3/library/struct.html
     """
-    bit_packing_fmt = f"!1I{encoding_size}s1H"
+    bit_packing_fmt = f"!{encoding_size}s"
     bit_packing_struct = struct.Struct(bit_packing_fmt)
     return bit_packing_struct
 
 
 def binary_pack_filters(filters, encoding_size):
-    """Efficient packing of bloomfilters with index and popcount.
+    """Efficient packing of bloomfilters.
 
     :param filters:
-        An iterable of tuples as produced by deserialize_filters.
+        An iterable of bytes as produced by deserialize_bytes.
 
     :return:
         An iterable of bytes.
     """
     bit_packing_struct = binary_format(encoding_size)
 
-    for ba_clk, indx, count in filters:
-        yield bit_packing_struct.pack(
-          indx,
-          ba_clk.tobytes(),
-          count
-        )
+    for hash_bytes in filters:
+        yield bit_packing_struct.pack(hash_bytes)
 
 
 def binary_unpack_one(data, bit_packing_struct):
-    index, clk_bytes, count = bit_packing_struct.unpack(data)
-    ba = bitarray(endian="big")
-    ba.frombytes(clk_bytes)
-    return ba, index, count
+    clk_bytes, = bit_packing_struct.unpack(data)
+    return clk_bytes
 
 
 def binary_unpack_filters(streamable_data, max_bytes=None, encoding_size=None):
