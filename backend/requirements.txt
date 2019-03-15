@@ -1,4 +1,4 @@
-anonlink==0.11.1
+anonlink==0.11.2
 bitmath==1.3.1.2
 celery==4.2.1
 clkhash==0.12.0
