@@ -4,10 +4,12 @@
 Changelog
 =========
 
-Next Release
-------------
+Version 1.10.0
+--------------
 
-- Update to postgres chart, remove default postgresql password from template.
+- Switches to Anonlink's default format for serialization of similarity scores.
+- Sorts similarity scores before solving, improving accuracy
+- Uses Anonlink's new API for similarity score computation and solving
 
 Version 1.9.4
 -------------
