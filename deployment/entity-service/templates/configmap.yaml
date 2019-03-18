@@ -12,7 +12,13 @@ data:
   REDIS_SERVER: {{ .Values.redis.server }}
   REDIS_USE_SENTINEL: {{ .Values.redis.use_sentinel }}
   {{ end }}
-  DATABASE_SERVER: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
+  {{ if .Values.provision.postgresql }}
+  DATABASE_SERVER: {{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}
+  {{ else }}
+  DATABASE_SERVER: {{.Values.postgresql.nameOverride }}
+  {{ end }} 
+  DATABASE_USER: {{ .Values.postgresql.postgresqlUsername }}
+  DATABASE: {{ .Values.postgresql.postgresqlDatabase }} 
   DEBUG: {{ .Values.workers.debug | quote }}
   ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
   SMALL_COMPARISON_CHUNK_SIZE: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
