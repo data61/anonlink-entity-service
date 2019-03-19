@@ -7,9 +7,15 @@ Changelog
 Version 1.10.0
 --------------
 
-- Switches to Anonlink's default format for serialization of similarity scores.
-- Sorts similarity scores before solving, improving accuracy
-- Uses Anonlink's new API for similarity score computation and solving
+- Updates Anonlink and switches to using Anonlink's default format for serialization
+  of similarity scores.
+- Sorts similarity scores before solving, improving accuracy.
+- Uses Anonlink's new API for similarity score computation and solving.
+- Add support for using an external Postgres database.
+- Added optional support for redis discovery via the sentinel protocol.
+- Kubernetes deployment no longer includes a default postgres password.
+  Ensure that you set your own `postgresqlPassword`.
+- The Kubernetes deployment documentation has been extended.
 
 Version 1.9.4
 -------------
