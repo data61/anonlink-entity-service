@@ -85,7 +85,7 @@ class Config(object):
 
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
-    SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.csv"
+    SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.bin"
 
     TRACING_HOST = os.getenv("TRACING_HOST", "jaeger")
     TRACING_PORT = os.getenv("TRACING_PORT", "5775")

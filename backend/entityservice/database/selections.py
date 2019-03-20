@@ -339,7 +339,7 @@ def get_similarity_scores_filename(db, run_id):
         WHERE
           run = %s
         """
-    return query_db(db, sql_query, [run_id], one=True)['file']
+    return query_db(db, sql_query, [run_id], one=True)['file'].strip()
 
 
 def get_run_status(db, run_id):

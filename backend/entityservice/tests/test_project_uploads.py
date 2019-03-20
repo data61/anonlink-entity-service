@@ -60,7 +60,6 @@ def test_project_binary_data_upload_with_different_encoded_size(requests, encodi
     g1 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
     g2 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
     g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)
-
     def convert_generator_to_bytes(g):
         return b''.join(g)
 
@@ -68,8 +67,12 @@ def test_project_binary_data_upload_with_different_encoded_size(requests, encodi
     f1 = convert_generator_to_bytes(g1) + shared_entity
     f2 = shared_entity + convert_generator_to_bytes(g2)
 
-    upload_binary_data(requests, f1, new_project_data['project_id'], new_project_data['update_tokens'][0], 500, encoding_size)
-    upload_binary_data(requests, f2, new_project_data['project_id'], new_project_data['update_tokens'][1], 500, encoding_size)
+    assert len(f1) == 500 * encoding_size
+
+    upload_binary_data(requests, f1, new_project_data['project_id'], new_project_data['update_tokens'][0], 500, size=encoding_size)
+    upload_binary_data(requests, f2, new_project_data['project_id'], new_project_data['update_tokens'][1], 500, size=encoding_size)
+
+    print('ENC SIZE', encoding_size)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
