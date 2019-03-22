@@ -3,8 +3,7 @@ version: 1
 disable_existing_loggers: False
 formatters:
   simple:
-    format: "%(asctime)-10s %(message)s"
-    datefmt: "%H:%M:%S"
+    format: "%(message)s"
   file:
     format: "%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s"
 filters:
