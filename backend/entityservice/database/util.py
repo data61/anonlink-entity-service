@@ -37,7 +37,7 @@ def connect_db():
         try:
             conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
         except psycopg2.OperationalError:
-            logger.warning("warning connecting to default postgres db")
+            logger.warning("fallback connecting to default postgres db", database=db, user=user, host=host)
             conn = psycopg2.connect(database='postgres', user=user, password=pw, host=host)
 
     except psycopg2.Error:

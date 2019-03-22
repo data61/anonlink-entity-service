@@ -205,23 +205,6 @@ postgresql:
   # https://github.com/kubernetes/charts/tree/master/stable/postgresql
   nameOverride: "db"
 
-  ## PostgreSQL admin user
-  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
-  postgresqlUsername: postgres
-  postgresqlDatabase: postgres
-
-  ## Set postgres password
-  ## ref: https://github.com/bitnami/bitnami-docker-postgresql/blob/master/README.md#setting-the-root-password-on-first-run
-  ##
-  # postgresqlPassword:
-
-  ## PostgreSQL password using existing secret
-  ## existingSecret: secret
-
-  ## Mount PostgreSQL secret as a file instead of passing environment variable
-  # usePasswordFile: false
-
-
   persistence:
     enabled: true
     size: 8Gi
@@ -233,6 +216,11 @@ postgresql:
     requests:
       #memory: 1Gi
       cpu: 100m
+
+global:
+  postgresql:
+    postgresqlUsername: postgres
+    #postgresqlPassword:
 
 
 redis:

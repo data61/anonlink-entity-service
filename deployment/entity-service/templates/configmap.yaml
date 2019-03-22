@@ -17,8 +17,8 @@ data:
   {{ else }}
   DATABASE_SERVER: {{.Values.postgresql.nameOverride }}
   {{ end }} 
-  DATABASE_USER: {{ .Values.postgresql.postgresqlUsername }}
-  DATABASE: {{ .Values.postgresql.postgresqlDatabase }} 
+  DATABASE_USER: {{ .Values.global.postgresql.postgresqlUsername }}
+  DATABASE: {{ .Values.global.postgresql.postgresqlDatabase }}
   DEBUG: {{ .Values.workers.debug | quote }}
   ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
   SMALL_COMPARISON_CHUNK_SIZE: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
