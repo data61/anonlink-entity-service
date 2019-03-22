@@ -18,7 +18,11 @@ data:
   DATABASE_SERVER: {{.Values.postgresql.nameOverride }}
   {{ end }} 
   DATABASE_USER: {{ .Values.global.postgresql.postgresqlUsername }}
+  {{ if .Values.global.postgresql.postgresqlDatabase }}
   DATABASE: {{ .Values.global.postgresql.postgresqlDatabase }}
+  {{ else }}
+  DATABASE: "postgres"
+  {{ end }}
   DEBUG: {{ .Values.workers.debug | quote }}
   ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
   SMALL_COMPARISON_CHUNK_SIZE: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
