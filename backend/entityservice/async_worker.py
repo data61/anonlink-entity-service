@@ -5,7 +5,7 @@ from celery.signals import task_prerun
 import structlog
 
 from entityservice.settings import Config
-
+from entityservice.logger_setup import setup_structlog
 
 celery = Celery('tasks',
                 broker=Config.CELERY_BROKER_URL,
@@ -21,31 +21,15 @@ celery.conf.worker_prefetch_multiplier = Config.CELERYD_PREFETCH_MULTIPLIER
 celery.conf.worker_max_tasks_per_child = Config.CELERYD_MAX_TASKS_PER_CHILD
 
 
-structlog.configure(
-    processors=[
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.dev.ConsoleRenderer()
-    ],
-    context_class=structlog.threadlocal.wrap_dict(dict),
-    logger_factory=structlog.stdlib.LoggerFactory(),
-)
-
-# Set logging level of other python libraries that we use
-logging.getLogger('celery').setLevel(logging.WARNING)
-logging.getLogger('jaeger_tracing').setLevel(logging.WARNING)
-
 # Set up our logging
-logger = structlog.wrap_logger(logging.getLogger('celery.es'))
+setup_structlog()
+logger = structlog.wrap_logger(logging.getLogger('entityservice.tasks'))
 if Config.DEBUG:
-    logging.getLogger('celery.es').setLevel(logging.DEBUG)
-    logging.getLogger('celery').setLevel(logging.INFO)
+    logging.getLogger('entityservice.tasks').setLevel(logging.DEBUG)
+    #logging.getLogger('celery').setLevel(logging.INFO)
 
 
-logger.info("Setting up celery worker")
+logger.info("Setting up entityservice worker")
 logger.debug("Debug logging enabled")
 
 
