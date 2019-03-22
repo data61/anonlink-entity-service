@@ -31,7 +31,7 @@ def connect_db():
     user = config.DATABASE_USER
     pw = config.DATABASE_PASSWORD
 
-    logger.debug("Trying to connect to postgres db")
+    logger.info("Trying to connect to database.", database=db, user=user, host=host)
     # We nest the try/except blocks to allow one re-attempt with defaults
     try:
         try:
