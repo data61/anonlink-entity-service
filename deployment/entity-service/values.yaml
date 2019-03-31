@@ -27,7 +27,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.4.0"
+      tag: "v1.4.1"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -45,7 +45,7 @@ api:
   app:
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.9.4"
+      tag: "v1.10.0"
       ## Options: "IfNotPresent" or "Always"
       pullPolicy: Always
 
@@ -69,7 +69,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: quay.io/n1analytics/entity-app
-      tag: "v1.9.4"
+      tag: "v1.10.0"
 
     resources:
       requests:
@@ -91,10 +91,13 @@ api:
     ##
     annotations: #{}
      kubernetes.io/ingress.class: nginx
-     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     #certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
      ## To handle large uploads we increase the nginx buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
@@ -138,7 +141,7 @@ workers:
 
   image:
     repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.9.4"
+    tag: "v1.10.0"
     pullPolicy: Always
     pullSecret: "n1-quay-pull-secret"
 
