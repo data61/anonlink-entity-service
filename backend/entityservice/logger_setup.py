@@ -17,7 +17,7 @@ def setup_logging(
 
     try:
         with open(path, 'rt') as f:
-            config = yaml.safe_load(f.read())
+            config = yaml.safe_load(f)
         logging.config.dictConfig(config)
     except FileNotFoundError:
         print("Logging config YAML file doesn't exist. Falling back to defaults")
