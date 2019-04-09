@@ -1,28 +1,26 @@
-import os
 import logging.config
+import os
+from pathlib import Path
 import structlog
-
 import yaml
 
 
 def setup_logging(
-    default_path='logging.yaml',
+    default_path='default_logging.yaml',
     default_level='INFO',
     env_key='LOG_CFG'
 ):
     """
     Setup logging configuration
     """
-    path = os.path.dirname(os.path.abspath(__file__)) + '/' + default_path
-    value = os.getenv(env_key, None)
-    if value:
-        path = value
-    if os.path.exists(path):
+    path = os.getenv(env_key, Path('.') / default_path)
+
+    try:
         with open(path, 'rt') as f:
             config = yaml.safe_load(f.read())
         logging.config.dictConfig(config)
-    else:
-        print("YAML file doesn't exist")
+    except FileNotFoundError:
+        print("Logging config YAML file doesn't exist. Falling back to defaults")
         default_level = _str_to_level(default_level)
         logging.basicConfig(level=default_level)
 
@@ -53,22 +51,17 @@ def setup_structlog():
     )
 
 
-class StdErrFilter(logging.Filter):
+class ErrorLevelFilter(logging.Filter):
     """
     Filter for the stderr stream
     Doesn't print records below ERROR to stderr to avoid dupes
     """
     def filter(self, record):
-        return 0 if record.levelno < logging.ERROR else 1
+        return record.levelno >= logging.ERROR
 
 
-class StdOutFilter(logging.Filter):
-    """
-    Filter for the stdout stream
-    Doesn't print records above WARNING to stdout to avoid dupes
-    """
-    def filter(self, record):
-        return 1 if record.levelno < logging.ERROR else 0
+StdErrFilter = ErrorLevelFilter
+StdOutFilter = ErrorLevelFilter
 
 
 def _str_to_level(lvl):
@@ -76,15 +69,15 @@ def _str_to_level(lvl):
     Convenience function to convert a log level string to the numeric rep
     """
     lvl = lvl.strip().lower()
-    if lvl == 'warn':
-        return logging.WARNING
-    elif lvl == 'info':
-        return logging.INFO
-    elif lvl == 'debug':
-        return logging.DEBUG
-    elif lvl == 'critical':
-        return logging.CRITICAL
-    elif lvl == 'error':
-        return logging.ERROR
+    logging_levels = {
+        'warning': logging.WARNING,
+        'info': logging.INFO,
+        'debug': logging.DEBUG,
+        'critical': logging.CRITICAL,
+        'error': logging.ERROR
+    }
+
+    if lvl in logging_levels:
+        return logging_levels[lvl]
     else:
-        return logging.INFO
+        raise ValueError(f"Unexpected logging level '{lvl}'")

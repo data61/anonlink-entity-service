@@ -24,11 +24,6 @@ celery.conf.worker_max_tasks_per_child = Config.CELERYD_MAX_TASKS_PER_CHILD
 # Set up our logging
 setup_structlog()
 logger = structlog.wrap_logger(logging.getLogger('entityservice.tasks'))
-if Config.DEBUG:
-    logging.getLogger('entityservice.tasks').setLevel(logging.DEBUG)
-    #logging.getLogger('celery').setLevel(logging.INFO)
-
-
 logger.info("Setting up entityservice worker")
 logger.debug("Debug logging enabled")
 
