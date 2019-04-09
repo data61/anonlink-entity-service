@@ -4,28 +4,32 @@ from pathlib import Path
 import structlog
 import yaml
 
+from entityservice.errors import InvalidConfiguration
+
 
 def setup_logging(
     default_path='default_logging.yaml',
-    default_level='INFO',
     env_key='LOG_CFG'
 ):
     """
     Setup logging configuration
     """
-    path = os.getenv(env_key, Path('.') / default_path)
-
+    path = os.getenv(env_key, Path(__file__).parent / default_path)
     try:
         with open(path, 'rt') as f:
             config = yaml.safe_load(f)
         logging.config.dictConfig(config)
-    except FileNotFoundError:
-        print("Logging config YAML file doesn't exist. Falling back to defaults")
-        default_level = _str_to_level(default_level)
-        logging.basicConfig(level=default_level)
+        msg = "Loaded logging config from file"
+    except yaml.YAMLError as e:
+        msg = "Parsing YAML logging config failed"
+        raise InvalidConfiguration(msg) from e
+    except FileNotFoundError as e:
+        msg = "Logging config YAML file doesn't exist. Falling back to defaults"
+        raise InvalidConfiguration(msg) from e
 
     # Configure Structlog wrapper for client use
     setup_structlog()
+    logging.info(msg)
 
 
 def setup_structlog():
@@ -51,7 +55,7 @@ def setup_structlog():
     )
 
 
-class ErrorLevelFilter(logging.Filter):
+class StdErrFilter(logging.Filter):
     """
     Filter for the stderr stream
     Doesn't print records below ERROR to stderr to avoid dupes
@@ -60,8 +64,13 @@ class ErrorLevelFilter(logging.Filter):
         return record.levelno >= logging.ERROR
 
 
-StdErrFilter = ErrorLevelFilter
-StdOutFilter = ErrorLevelFilter
+class StdOutFilter(logging.Filter):
+    """
+    Filter for the stdout stream
+    Doesn't print records above WARNING to stdout to avoid dupes
+    """
+    def filter(self, record):
+        return record.levelno <= logging.WARNING
 
 
 def _str_to_level(lvl):
