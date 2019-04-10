@@ -67,10 +67,10 @@ class StdErrFilter(logging.Filter):
 class StdOutFilter(logging.Filter):
     """
     Filter for the stdout stream
-    Doesn't print records above WARNING to stdout to avoid dupes
+    Doesn't print records at ERROR or above to stdout to avoid dupes
     """
     def filter(self, record):
-        return record.levelno <= logging.WARNING
+        return record.levelno < logging.ERROR
 
 
 def _str_to_level(lvl):
