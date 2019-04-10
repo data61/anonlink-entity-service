@@ -19,17 +19,14 @@ def setup_logging(
         with open(path, 'rt') as f:
             config = yaml.safe_load(f)
         logging.config.dictConfig(config)
-        msg = "Loaded logging config from file"
     except yaml.YAMLError as e:
-        msg = "Parsing YAML logging config failed"
-        raise InvalidConfiguration(msg) from e
+        raise InvalidConfiguration("Parsing YAML logging config failed") from e
     except FileNotFoundError as e:
-        msg = "Logging config YAML file doesn't exist. Falling back to defaults"
-        raise InvalidConfiguration(msg) from e
+        raise InvalidConfiguration("Logging config YAML file doesn't exist. Falling back to defaults") from e
 
     # Configure Structlog wrapper for client use
     setup_structlog()
-    logging.info(msg)
+    logging.info("Loaded logging config from file")
 
 
 def setup_structlog():
