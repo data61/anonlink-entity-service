@@ -179,18 +179,6 @@ def set_project_encoding_size(db, project_id, encoding_size):
         cur.execute(sql_query, [encoding_size, project_id])
 
 
-def update_run_chunk(db, resource_id, chunk_size):
-    sql_query = """
-        UPDATE runs
-        SET
-          chunk_size = %s
-        WHERE
-          run_id = %s
-        """
-    with db.cursor() as cur:
-        cur.execute(sql_query, [chunk_size, resource_id])
-
-
 def update_run_set_started(db, run_id):
     with db.cursor() as cur:
         sql_query = """

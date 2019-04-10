@@ -64,13 +64,7 @@ class Config(object):
 
     # Number of comparisons per chunk. Default is to interpolate between the min
     # of 100M and the max size of 1B based on the JOB_SIZE parameters.
-    SMALL_COMPARISON_CHUNK_SIZE = int(os.getenv('SMALL_COMPARISON_CHUNK_SIZE', '100000000'))
-    LARGE_COMPARISON_CHUNK_SIZE = int(os.getenv('LARGE_COMPARISON_CHUNK_SIZE', '1000000000'))
-
-    # Anything smaller that this will use SMALL_COMPARISON_CHUNK_SIZE
-    SMALL_JOB_SIZE = int(os.getenv('SMALL_JOB_SIZE', '100000000'))
-    # Anything greater than this will use LARGE_COMPARISON_CHUNK_SIZE
-    LARGE_JOB_SIZE = int(os.getenv('LARGE_JOB_SIZE', '100000000000'))
+    CHUNK_SIZE_AIM = int(os.getenv('CHUNK_SIZE_AIM', '300000000'))
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.getenv('MAX_CACHE_SIZE', '1000000'))
@@ -90,17 +84,3 @@ class Config(object):
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = int(os.getenv('MIN_ENCODING_SIZE', '1'))
     MAX_ENCODING_SIZE = int(os.getenv('MAX_ENCODING_SIZE', '1024'))
-
-    @classmethod
-    def get_task_chunk_size(cls, size, threshold):
-        # TODO use threshold to scale chunk size
-        if size <= cls.SMALL_JOB_SIZE:
-            return None
-        elif size >= cls.LARGE_JOB_SIZE:
-            chunk_size = cls.LARGE_COMPARISON_CHUNK_SIZE
-        else:
-            # Interpolate
-            gradient = (cls.LARGE_COMPARISON_CHUNK_SIZE - cls.SMALL_COMPARISON_CHUNK_SIZE) / (cls.LARGE_JOB_SIZE - cls.SMALL_JOB_SIZE)
-            chunk_size = cls.SMALL_COMPARISON_CHUNK_SIZE + size * gradient
-
-        return math.ceil(math.sqrt(chunk_size))
