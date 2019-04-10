@@ -20,9 +20,6 @@ class Config(object):
     LOGFILE = os.getenv("LOGFILE")
     LOG_HTTP_HEADER_FIELDS = os.getenv("LOG_HTTP_HEADER_FIELDS")
 
-    fileFormat = logging.Formatter('%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s')
-    consoleFormat = logging.Formatter('%(asctime)-10s %(levelname)-8s %(message)s',
-                                      datefmt="%H:%M:%S")
 
     REDIS_SERVER = os.getenv('REDIS_SERVER', 'redis')
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')

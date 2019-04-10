@@ -1,0 +1,75 @@
+---
+version: 1
+disable_existing_loggers: False
+formatters:
+  simple:
+    format: "%(message)s"
+  file:
+    format: "%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s"
+filters:
+  stderr_filter:
+    (): entityservice.logger_setup.StdErrFilter
+  stdout_filter:
+    (): entityservice.logger_setup.StdOutFilter
+
+handlers:
+  stdout:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    filters: [stdout_filter]
+    stream: ext://sys.stdout
+
+  stderr:
+    class: logging.StreamHandler
+    level: ERROR
+    formatter: simple
+    filters: [stderr_filter]
+    stream: ext://sys.stderr
+
+  info_file_handler:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: file
+    filename: info.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 20
+    encoding: utf8
+
+  error_file_handler:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: file
+    filename: errors.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 20
+    encoding: utf8
+
+loggers:
+  entityservice:
+    level: DEBUG
+    propagate: yes
+
+  entityservice.tasks:
+    level: DEBUG
+    propagate: no
+
+  entityservice.database.util:
+    level: WARNING
+    propagate: no
+
+  celery:
+    level: INFO
+    propogate: yes
+
+  jaeger_tracing:
+    level: WARN
+    propogate: no
+
+  werkzeug:
+    level: WARNING
+    propogate: no
+
+root:
+  level: INFO
+  handlers: [stdout, stderr, info_file_handler, error_file_handler]
