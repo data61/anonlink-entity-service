@@ -18,7 +18,7 @@ from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
     get_filter_metadata, get_project_column, get_project_dataset_sizes,
     get_project_encoding_size, get_run, insert_similarity_score_file,
-    update_run_chunk, update_run_mark_failure)
+    update_run_mark_failure)
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.serialization import get_chunk_from_object_store
 from entityservice.settings import Config
@@ -67,45 +67,32 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         current_span.log_kv({"event": 'get-metadata'})
 
         log.debug("Chunking computation task")
-        chunk_size = Config.get_task_chunk_size(size, threshold)
-        if chunk_size is None:
-            chunk_size = max(lenf1, lenf2)
-        log.info("Chunks will contain {} entities per task".format(chunk_size))
-        update_run_chunk(conn, project_id, chunk_size)
-    job_chunks = []
 
-    dp1_chunks = []
-    dp2_chunks = []
+    chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
+        Config.CHUNK_SIZE_AIM,
+        dataset_sizes=(lenf1, lenf2)))
 
-    for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
-        dp1_chunks.append(
-            (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
-        )
-    for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
-        dp2_chunks.append(
-            (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
-        )
+    # Save filenames with chunk information.
+    for chunk_info in chunk_infos:
+        chunk_dp1_info, chunk_dp2_info = chunk_info
+        assert chunk_dp1_info['datasetIndex'] == 0
+        chunk_dp1_info['storeFilename'] = filters1_object_filename
+        assert chunk_dp2_info['datasetIndex'] == 1
+        chunk_dp2_info['storeFilename'] = filters2_object_filename
 
-    # Every chunk in dp1 has to be run against every chunk in dp2
-    for dp1_chunk in dp1_chunks:
-        for dp2_chunk in dp2_chunks:
-            job_chunks.append((dp1_chunk, dp2_chunk, ))
-
-    log.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
-        len(job_chunks), chunk_size))
-    current_span.log_kv({"event": "chunking", "chunksize": chunk_size, 'num_chunks': len(job_chunks)})
+    log.info(f"Chunking into {len(chunk_infos)} computation tasks")
+    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
     span_serialized = create_comparison_jobs.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
     scoring_tasks = [compute_filter_similarity.si(
-        chunk_dp1,
-        chunk_dp2,
+        chunk_info,
         project_id,
         run_id,
         threshold,
         encoding_size,
         span_serialized
-    ) for chunk_dp1, chunk_dp2 in job_chunks]
+    ) for chunk_info in chunk_infos]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
@@ -116,16 +103,13 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
 
 @celery.task(base=TracedTask, args_as_tags=('project_id', 'run_id', 'threshold'))
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, encoding_size, parent_span=None):
+def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encoding_size, parent_span=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
-    :param chunk_info_dp1:
-        A tuple containing:
-            - object store filename
-            - Chunk start index
-            - Chunk stop index
-    :param chunk_info_dp2:
+    :param chunk_info:
+        Chunk info returned by ``anonlink.concurrency.split_to_chunks``.
+        Additionally, "storeFilename" is added to each dataset chunk.
     :param project_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
@@ -140,6 +124,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
             log.info("Failing task as project or run not found in database.")
             raise DBResourceMissing("project or run not found in database")
+
+    chunk_info_dp1, chunk_info_dp2 = chunk_info
 
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
@@ -168,8 +154,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     partial_sparse_result = []
     # offset chunk's index
-    offset_0 = chunk_info_dp1[1]
-    offset_1 = chunk_info_dp2[1]
+    offset_0, _ = chunk_info_dp1['range']
+    offset_1, _ = chunk_info_dp2['range']
 
     log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_0, offset_1))
     _, _, (rec_is0, rec_is1) = chunk_results

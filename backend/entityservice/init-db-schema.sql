@@ -64,8 +64,6 @@ CREATE TABLE runs (
 
   threshold      double precision NOT NULL,
 
-  chunk_size     BIGINT           NOT NULL DEFAULT -1,
-
   state          RUNSTATE         NOT NULL,
   stage          SMALLINT  DEFAULT 1,
   type           TEXT             NOT NULL,
