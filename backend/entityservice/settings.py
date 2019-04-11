@@ -62,8 +62,7 @@ class Config(object):
     CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '4'))
     CELERY_ACKS_LATE = os.getenv('CELERY_ACKS_LATE', 'false') == 'true'
 
-    # Number of comparisons per chunk. Default is to interpolate between the min
-    # of 100M and the max size of 1B based on the JOB_SIZE parameters.
+    # Number of comparisons per chunk (on average).
     CHUNK_SIZE_AIM = int(os.getenv('CHUNK_SIZE_AIM', '300000000'))
 
     # If there are more than 1M CLKS, don't cache them in redis
