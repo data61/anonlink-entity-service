@@ -20,14 +20,10 @@ def solver_task(similarity_scores_filename, project_id, run_id, lenf1, lenf2, pa
 
     groups = anonlink.solving.greedy_solve(candidate_pairs)
 
-    log.debug("Converting groups to mapping")
-    mapping = {str(i): str(j)
-               for i, j in anonlink.solving.pairs_from_groups(groups)}
-
-    log.info("Entity mapping has been computed")
+    log.info("Entity groups have been computed")
 
     res = {
-        "mapping": mapping,
+        "groups": groups,
         "lenf1": lenf1,
         "lenf2": lenf2
     }

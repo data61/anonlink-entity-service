@@ -1,5 +1,7 @@
 import random
 
+import anonlink
+
 from entityservice import cache
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
@@ -10,11 +12,16 @@ from entityservice.tasks.stats import calculate_comparison_rate
 from entityservice.utils import convert_mapping_to_list
 
 
+def groups_to_mapping(groups):
+    return {str(i): str(j)
+            for i, j in anonlink.solving.pairs_from_groups(groups)}
+
+
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
 def save_and_permute(similarity_result, project_id, run_id, parent_span):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Saving and possibly permuting data")
-    mapping = similarity_result['mapping']
+    groups = similarity_result['groups']
 
     # Note Postgres requires JSON object keys to be strings
     # Celery actually converts the json arguments in the same way
@@ -22,12 +29,20 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
     with DBConn() as db:
         result_type = get_project_column(db, project_id, 'result_type')
 
-        # Just save the raw "mapping"
-        log.debug("Saving the resulting map data to the db")
-        result_id = insert_mapping_result(db, run_id, mapping)
+        if result_type == "groups":
+            # Save the raw groups
+            log.debug("Saving the groups in the DB")
+            result_id = insert_mapping_result(db, run_id, groups)
+        else:
+            # Turn groups into mapping and save that
+            log.debug("Turning groups into mapping")
+            mapping = groups_to_mapping(groups)
+            log.debug("Saving mappuing in the DB")
+            result_id = insert_mapping_result(db, run_id, mapping)
+
         dp_ids = get_dataprovider_ids(db, project_id)
 
-    log.info("Mapping result saved to db with result id {}".format(result_id))
+    log.info("Result saved to db with result id {}".format(result_id))
 
     if result_type == "permutations":
         log.debug("Submitting job to permute mapping")
@@ -41,7 +56,7 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
             )
         )
     else:
-        log.debug("Mark mapping job as complete")
+        log.debug("Mark job as complete")
         mark_run_complete.delay(run_id, save_and_permute.get_serialized_span())
 
     # Post similarity computation cleanup
