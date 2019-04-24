@@ -50,7 +50,7 @@ SIZES = itertools.chain(
        else itertools.combinations([1, 10000, 100000, 1000000], 2))
 
 PROJECT_PARAMS = list(itertools.product(SIZES, OVERLAPS, ENCODING_SIZES))
-PROJECT_RESULT_TYPES = ['mapping', 'similarity_scores', 'permutations']
+PROJECT_RESULT_TYPES = ['mapping', 'similarity_scores', 'permutations', 'groups']
 
 
 def create_project_response(requests, size, overlap, result_type, encoding_size=128):

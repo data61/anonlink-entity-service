@@ -34,6 +34,7 @@ def the_truth(scope='module'):
         yield {'entity_ids_a': entity_ids_a,
                'entity_ids_b': entity_ids_b,
                'similarity_scores': similarity_scores,
+               'groups': groups,
                'mapping': mapping,
                'threshold': threshold,
                'clks_a': clks_a,
@@ -97,6 +98,22 @@ def test_permutation(requests, the_truth):
             assert mapping[a] == b, f"Expected link from {a} was incorrect - run {run}"
         else:
             assert a not in mapping, f"Expected link was masked out - run {run}"
+
+
+def test_groups(requests, the_truth):
+    project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
+                                                    result_type='groups')
+    run = post_run(requests, project_data, threshold=the_truth['threshold'])
+    result = get_run_result(requests, project_data, run)
+    # compare mapping with the truth
+    result_groups = result['groups']
+    true_groups = the_truth['groups']
+
+    result_groups = frozenset(frozenset(map(tuple, group))
+                              for group in result_groups)
+    true_groups = frozenset(map(frozenset, true_groups))
+
+    assert result_groups == true_groups
 
 
 def apply_permutation(items, permutation):
