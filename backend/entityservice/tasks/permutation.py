@@ -46,12 +46,13 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
 
     if result_type == "permutations":
         log.debug("Submitting job to permute mapping")
+        dataset0_size, dataset1_size = similarity_result['datasetSizes']
         permute_mapping_data.apply_async(
             (
                 project_id,
                 run_id,
-                similarity_result['lenf1'],
-                similarity_result['lenf2'],
+                dataset0_size,
+                dataset1_size,
                 save_and_permute.get_serialized_span()
             )
         )

@@ -36,7 +36,8 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
         dp_ids = get_dataprovider_ids(conn, project_id)
         assert len(dp_ids) >= 2, "Expected at least 2 data providers"
-        log.info("Starting comparison of CLKs from data provider ids: {}, {}".format(dp_ids[0], dp_ids[1]))
+        log.info(f"Starting comparison of CLKs from data provider ids: "
+                 f"{', '.join(map(str, dp_ids))}")
         current_span = create_comparison_jobs.span
 
         if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
@@ -52,33 +53,30 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
             log.warning("Unexpected number of dataset sizes in db. Stopping")
             update_run_mark_failure(conn, run_id)
             return
-        else:
-            lenf1, lenf2 = dataset_sizes
 
         encoding_size = get_project_encoding_size(conn, project_id)
 
-        size = lenf1 * lenf2
-
-        log.info("Computing similarity for {} x {} entities".format(lenf1, lenf2))
+        log.info(f"Computing similarity for "
+                 f"{' x '.join(map(str, dataset_sizes))} entities")
         current_span.log_kv({"event": 'get-dataset-sizes'})
 
-        filters1_object_filename = get_filter_metadata(conn, dp_ids[0])
-        filters2_object_filename = get_filter_metadata(conn, dp_ids[1])
+        filters_object_filenames = tuple(
+            get_filter_metadata(conn, dp_id) for dp_id in dp_ids)
         current_span.log_kv({"event": 'get-metadata'})
 
         log.debug("Chunking computation task")
 
     chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
         Config.CHUNK_SIZE_AIM,
-        dataset_sizes=(lenf1, lenf2)))
+        dataset_sizes=dataset_sizes))
 
     # Save filenames with chunk information.
     for chunk_info in chunk_infos:
         chunk_dp1_info, chunk_dp2_info = chunk_info
-        assert chunk_dp1_info['datasetIndex'] == 0
-        chunk_dp1_info['storeFilename'] = filters1_object_filename
-        assert chunk_dp2_info['datasetIndex'] == 1
-        chunk_dp2_info['storeFilename'] = filters2_object_filename
+        chunk_dp1_info['storeFilename'] \
+            = filters_object_filenames[chunk_dp1_info['datasetIndex']]
+        chunk_dp2_info['storeFilename'] \
+            = filters_object_filenames[chunk_dp2_info['datasetIndex']]
 
     log.info(f"Chunking into {len(chunk_infos)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
@@ -138,7 +136,8 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
     span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
-    chunk_results = anonlink.candidate_generation.find_candidate_pairs(
+    chunk_results = anonlink.concurrency.process_chunk(
+        chunk_info,
         (chunk_dp1, chunk_dp2),
         anonlink.similarities.dice_coefficient_accelerated,
         threshold,
@@ -152,20 +151,8 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
 
     t4 = time.time()
 
-    partial_sparse_result = []
-    # offset chunk's index
-    offset_0, _ = chunk_info_dp1['range']
-    offset_1, _ = chunk_info_dp2['range']
-
-    log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_0, offset_1))
-    _, _, (rec_is0, rec_is1) = chunk_results
-    num_results = len(rec_is0)
-    assert num_results == len(rec_is1)
-    for i in range(len(rec_is0)):
-        rec_is0[i] += offset_0
-        rec_is1[i] += offset_1
-
-    t5 = time.time()
+    sims, _, _ = chunk_results
+    num_results = len(sims)
 
     if num_results:
         result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
@@ -186,17 +173,16 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     else:
         result_filename = None
         file_size = None
-    t6 = time.time()
+    t5 = time.time()
 
     log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
-    log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Offset: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
+    log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
         t1 - t0,
         t2 - t1,
         t3 - t2,
         t4 - t3,
-        t4 - t4,
-        t6 - t5,
-        t6 - t0)
+        t5 - t4,
+        t5 - t0)
     )
     return num_results, file_size, result_filename
 
@@ -265,7 +251,7 @@ def _insert_similarity_into_db(db, log, run_id, merged_filename):
     autoretry_for=(minio.ResponseError,),
     retry_backoff=True,
     args_as_tags=('project_id', 'run_id'))
-def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):
+def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):#############
     log = logger.bind(pid=project_id, run_id=run_id)
     if similarity_result_files is None:
         raise TypeError("Inappropriate argument type - missing results files.")
@@ -316,18 +302,18 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
         else:
             # we promote the run to the next stage
             progress_stage(db, run_id)
-            lenf1, lenf2 = get_project_dataset_sizes(db, project_id)
+            dataset_sizes = get_project_dataset_sizes(db, project_id)
 
     # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
         log.debug("Removing clk filters from redis cache")
-        remove_from_cache(dp_ids[0])
-        remove_from_cache(dp_ids[1])
+        for dp_id in dp_ids:
+            remove_from_cache(dp_id)
 
         # Complete the run
         log.info("Marking run as complete")
         mark_run_complete.delay(run_id, aggregate_comparisons.get_serialized_span())
     else:
         solver_task.delay(
-            merged_filename, project_id, run_id, lenf1, lenf2,
+            merged_filename, project_id, run_id, dataset_sizes,
             aggregate_comparisons.get_serialized_span())
