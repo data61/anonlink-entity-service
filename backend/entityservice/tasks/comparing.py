@@ -251,7 +251,7 @@ def _insert_similarity_into_db(db, log, run_id, merged_filename):
     autoretry_for=(minio.ResponseError,),
     retry_backoff=True,
     args_as_tags=('project_id', 'run_id'))
-def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):#############
+def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     if similarity_result_files is None:
         raise TypeError("Inappropriate argument type - missing results files.")
