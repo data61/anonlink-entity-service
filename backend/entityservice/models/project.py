@@ -58,7 +58,7 @@ class Project(object):
         # Get optional fields from JSON data
         name = data.get('name', '')
         notes = data.get('notes', '')
-        parties = data.get('parties', 2)
+        parties = data.get('number_parties', 2)
 
         return Project(result_type, schema, name, notes, parties)
 
