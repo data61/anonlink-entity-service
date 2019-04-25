@@ -72,11 +72,10 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
     # Save filenames with chunk information.
     for chunk_info in chunk_infos:
-        chunk_dp1_info, chunk_dp2_info = chunk_info
-        chunk_dp1_info['storeFilename'] \
-            = filters_object_filenames[chunk_dp1_info['datasetIndex']]
-        chunk_dp2_info['storeFilename'] \
-            = filters_object_filenames[chunk_dp2_info['datasetIndex']]
+        for chunk_dp_info in chunk_info:
+            chunk_dp_index = chunk_dp_info['datasetIndex']
+            chunk_dp_store_filename = filters_object_filenames[chunk_dp_index]
+            chunk_dp_info['storeFilename'] = chunk_dp_store_filename
 
     log.info(f"Chunking into {len(chunk_infos)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
