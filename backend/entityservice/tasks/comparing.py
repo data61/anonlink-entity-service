@@ -225,7 +225,7 @@ def _merge_files(mc, log, file0, file1):
     except minio.ResponseError:
         log.warning("Failed to store merged result in minio.")
         raise
-    for del_err in minioClient.remove_objects(
+    for del_err in mc.remove_objects(
             Config.MINIO_BUCKET, (filename0, filename1)):
         log.warning(f"Failed to delete result file "
                     f"{del_err.object_name}. {del_err}")
@@ -264,7 +264,7 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
         if num:
             assert filesize is not None
             assert filename is not None
-            files.append(res)
+            files.append((num, filesize, filename))
         else:
             assert filesize is None
             assert filename is None
