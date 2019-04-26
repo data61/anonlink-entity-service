@@ -24,9 +24,10 @@ spec:
         image: {{ .Values.api.dbinit.image.repository }}:{{ .Values.api.dbinit.image.tag }}
         resources:
 {{ toYaml .Values.api.dbinit.resources | indent 10 }}
+        envFrom:
+          - configMapRef:
+              name: {{ template "es.fullname" . }} 
         env:
-          - name: DATABASE_SERVER
-            value: "{{ .Release.Name }}-{{ .Values.postgresql.nameOverride }}"
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:

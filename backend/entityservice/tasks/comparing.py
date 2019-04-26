@@ -1,28 +1,32 @@
-
+import array
 import csv
+import heapq
+import operator
 import os
 import time
 
 import anonlink
 import minio
+import psycopg2
 from celery import chord
 
 from entityservice.utils import fmt_bytes
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
-from entityservice.errors import DBResourceMissing
-from entityservice.database import check_project_exists, check_run_exists, \
-    get_project_dataset_sizes, update_run_mark_failure, get_project_encoding_size, get_filter_metadata, \
-    update_run_chunk, DBConn, get_project_column, get_dataprovider_ids, get_run
+from entityservice.errors import DBResourceMissing, RunDeleted
+from entityservice.database import (
+    check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
+    get_filter_metadata, get_project_column, get_project_dataset_sizes,
+    get_project_encoding_size, get_run, insert_similarity_score_file,
+    update_run_mark_failure)
 from entityservice.models.run import progress_run_stage as progress_stage
-from entityservice.object_store import store_similarity_scores
 from entityservice.serialization import get_chunk_from_object_store
 from entityservice.settings import Config
 from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
 from entityservice.cache import save_current_progress, remove_from_cache
-from entityservice.utils import generate_code, chain_streams
+from entityservice.utils import generate_code, iterable_to_stream
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'threshold'))
@@ -63,45 +67,32 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         current_span.log_kv({"event": 'get-metadata'})
 
         log.debug("Chunking computation task")
-        chunk_size = Config.get_task_chunk_size(size, threshold)
-        if chunk_size is None:
-            chunk_size = max(lenf1, lenf2)
-        log.info("Chunks will contain {} entities per task".format(chunk_size))
-        update_run_chunk(conn, project_id, chunk_size)
-    job_chunks = []
 
-    dp1_chunks = []
-    dp2_chunks = []
+    chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
+        Config.CHUNK_SIZE_AIM,
+        dataset_sizes=(lenf1, lenf2)))
 
-    for chunk_start_index_dp1 in range(0, lenf1, chunk_size):
-        dp1_chunks.append(
-            (filters1_object_filename, chunk_start_index_dp1, min(chunk_start_index_dp1 + chunk_size, lenf1))
-        )
-    for chunk_start_index_dp2 in range(0, lenf2, chunk_size):
-        dp2_chunks.append(
-            (filters2_object_filename, chunk_start_index_dp2, min(chunk_start_index_dp2 + chunk_size, lenf2))
-        )
+    # Save filenames with chunk information.
+    for chunk_info in chunk_infos:
+        chunk_dp1_info, chunk_dp2_info = chunk_info
+        assert chunk_dp1_info['datasetIndex'] == 0
+        chunk_dp1_info['storeFilename'] = filters1_object_filename
+        assert chunk_dp2_info['datasetIndex'] == 1
+        chunk_dp2_info['storeFilename'] = filters2_object_filename
 
-    # Every chunk in dp1 has to be run against every chunk in dp2
-    for dp1_chunk in dp1_chunks:
-        for dp2_chunk in dp2_chunks:
-            job_chunks.append((dp1_chunk, dp2_chunk, ))
-
-    log.info("Chunking into {} computation tasks each with (at most) {} entities.".format(
-        len(job_chunks), chunk_size))
-    current_span.log_kv({"event": "chunking", "chunksize": chunk_size, 'num_chunks': len(job_chunks)})
+    log.info(f"Chunking into {len(chunk_infos)} computation tasks")
+    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
     span_serialized = create_comparison_jobs.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
     scoring_tasks = [compute_filter_similarity.si(
-        chunk_dp1,
-        chunk_dp2,
+        chunk_info,
         project_id,
         run_id,
         threshold,
         encoding_size,
         span_serialized
-    ) for chunk_dp1, chunk_dp2 in job_chunks]
+    ) for chunk_info in chunk_infos]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
@@ -112,16 +103,13 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
 
 @celery.task(base=TracedTask, args_as_tags=('project_id', 'run_id', 'threshold'))
-def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id, threshold, encoding_size, parent_span=None):
+def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encoding_size, parent_span=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
-    :param chunk_info_dp1:
-        A tuple containing:
-            - object store filename
-            - Chunk start index
-            - Chunk stop index
-    :param chunk_info_dp2:
+    :param chunk_info:
+        Chunk info returned by ``anonlink.concurrency.split_to_chunks``.
+        Additionally, "storeFilename" is added to each dataset chunk.
     :param project_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
@@ -136,6 +124,8 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
             log.info("Failing task as project or run not found in database.")
             raise DBResourceMissing("project or run not found in database")
+
+    chunk_info_dp1, chunk_info_dp2 = chunk_info
 
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
@@ -164,38 +154,38 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
 
     partial_sparse_result = []
     # offset chunk's index
-    offset_dp1 = chunk_info_dp1[1]
-    offset_dp2 = chunk_info_dp2[1]
+    offset_0, _ = chunk_info_dp1['range']
+    offset_1, _ = chunk_info_dp2['range']
 
-    log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_dp1, offset_dp2))
-    sims, _, (rec_is0, rec_is1) = chunk_results
-    for score, ia, ib in zip(sims, rec_is0, rec_is1):
-        partial_sparse_result.append((ia + offset_dp1, ib + offset_dp2, score))
+    log.debug("Offset DP1 by: {}, DP2 by: {}".format(offset_0, offset_1))
+    _, _, (rec_is0, rec_is1) = chunk_results
+    num_results = len(rec_is0)
+    assert num_results == len(rec_is1)
+    for i in range(len(rec_is0)):
+        rec_is0[i] += offset_0
+        rec_is1[i] += offset_1
 
     t5 = time.time()
 
-    num_results = len(partial_sparse_result)
-    if num_results > 0:
-        result_filename = 'chunk-res-{}.csv'.format(generate_code(12))
+    if num_results:
+        result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+            generate_code(12))
         log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
 
-        with open(result_filename, 'wt') as f:
-            csvwriter = csv.writer(f)
-            csvwriter.writerows(partial_sparse_result)
+        bytes_iter, file_size \
+            = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
+        iter_stream = iterable_to_stream(bytes_iter)
 
-        # Now write these to the object store. and return the filename and summary
-        # Will write a csv file for now
         mc = connect_to_object_store()
         try:
-            mc.fput_object(Config.MINIO_BUCKET, result_filename, result_filename)
+            mc.put_object(
+                Config.MINIO_BUCKET, result_filename, iter_stream, file_size)
         except minio.ResponseError as err:
             log.warning("Failed to store result in minio")
             raise
-
-        # If we don't delete the file we *do* run out of space
-        os.remove(result_filename)
     else:
         result_filename = None
+        file_size = None
     t6 = time.time()
 
     log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
@@ -208,7 +198,65 @@ def compute_filter_similarity(chunk_info_dp1, chunk_info_dp2, project_id, run_id
         t6 - t5,
         t6 - t0)
     )
-    return num_results, result_filename
+    return num_results, file_size, result_filename
+
+
+def _put_placeholder_empty_file(mc, log):
+    sims = array.array('d')
+    dset_is0 = array.array('I')
+    dset_is1 = array.array('I')
+    rec_is0 = array.array('I')
+    rec_is1 = array.array('I')
+    candidate_pairs = sims, (dset_is0, dset_is1), (rec_is0, rec_is1)
+    empty_file_iter, empty_file_size \
+        = anonlink.serialization.dump_candidate_pairs_iter(candidate_pairs)
+    empty_file_name = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+            generate_code(12))
+    empty_file_stream = iterable_to_stream(empty_file_iter)
+    try:
+        mc.put_object(Config.MINIO_BUCKET, empty_file_name,
+                      empty_file_stream, empty_file_size)
+    except minio.ResponseError:
+        log.warning("Failed to store empty result in minio.")
+        raise
+    return 0, empty_file_size, empty_file_name
+
+
+def _merge_files(mc, log, file0, file1):
+    num0, filesize0, filename0 = file0
+    num1, filesize1, filename1 = file1
+    total_num = num0 + num1
+    file0_stream = mc.get_object(Config.MINIO_BUCKET, filename0)
+    file1_stream = mc.get_object(Config.MINIO_BUCKET, filename1)
+    merged_file_iter, merged_file_size \
+        = anonlink.serialization.merge_streams_iter(
+            (file0_stream, file1_stream), sizes=(filesize0, filesize1))
+    merged_file_name = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+            generate_code(12))
+    merged_file_stream = iterable_to_stream(merged_file_iter)
+    try:
+        mc.put_object(Config.MINIO_BUCKET, merged_file_name,
+                      merged_file_stream, merged_file_size)
+    except minio.ResponseError:
+        log.warning("Failed to store merged result in minio.")
+        raise
+    for del_err in mc.remove_objects(
+            Config.MINIO_BUCKET, (filename0, filename1)):
+        log.warning(f"Failed to delete result file "
+                    f"{del_err.object_name}. {del_err}")
+    return total_num, merged_file_size, merged_file_name
+
+
+def _insert_similarity_into_db(db, log, run_id, merged_filename):
+    try:
+        result_id = insert_similarity_score_file(
+            db, run_id, merged_filename)
+    except psycopg2.IntegrityError:
+        log.info("Error saving similarity score filename to database. "
+                 "The project may have been deleted.")
+        raise RunDeleted(run_id)
+    log.debug(f"Saved path to similarity scores file to db with id "
+              f"{result_id}")
 
 
 @celery.task(
@@ -221,34 +269,45 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
     log = logger.bind(pid=project_id, run_id=run_id)
     if similarity_result_files is None:
         raise TypeError("Inappropriate argument type - missing results files.")
-    mc = connect_to_object_store()
-    files = []
-    data_size = 0
 
+    files = []
     for res in similarity_result_files:
         if res is None:
             log.warning("Missing results during aggregation. Stopping processing.")
             raise TypeError("Inappropriate argument type - results missing at aggregation step.")
+        num, filesize, filename = res
+        if num:
+            assert filesize is not None
+            assert filename is not None
+            files.append((num, filesize, filename))
         else:
-            num, filename = res
+            assert filesize is None
+            assert filename is None
+    heapq.heapify(files)
 
-        if num > 0:
-            files.append(filename)
-            data_size += mc.stat_object(Config.MINIO_BUCKET, filename).size
+    log.debug(f"Aggregating result chunks from {len(files)} files, "
+              f"total size: {sum(map(operator.itemgetter(1), files))}")
 
-    log.debug("Aggregating result chunks from {} files, total size: {}".format(
-        len(files), fmt_bytes(data_size)))
+    mc = connect_to_object_store()
+    while len(files) > 1:
+        file0 = heapq.heappop(files)
+        file1 = heapq.heappop(files)
+        merged_file = _merge_files(mc, log, file0, file1)
+        heapq.heappush(files, merged_file)
 
-    result_file_stream_generator = (mc.get_object(Config.MINIO_BUCKET, result_filename) for result_filename in files)
+    if not files:
+        # No results. Let's chuck in an empty file.
+        empty_file = _put_placeholder_empty_file(mc, log)
+        files.append(empty_file)
 
-    log.info("Similarity score results are {}".format(fmt_bytes(data_size)))
-    result_stream = chain_streams(result_file_stream_generator)
+    (merged_num, merged_filesize, merged_filename), = files
+    log.info(f"Similarity score results in {merged_filename} in bucket "
+             f"{Config.MINIO_BUCKET} take up {merged_filesize} bytes.")
 
     with DBConn() as db:
         result_type = get_project_column(db, project_id, 'result_type')
 
-        # Note: Storing the similarity scores for all result types
-        result_filename = store_similarity_scores(result_stream, run_id, data_size, db)
+        _insert_similarity_into_db(db, log, run_id, merged_filename)
 
         if result_type == "similarity_scores":
             # Post similarity computation cleanup
@@ -261,8 +320,6 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
 
     # DB now committed, we can fire off tasks that depend on the new db state
     if result_type == "similarity_scores":
-        log.info("Deleting intermediate similarity score files from object store")
-        mc.remove_objects(Config.MINIO_BUCKET, files)
         log.debug("Removing clk filters from redis cache")
         remove_from_cache(dp_ids[0])
         remove_from_cache(dp_ids[1])
@@ -271,4 +328,6 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
         log.info("Marking run as complete")
         mark_run_complete.delay(run_id, aggregate_comparisons.get_serialized_span())
     else:
-        solver_task.delay(result_filename, project_id, run_id, lenf1, lenf2, aggregate_comparisons.get_serialized_span())
+        solver_task.delay(
+            merged_filename, project_id, run_id, lenf1, lenf2,
+            aggregate_comparisons.get_serialized_span())

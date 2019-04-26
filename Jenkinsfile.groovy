@@ -1,4 +1,4 @@
-@Library("N1Pipeline@0.0.19")
+@Library("N1Pipeline@0.0.24")
 import com.n1analytics.docker.DockerContainer;
 import com.n1analytics.docker.DockerUtils;
 import com.n1analytics.docker.QuayIORepo
@@ -281,7 +281,7 @@ node('helm && kubectl') {
                 helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
-                    --set postgresql.postgresqlPassword=notaproductionpassword \
+                    --set global.postgresql.postgresqlPassword=notaproductionpassword \
                     --set api.ingress.enabled=false
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it

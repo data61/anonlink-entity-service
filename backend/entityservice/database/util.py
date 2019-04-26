@@ -31,13 +31,13 @@ def connect_db():
     user = config.DATABASE_USER
     pw = config.DATABASE_PASSWORD
 
-    logger.debug("Trying to connect to postgres db")
+    logger.info("Trying to connect to database.", database=db, user=user, host=host)
     # We nest the try/except blocks to allow one re-attempt with defaults
     try:
         try:
             conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
         except psycopg2.OperationalError:
-            logger.warning("warning connecting to default postgres db")
+            logger.warning("fallback connecting to default postgres db", database=db, user=user, host=host)
             conn = psycopg2.connect(database='postgres', user=user, password=pw, host=host)
 
     except psycopg2.Error:

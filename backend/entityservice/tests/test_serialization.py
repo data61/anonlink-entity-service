@@ -29,10 +29,11 @@ class SerializationTest(unittest.TestCase):
         self.assertEqual(dsrb, rb)
 
 
-    def test_csv_to_json(self):
-        csv_byte_stream = io.BytesIO("1,2,0.1\n1,2,0.01\n5,5,1.0".encode("utf-8"))
-        csv_text_stream = io.TextIOWrapper(csv_byte_stream, encoding="utf-8")
-        json_iterator = generate_scores(csv_text_stream)
+    def test_sims_to_json(self):
+        sims_iter = ((0.1, 0, 1, 1, 2),
+                     (0.01, 0, 1, 1, 2),
+                     (1.0, 0, 1, 5, 5))
+        json_iterator = generate_scores(sims_iter)
 
         # Consume the whole iterator and ensure it is valid json
         json_str = ''.join(json_iterator)
@@ -41,10 +42,9 @@ class SerializationTest(unittest.TestCase):
         for score in json_obj["similarity_scores"]:
             self.assertEqual(len(score), 3)
 
-    def test_csv_to_json_empty(self):
-        csv_byte_stream = io.BytesIO("".encode("utf-8"))
-        csv_text_stream = io.TextIOWrapper(csv_byte_stream, encoding="utf-8")
-        json_iterator = generate_scores(csv_text_stream)
+    def test_sims_to_json_empty(self):
+        sims_iter = ()
+        json_iterator = generate_scores(sims_iter)
 
         # Consume the whole iterator and ensure it is valid json
         json_str = ''.join(json_iterator)

@@ -45,6 +45,11 @@ def get_result(dbinstance, project_id, run_id, token):
         result = db.get_run_result(dbinstance, run_id)
         return {"mapping": result}
 
+    elif result_type == 'groups':
+        logger.info("Groups result being returned")
+        result = db.get_run_result(dbinstance, run_id)
+        return {"groups": result}
+
     elif result_type == 'similarity_scores':
         logger.info("Similarity result being returned")
         return get_similarity_score_result(dbinstance, run_id)

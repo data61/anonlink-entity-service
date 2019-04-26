@@ -1,6 +1,6 @@
 name: entity-service
-appVersion: 1.9.4
-version: 1.9.4
+appVersion: 1.10.0
+version: 1.10.0
 description: Privacy preserving record linkage service
 sources:
   - https://github.com/n1analytics/entity-service

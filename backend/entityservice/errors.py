@@ -1,4 +1,8 @@
 
+class InvalidConfiguration(ValueError):
+    """Config wasn't as expected"""
+
+
 class DatabaseInconsistent(Exception):
     pass
 
