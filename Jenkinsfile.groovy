@@ -149,11 +149,27 @@ node('docker&&multicore&&ram') {
                 -e RESULTS_PATH=/app/results.json \
                 --mount source=linkage-benchmark-data,target=/cache \
                 quay.io/n1analytics/entity-benchmark:latest
+          """
+          DockerContainer benchmarkContainer = new DockerContainer(dockerUtils, benchmarkContainerName)
+          benchmarkContainer.watchLogs()
 
+          // Note benchmarks are unlikely to fail this way
+          if (benchmarkContainer.getExitCode() != "0") {
+            throw new Exception("The benchmarks are incorrectly configured.")
+          }
+          sh """
           docker cp ${benchmarkContainerName}:/app/results.json results.json
           """
-
           archiveArtifacts artifacts: "results.json", fingerprint: true
+          // Read the JSON file and fail if there was an ERROR
+          def benchmarkResults = readJSON file: 'results.json'
+          print(benchmarkResults["version"])
+          for (String item : benchmarkResults["experiments"]) {
+               if(item["status"] == "ERROR") {
+                 throw new Exception("Benchmark failed\n" + item["description"])
+               }
+          }
+
           gitCommit.setSuccessStatus(gitContextLocalBenchmark)
         }
       } catch (err) {
