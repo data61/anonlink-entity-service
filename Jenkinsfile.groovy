@@ -90,14 +90,17 @@ node('docker&&multicore&&ram') {
     stage('Tutorial Tests') {
       //gitCommit.setInProgressStatus(gitContextDocumentation);
       String tutorialContainerName = composeProject + "tutorialTest"
-      print("Testing tutorial")
+      DockerContainer tutorialTestingcontainer = new DockerContainer(dockerUtils, tutorialContainerName)
+      String networkName = composeProject + "_default"
+      String localserver = "http://nginx:8851"
       sh """
       docker run \
           --name ${tutorialContainerName} \
           --network ${networkName} \
           -e SERVER=${localserver} \
           quay.io/n1analytics/entity-docs-tutorial:latest
-
+      """
+      tutorialTestingcontainer.watchLogs()
     }
 
     stage('Integration Tests') {
