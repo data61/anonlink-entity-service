@@ -56,6 +56,10 @@ node('docker&&multicore&&ram') {
           String imageNameLabel = "quay.io/n1analytics/entity-docs:latest"
           dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
+        dir("docs/tutorial") {
+          String imageNameLabel = "quay.io/n1analytics/entity-docs-tutorial:latest"
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
+        }
         dir("benchmarking") {
           String imageNameLabel = "quay.io/n1analytics/entity-benchmark:latest"
           dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
@@ -73,7 +77,8 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh "docker-compose -v"
-          composeCmd(composeProject, "up -d db minio redis backend db_init worker nginx tests")
+        composeCmd(composeProject, "up -d db minio redis backend db_init worker nginx")
+        sleep 20
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
@@ -82,12 +87,26 @@ node('docker&&multicore&&ram') {
       }
     }
 
+    stage('Tutorial Tests') {
+      //gitCommit.setInProgressStatus(gitContextDocumentation);
+      String tutorialContainerName = composeProject + "tutorialTest"
+      print("Testing tutorial")
+      sh """
+      docker run \
+          --name ${tutorialContainerName} \
+          --network ${networkName} \
+          -e SERVER=${localserver} \
+          quay.io/n1analytics/entity-docs-tutorial:latest
+
+    }
+
     stage('Integration Tests') {
       gitCommit.setInProgressStatus(gitContextIntegrationTests);
       try {
+        composeCmd(composeProject, "up -d tests")
+        sleep 20
         testContainerID = composeCmd(composeProject,"ps -q tests")
         DockerContainer containerTests = new DockerContainer(dockerUtils, testContainerID)
-        sleep 30
         timeout(time: 60, unit: 'MINUTES') {
 
           containerTests.watchLogs()
