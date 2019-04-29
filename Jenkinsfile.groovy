@@ -165,7 +165,7 @@ node('docker&&multicore&&ram') {
           def benchmarkResults = readJSON file: 'results.json'
           print(benchmarkResults["version"])
           for (String item : benchmarkResults["experiments"]) {
-               if(item["status"] == "ERROR") {
+               if (item["status"] != "completed") {
                  throw new Exception("Benchmark failed\n" + item["description"])
                }
           }
