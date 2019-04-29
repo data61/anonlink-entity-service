@@ -94,14 +94,21 @@ node('docker&&multicore&&ram') {
       DockerContainer tutorialTestingcontainer = new DockerContainer(dockerUtils, tutorialContainerName)
       String networkName = composeProject + "_default"
       String localserver = "http://nginx:8851"
-      sh """
-      docker run \
-          --name ${tutorialContainerName} \
-          --network ${networkName} \
-          -e SERVER=${localserver} \
-          quay.io/n1analytics/entity-docs-tutorial:latest
-      """
-      tutorialTestingcontainer.watchLogs()
+      try {
+        sh """
+        docker run \
+            --name ${tutorialContainerName} \
+            --network ${networkName} \
+            -e SERVER=${localserver} \
+            quay.io/n1analytics/entity-docs-tutorial:latest
+        """
+        tutorialTestingcontainer.watchLogs()
+        gitCommit.setSuccessStatus(gitContextLocalBenchmark)
+      } catch (err) {
+        print("Error in testing tutorial notebooks:\n" + err)
+        gitCommit.setFailStatus(gitContextLocalBenchmark)
+        throw err
+      }
     }
 
     stage('Integration Tests') {
