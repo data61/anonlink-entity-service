@@ -6,13 +6,14 @@ import com.n1analytics.git.GitUtils;
 import com.n1analytics.git.GitCommit;
 import com.n1analytics.git.GitRepo;
 
-String gitContextDockerBuild = "required-docker-images-build"
-String gitContextComposeDeploy = "required-dockercompose-deploy"
-String gitContextIntegrationTests = "required-integration-tests"
-String gitContextDocumentation = "required-build-documentation"
-String gitContextPublish = "required-publish-docker-images"
-String gitContextKubernetesDeployment = "optional-kubernetes-deployment"
-String gitContextLocalBenchmark = "jenkins-benchmark"
+String gitContextDockerBuild = "docker-images-build"
+String gitContextComposeDeploy = "dockercompose-deploy"
+String gitContextTutorialTests = "tutorial-tests"
+String gitContextIntegrationTests = "integration-tests"
+String gitContextDocumentation = "build-documentation"
+String gitContextPublish = "publish-docker-images"
+String gitContextKubernetesDeployment = "kubernetes-deployment"
+String gitContextLocalBenchmark = "benchmark"
 DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
@@ -88,7 +89,7 @@ node('docker&&multicore&&ram') {
     }
 
     stage('Tutorial Tests') {
-      //gitCommit.setInProgressStatus(gitContextDocumentation);
+      gitCommit.setInProgressStatus(gitContextTutorialTests);
       String tutorialContainerName = composeProject + "tutorialTest"
       DockerContainer tutorialTestingcontainer = new DockerContainer(dockerUtils, tutorialContainerName)
       String networkName = composeProject + "_default"
