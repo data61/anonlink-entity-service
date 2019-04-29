@@ -43,6 +43,7 @@ At a high level the testing covers:
 
 - building the docker containers
 - deploying using Docker Compose
+- testing the tutorial notebooks don't error
 - running the integration tests against the local deployment
 - running a benchmark suite against the local deployment
 - building and packaging the documentation
