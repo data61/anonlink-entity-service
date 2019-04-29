@@ -23,5 +23,4 @@ USER user
 
 ADD . /app
 
-ENV SERVER https://testing.es.data61.xyz
 CMD python benchmark.py
