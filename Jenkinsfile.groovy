@@ -103,10 +103,10 @@ node('docker&&multicore&&ram') {
             quay.io/n1analytics/entity-docs-tutorial:latest
         """
         tutorialTestingcontainer.watchLogs()
-        gitCommit.setSuccessStatus(gitContextLocalBenchmark)
+        gitCommit.setSuccessStatus(gitContextTutorialTests)
       } catch (err) {
         print("Error in testing tutorial notebooks:\n" + err)
-        gitCommit.setFailStatus(gitContextLocalBenchmark)
+        gitCommit.setFailStatus(gitContextTutorialTests)
         throw err
       }
     }
