@@ -1,5 +1,6 @@
 import base64
 import datetime
+import itertools
 import math
 import os
 import random
@@ -49,15 +50,68 @@ def generate_json_serialized_clks(count, size=128):
     return [serialize_bytes(hash_bytes) for hash_bytes in clks]
 
 
-def generate_overlapping_clk_data(dataset_sizes, overlap=0.9, encoding_size=128):
-    datasets = []
-    for count in dataset_sizes:
-        datasets.append(generate_json_serialized_clks(count, encoding_size))
+def nonempty_powerset(iterable):
+    "nonempty_powerset([1,2,3]) --> (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    # Inspired by:
+    # https://docs.python.org/3/library/itertools.html#itertools-recipes
+    s = tuple(iterable)
+    return itertools.chain.from_iterable(
+        itertools.combinations(s, r) for r in range(1, len(s)+1))
 
-    overlap_to = math.floor(min(dataset_sizes)*overlap)
-    for ds in datasets[1:]:
-        ds[:overlap_to] = datasets[0][:overlap_to]
-        random.shuffle(ds)
+
+def generate_overlapping_clk_data(
+    dataset_sizes, overlap=0.9, encoding_size=128, seed=666):
+    """Generate random datsets with fixed overlap.
+
+    Postcondition:
+    for all some_datasets in nonempty_powerset(datasets),
+    len(set.intersection(*some_datasets)) 
+        == floor(min(map(len, some_datasets))
+           * overlap ** (len(some_datasets) - 1))
+    (in case of two datasets A and V this reduces to:
+     len(A & B) = floor(min(len(A), len(B)) * overlap)
+
+    For some sets of parameters (particularly when dataset_sizes is
+    long), meeting this postcondition is impossible. In that case, we
+    raise ValueError.
+    """
+    i = -1
+    datasets_n = len(dataset_sizes)
+    dataset_record_is = tuple(set() for _ in dataset_sizes)
+    for overlapping_n in range(datasets_n, 0, -1):
+        for overlapping_datasets in itertools.combinations(
+                range(datasets_n), overlapping_n):
+            records_n = int(overlap ** (len(overlapping_datasets) - 1)
+                            * min(map(dataset_sizes.__getitem__,
+                                      overlapping_datasets)))
+            current_records_n = len(set.intersection(
+                *map(dataset_record_is.__getitem__, overlapping_datasets)))
+            if records_n < current_records_n:
+                raise ValueError(
+                    'parameters make meeting postcondition impossible')
+            for i in range(i + 1, i + records_n - current_records_n + 1):
+                for j in overlapping_datasets:
+                    dataset_record_is[j].add(i)
+
+    # Sanity check
+    if __debug__:
+        for dataset, dataset_size in zip(dataset_record_is, dataset_sizes):
+            assert len(dataset) == dataset_size
+        for datasets_with_size in nonempty_powerset(
+                zip(dataset_record_is, dataset_sizes)):
+            some_datasets, sizes = zip(*datasets_with_size)
+            intersection = set.intersection(*some_datasets)
+            aim_size = int(min(sizes)
+                           * overlap ** (len(datasets_with_size) - 1))
+            assert len(intersection) == aim_size
+
+    records = generate_json_serialized_clks(i + 1, size=encoding_size)
+    datasets = tuple(list(map(records.__getitem__, record_is))
+                     for record_is in dataset_record_is)
+    
+    rng = random.Random(seed)
+    for dataset in datasets:
+        rng.shuffle(dataset)
 
     return datasets
 
