@@ -124,12 +124,16 @@ def get_project_description(requests, new_project_data):
     return project_description_response.json()
 
 
-def create_project_no_data(requests, result_type='mapping'):
+def create_project_no_data(requests,
+                           result_type='mapping', number_parties=None):
+    number_parties_param = (
+        {} if number_parties is None else {'number_parties': number_parties})
     new_project_response = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
                                          'schema': {},
                                          'result_type': result_type,
+                                         **number_parties_param
                                      })
     assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.text)
     return new_project_response.json()
@@ -144,32 +148,35 @@ def temporary_blank_project(requests, result_type='mapping'):
     delete_project(requests, project)
 
 
-def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):
-    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap, encoding_size=encoding_size)
-    return create_project_upload_data(requests, d1, d2, result_type=result_type)
+def create_project_upload_fake_data(
+        requests,
+        sizes, overlap=0.75,
+        result_type='mapping', encoding_size=128):
+    data = generate_overlapping_clk_data(
+        sizes, overlap=overlap, encoding_size=encoding_size)
+    new_project_data, json_responses = create_project_upload_data(
+        requests, data, result_type=result_type)
+    assert len(json_responses) == len(sizes)
+    return new_project_data, json_responses
 
 
-def create_project_upload_data(requests, clks1, clks2, result_type='mapping'):
-    new_project_data = create_project_no_data(requests, result_type=result_type)
+def create_project_upload_data(requests, data, result_type='mapping'):
+    number_parties = len(data)
+    new_project_data = create_project_no_data(
+        requests, result_type=result_type, number_parties=number_parties)
 
-    r1 = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][0]},
-        json={
-            'clks': clks1
-        }
-    )
-    r2 = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][1]},
-        json={
-            'clks': clks2
-        }
-    )
-    assert r1.status_code == 201, 'I received this instead: {}'.format(r1.text)
-    assert r2.status_code == 201, 'I received this instead: {}'.format(r2.text)
+    json_responses = []
+    for clks, update_token in zip(data, new_project_data['update_tokens']):
+        r = requests.post(
+            url + '/projects/{}/clks'.format(new_project_data['project_id']),
+            headers={'Authorization': update_token},
+            json={'clks': clks})
+        assert r.status_code == 201, f'Got this instead: {r.text}'
+        json_responses.append(r.json())
 
-    return new_project_data, r1.json(), r2.json()
+    assert len(json_responses) == number_parties
+
+    return new_project_data, json_responses
 
 
 def delete_project(requests, project):

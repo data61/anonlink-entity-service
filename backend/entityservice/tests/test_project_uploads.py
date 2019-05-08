@@ -99,7 +99,8 @@ def test_project_json_data_upload_with_mismatched_encoded_size(requests):
     d1 = generate_json_serialized_clks(500, 64)
     d2 = generate_json_serialized_clks(500, 256)
 
-    new_project_data, r1, r2 = create_project_upload_data(requests, d1, d2, result_type='mapping')
+    new_project_data, (r1, r2) = create_project_upload_data(
+        requests, (d1, d2), result_type='mapping')
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
