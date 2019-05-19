@@ -26,5 +26,5 @@ def test_run_description(requests, result_type, number_parties):
     run = get_run(requests, project, run_id)
 
     assert 'run_id' in run
-    assert run['notes'] == ''
+    assert 'notes' in run
     assert run['threshold'] == THRESHOLD

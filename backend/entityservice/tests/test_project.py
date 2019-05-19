@@ -18,11 +18,12 @@ def number_parties(request):
 
 
 
-def _check_new_project_response_fields(new_project_data, number_parties):
+def _check_new_project_response_fields(new_project_data,
+                                       expected_number_parties):
     assert 'project_id' in new_project_data
     assert 'update_tokens' in new_project_data
     assert 'result_token' in new_project_data
-    assert len(new_project_data['update_tokens']) == number_parties
+    assert len(new_project_data['update_tokens']) == expected_number_parties
 
 
 def test_simple_create_project(requests, number_parties):
