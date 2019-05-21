@@ -167,7 +167,6 @@ def permutations_project(request, requests):
 @pytest.fixture(scope='function', params=PROJECT_PARAMS_NP)
 def groups_project(request, requests):
     size, overlap, encoding_size = request.param
-    print(size, overlap)
     prj = create_project_response(requests, size, overlap, 'groups', encoding_size)
     yield prj
     delete_project(requests, prj)
