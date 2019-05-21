@@ -75,7 +75,7 @@ def generate_overlapping_clk_data(
     long), meeting this postcondition is impossible. In that case, we
     raise ValueError.
     """
-    i = -1
+    i = 0
     datasets_n = len(dataset_sizes)
     dataset_record_is = tuple(set() for _ in dataset_sizes)
     for overlapping_n in range(datasets_n, 0, -1):
@@ -89,9 +89,10 @@ def generate_overlapping_clk_data(
             if records_n < current_records_n:
                 raise ValueError(
                     'parameters make meeting postcondition impossible')
-            for i in range(i + 1, i + records_n - current_records_n + 1):
-                for j in overlapping_datasets:
-                    dataset_record_is[j].add(i)
+            for j in overlapping_datasets:
+                dataset_record_is[j].update(
+                    range(i, i + records_n - current_records_n))
+            i += records_n - current_records_n
 
     # Sanity check
     if __debug__:
@@ -105,7 +106,7 @@ def generate_overlapping_clk_data(
                            * overlap ** (len(datasets_with_size) - 1))
             assert len(intersection) == aim_size
 
-    records = generate_json_serialized_clks(i + 1, size=encoding_size)
+    records = generate_json_serialized_clks(i, size=encoding_size)
     datasets = tuple(list(map(records.__getitem__, record_is))
                      for record_is in dataset_record_is)
     
@@ -234,9 +235,10 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     using a particular comparison rate. 1 M/s is quite conservative in order to work
     on slower CI systems.
     """
-    size_1, size_2 = size
+    number_comparisons = sum(
+        size0 * size1 for size0, size1 in itertools.combinations(size, 2))
     time.sleep(5)
-    time.sleep(size_1 * size_2 / assumed_rate)
+    time.sleep(number_comparisons / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):

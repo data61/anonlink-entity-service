@@ -16,7 +16,6 @@ def test_run_description_no_data(requests, project):
     assert 'threshold' in run
 
 
-@pytest.mark.parametrize('number_parties', [2, 3, 4])
 def test_run_description(requests, result_type, number_parties):
     THRESHOLD = .98
 
