@@ -67,8 +67,8 @@ PROJECT_PARAMS_2P = tuple(
     itertools.product(SIZES_2P, OVERLAPS, ENCODING_SIZES))
 PROJECT_PARAMS_NP = tuple(
     itertools.product(SIZES_NP, OVERLAPS, ENCODING_SIZES))
-PROJECT_RESULT_TYPES = [
-    'mapping', 'similarity_scores', 'permutations', 'groups']
+PROJECT_RESULT_TYPES_2P = ['mapping', 'similarity_scores', 'permutations']
+PROJECT_RESULT_TYPES_NP = ['groups']
 
 
 def create_project_response(requests, size, overlap, result_type, encoding_size=128):
@@ -116,15 +116,23 @@ def similarity_scores_project(request, requests):
     yield prj
     delete_project(requests, prj)
 
-
-@pytest.fixture(scope='function', params=PROJECT_RESULT_TYPES)
-def result_type(request):
+@pytest.fixture(scope='function', params=tuple(itertools.chain(
+    [(t, 2) for t in PROJECT_RESULT_TYPES_2P],
+    [(t, n) for t in PROJECT_RESULT_TYPES_NP for n in NUMBERS_PARTIES])))
+def result_type_number_parties(request):
     yield request.param
 
 
-@pytest.fixture(scope='function', params=NUMBERS_PARTIES)
-def number_parties(request):
-    yield request.param
+@pytest.fixture(scope='function')
+def result_type(request, result_type_number_parties):
+    result_type, _ = result_type_number_parties
+    yield result_type
+
+
+@pytest.fixture(scope='function')
+def number_parties(request, result_type_number_parties):
+    _, number_parties = result_type_number_parties
+    yield number_parties
 
 
 @pytest.fixture(scope='function')
