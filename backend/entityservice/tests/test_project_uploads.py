@@ -81,7 +81,7 @@ def test_project_binary_data_upload_with_different_encoded_size(requests, encodi
 
 
 def test_project_json_data_upload_with_various_encoded_sizes(requests, encoding_size):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
         [500, 500],
         overlap=0.95,
@@ -99,7 +99,8 @@ def test_project_json_data_upload_with_mismatched_encoded_size(requests):
     d1 = generate_json_serialized_clks(500, 64)
     d2 = generate_json_serialized_clks(500, 256)
 
-    new_project_data, r1, r2 = create_project_upload_data(requests, d1, d2, result_type='mapping')
+    new_project_data, _ = create_project_upload_data(
+        requests, (d1, d2), result_type='mapping')
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
@@ -108,7 +109,7 @@ def test_project_json_data_upload_with_mismatched_encoded_size(requests):
 
 def test_project_json_data_upload_with_invalid_encoded_size(requests):
 
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
         [500, 500],
         overlap=0.95,
@@ -122,7 +123,7 @@ def test_project_json_data_upload_with_invalid_encoded_size(requests):
 
 
 def test_project_json_data_upload_with_too_small_encoded_size(requests):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
         [500, 500],
         overlap=0.95,
@@ -136,7 +137,7 @@ def test_project_json_data_upload_with_too_small_encoded_size(requests):
 
 
 def test_project_json_data_upload_with_too_large_encoded_size(requests):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
         [50, 50],
         overlap=0.95,

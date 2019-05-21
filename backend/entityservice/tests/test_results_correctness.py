@@ -42,8 +42,10 @@ def the_truth(scope='module'):
 
 
 def test_similarity_scores(requests, the_truth):
-    project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
-                                                    result_type='similarity_scores')
+    project_data, _ = create_project_upload_data(
+        requests,
+        (the_truth['clks_a'], the_truth['clks_b']),
+        result_type='similarity_scores')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
     result = get_run_result(requests, project_data, run, timeout=60)
     
@@ -61,8 +63,10 @@ def test_similarity_scores(requests, the_truth):
 
 
 def test_mapping(requests, the_truth):
-    project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
-                                                    result_type='mapping')
+    project_data, _ = create_project_upload_data(
+        requests,
+        (the_truth['clks_a'], the_truth['clks_b']),
+        result_type='mapping')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
     result = get_run_result(requests, project_data, run)
     # compare mapping with the truth
@@ -78,8 +82,10 @@ def test_mapping(requests, the_truth):
 
 
 def test_permutation(requests, the_truth):
-    project_data, r_a, r_b = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
-                                                        result_type='permutations')
+    project_data, (r_a, r_b) = create_project_upload_data(
+        requests,
+        (the_truth['clks_a'], the_truth['clks_b']),
+        result_type='permutations')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
     mask_result = get_run_result(requests, project_data, run, timeout=60)
     perm_a_result = get_run_result(requests, project_data, run, result_token=r_a['receipt_token'], wait=False)
@@ -101,8 +107,10 @@ def test_permutation(requests, the_truth):
 
 
 def test_groups(requests, the_truth):
-    project_data, _, _ = create_project_upload_data(requests, the_truth['clks_a'], the_truth['clks_b'],
-                                                    result_type='groups')
+    project_data, _ = create_project_upload_data(
+        requests,
+        (the_truth['clks_a'], the_truth['clks_b']),
+        result_type='groups')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
     result = get_run_result(requests, project_data, run)
     # compare mapping with the truth

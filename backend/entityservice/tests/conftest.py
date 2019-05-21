@@ -71,7 +71,7 @@ def create_project_response(requests, size, overlap, result_type, encoding_size=
         "dp_2": <JSON RESPONSE TO DATA UPLOAD>
     }
     """
-    project, dp_1, dp_2 = create_project_upload_fake_data(
+    project, (dp_1, dp_2) = create_project_upload_fake_data(
         requests, size, overlap=overlap, result_type=result_type, encoding_size=encoding_size)
     project.update({
         'size': size,
