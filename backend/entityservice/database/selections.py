@@ -225,17 +225,11 @@ def get_smaller_dataset_size_for_project(db, project_id):
     return query_result['smaller']
 
 
-def get_total_comparisons_for_project(db, project_id, expected_datasets):
+def get_total_comparisons_for_project(db, project_id):
     """
     :return total number of comparisons for this project
     """
-    sql_query = """
-        SELECT bloomingdata.count as rows
-        from dataproviders, bloomingdata
-        where
-          bloomingdata.dp=dataproviders.id AND
-          dataproviders.project=%s
-        """
+    expected_datasets = get_project_column(db, project_id, 'parties')
     query_results = query_db(db, sql_query, [project_id])
     if len(query_results) < expected_datasets:
         return 'NA'
