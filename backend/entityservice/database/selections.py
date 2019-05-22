@@ -1,3 +1,5 @@
+import itertools
+
 from entityservice.database.util import query_db, logger
 from entityservice.errors import ProjectDeleted, RunDeleted, DataProviderDeleted
 
@@ -227,6 +229,7 @@ def get_total_comparisons_for_project(db, project_id):
     """
     :return total number of comparisons for this project
     """
+    expected_datasets = get_project_column(db, project_id, 'parties')
     sql_query = """
         SELECT bloomingdata.count as rows
         from dataproviders, bloomingdata
@@ -234,14 +237,17 @@ def get_total_comparisons_for_project(db, project_id):
           bloomingdata.dp=dataproviders.id AND
           dataproviders.project=%s
         """
-    query_result = query_db(db, sql_query, [project_id])
-
-    if len(query_result) == 2:
-        total_comparisons = query_result[0]['rows'] * query_result[1]['rows']
+    query_results = query_db(db, sql_query, [project_id])
+    if len(query_results) < expected_datasets:
+        return 'NA'
+    elif len(query_results) == expected_datasets:
+        counts = (qr['rows'] for qr in query_results)
+        total_comparisons = sum(
+            c0 * c1 for c0, c1 in itertools.combinations(counts, 2))
+        return total_comparisons
     else:
-        total_comparisons = 'NA'
-
-    return total_comparisons
+        raise ValueError(f'expected at most {expected_datasets} '
+                         f'datasets, got {len(query_results)}')
 
 
 def get_dataprovider_id(db, update_token):

@@ -23,18 +23,35 @@ def test_run_permutations_results(requests, permutations_project, threshold):
     assert len(mask_result['mask']) == min(permutations_project['size'])
 
     # Get results using receipt_token A and B
-    token1 = permutations_project['dp_1']['receipt_token']
+    token1 = permutations_project['dp_responses'][0]['receipt_token']
     result1 = get_run_result(requests, permutations_project, run_id, token1, wait=False)
     assert 'permutation' in result1
     assert 'rows' in result1
     assert result1['rows'] == len(mask_result['mask'])
 
-    token2 = permutations_project['dp_2']['receipt_token']
+    token2 = permutations_project['dp_responses'][1]['receipt_token']
     result2 = get_run_result(requests, permutations_project, run_id, token2, wait=False)
     assert 'permutation' in result2
     assert 'rows' in result2
     assert result2['rows'] == result1['rows']
     assert result2['rows'] == len(mask_result['mask'])
+
+
+def test_run_groups_results(requests, groups_project, threshold):
+    run_id = post_run(requests, groups_project, threshold)
+    result = get_run_result(requests, groups_project, run_id)
+    
+    assert 'groups' in result
+    groups = result['groups']
+
+    # All groups have at least two records
+    assert all(len(g) >= 2 for g in groups)  
+    
+    # All records consist of a record index and dataset index
+    assert all(all(len(i) == 2 for i in g) for g in groups)
+    assert all(all(isinstance(i, int) and isinstance(j, int)
+                   for i, j in g)
+               for g in groups)
 
 
 def test_run_mapping_results_no_data(requests):

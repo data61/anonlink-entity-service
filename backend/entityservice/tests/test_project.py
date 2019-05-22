@@ -9,7 +9,7 @@ from entityservice.tests.util import generate_overlapping_clk_data, get_project_
 
 @pytest.fixture(scope='module',
                 params=[2, 3, 4, None])
-def number_parties(request):
+def number_parties_or_none(request):
     n = request.param
     # None is what we use to test handling of default values
     number_parties_dict = {} if n is None else {'number_parties': n}
@@ -26,11 +26,11 @@ def _check_new_project_response_fields(new_project_data,
     assert len(new_project_data['update_tokens']) == expected_number_parties
 
 
-def test_simple_create_project(requests, number_parties):
+def test_simple_create_project(requests, number_parties_or_none):
     project_name = 'a test project'
     project_description = 'created by unittest'
 
-    number_parties_param, expected_number_parties = number_parties
+    number_parties_param, expected_number_parties = number_parties_or_none
     project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -45,8 +45,8 @@ def test_simple_create_project(requests, number_parties):
         new_project_data, expected_number_parties)
 
 
-def test_create_then_delete_no_auth(requests, number_parties):
-    number_parties_param, expected_number_parties = number_parties
+def test_create_then_delete_no_auth(requests, number_parties_or_none):
+    number_parties_param, expected_number_parties = number_parties_or_none
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -60,8 +60,8 @@ def test_create_then_delete_no_auth(requests, number_parties):
     assert 400 == delete_project_response.status_code
 
 
-def test_create_then_delete_invalid_auth(requests, number_parties):
-    number_parties_param, expected_number_parties = number_parties
+def test_create_then_delete_invalid_auth(requests, number_parties_or_none):
+    number_parties_param, expected_number_parties = number_parties_or_none
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -78,8 +78,8 @@ def test_create_then_delete_invalid_auth(requests, number_parties):
     assert delete_project_response.status_code == 403
 
 
-def test_create_then_delete_valid_auth(requests, number_parties):
-    number_parties_param, expected_number_parties = number_parties
+def test_create_then_delete_valid_auth(requests, number_parties_or_none):
+    number_parties_param, expected_number_parties = number_parties_or_none
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -101,11 +101,11 @@ def test_delete_project_types(requests, project):
     delete_project(requests, project)
 
 
-def test_create_then_list(requests, number_parties):
+def test_create_then_list(requests, number_parties_or_none):
     original_project_list_respose = requests.get(url + '/projects').json()
     original_project_ids = [p['project_id'] for p in original_project_list_respose]
 
-    number_parties_param, _ = number_parties
+    number_parties_param, _ = number_parties_or_none
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -120,8 +120,8 @@ def test_create_then_list(requests, number_parties):
     assert new_project_response['project_id'] in new_project_ids
 
 
-def test_create_then_describe_noauth(requests, number_parties):
-    number_parties_param, _ = number_parties
+def test_create_then_describe_noauth(requests, number_parties_or_none):
+    number_parties_param, _ = number_parties_or_none
     new_project = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -132,8 +132,8 @@ def test_create_then_describe_noauth(requests, number_parties):
     assert 400 == r.status_code
 
 
-def test_create_then_describe_invalid_auth(requests, number_parties):
-    number_parties_param, _ = number_parties
+def test_create_then_describe_invalid_auth(requests, number_parties_or_none):
+    number_parties_param, _ = number_parties_or_none
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -146,8 +146,8 @@ def test_create_then_describe_invalid_auth(requests, number_parties):
     assert r.status_code == 403
 
 
-def test_create_then_describe_valid_auth(requests, number_parties):
-    number_parties_param, expected_number_parties = number_parties
+def test_create_then_describe_valid_auth(requests, number_parties_or_none):
+    number_parties_param, expected_number_parties = number_parties_or_none
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
         'result_type': 'mapping',
@@ -191,8 +191,8 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
     assert r.status_code == 403
 
 
-def test_mapping_data_uploaded(requests, number_parties):
-    number_parties_param, expected_number_parties = number_parties
+def test_mapping_data_uploaded(requests, number_parties_or_none):
+    number_parties_param, expected_number_parties = number_parties_or_none
     new_project_data = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
