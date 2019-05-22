@@ -34,20 +34,23 @@ def requests():
 
 ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
 THRESHOLDS = [0.9, 1.0]
-OVERLAPS = [0.0, 0.9, 1.0]
+OVERLAPS = [0.0, 0.9]
 ENCODING_SIZES = [8]
 NUMBERS_PARTIES = [2, 3, 5]
 
 if os.getenv(ENVVAR_NAME):
     ENCODING_SIZES.extend([64, 128, 512, 2048])
-    OVERLAPS.extend([0.2, 0.5])
+    OVERLAPS.extend([0.2, 0.5, 1.0])
     THRESHOLDS.extend([0.6, 0.8, 0.95])
 
-FAST_SIZES_2P = tuple(itertools.product([1, 100, 1000], repeat=2))
+FAST_SIZES_2P = tuple(itertools.product([1, 1000], repeat=2))
 FAST_SIZES_NP = tuple(itertools.chain(
     FAST_SIZES_2P,
-    itertools.product([1, 1000], repeat=3),
-    ((1000,) * 5,)))
+    [(1, 1000, 1000),
+     (1000, 1, 1000),
+     (1000, 1000, 1),
+     (1000, 1000, 1000),
+     (1000, 1000, 1000, 1000, 1000)]))
 
 SLOW_SIZES_2P = tuple(itertools.combinations([1, 10000, 100000, 1000000], 2))
 SLOW_SIZES_NP = tuple(itertools.chain(
