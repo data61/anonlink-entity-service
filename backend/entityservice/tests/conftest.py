@@ -119,6 +119,7 @@ def similarity_scores_project(request, requests):
     yield prj
     delete_project(requests, prj)
 
+
 @pytest.fixture(scope='function', params=tuple(itertools.chain(
     [(t, 2) for t in PROJECT_RESULT_TYPES_2P],
     [(t, n) for t in PROJECT_RESULT_TYPES_NP for n in NUMBERS_PARTIES])))
@@ -127,19 +128,8 @@ def result_type_number_parties(request):
 
 
 @pytest.fixture(scope='function')
-def result_type(request, result_type_number_parties):
-    result_type, _ = result_type_number_parties
-    yield result_type
-
-
-@pytest.fixture(scope='function')
-def number_parties(request, result_type_number_parties):
-    _, number_parties = result_type_number_parties
-    yield number_parties
-
-
-@pytest.fixture(scope='function')
-def project(request, requests, result_type, number_parties):
+def project(request, requests, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
     project = create_project_no_data(
         requests,
         result_type=result_type,
