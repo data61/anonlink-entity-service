@@ -175,6 +175,8 @@ def groups_project(request, requests):
 
 
 @pytest.fixture(
-    params=itertools.product(PROJECT_RESULT_TYPES_2P, [3, 4, 5]))
+    params=itertools.chain(
+        itertools.product(PROJECT_RESULT_TYPES_2P, [1, 3, 4, 5]),
+        [(t, 1) for t in PROJECT_RESULT_TYPES_NP]))
 def invalid_result_type_number_parties(request):
     yield request.param

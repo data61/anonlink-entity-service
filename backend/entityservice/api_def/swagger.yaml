@@ -770,6 +770,7 @@ definitions:
           If there are more than two data providers, then `result_type` must be
           `"groups"`.
         type: number
+        minimum: 2
       name:
         description: Any free text name for this project.
         type: string
