@@ -127,6 +127,15 @@ def result_type_number_parties(request):
     yield request.param
 
 
+@pytest.fixture(params=(
+    *[(t, n) for t in PROJECT_RESULT_TYPES_2P
+             for n in (None, 2)],
+    *[(t, n) for t in PROJECT_RESULT_TYPES_NP
+             for n in (None, *NUMBERS_PARTIES)]))
+def result_type_number_parties_or_none(request):
+    yield request.param
+
+
 @pytest.fixture(scope='function')
 def project(request, requests, result_type_number_parties):
     result_type, number_parties = result_type_number_parties
@@ -163,3 +172,11 @@ def groups_project(request, requests):
     prj = create_project_response(requests, size, overlap, 'groups', encoding_size)
     yield prj
     delete_project(requests, prj)
+
+
+@pytest.fixture(
+    params=itertools.chain(
+        itertools.product(PROJECT_RESULT_TYPES_2P, [1, 3, 4, 5]),
+        [(t, 1) for t in PROJECT_RESULT_TYPES_NP]))
+def invalid_result_type_number_parties(request):
+    yield request.param
