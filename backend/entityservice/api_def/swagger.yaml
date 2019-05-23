@@ -81,6 +81,9 @@ info:
         represents the likelihood that `indexA = indexB`.
       * `"groups"` - Outputs a list of groups of records, where each group represents one entity.
 
+    Only `"groups"` supports multi-party linkage. `"mapping"`, `"permutations"`, and `"similarity_scores"` only support linkage
+    with two parties.
+
 
 
 host: es.data61.xyz
@@ -198,6 +201,9 @@ paths:
         If the `result_type` is `permutations`, then the data providers can access their respective permutation with
         their individual `receipt_token`, which they obtain when adding data to the mapping.
         The mask can be accessed with the `result_token`.
+
+        Only `"groups"` supports multi-party linkage. If the result type is `"mapping"`,  `"similarity_scores"`, or
+        `"permutations"`, then the number of parties must be 2.
 
       parameters:
         - in: body
@@ -709,7 +715,8 @@ definitions:
 
   ResultType:
     type: string
-    description: defines the output type of the mapping
+    description: |
+      Defines the output type of the mapping. Multi-party linkage requires `"groups"` to be used.
     enum:
       - similarity_scores
       - mapping
@@ -758,7 +765,10 @@ definitions:
       result_type:
         $ref: '#/definitions/ResultType'
       number_parties:
-        description: How many data providers will participate in this project. Default value is 2.
+        description: |
+          How many data providers will participate in this project. Default value is 2.
+          If there are more than two data providers, then `result_type` must be
+          `"groups"`.
         type: number
       name:
         description: Any free text name for this project.

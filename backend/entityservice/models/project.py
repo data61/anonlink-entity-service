@@ -60,6 +60,10 @@ class Project(object):
         notes = data.get('notes', '')
         parties = data.get('number_parties', 2)
 
+        if parties > 2 and result_type != 'groups':
+            raise InvalidProjectParametersException(
+                "Multi-party linkage requires result type 'groups'.")            
+
         return Project(result_type, schema, name, notes, parties)
 
     def save(self, conn):

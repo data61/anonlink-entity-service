@@ -205,10 +205,11 @@ def authorise_get_request(project_id):
     with DBConn() as dbinstance:
         project_object = db.get_project(dbinstance, project_id)
     logger.info("Checking credentials")
-    if project_object['result_type'] == 'mapping' or project_object['result_type'] == 'similarity_scores':
+    result_type = project_object['result_type']
+    if result_type in {'mapping', 'similarity_scores', 'groups'}:
         # Check the caller has a valid results token if we are including results
         abort_if_invalid_results_token(project_id, auth_header)
-    elif project_object['result_type'] == 'permutations':
+    elif result_type == 'permutations':
         dp_id = get_authorization_token_type_or_abort(project_id, auth_header)
     else:
         safe_fail_request(500, "Unknown error")
