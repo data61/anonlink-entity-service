@@ -160,7 +160,7 @@ def test_project_json_data_upload_with_invalid_encoded_size(
         [500] * number_parties,
         overlap=0.8,
         result_type=result_type,
-        encoding_size=20
+        encoding_size=20    # not multiple of 8
     )
 
     with pytest.raises(AssertionError):
