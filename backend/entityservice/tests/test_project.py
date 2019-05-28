@@ -4,69 +4,58 @@ import time
 import pytest
 
 from entityservice.tests.config import url
-from entityservice.tests.util import generate_overlapping_clk_data, get_project_description, delete_project
-
-
-@pytest.fixture
-def valid_project_param(request, result_type_number_parties_or_none):
-    result_type, number_parties_or_none = result_type_number_parties_or_none
-    # None is what we use to test handling of default values
-    params_dict = {'result_type': result_type}
-    if number_parties_or_none is not None:
-        params_dict['number_parties'] = number_parties_or_none
-    expected_parties_value = number_parties_or_none or 2
-    return params_dict, expected_parties_value
+from entityservice.tests.util import (
+    delete_project, generate_overlapping_clk_data,
+    get_expected_number_parties, get_project_description)
 
 
 def _check_new_project_response_fields(new_project_data,
-                                       expected_number_parties):
+                                       project_params):
     assert 'project_id' in new_project_data
     assert 'update_tokens' in new_project_data
     assert 'result_token' in new_project_data
-    assert len(new_project_data['update_tokens']) == expected_number_parties
+    actual_number_parties = len(new_project_data['update_tokens'])
+    expected_number_parties = get_expected_number_parties(project_params)
+    assert actual_number_parties == expected_number_parties
 
 
-def test_simple_create_project(requests, valid_project_param):
+def test_simple_create_project(requests, valid_project_params):
     project_name = 'a test project'
     project_description = 'created by unittest'
 
-    params_dict, expected_number_parties = valid_project_param
     project_response = requests.post(url + '/projects', json={
         'schema': {},
         'name': project_name,
         'notes': project_description,
-        **params_dict
+        **valid_project_params
     })
 
     assert project_response.status_code == 201
     new_project_data = project_response.json()
-    _check_new_project_response_fields(
-        new_project_data, expected_number_parties)
+    _check_new_project_response_fields(new_project_data, valid_project_params)
 
 
-def test_create_then_delete_no_auth(requests, valid_project_param):
-    params_dict, expected_number_parties = valid_project_param
+def test_create_then_delete_no_auth(requests, valid_project_params):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     })
     assert new_project_response.status_code == 201
     _check_new_project_response_fields(
-        new_project_response.json(), expected_number_parties)
+        new_project_response.json(), valid_project_params)
 
     delete_project_response = requests.delete(url + '/projects/{}'.format(new_project_response.json()['project_id']))
     assert 400 == delete_project_response.status_code
 
 
-def test_create_then_delete_invalid_auth(requests, valid_project_param):
-    params_dict, expected_number_parties = valid_project_param
+def test_create_then_delete_invalid_auth(requests, valid_project_params):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     })
     assert new_project_response.status_code == 201
     _check_new_project_response_fields(
-        new_project_response.json(), expected_number_parties)
+        new_project_response.json(), valid_project_params)
 
     delete_project_response = requests.delete(
         url + '/projects/{}'.format(new_project_response.json()['project_id']),
@@ -75,15 +64,14 @@ def test_create_then_delete_invalid_auth(requests, valid_project_param):
     assert delete_project_response.status_code == 403
 
 
-def test_create_then_delete_valid_auth(requests, valid_project_param):
-    params_dict, expected_number_parties = valid_project_param
+def test_create_then_delete_valid_auth(requests, valid_project_params):
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     })
     assert new_project_response.status_code == 201
     _check_new_project_response_fields(
-        new_project_response.json(), expected_number_parties)
+        new_project_response.json(), valid_project_params)
 
     token = new_project_response.json()['result_token']
     delete_project_response = requests.delete(
@@ -97,14 +85,13 @@ def test_delete_project_types(requests, project):
     delete_project(requests, project)
 
 
-def test_create_then_list(requests, valid_project_param):
+def test_create_then_list(requests, valid_project_params):
     original_project_list_respose = requests.get(url + '/projects').json()
     original_project_ids = [p['project_id'] for p in original_project_list_respose]
 
-    params_dict, _ = valid_project_param
     new_project_response = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     }).json()
 
     assert new_project_response['project_id'] not in original_project_ids
@@ -115,22 +102,20 @@ def test_create_then_list(requests, valid_project_param):
     assert new_project_response['project_id'] in new_project_ids
 
 
-def test_create_then_describe_noauth(requests, valid_project_param):
-    params_dict, _ = valid_project_param
+def test_create_then_describe_noauth(requests, valid_project_params):
     new_project = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     }).json()
 
     r = requests.get(url + '/projects/{}'.format(new_project['project_id']))
     assert 400 == r.status_code
 
 
-def test_create_then_describe_invalid_auth(requests, valid_project_param):
-    params_dict, _ = valid_project_param
+def test_create_then_describe_invalid_auth(requests, valid_project_params):
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     }).json()
     r = requests.get(
         url + '/projects/{}'.format(project_respose['project_id']),
@@ -139,11 +124,10 @@ def test_create_then_describe_invalid_auth(requests, valid_project_param):
     assert r.status_code == 403
 
 
-def test_create_then_describe_valid_auth(requests, valid_project_param):
-    params_dict, expected_number_parties = valid_project_param
+def test_create_then_describe_valid_auth(requests, valid_project_params):
     project_respose = requests.post(url + '/projects', json={
         'schema': {},
-        **params_dict
+        **valid_project_params
     }).json()
     r = requests.get(
         url + '/projects/{}'.format(project_respose['project_id']),
@@ -161,7 +145,8 @@ def test_create_then_describe_valid_auth(requests, valid_project_param):
     assert 'public_key' not in project_description
     assert 'paillier_context' not in project_description
 
-    assert params_dict['result_type'] == project_description['result_type']
+    assert valid_project_params['result_type'] == project_description['result_type']
+    expected_number_parties = get_expected_number_parties(valid_project_params)
     assert expected_number_parties == project_description['number_parties']
     assert '' == project_description['name'], 'default name should be blank'
     assert '' == project_description['notes'], 'default notes should be blank'
@@ -183,15 +168,15 @@ def test_list_runs_of_missing_project_with_invalidauth(requests):
     assert r.status_code == 403
 
 
-def test_data_uploaded(requests, valid_project_param):
-    params_dict, expected_number_parties = valid_project_param
+def test_data_uploaded(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
                                          'schema': {},
-                                         **params_dict
+                                         **valid_project_params
                                      }).json()
     description_1 = get_project_description(requests, new_project_data)
+    expected_number_parties = get_expected_number_parties(valid_project_params)
     assert description_1['number_parties'] == expected_number_parties
     assert description_1['parties_contributed'] == 0
 
