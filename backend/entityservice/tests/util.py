@@ -428,3 +428,7 @@ def upload_binary_data(requests, data, project_id, token, count, size=128, expec
 def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, status=201):
     with open(file_path, 'rb') as f:
         return upload_binary_data(requests, f, project_id, token, count, size, status)
+
+
+def get_expected_number_parties(project_params):
+    return project_params.get('number_parties', 2)
