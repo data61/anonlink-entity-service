@@ -15,10 +15,11 @@ THRESHOLD = .8
 
 def test_groups_correctness(requests):
     # We assume that anonlink computes the right results.
+    
     with open(DATA_PATH, 'rb') as f:
-        # load prepared clks and ground truth from file
+        # He's some filters I prepared earlier.
         filters = pickle.load(f)
-    # compute similarity scores with anonlink
+
     candidate_pairs = anonlink.candidate_generation.find_candidate_pairs(
         filters,
         anonlink.similarities.dice_coefficient_accelerated,
@@ -39,7 +40,7 @@ def test_groups_correctness(requests):
     finally:
         delete_project(requests, project_data)
     
-    # compare mapping with the truth
+    # Compare ES result with anonlink.
     result_group_set = {frozenset(map(tuple, g)) for g in result_groups}
     true_group_set = set(map(frozenset, true_groups))
     assert result_group_set == true_group_set
