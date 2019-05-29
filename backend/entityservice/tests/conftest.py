@@ -136,6 +136,16 @@ def result_type_number_parties_or_none(request):
     yield request.param
 
 
+@pytest.fixture
+def valid_project_params(request, result_type_number_parties_or_none):
+    result_type, number_parties_or_none = result_type_number_parties_or_none
+    # None is what we use to test handling of default values
+    params_dict = {'result_type': result_type}
+    if number_parties_or_none is not None:
+        params_dict['number_parties'] = number_parties_or_none
+    return params_dict
+
+
 @pytest.fixture(scope='function')
 def project(request, requests, result_type_number_parties):
     result_type, number_parties = result_type_number_parties
