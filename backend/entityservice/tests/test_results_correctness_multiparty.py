@@ -17,7 +17,7 @@ def test_groups_correctness(requests):
     # We assume that anonlink computes the right results.
     
     with open(DATA_PATH, 'rb') as f:
-        # He's some filters I prepared earlier.
+        # Here's some filters I prepared earlier.
         filters = pickle.load(f)
 
     candidate_pairs = anonlink.candidate_generation.find_candidate_pairs(
