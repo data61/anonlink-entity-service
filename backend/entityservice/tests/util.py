@@ -161,17 +161,33 @@ def create_project_upload_fake_data(
     return new_project_data, json_responses
 
 
-def create_project_upload_data(requests, data, result_type='mapping'):
+def create_project_upload_data(
+        requests, data, result_type='mapping', binary=False, hash_size=None):
+    if binary and hash_size is None:
+        raise ValueError('binary mode must specify a hash_size')
+
     number_parties = len(data)
     new_project_data = create_project_no_data(
         requests, result_type=result_type, number_parties=number_parties)
 
+    upload_url = url + f'/projects/{new_project_data["project_id"]}/clks'
     json_responses = []
     for clks, update_token in zip(data, new_project_data['update_tokens']):
-        r = requests.post(
-            url + '/projects/{}/clks'.format(new_project_data['project_id']),
-            headers={'Authorization': update_token},
-            json={'clks': clks})
+        if binary:
+            hash_count, mod = divmod(len(clks), hash_size)
+            assert mod == 0
+            r = requests.post(
+                upload_url,
+                headers={'Authorization': update_token,
+                         'Content-Type': 'application/octet-stream',
+                         'Hash-Count': str(hash_count),
+                         'Hash-Size': str(hash_size)},
+                data=clks)
+        else:
+            r = requests.post(
+                upload_url,
+                headers={'Authorization': update_token},
+                json={'clks': clks})
         assert r.status_code == 201, f'Got this instead: {r.text}'
         json_responses.append(r.json())
 
