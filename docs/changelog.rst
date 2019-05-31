@@ -4,6 +4,11 @@
 Changelog
 =========
 
+Version 1.11.0
+--------------
+
+- Adds support for multiparty record linkage.
+
 Version 1.10.0
 --------------
 
