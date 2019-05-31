@@ -1,7 +1,7 @@
 api:
   www:
     image:
-      tag: "v1.4.1-develop"
+      tag: "v1.4.2-develop"
   app:
     image:
       tag: "v1.11.0-develop"
