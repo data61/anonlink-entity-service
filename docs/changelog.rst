@@ -8,6 +8,20 @@ Version 1.11.0
 --------------
 
 - Adds support for multiparty record linkage.
+- Logging is now configurable from a file.
+
+Other improvements
+~~~~~~~~~~~~~~~~~~
+
+- Another tutorial for directly using the REST api was added.
+- K8s deployment updated to use ``3.15.0`` Postgres chart.
+  Postgres configuration now uses a ``global`` namespace
+  so subcharts can all use the same configuration as documented
+  `here <https://github.com/helm/charts/tree/master/stable/postgresql#use-of-global-variables>`_.
+- Jenkins testing now fails if the benchmark exits incorrectly or if the benchmark
+  results contain failed results.
+- Jenkins will now execute the tutorials notebooks and fail if any cells error.
+
 
 Version 1.10.0
 --------------
