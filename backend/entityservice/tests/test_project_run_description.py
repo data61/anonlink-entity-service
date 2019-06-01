@@ -16,11 +16,15 @@ def test_run_description_no_data(requests, project):
     assert 'threshold' in run
 
 
-def test_run_description(requests, result_type):
-    project, dp1, dp2 = create_project_upload_fake_data(requests, [100, 100], overlap=0.5, result_type=result_type)
-    run_id = post_run(requests, project, 0.98)
+def test_run_description(requests, result_type_number_parties):
+    THRESHOLD = .98
+
+    result_type, number_parties = result_type_number_parties
+    project, _ = create_project_upload_fake_data(
+        requests, [100] * number_parties, overlap=0.5, result_type=result_type)
+    run_id = post_run(requests, project, THRESHOLD)
     run = get_run(requests, project, run_id)
 
     assert 'run_id' in run
     assert 'notes' in run
-    assert 'threshold' in run
+    assert run['threshold'] == THRESHOLD

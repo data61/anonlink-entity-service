@@ -1,5 +1,6 @@
 import base64
 import datetime
+import itertools
 import math
 import os
 import random
@@ -49,15 +50,69 @@ def generate_json_serialized_clks(count, size=128):
     return [serialize_bytes(hash_bytes) for hash_bytes in clks]
 
 
-def generate_overlapping_clk_data(dataset_sizes, overlap=0.9, encoding_size=128):
-    datasets = []
-    for count in dataset_sizes:
-        datasets.append(generate_json_serialized_clks(count, encoding_size))
+def nonempty_powerset(iterable):
+    "nonempty_powerset([1,2,3]) --> (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    # Inspired by:
+    # https://docs.python.org/3/library/itertools.html#itertools-recipes
+    s = tuple(iterable)
+    return itertools.chain.from_iterable(
+        itertools.combinations(s, r) for r in range(1, len(s)+1))
 
-    overlap_to = math.floor(min(dataset_sizes)*overlap)
-    for ds in datasets[1:]:
-        ds[:overlap_to] = datasets[0][:overlap_to]
-        random.shuffle(ds)
+
+def generate_overlapping_clk_data(
+    dataset_sizes, overlap=0.9, encoding_size=128, seed=666):
+    """Generate random datsets with fixed overlap.
+
+    Postcondition:
+    for all some_datasets in nonempty_powerset(datasets),
+    len(set.intersection(*some_datasets)) 
+        == floor(min(map(len, some_datasets))
+           * overlap ** (len(some_datasets) - 1))
+    (in case of two datasets A and V this reduces to:
+     len(A & B) = floor(min(len(A), len(B)) * overlap)
+
+    For some sets of parameters (particularly when dataset_sizes is
+    long), meeting this postcondition is impossible. In that case, we
+    raise ValueError.
+    """
+    i = 0
+    datasets_n = len(dataset_sizes)
+    dataset_record_is = tuple(set() for _ in dataset_sizes)
+    for overlapping_n in range(datasets_n, 0, -1):
+        for overlapping_datasets in itertools.combinations(
+                range(datasets_n), overlapping_n):
+            records_n = int(overlap ** (len(overlapping_datasets) - 1)
+                            * min(map(dataset_sizes.__getitem__,
+                                      overlapping_datasets)))
+            current_records_n = len(set.intersection(
+                *map(dataset_record_is.__getitem__, overlapping_datasets)))
+            if records_n < current_records_n:
+                raise ValueError(
+                    'parameters make meeting postcondition impossible')
+            for j in overlapping_datasets:
+                dataset_record_is[j].update(
+                    range(i, i + records_n - current_records_n))
+            i += records_n - current_records_n
+
+    # Sanity check
+    if __debug__:
+        for dataset, dataset_size in zip(dataset_record_is, dataset_sizes):
+            assert len(dataset) == dataset_size
+        for datasets_with_size in nonempty_powerset(
+                zip(dataset_record_is, dataset_sizes)):
+            some_datasets, sizes = zip(*datasets_with_size)
+            intersection = set.intersection(*some_datasets)
+            aim_size = int(min(sizes)
+                           * overlap ** (len(datasets_with_size) - 1))
+            assert len(intersection) == aim_size
+
+    records = generate_json_serialized_clks(i, size=encoding_size)
+    datasets = tuple(list(map(records.__getitem__, record_is))
+                     for record_is in dataset_record_is)
+    
+    rng = random.Random(seed)
+    for dataset in datasets:
+        rng.shuffle(dataset)
 
     return datasets
 
@@ -70,12 +125,16 @@ def get_project_description(requests, new_project_data):
     return project_description_response.json()
 
 
-def create_project_no_data(requests, result_type='mapping'):
+def create_project_no_data(requests,
+                           result_type='mapping', number_parties=None):
+    number_parties_param = (
+        {} if number_parties is None else {'number_parties': number_parties})
     new_project_response = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
                                          'schema': {},
                                          'result_type': result_type,
+                                         **number_parties_param
                                      })
     assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.text)
     return new_project_response.json()
@@ -90,32 +149,51 @@ def temporary_blank_project(requests, result_type='mapping'):
     delete_project(requests, project)
 
 
-def create_project_upload_fake_data(requests, size, overlap=0.75, result_type='mapping', encoding_size=128):
-    d1, d2 = generate_overlapping_clk_data(size, overlap=overlap, encoding_size=encoding_size)
-    return create_project_upload_data(requests, d1, d2, result_type=result_type)
+def create_project_upload_fake_data(
+        requests,
+        sizes, overlap=0.75,
+        result_type='mapping', encoding_size=128):
+    data = generate_overlapping_clk_data(
+        sizes, overlap=overlap, encoding_size=encoding_size)
+    new_project_data, json_responses = create_project_upload_data(
+        requests, data, result_type=result_type)
+    assert len(json_responses) == len(sizes)
+    return new_project_data, json_responses
 
 
-def create_project_upload_data(requests, clks1, clks2, result_type='mapping'):
-    new_project_data = create_project_no_data(requests, result_type=result_type)
+def create_project_upload_data(
+        requests, data, result_type='mapping', binary=False, hash_size=None):
+    if binary and hash_size is None:
+        raise ValueError('binary mode must specify a hash_size')
 
-    r1 = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][0]},
-        json={
-            'clks': clks1
-        }
-    )
-    r2 = requests.post(
-        url + '/projects/{}/clks'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['update_tokens'][1]},
-        json={
-            'clks': clks2
-        }
-    )
-    assert r1.status_code == 201, 'I received this instead: {}'.format(r1.text)
-    assert r2.status_code == 201, 'I received this instead: {}'.format(r2.text)
+    number_parties = len(data)
+    new_project_data = create_project_no_data(
+        requests, result_type=result_type, number_parties=number_parties)
 
-    return new_project_data, r1.json(), r2.json()
+    upload_url = url + f'/projects/{new_project_data["project_id"]}/clks'
+    json_responses = []
+    for clks, update_token in zip(data, new_project_data['update_tokens']):
+        if binary:
+            hash_count, mod = divmod(len(clks), hash_size)
+            assert mod == 0
+            r = requests.post(
+                upload_url,
+                headers={'Authorization': update_token,
+                         'Content-Type': 'application/octet-stream',
+                         'Hash-Count': str(hash_count),
+                         'Hash-Size': str(hash_size)},
+                data=clks)
+        else:
+            r = requests.post(
+                upload_url,
+                headers={'Authorization': update_token},
+                json={'clks': clks})
+        assert r.status_code == 201, f'Got this instead: {r.text}'
+        json_responses.append(r.json())
+
+    assert len(json_responses) == number_parties
+
+    return new_project_data, json_responses
 
 
 def delete_project(requests, project):
@@ -173,9 +251,10 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     using a particular comparison rate. 1 M/s is quite conservative in order to work
     on slower CI systems.
     """
-    size_1, size_2 = size
+    number_comparisons = sum(
+        size0 * size1 for size0, size1 in itertools.combinations(size, 2))
     time.sleep(5)
-    time.sleep(size_1 * size_2 / assumed_rate)
+    time.sleep(number_comparisons / assumed_rate)
 
 
 def ensure_run_progressing(requests, project, size):
@@ -349,3 +428,7 @@ def upload_binary_data(requests, data, project_id, token, count, size=128, expec
 def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, status=201):
     with open(file_path, 'rb') as f:
         return upload_binary_data(requests, f, project_id, token, count, size, status)
+
+
+def get_expected_number_parties(project_params):
+    return project_params.get('number_parties', 2)

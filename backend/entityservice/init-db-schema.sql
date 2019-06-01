@@ -4,10 +4,13 @@ projects, runs, dataproviders, bloomingdata, run_results,
 similarity_scores, permutations, permutation_masks, metrics
 CASCADE;
 
+DROP TYPE IF EXISTS MAPPINGRESULT;
+
 CREATE TYPE MAPPINGRESULT AS ENUM (
   'mapping',
   'permutations',
-  'similarity_scores'
+  'similarity_scores',
+  'groups'
 );
 
 -- The table of entity matching jobs
@@ -63,8 +66,6 @@ CREATE TABLE runs (
   notes          TEXT,
 
   threshold      double precision NOT NULL,
-
-  chunk_size     BIGINT           NOT NULL DEFAULT -1,
 
   state          RUNSTATE         NOT NULL,
   stage          SMALLINT  DEFAULT 1,

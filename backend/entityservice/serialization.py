@@ -179,9 +179,14 @@ def get_similarity_scores(filename):
 def get_chunk_from_object_store(chunk_info, encoding_size=128):
     mc = connect_to_object_store()
     bit_packed_element_size = binary_format(encoding_size).size
-    chunk_length = chunk_info[2] - chunk_info[1]
+    chunk_range_start, chunk_range_stop = chunk_info['range']
+    chunk_length = chunk_range_stop - chunk_range_start
     chunk_bytes = bit_packed_element_size * chunk_length
-    chunk_stream = mc.get_partial_object(config.MINIO_BUCKET, chunk_info[0], bit_packed_element_size * chunk_info[1], chunk_bytes)
+    chunk_stream = mc.get_partial_object(
+        config.MINIO_BUCKET,
+        chunk_info['storeFilename'],
+        bit_packed_element_size * chunk_range_start,
+        chunk_bytes)
 
     chunk_data = binary_unpack_filters(chunk_stream, chunk_bytes, encoding_size)
 

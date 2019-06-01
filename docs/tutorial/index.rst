@@ -4,6 +4,7 @@ Tutorials
 .. toctree::
    :maxdepth: 1
 
+   Record Linkage API.ipynb
    Permutations.ipynb
    Similarity Scores.ipynb
 

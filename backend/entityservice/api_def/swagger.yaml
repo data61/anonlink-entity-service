@@ -79,6 +79,10 @@ info:
       * `"permutations"` - Creates random permutations and a mask.
       * `"similarity_scores"` - Outputs a list of similarity scores of `[indexA, indexB, score]`, where `score`
         represents the likelihood that `indexA = indexB`.
+      * `"groups"` - Outputs a list of groups of records, where each group represents one entity.
+
+    Only `"groups"` supports multi-party linkage. `"mapping"`, `"permutations"`, and `"similarity_scores"` only support linkage
+    with two parties.
 
 
 
@@ -189,14 +193,17 @@ paths:
         The parts of the computed linkage results that are accessable by the different tokens depends on the
         `result_type`:
 
-        - `"mapping"` or `"similarity_scores"`\
-        If the `result_type` is `"mapping"` or `"similarity_scores"` then the results can be accessed with the
+        - `"mapping"`, `"similarity_scores"`, or `"groups"`\
+        If the `result_type` is `"mapping"`, `"similarity_scores"`, or `"groups"` then the results can be accessed with the
         `result_token``token`, which is provided when initially creating the mapping.
 
         - `"permutations"`\
         If the `result_type` is `permutations`, then the data providers can access their respective permutation with
         their individual `receipt_token`, which they obtain when adding data to the mapping.
         The mask can be accessed with the `result_token`.
+
+        Only `"groups"` supports multi-party linkage. If the result type is `"mapping"`,  `"similarity_scores"`, or
+        `"permutations"`, then the number of parties must be 2.
 
       parameters:
         - in: body
@@ -564,6 +571,26 @@ paths:
         been applied.
         The mask is an array of 0/1 numbers.
 
+        ### result_type = "groups"
+
+        A list of groups of records, where each group represents one entity. A record is a
+        2-tuple of the dataset index and record index within that dataset.
+
+        For example:
+        {"groups": [[[0, 6], [1, 3], [3, 1]],
+                    [[0, 8], [2, 6]],
+                    [[0, 3], [3, 4]]]}
+
+        Here, we have three groups. The first group contains three records and the other two
+        groups each contain two records.
+
+        In the first group, [0, 6] is the 7th record of the 1st dataset (because we're using)
+        0-indexing. A particular record will appear in at most one group.
+
+        In this example, there are many records that are not matched to any other records (for
+        example [0, 5]). These trivial groups are omitted.
+
+
       parameters:
         - $ref: '#/parameters/project_id'
         - $ref: '#/parameters/run_id'
@@ -688,11 +715,13 @@ definitions:
 
   ResultType:
     type: string
-    description: defines the output type of the mapping
+    description: |
+      Defines the output type of the mapping. Multi-party linkage requires `"groups"` to be used.
     enum:
       - similarity_scores
       - mapping
       - permutations
+      - groups
 
   RunState:
     type: string
@@ -736,8 +765,12 @@ definitions:
       result_type:
         $ref: '#/definitions/ResultType'
       number_parties:
-        description: How many data providers will participate in this project. Default value is 2.
+        description: |
+          How many data providers will participate in this project. Default value is 2.
+          If there are more than two data providers, then `result_type` must be
+          `"groups"`.
         type: number
+        minimum: 2
       name:
         description: Any free text name for this project.
         type: string

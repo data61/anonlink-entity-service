@@ -39,9 +39,6 @@ def prerun_check(project_id, run_id, parent_span=None):
         log.debug("Getting dp ids for compute similarity task")
         dp_ids = get_dataprovider_ids(conn, project_id)
         log.debug("Data providers: {}".format(dp_ids))
-        if len(dp_ids) != 2:
-            log.warning(f"Only support two party comparisons at the moment. Got {len(dp_ids)}")
-            return
 
     create_comparison_jobs.delay(project_id, run_id, prerun_check.get_serialized_span())
     log.info("CLK similarity computation scheduled")

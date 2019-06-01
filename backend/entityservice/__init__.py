@@ -1,7 +1,5 @@
-import logging
 import pathlib
 import uuid
-
 import connexion
 from flask import g, request
 import structlog
@@ -9,6 +7,11 @@ try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
     import ijson
+
+from entityservice.logger_setup import setup_logging
+
+# Logging setup
+setup_logging()
 
 # Define the WSGI application object
 # Note we explicitly do this before importing our own code
@@ -29,40 +32,11 @@ con_app.add_api(pathlib.Path("swagger.yaml"),
                 strict_validation=config.CONNEXION_STRICT_VALIDATION,
                 validate_responses=config.CONNEXION_RESPONSE_VALIDATION)
 
-# Logging setup
-logger = structlog.get_logger()
-consoleHandler = logging.StreamHandler()
-consoleHandler.setLevel(logging.DEBUG)
-structlog.configure(
-    processors=[
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        structlog.dev.ConsoleRenderer()
-    ],
-    context_class=structlog.threadlocal.wrap_dict(dict),
-    logger_factory=structlog.stdlib.LoggerFactory(),
-)
 
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object(config)
 
-gunicorn_logger = logging.getLogger('gunicorn.error')
-# Use the gunicorn logger handler (it owns stdout)
-app.logger.handlers = gunicorn_logger.handlers
-# Use the logging level passed to gunicorn on the cmd line unless DEBUG is set
-if config.DEBUG:
-    app.logger.setLevel(logging.DEBUG)
-else:
-    app.logger.setLevel(gunicorn_logger.level)
-
-if config.LOGFILE is not None:
-    fileHandler = logging.FileHandler(config.LOGFILE)
-    fileHandler.setLevel(logging.INFO)
-    fileHandler.setFormatter(config.fileFormat)
-    app.logger.addHandler(fileHandler)
-
+logger = structlog.get_logger()
 # Tracer setup (currently just trace all requests)
 flask_tracer = FlaskTracer(initialize_tracer, True, app)
 

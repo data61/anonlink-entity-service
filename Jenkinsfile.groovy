@@ -1,4 +1,4 @@
-@Library("N1Pipeline@0.0.19")
+@Library("N1Pipeline@0.0.24")
 import com.n1analytics.docker.DockerContainer;
 import com.n1analytics.docker.DockerUtils;
 import com.n1analytics.docker.QuayIORepo
@@ -6,13 +6,14 @@ import com.n1analytics.git.GitUtils;
 import com.n1analytics.git.GitCommit;
 import com.n1analytics.git.GitRepo;
 
-String gitContextDockerBuild = "required-docker-images-build"
-String gitContextComposeDeploy = "required-dockercompose-deploy"
-String gitContextIntegrationTests = "required-integration-tests"
-String gitContextDocumentation = "required-build-documentation"
-String gitContextPublish = "required-publish-docker-images"
-String gitContextKubernetesDeployment = "optional-kubernetes-deployment"
-String gitContextLocalBenchmark = "jenkins-benchmark"
+String gitContextDockerBuild = "docker-images-build"
+String gitContextComposeDeploy = "dockercompose-deploy"
+String gitContextTutorialTests = "tutorial-tests"
+String gitContextIntegrationTests = "integration-tests"
+String gitContextDocumentation = "build-documentation"
+String gitContextPublish = "publish-docker-images"
+String gitContextKubernetesDeployment = "kubernetes-deployment"
+String gitContextLocalBenchmark = "benchmark"
 DockerUtils dockerUtils
 GitCommit gitCommit
 String composeProject
@@ -56,6 +57,10 @@ node('docker&&multicore&&ram') {
           String imageNameLabel = "quay.io/n1analytics/entity-docs:latest"
           dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
         }
+        dir("docs/tutorial") {
+          String imageNameLabel = "quay.io/n1analytics/entity-docs-tutorial:latest"
+          dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
+        }
         dir("benchmarking") {
           String imageNameLabel = "quay.io/n1analytics/entity-benchmark:latest"
           dockerUtils.dockerCommand("build -t ${imageNameLabel} .")
@@ -73,7 +78,8 @@ node('docker&&multicore&&ram') {
       try {
         echo("Start all the containers (including tests)")
         sh "docker-compose -v"
-          composeCmd(composeProject, "up -d db minio redis backend db_init worker nginx tests")
+        composeCmd(composeProject, "up -d db minio redis backend db_init worker nginx")
+        sleep 20
         gitCommit.setSuccessStatus(gitContextComposeDeploy)
       } catch (err) {
         print("Error in compose deploy stage:\n" + err)
@@ -82,12 +88,36 @@ node('docker&&multicore&&ram') {
       }
     }
 
+    stage('Tutorial Tests') {
+      gitCommit.setInProgressStatus(gitContextTutorialTests);
+      String tutorialContainerName = composeProject + "tutorialTest"
+      DockerContainer tutorialTestingcontainer = new DockerContainer(dockerUtils, tutorialContainerName)
+      String networkName = composeProject + "_default"
+      String localserver = "http://nginx:8851"
+      try {
+        sh """
+        docker run \
+            --name ${tutorialContainerName} \
+            --network ${networkName} \
+            -e SERVER=${localserver} \
+            quay.io/n1analytics/entity-docs-tutorial:latest
+        """
+        tutorialTestingcontainer.watchLogs()
+        gitCommit.setSuccessStatus(gitContextTutorialTests)
+      } catch (err) {
+        print("Error in testing tutorial notebooks:\n" + err)
+        gitCommit.setFailStatus(gitContextTutorialTests)
+        throw err
+      }
+    }
+
     stage('Integration Tests') {
       gitCommit.setInProgressStatus(gitContextIntegrationTests);
       try {
+        composeCmd(composeProject, "up -d tests")
+        sleep 20
         testContainerID = composeCmd(composeProject,"ps -q tests")
         DockerContainer containerTests = new DockerContainer(dockerUtils, testContainerID)
-        sleep 30
         timeout(time: 60, unit: 'MINUTES') {
 
           containerTests.watchLogs()
@@ -149,11 +179,27 @@ node('docker&&multicore&&ram') {
                 -e RESULTS_PATH=/app/results.json \
                 --mount source=linkage-benchmark-data,target=/cache \
                 quay.io/n1analytics/entity-benchmark:latest
+          """
+          DockerContainer benchmarkContainer = new DockerContainer(dockerUtils, benchmarkContainerName)
+          benchmarkContainer.watchLogs()
 
+          // Note benchmarks are unlikely to fail this way
+          if (benchmarkContainer.getExitCode() != "0") {
+            throw new Exception("The benchmarks are incorrectly configured.")
+          }
+          sh """
           docker cp ${benchmarkContainerName}:/app/results.json results.json
           """
-
           archiveArtifacts artifacts: "results.json", fingerprint: true
+          // Read the JSON file and fail if there was an ERROR
+          def benchmarkResults = readJSON file: 'results.json'
+          print(benchmarkResults["version"])
+          for (String item : benchmarkResults["experiments"]) {
+               if (item["status"] != "completed") {
+                 throw new Exception("Benchmark failed\n" + item["description"])
+               }
+          }
+
           gitCommit.setSuccessStatus(gitContextLocalBenchmark)
         }
       } catch (err) {
@@ -281,7 +327,7 @@ node('helm && kubectl') {
                 helm upgrade --install --wait --namespace ${NAMESPACE} ${DEPLOYMENT} . \
                     -f values.yaml -f minimal-values.yaml -f test-versions.yaml \
                     --set api.app.debug=true \
-                    --set postgresql.postgresqlPassword=notaproductionpassword \
+                    --set global.postgresql.postgresqlPassword=notaproductionpassword \
                     --set api.ingress.enabled=false
                 """
               // give the cluster a chance to provision volumes etc, assign an IP to the service, then create a new job to test it

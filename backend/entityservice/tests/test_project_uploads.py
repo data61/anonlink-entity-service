@@ -4,16 +4,18 @@ import pytest
 
 from entityservice.serialization import binary_pack_filters
 from entityservice.tests.config import url
-from entityservice.tests.util import generate_json_serialized_clks, upload_binary_data_from_file, post_run, \
-    get_run_result, \
-    generate_clks, upload_binary_data, create_project_upload_fake_data, get_run, create_project_upload_data
+from entityservice.tests.util import (
+    create_project_upload_data, create_project_upload_fake_data,
+    generate_clks, generate_json_serialized_clks,
+    get_expected_number_parties, get_run_result, post_run,
+    upload_binary_data, upload_binary_data_from_file)
 
 
-def test_project_single_party_data_uploaded(requests):
+def test_project_single_party_data_uploaded(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
-                                         'result_type': 'mapping',
+                                         **valid_project_params
                                      }).json()
     r = requests.post(
         url + '/projects/{}/clks'.format(new_project_data['project_id']),
@@ -27,92 +29,137 @@ def test_project_single_party_data_uploaded(requests):
     assert 'receipt_token' in upload_response
 
 
-def test_project_binary_data_uploaded(requests):
+def test_project_binary_data_uploaded(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
-                                         'result_type': 'mapping',
+                                         **valid_project_params
                                      }).json()
+    update_tokens = new_project_data['update_tokens']
+    expected_number_parties = get_expected_number_parties(valid_project_params)
+    assert len(update_tokens) == expected_number_parties
 
     small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
 
-    upload_binary_data_from_file(requests, small_file_path, new_project_data['project_id'], new_project_data['update_tokens'][0], 1000)
-    upload_binary_data_from_file(requests, small_file_path, new_project_data['project_id'], new_project_data['update_tokens'][1], 1000)
+    for token in update_tokens:
+        upload_binary_data_from_file(
+            requests,
+            small_file_path, new_project_data['project_id'], token, 1000)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    assert 'mapping' in result
 
-    # Since we uploaded the same file it should have identified the same rows as matches
-    for i in range(1, 1000):
-        assert str(i) in result['mapping']
-        assert result['mapping'][str(i)] == str(i)
+    if valid_project_params['result_type'] == 'mapping':
+        assert 'mapping' in result
+
+        # Since we uploaded the same file it should have identified the
+        # same rows as matches
+        for i in range(1, 1000):
+            assert str(i) in result['mapping']
+            assert result['mapping'][str(i)] == str(i)
+    elif valid_project_params['result_type'] == 'groups':
+        assert 'groups' in result
+        groups = result['groups']
+        assert len(groups) == 1000
+        for group in groups:
+            dataset_indices = {di for di, _ in group}
+            record_indices = {ri for _, ri in group}
+            assert len(record_indices) == 1
+            assert dataset_indices == set(range(expected_number_parties))
+        # Check every record is represented
+        all_record_indices = {next(iter(group))[1] for group in groups}
+        assert all_record_indices == set(range(1000))
 
 
-def test_project_binary_data_upload_with_different_encoded_size(requests, encoding_size):
-
+def test_project_binary_data_upload_with_different_encoded_size(
+        requests,
+        encoding_size, valid_project_params):
+    expected_number_parties = get_expected_number_parties(valid_project_params)
     new_project_data = requests.post(url + '/projects',
                                  json={
                                      'schema': {},
-                                     'result_type': 'mapping',
+                                     **valid_project_params
                                  }).json()
 
-    g1 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
-    g2 = binary_pack_filters(generate_clks(499, encoding_size), encoding_size)
-    g3 = binary_pack_filters(generate_clks(1, encoding_size), encoding_size)
-    def convert_generator_to_bytes(g):
-        return b''.join(g)
+    common = next(binary_pack_filters(generate_clks(1, encoding_size),
+                                      encoding_size))
 
-    shared_entity = next(g3)
-    f1 = convert_generator_to_bytes(g1) + shared_entity
-    f2 = shared_entity + convert_generator_to_bytes(g2)
+    data = []
+    for i in range(expected_number_parties):
+        generated_clks = generate_clks(499, encoding_size)
+        packed_clks = binary_pack_filters(generated_clks, encoding_size)
+        packed_joined = b''.join(packed_clks)
+        packed_with_common = (
+            packed_joined + common if i == 0 else common + packed_joined)
+        data.append(packed_with_common)
 
-    assert len(f1) == 500 * encoding_size
-
-    upload_binary_data(requests, f1, new_project_data['project_id'], new_project_data['update_tokens'][0], 500, size=encoding_size)
-    upload_binary_data(requests, f2, new_project_data['project_id'], new_project_data['update_tokens'][1], 500, size=encoding_size)
-
-    print('ENC SIZE', encoding_size)
+    project_id = new_project_data['project_id']
+    for d, token in zip(data, new_project_data['update_tokens']):
+        assert len(d) == 500 * encoding_size
+        upload_binary_data(
+            requests, d, project_id, token, 500, size=encoding_size)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    assert 'mapping' in result
-    assert result['mapping']['499'] == '0'
+    if valid_project_params['result_type'] == 'mapping':
+        assert 'mapping' in result
+        assert result['mapping']['499'] == '0'
+    elif valid_project_params['result_type'] == 'groups':
+        assert 'groups' in result
+        groups = result['groups']
+        groups_set = {frozenset(map(tuple, group)) for group in groups}
+        common_set = frozenset(
+            (i, 499 if i == 0 else 0) for i in range(expected_number_parties))
+        assert common_set in groups_set
 
 
-def test_project_json_data_upload_with_various_encoded_sizes(requests, encoding_size):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+def test_project_json_data_upload_with_various_encoded_sizes(
         requests,
-        [500, 500],
-        overlap=0.95,
-        result_type='mapping',
+        encoding_size, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
+    new_project_data, _ = create_project_upload_fake_data(
+        requests,
+        [500] * number_parties,
+        overlap=0.8,
+        result_type=result_type,
         encoding_size=encoding_size
     )
 
     run_id = post_run(requests, new_project_data, 0.9)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    assert 'mapping' in result
-    assert len(result['mapping']) >= 475
+    if result_type == 'mapping':
+        assert 'mapping' in result
+        assert len(result['mapping']) >= 400
+    elif result_type == 'groups':
+        assert 'groups' in result
+        # This is a pretty bad bound, but we're not testing the
+        # accuracy.
+        assert len(result['groups']) >= 400
 
 
-def test_project_json_data_upload_with_mismatched_encoded_size(requests):
-    d1 = generate_json_serialized_clks(500, 64)
-    d2 = generate_json_serialized_clks(500, 256)
+def test_project_json_data_upload_with_mismatched_encoded_size(
+        requests, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
 
-    new_project_data, r1, r2 = create_project_upload_data(requests, d1, d2, result_type='mapping')
+    data = [generate_json_serialized_clks(500, 64 if i == 0 else 256)
+            for i in range(number_parties)]
+
+    new_project_data, _ = create_project_upload_data(
+        requests, data, result_type=result_type)
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
-def test_project_json_data_upload_with_invalid_encoded_size(requests):
-
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+def test_project_json_data_upload_with_invalid_encoded_size(
+        requests, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
-        [500, 500],
-        overlap=0.95,
-        result_type='mapping',
+        [500] * number_parties,
+        overlap=0.8,
+        result_type=result_type,
         encoding_size=20    # not multiple of 8
     )
 
@@ -121,12 +168,14 @@ def test_project_json_data_upload_with_invalid_encoded_size(requests):
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
-def test_project_json_data_upload_with_too_small_encoded_size(requests):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+def test_project_json_data_upload_with_too_small_encoded_size(
+        requests, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
-        [500, 500],
-        overlap=0.95,
-        result_type='mapping',
+        [500] * number_parties,
+        overlap=0.8,
+        result_type=result_type,
         encoding_size=4
     )
 
@@ -135,12 +184,14 @@ def test_project_json_data_upload_with_too_small_encoded_size(requests):
         get_run_result(requests, new_project_data, run_id, wait=True)
 
 
-def test_project_json_data_upload_with_too_large_encoded_size(requests):
-    new_project_data, r1, r2 = create_project_upload_fake_data(
+def test_project_json_data_upload_with_too_large_encoded_size(
+        requests, result_type_number_parties):
+    result_type, number_parties = result_type_number_parties
+    new_project_data, _ = create_project_upload_fake_data(
         requests,
-        [50, 50],
-        overlap=0.95,
-        result_type='mapping',
+        [500] * number_parties,
+        overlap=0.8,
+        result_type=result_type,
         encoding_size=4096
     )
 
@@ -153,11 +204,12 @@ def test_project_json_data_upload_with_too_large_encoded_size(requests):
     assert project_description['error']
 
 
-def test_project_binary_data_invalid_buffer_size(requests):
+def test_project_binary_data_invalid_buffer_size(
+        requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
-                                         'result_type': 'mapping',
+                                         **valid_project_params
                                      }).json()
     pid = new_project_data['project_id']
     file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
@@ -173,12 +225,13 @@ def test_project_binary_data_invalid_buffer_size(requests):
     upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1, status=201)
 
 
-def test_mapping_single_party_empty_data_upload(requests):
+def test_project_single_party_empty_data_upload(
+        requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
                                          'schema': {},
-                                         'result_type': 'mapping',
+                                         **valid_project_params
                                      }).json()
 
     r = requests.post(

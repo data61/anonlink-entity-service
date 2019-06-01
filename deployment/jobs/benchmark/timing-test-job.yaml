@@ -21,7 +21,7 @@ spec:
           mountPath: /cache
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-benchmark:v0.1.0-feature-benchmark-container
+        image: quay.io/n1analytics/entity-benchmark:v0.2.0
         env:
           - name: SERVER
             value: "https://testing.es.data61.xyz"
