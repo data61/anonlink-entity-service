@@ -43,6 +43,8 @@ spec:
           - "flask"
           - "initdb"
       restartPolicy: Never
+      {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}
+      {{- end }}
 {{- end }}

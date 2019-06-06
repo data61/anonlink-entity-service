@@ -29,5 +29,4 @@ spec:
           - "async_worker"
           - "purge"
           - "-f"
-      imagePullSecrets:
-        - name: n1-quay-pull-secret
+

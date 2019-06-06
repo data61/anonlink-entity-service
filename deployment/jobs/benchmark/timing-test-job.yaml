@@ -40,8 +40,6 @@ spec:
             mountPath: /config
           - name: data-volume
             mountPath: /cache
-      imagePullSecrets:
-        - name: n1-quay-pull-secret
       volumes:
         - name: experiments-volume
           configMap:
