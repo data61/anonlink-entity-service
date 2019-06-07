@@ -4,7 +4,7 @@ Production deployment
 Production deployment assumes a multi node `Kubernetes <https://kubernetes.io/docs/home/>`__
 cluster.
 
-The entity service has been deployed to kubernetes clusters on GCE, minikube and
+The entity service has been deployed to kubernetes clusters on Azure, GCE, minikube and
 AWS. The system has been designed to scale across multiple nodes and handle node
 failure without data loss.
 
@@ -20,11 +20,11 @@ At a high level the main custom components are:
 
 The components that are used in support are:
 
-- postgresql database holds all match metadata
-- redis is used for the celery job queue and as a cache
-- (optionally) minio object store stores the raw CLKs, intermediate files, and results.
+- Postgresql database holds all match metadata
+- Redis is used for the celery job queue and as a cache
+- An object store (e.g. AWS S3, or Minio) stores the raw CLKs, intermediate files, and results.
 - nginx provides upload buffering, request rate limiting.
-- an ingress controller (e.g. nginx-ingress/traefik) provides TLS termination
+- An ingress controller (e.g. nginx-ingress/traefik) provides TLS termination.
 
 
 The rest of this document goes into how to deploy in a production setting.
@@ -34,7 +34,6 @@ Provision a Kubernetes cluster
 ------------------------------
 
 Creating a Kubernetes cluster is out of scope for this documentation.
-For AWS there is a good tutorial `here <https://github.com/coreos/kube-aws>`__.
 
 **Hardware requirements**
 
@@ -51,48 +50,32 @@ You will need to install the `kubectl <https://kubernetes.io/docs/tasks/kubectl/
 command line tool, and `helm <https://github.com/kubernetes/helm>`__
 
 
-Cluster Storage
-~~~~~~~~~~~~~~~
-
-An existing kubernetes cluster may already have dynamically provisioned storage. If not,
-create a ``default`` storage class. For AWS execute::
-
-    kubectl create -f aws-storage.yaml
-
-
-**Dynamically provisioned storage**
-
-When pods require persistent storage this can be dynamically
-provided by the cluster. The default settings (in ``values.yaml``)
-assumes the existence of a ``"default"`` ``storageClass``.
-
-For a cluster on AWS the ``aws-storage.yaml`` resource will dynamically
-provision elastic block store volumes.
-
-
 Install Helm
 ~~~~~~~~~~~~
 
 The entity service system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
-there is a client program that needs to be `installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
+there is a client program that needs to be
+`installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
 
 At the very least you will need to install tiller into the cluster::
 
     helm init
 
 
+
 Ingress Controller
 ~~~~~~~~~~~~~~~~~~
 
-We assume the cluster has an ingress controller, if this isn't the case first add one. We suggest using
-`Traefik <https://traefik.io/>`__ or `NGINX Ingress Controller <https://github.com/kubernetes/ingress-nginx>`__.  Both
-can be installed using helm.
+We assume the cluster has an ingress controller, if this isn't the case first add one. We suggest
+using `Traefik <https://traefik.io/>`__ or
+`NGINX Ingress Controller <https://github.com/kubernetes/ingress-nginx>`__.  Both can be installed
+using helm.
 
 
 Deploy the system
 -----------------
 
-**Helm** can be used to easily deploy the system to a kubernetes cluster.
+**Helm** can be used to deploy the system to a kubernetes cluster.
 
 From the `deployment/entity-service` directory pull the dependencies:
 
@@ -108,14 +91,14 @@ Carefully read through the default ``values.yaml`` file and override any values 
 configuration file.
 
 At a minimum consider setting up an ingress by changing ``api.ingress``, change the number of
-workers in ``workers.replicaCount`` (and possibly ``workers.highmemory.replicaCount``), check you're happy with
-the workers' cpu and memory limits in ``workers.resources``, and finally set the credentials:
+workers in ``workers.replicaCount`` (and possibly ``workers.highmemory.replicaCount``), check
+you're happy with the workers' cpu and memory limits in ``workers.resources``, and finally set
+the credentials:
 
 * ``postgresql.postgresqlPassword``
 * ``redis.password`` (and ``redis-ha.redisPassword`` if provisioning redis)
 * ``minio.accessKey`` and ``minio.secretKey``
 
-You may additionally want to check the persistent volume storageClass and sizes.
 
 Installation
 ~~~~~~~~~~~~
@@ -123,41 +106,45 @@ Installation
 To install the whole system execute::
 
     cd deployment
-    helm install entityservice --namespace=es --name="n1entityservice" --values ``my-deployment.yaml``
+    helm install entityservice --name="anonlink" --values ``my-deployment.yaml``
 
-This can take around 10 minutes the first time you deploy to a new cluster.
+This can take several minutes the first time you deploy to a new cluster.
 
 Run integration tests and an end to end test
 --------------------------------------------
 
-Update the server url by editing the yaml file then create a new job on the cluster::
+Update the server url by editing the ``jobs/integration-test-job.yaml`` file then create a
+new job on the cluster::
 
     kubectl create -f jobs/integration-test-job.yaml
+
 
 
 To view the celery monitor:
 ---------------------------
 
-Find the pod that the monitor is running on then forward the port:
+Note the monitor must be enabled at deployment. Find the pod that the celery monitor is
+running on then forward the port. For example::
 
-::
+    $ kubectl get -n default pod --selector=run=celery-monitor -o jsonpath='{.items..metadata.name}'
+    entityservice-monitor-4045544268-s34zl
 
-    kubectl port-forward entityservice-monitor-4045544268-s34zl 8888:8888
+    $kubectl port-forward entityservice-monitor-4045544268-s34zl 8888:8888
 
 
 Upgrade Deployment with Helm
 ----------------------------
 
-Updating a running chart is usually straight forward. For example if the release is called ``es`` in namespace
-``testing`` execute the following to increase the number of workers:
-
-::
-
-    helm upgrade es entity-service --namespace=testing --set workers.replicas="20"
+Updating a running chart is usually straight forward. For example if the release is called
+``anonlink`` in namespace ``testing`` execute the following to increase the number of workers
+to 20::
 
 
-However note you may wish to instead keep all configurable values in a yaml file and track that in
-version control.
+    helm upgrade anonlink entity-service --namespace=testing --set workers.replicas="20"
+
+
+However note you may wish to instead keep all configurable values in a yaml file and track
+that in version control.
 
 Minimal Deployment
 ------------------
@@ -171,20 +158,23 @@ set very small resource limits. Install the minimal system with::
 Database Deployment Options
 ---------------------------
 
-At deployment time you can configure the deployed postgresql database.
+At deployment time you must set the postgresql password in ``global.postgresql.postgresqlPassword``.
 
-In particular you should set the ``postgresql.postgresqlPassword`` in ``values.yaml``.
+You can decide to deploy a postgres database along with the anonlink entity service or instead use an existing
+database. To configure a deployment to use an external postgres database, simply set ``provision.postgresql``
+to ``false``, set the database server in ``postgresql.nameOverride``, and add credentials to the
+``global.postgresql`` section.
+
 
 Object Store Deployment Options
 -------------------------------
 
-At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3. Note that there is
-a trade off between using a local deployment of minio vs S3.
+At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3.
 
-In our AWS based experimentation Minio is noticeably faster, but more expensive and less reliable than AWS S3, your own
-mileage may vary.
+Note that there is a trade off between using a local deployment of minio vs S3. In our AWS based experimentation
+Minio is noticeably faster, but more expensive and less reliable than AWS S3, your own mileage may vary.
 
-To configure a deployment to use an external object store, simply set ``provision.minio`` to ``false`` and add
+To configure a deployment to use an external object store, set ``provision.minio`` to ``false`` and add
 appropriate connection configuration in the ``minio`` section. For example to use AWS S3 simply provide your access
 credentials (and disable provisioning minio)::
 
@@ -200,7 +190,7 @@ managed service. The provisioned redis is a highly available 3 node redis cluste
 Directly connecting to redis, and discovery via the sentinel protocol are supported. When using sentinel protocol
 for redis discovery read only requests are dispatched to redis replicas.
 
-Carefully read the comments in the default ``values.yaml`` file.
+Carefully read the comments in the ``redis`` section of the default ``values.yaml`` file.
 
 To use a separate install of redis using the server ``shared-redis-ha-redis-ha.default.svc.cluster.local``
 
