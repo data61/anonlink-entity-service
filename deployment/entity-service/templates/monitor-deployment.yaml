@@ -36,6 +36,8 @@ spec:
           - "--port=8888"
           - "--broker=redis://:{{ .Values.redis.redisPassword }}@{{ .Release.Name }}-{{ .Values.redis.nameOverride }}:6379/0"
           - "-Q celery,compute"
+      {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}
+      {{- end }}
 {{- end }}
