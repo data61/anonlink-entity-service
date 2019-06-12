@@ -20,7 +20,6 @@ class Config(object):
     LOGFILE = os.getenv("LOGFILE")
     LOG_HTTP_HEADER_FIELDS = os.getenv("LOG_HTTP_HEADER_FIELDS")
 
-
     REDIS_SERVER = os.getenv('REDIS_SERVER', 'redis')
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
     REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false').lower() == "true"
