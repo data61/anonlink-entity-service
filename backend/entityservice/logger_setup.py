@@ -22,7 +22,7 @@ def setup_logging(
     except yaml.YAMLError as e:
         raise InvalidConfiguration("Parsing YAML logging config failed") from e
     except FileNotFoundError as e:
-        raise InvalidConfiguration("Logging config YAML file doesn't exist. Falling back to defaults") from e
+        raise InvalidConfiguration(f"Logging config YAML file '{path}' doesn't exist.") from e
 
     # Configure Structlog wrapper for client use
     setup_structlog()
