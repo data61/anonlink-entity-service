@@ -216,9 +216,9 @@ def test_invalid_result_type_number_parties_does_not_side_effect(
         invalid_result_type_number_parties):
     result_type, number_parties = invalid_result_type_number_parties
     
-    original_project_list_respose = requests.get(url + '/projects').json()
+    original_project_list_response = requests.get(url + '/projects').json()
     original_project_ids = {
-        p['project_id'] for p in original_project_list_respose}
+        p['project_id'] for p in original_project_list_response}
 
     requests.post(url + '/projects', json={
         'schema': {},
