@@ -77,11 +77,10 @@ Deploy the system
 
 **Helm** can be used to deploy the system to a kubernetes cluster.
 
-From the `deployment/entity-service` directory pull the dependencies:
-
-::
+From the `deployment/entity-service` directory pull the dependencies::
 
     helm dependency update
+
 
 Configuring the deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,7 +94,7 @@ workers in ``workers.replicaCount`` (and possibly ``workers.highmemory.replicaCo
 you're happy with the workers' cpu and memory limits in ``workers.resources``, and finally set
 the credentials:
 
-* ``postgresql.postgresqlPassword``
+* ``global.postgresql.postgresqlPassword``
 * ``redis.password`` (and ``redis-ha.redisPassword`` if provisioning redis)
 * ``minio.accessKey`` and ``minio.secretKey``
 
@@ -107,6 +106,7 @@ To install the whole system execute::
 
     cd deployment
     helm install entityservice --name="anonlink" --values ``my-deployment.yaml``
+
 
 This can take several minutes the first time you deploy to a new cluster.
 
@@ -139,11 +139,10 @@ Updating a running chart is usually straight forward. For example if the release
 ``anonlink`` in namespace ``testing`` execute the following to increase the number of workers
 to 20::
 
-
     helm upgrade anonlink entity-service --namespace=testing --set workers.replicas="20"
 
 
-However note you may wish to instead keep all configurable values in a yaml file and track
+However, note you may wish to instead keep all configurable values in a yaml file and track
 that in version control.
 
 Minimal Deployment
@@ -192,7 +191,7 @@ for redis discovery read only requests are dispatched to redis replicas.
 
 Carefully read the comments in the ``redis`` section of the default ``values.yaml`` file.
 
-To use a separate install of redis using the server ``shared-redis-ha-redis-ha.default.svc.cluster.local``
+To use a separate install of redis using the server ``shared-redis-ha-redis-ha.default.svc.cluster.local``::
 
     helm install entity-service --name="es-shared-redis" \
          --set provision.redis=false \
@@ -204,11 +203,13 @@ Uninstalling
 ------------
 
 
-To uninstall a release called ``es``::
+To uninstall a release called ``es`` in the default namespace::
 
     helm del es
 
 
-If it has been installed into its own namespace you can simple delete the whole namespace with ``kubectl``::
+Or if the anonlink-entity-service has been installed into its own namespace you can simple delete
+the whole namespace with ``kubectl``::
 
     kubectl delete namespace miniestest
+
