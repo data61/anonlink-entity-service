@@ -61,10 +61,13 @@ def before_request():
     g.flask_tracer = flask_tracer
 
 
-@app.teardown_request
-def teardown_request(exception):
-    if hasattr(g, 'db'):
-        g.db.close()
+@app.teardown_appcontext
+def close_db(error):
+    db = g.pop('db', None)
+
+    if db is not None:
+        g.log.info("tearing down database")
+        db.close()
 
 
 if __name__ == '__main__':
