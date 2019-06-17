@@ -1,12 +1,8 @@
 
 {
-  "version": 1,
+  "version": 2,
   "clkConfig": {
     "l": 1024,
-    "k": 15,
-    "hash": {
-      "type": "doubleHash"
-    },
     "kdf": {
       "type": "HKDF",
       "hash": "SHA256",
@@ -18,14 +14,7 @@
   "features": [
     {
       "identifier": "id",
-      "format": {
-        "type": "string",
-        "encoding": "utf-8"
-      },
-      "hashing": {
-        "ngram": 1,
-        "weight": 0
-      }
+      "ignored": true
     },
     {
       "identifier": "givenname",
@@ -36,7 +25,8 @@
       "hashing": {
         "ngram": 2,
         "positional": false,
-        "weight": 1
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
       }
     },
     {
@@ -48,7 +38,8 @@
       "hashing": {
         "ngram": 2,
         "positional": false,
-        "weight": 1
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
       }
     },
     {
@@ -60,7 +51,8 @@
       "hashing": {
         "ngram": 2,
         "positional": true,
-        "weight": 1
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
       }
     },
     {
@@ -72,7 +64,8 @@
       "hashing": {
         "ngram": 1,
         "positional": true,
-        "weight": 1
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
       }
     },
     {
@@ -84,7 +77,8 @@
       "hashing": {
         "ngram": 2,
         "positional": false,
-        "weight": 1
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
       }
     },
     {
@@ -96,7 +90,8 @@
       "hashing": {
         "ngram": 1,
         "positional": true,
-        "weight": 0.5
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 7}
       }
     },
     {
@@ -108,7 +103,8 @@
       "hashing": {
         "ngram": 1,
         "positional": true,
-        "weight": 0.5
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 7}
       }
     }
   ]
