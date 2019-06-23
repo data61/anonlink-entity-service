@@ -49,7 +49,11 @@ def connect_db():
 
 
 def init_db(delay=0.5):
-    """Initializes the database."""
+    """
+    Initializes the database by creating the required tables.
+
+    @param float delay: Number of seconds to wait before executing the SQL.
+    """
     time.sleep(delay)
     db = connect_db()
     with current_app.open_resource('init-db-schema.sql', mode='r') as f:
