@@ -41,12 +41,13 @@ def projects_post(project):
         project_model = models.Project.from_json(project)
         logger = logger.bind(pid=project_model.project_id)
     except models.InvalidProjectParametersException as e:
+        logger.info(f"Denied request to add a new project - {e.msg}", project=project)
         safe_fail_request(400, message=e.msg)
 
     # Persist the new project
     logger.info("Adding new project to database")
     try:
-        with DBConn() as conn:
+        with DBConn(get_db()) as conn:
             project_model.save(conn)
     except Exception as e:
         logger.warn(e)
@@ -65,7 +66,7 @@ def project_delete(project_id):
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
     log.info("Marking project for deletion")
 
-    with DBConn() as db_conn:
+    with DBConn(get_db()) as db_conn:
         db.mark_project_deleted(db_conn, project_id)
 
     log.info("Queuing authorized request to delete project resources")
@@ -82,7 +83,7 @@ def project_get(project_id):
     log.info("Getting detail for a project")
     abort_if_project_doesnt_exist(project_id)
     authorise_get_request(project_id)
-    with DBConn() as db_conn:
+    with DBConn(get_db()) as db_conn:
         project_object = db.get_project(db_conn, project_id)
         # Expose the number of data providers who have uploaded clks
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
@@ -116,9 +117,9 @@ def project_clks_post(project_id):
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
 
-    with DBConn() as conn:
+    with DBConn(db.get_db()) as conn:
         dp_id = db.get_dataprovider_id(conn, token)
-        project_encoding_size = db.get_project_schema_encoding_size(get_db(), project_id)
+        project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
@@ -202,7 +203,7 @@ def authorise_get_request(project_id):
     dp_id = None
     # Check the resource exists
     abort_if_project_doesnt_exist(project_id)
-    with DBConn() as dbinstance:
+    with DBConn(get_db()) as dbinstance:
         project_object = db.get_project(dbinstance, project_id)
     logger.info("Checking credentials")
     result_type = project_object['result_type']
@@ -224,7 +225,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     receipt_token = generate_code()
     filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
-    with DBConn() as conn:
+    with DBConn(get_db()) as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
@@ -237,7 +238,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     logger.info(f"Uploading {count} binary encodings to object store. Total size: {fmt_bytes(num_bytes)}")
     parent_span = g.flask_tracer.get_span()
 
-    with opentracing.tracer.start_span('save-to-minio', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('save-to-minio', child_of=parent_span):
         mc = connect_to_object_store()
         try:
             mc.put_object(Config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
@@ -245,8 +246,8 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
             logger.info("Mismatch between expected stream length and header info")
             raise ValueError("Mismatch between expected stream length and header info")
 
-    with opentracing.tracer.start_span('update-database', child_of=parent_span) as span:
-        with DBConn() as conn:
+    with opentracing.tracer.start_span('update-database', child_of=parent_span):
+        with DBConn(get_db()) as conn:
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
             db.set_dataprovider_upload_state(conn, dp_id, True)
 
@@ -294,7 +295,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
         )
 
     with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
-        with DBConn() as conn:
+        with DBConn(get_db()) as conn:
             db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

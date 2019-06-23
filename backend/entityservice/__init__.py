@@ -66,7 +66,9 @@ def close_db(error):
     db = g.pop('db', None)
 
     if db is not None:
-        g.log.debug("tearing down database")
+        g.log.debug("Closing database connection")
+        for notice in db.notices:
+            g.log.debug(notice)
         db.close()
 
 

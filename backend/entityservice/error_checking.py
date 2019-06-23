@@ -28,8 +28,6 @@ def check_dataproviders_encoding(project_id, encoding_size):
         """))
 
 
-
-
 def handle_invalid_encoding_data(project_id, dp_id):
     with DBConn() as conn:
         filename = get_filter_metadata(conn, dp_id)
