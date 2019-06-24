@@ -21,9 +21,6 @@ variables:
 #  docsImageName: data61/anonlink-entity-service-docs
 #  tutorialImageName: data61/anonlink-entity-service-tutorial
   benchmarkingImageName: data61/anonlink-benchmark
-  timeoutIntegrationTestsMinutes: 10 # timeout for the integration tests in minutes (include starting the services)
-  timeoutBenchmarkMinutes: 15 # timeout for the benchmark in minutes (include starting the services)
-  timeoutKubernetesDeploymentMinutes: 40 # timeout for the kubernetes deployment stage in minutes (include starting the services, and cleaning them)
 
 # This pipeline should be triggered by every local branches, but should not be used for external PRs.
 # In fact, this pipeline is able to use some of our secrets to push images on dockerhub and deploy on k8s.
@@ -64,7 +61,7 @@ stages:
   dependsOn: [stage_docker_image_build]
   jobs:
   - job: integration_test
-    timeoutInMinutes: $(timeoutIntegrationTestsMinutes)
+    timeoutInMinutes: 10
     variables:
       resultFile: testResults.xml
     displayName: Integration tests
@@ -89,7 +86,7 @@ stages:
   - stage_benchmark_image_build
   jobs:
   - job: Benchmark
-    timeoutInMinutes: $(timeoutBenchmarkMinutes)
+    timeoutInMinutes: 15
     variables:
       resultFile: results.json
     displayName: Benchmarking
@@ -112,7 +109,7 @@ stages:
   jobs:
   - job: job_k8s_deployment
     displayName: Kubernetes deployment and test
-    timeoutInMinutes: $(timeoutKubernetesDeploymentMinutes)
+    timeoutInMinutes: 40
     variables:
      NAMESPACE: test-azure
     pool:
