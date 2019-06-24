@@ -73,5 +73,7 @@ spec:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
+      {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}
+      {{- end}}

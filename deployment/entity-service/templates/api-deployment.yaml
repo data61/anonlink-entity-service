@@ -94,5 +94,7 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
             timeoutSeconds: 5
+      {{- if .Values.api.pullSecret }}
       imagePullSecrets:
         - name: {{ .Values.api.pullSecret }}
+      {{- end }}

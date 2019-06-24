@@ -538,11 +538,6 @@ String createK8sTestJob(String deploymentName, String imageNameWithTag, String s
                                                           "name": "results"
                                                   ]]
                                           ]
-                                  ],
-                                  "imagePullSecrets": [
-                                          [
-                                                  "name": "n1-quay-pull-secret"
-                                          ]
                                   ]
                           ]
 

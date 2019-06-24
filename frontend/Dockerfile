@@ -1,4 +1,4 @@
-FROM nginx:1.13.12-alpine
+FROM nginx:1.15.12-alpine
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
 

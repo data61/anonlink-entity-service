@@ -27,7 +27,7 @@ api:
 
     image:
       repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.4.1"
+      tag: "v1.4.2"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -82,7 +82,7 @@ api:
 
   ## A shared pull secret for obtaining docker images
   ## Needs to be pushed into the namespace prior to installation
-  pullSecret: n1-quay-pull-secret
+  #pullSecret: name-of-k8s-secret-in-namespace
 
   ingress:
     enabled: true
@@ -134,7 +134,7 @@ api:
     ## to a given IP range. Provide a list of IPs that are allowed via a
     ## security group.
     loadBalancerSourceRanges: []
-    ##  - 130.155.157.0/24
+
 
 workers:
   name: "matcher"
@@ -143,7 +143,7 @@ workers:
     repository: "quay.io/n1analytics/entity-app"
     tag: "v1.11.0"
     pullPolicy: Always
-    pullSecret: "n1-quay-pull-secret"
+    #pullSecret: "name-of-k8s-secret-in-namespace"
 
   ## Usually this is set to 1 per compute node
   replicaCount: 2
