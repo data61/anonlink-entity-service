@@ -1,0 +1,225 @@
+# This pipeline has four main stages (with a fifth one for optimization reasons):
+# 1) Building docker images
+#     - anonlink_nginx
+#     - anonling_app
+#     - anonlink_benchmark (done in a separate stage 1bis) to be able to depend on it)
+# 2) Running the integration tests using docker-compose
+# 3) Running the benchmark using docker-compose
+# 4) Deploying on Kubernetes and running the corresponding tests.
+# The dependencies are the following:
+# 1 -> 2 -> 4
+# 1, 1bis -> 3
+#
+# The dockerhub login is a secret in Azure Pipeline.
+# The kubeconfig file is a secret file in Azure Pipeline.
+#
+# The resources used by this pipeline are avilable in the folder `.azurePipeline`, where there are some kubectl templates, azure pipeline step templates and bash scripts.
+
+variables:
+  backendImageName: data61/anonlink-app
+  frontendImageName: data61/anonlink-nginx
+#  docsImageName: data61/anonlink-entity-service-docs
+#  tutorialImageName: data61/anonlink-entity-service-tutorial
+  benchmarkingImageName: data61/anonlink-benchmark
+  timeoutIntegrationTestsMinutes: 10 # timeout for the integration tests in minutes (include starting the services)
+  timeoutBenchmarkMinutes: 15 # timeout for the benchmark in minutes (include starting the services)
+  timeoutKubernetesDeploymentMinutes: 40 # timeout for the kubernetes deployment stage in minutes (include starting the services, and cleaning them)
+
+# This pipeline should be triggered by every local branches, but should not be used for external PRs.
+# In fact, this pipeline is able to use some of our secrets to push images on dockerhub and deploy on k8s.
+pr: none
+trigger:
+  branches:
+    include:
+    - '*'
+
+stages:
+- stage: stage_docker_image_build
+  displayName: Build docker images
+  dependsOn: []
+  jobs:
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './frontend'
+      imageName: $(frontendImageName)
+      jobName: 'anonlink_nginx'
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './backend'
+      imageName: $(backendImageName)
+      jobName: 'anonlink_app'
+      
+- stage: stage_benchmark_image_build
+  displayName: Build benchmark images
+  dependsOn: []
+  jobs:
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './benchmarking'
+      imageName: $(benchmarkingImageName)
+      jobName: 'anonlink_benchmark'
+
+- stage: stage_integration_tests
+  displayName: Integration tests
+  dependsOn: [stage_docker_image_build]
+  jobs:
+  - job: integration_test
+    timeoutInMinutes: $(timeoutIntegrationTestsMinutes)
+    variables:
+      resultFile: testResults.xml
+    displayName: Integration tests
+    pool:
+      vmImage: 'ubuntu-16.04'
+    steps:
+    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - script: |
+        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type test
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(resultFile)'
+        testRunTitle: 'Publish integration test results'
+        failTaskOnFailedTests: true
+
+- stage: stage_benchmark
+  displayName: Benchmark
+  dependsOn: 
+  - stage_docker_image_build
+  - stage_benchmark_image_build
+  jobs:
+  - job: Benchmark
+    timeoutInMinutes: $(timeoutBenchmarkMinutes)
+    variables:
+      resultFile: results.json
+    displayName: Benchmarking
+    pool:
+      vmImage: 'ubuntu-16.04'
+    steps:
+    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - script: |
+        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
+    # Publish Pipeline Artifact
+    # Publish a local directory or file as a named artifact for the current pipeline.
+    - task: PublishPipelineArtifact@0
+      inputs:
+        artifactName: 'benchmark'
+        targetPath: $(resultFile)
+
+- stage: stage_k8s_deployment
+  displayName: Kubernetes deployment
+  dependsOn: [stage_docker_image_build, stage_integration_tests]
+  jobs:
+  - job: job_k8s_deployment
+    displayName: Kubernetes deployment and test
+    timeoutInMinutes: $(timeoutKubernetesDeploymentMinutes)
+    variables:
+     NAMESPACE: test-azure
+    pool:
+      vmImage: 'ubuntu-16.04'
+    steps:
+    # Download Secure File
+    # Download a secure file to a temporary location on the build or release agent
+    - task: DownloadSecureFile@1
+      inputs:
+        secureFile: awsClusterConfig
+    # Prepare all the variables required during the scripts.
+    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - script: |
+        echo "##vso[task.setvariable variable=DEPLOYMENT]deployment-$(DOCKER_TAG)$(Build.SourceVersion)"
+    - script: |
+        echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
+        echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
+        echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
+        echo $(DOCKER_TAG)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
+    # Start the whole service using helm. We are currently lucky, the helm version on azure is compatible with the one on our cluster, but the latest version of helm (Client 2.14.1) is not (tested from my laptop).
+    - script: |
+        echo "Start all the entity service pods"
+        cd deployment/entity-service
+        helm version
+        helm init --client-only
+        helm dependency update
+        helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
+                    -f values.yaml -f minimal-values.yaml \
+                    --set api.app.debug=true \
+                    --set global.postgresql.postgresqlPassword=notaproductionpassword \
+                    --set api.ingress.enabled=false \
+                    --set api.www.image.tag=$(DOCKER_TAG) \
+                    --set api.app.image.tag=$(DOCKER_TAG) \
+                    --set api.dbinit.image.tag=$(DOCKER_TAG) \
+                    --set workers.image.tag=$(DOCKER_TAG)
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - script: |
+        echo "Create Persistent Volume Claim"
+        cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        kubectl apply -n=$(NAMESPACE) -f -
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - script: |
+        kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@"
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - script: |
+        echo "Start the test job"
+        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
+        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
+        kubectl apply -n=$(NAMESPACE) -f -
+        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=120s --for=condition=Ready pods/@
+        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - script: |
+        echo "Get the test results"
+        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
+        kubectl apply -n=$(NAMESPACE) -f -
+        kubectl wait -n=$(NAMESPACE) --timeout=120s --for=condition=Ready pods/$(POD_NAME)
+        echo "Copy the test results."
+        kubectl cp $(NAMESPACE)/$(POD_NAME):/mnt/results.xml k8s-results.xml
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - task: PublishTestResults@2
+      condition: succeeded()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: 'k8s-results.xml'
+        testRunTitle: 'Publish kubernetes test results'
+        failTaskOnFailedTests: true 
+    - script: |
+        echo "Delete the test job"
+        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
+        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
+        kubectl delete -n=$(NAMESPACE) -f -
+      condition: always()
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)  
+    - script: |
+        echo "Delete the temp pod"
+        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
+        kubectl delete -n=$(NAMESPACE) -f -
+        
+        echo "Delete the pvc"
+        kubectl delete pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
+      condition: always()
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+    - script: |    
+        echo "Delete everything"
+        helm delete --purge $(DEPLOYMENT)
+      condition: always()
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)

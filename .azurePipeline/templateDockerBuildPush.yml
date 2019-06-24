@@ -1,0 +1,35 @@
+# Template to login into dockerhub, build a docker image and push it.
+
+# jobName should only include alphanumeric values and '_'.
+# extraJobs can contain a list of jobs to do in the same stage whic are dependent on the built and pushed docker image.
+
+parameters:
+  folder: ''
+  imageName: ''
+  jobName: ''
+  extraJobs: []
+
+jobs:
+- job: ${{ parameters.jobName }}
+  displayName: Building ${{ parameters.imageName }}
+  pool:
+    vmImage: "ubuntu-16.04"
+
+  steps:
+  - template: templateDockerTagFromBranch.yml
+  - script: |
+      docker login -u $(dockerHubId) -p $(dockerHubPassword)
+  - script: |
+      docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+      docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+      
+# Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+# The idea being able to define jobs depending on the creation of the previous image.
+- ${{ each job in parameters.jobs }}: # Then do each job
+  - ${{ each pair in job }}:          # Insert all properties other than "dependsOn"
+      ${{ if ne(pair.key, 'dependsOn') }}:
+        ${{ pair.key }}: ${{ pair.value }}
+    dependsOn:                        # Inject dependency
+    - ${{ parameters.jobName }}
+    - ${{ if job.dependsOn }}:
+      - ${{ job.dependsOn }}
