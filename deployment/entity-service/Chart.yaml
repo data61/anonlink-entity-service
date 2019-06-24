@@ -3,9 +3,9 @@ appVersion: 1.11.0
 version: 1.11.0
 description: Privacy preserving record linkage service
 sources:
-  - https://github.com/n1analytics/entity-service
-  - https://github.com/n1analytics/anonlink
-  - https://github.com/n1analytics/clkhash
+  - https://github.com/data61/anonlink-entity-service
+  - https://github.com/data61/anonlink
+  - https://github.com/data61/clkhash
 maintainers:
   - name: N1 Analytics
     email: support@n1analytics.com
