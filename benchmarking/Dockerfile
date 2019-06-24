@@ -15,6 +15,11 @@ RUN apk add --no-cache python3 libstdc++ mpc1-dev yajl libpq && \
     apk del --no-cache .build-deps && \
     rm -fr /tmp/* /var/cache/apk/* /root/.cache/pip
 
+ENV DOCKERIZE_VERSION v0.6.1
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
 RUN python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
 
 RUN adduser -D -H -h /app user && \
