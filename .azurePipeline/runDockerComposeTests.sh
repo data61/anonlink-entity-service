@@ -14,7 +14,7 @@ by the entity service and the test or benchmark container, copying the results i
 The result is an xml file for the type 'test', and a JSON file for the type 'benchmark'.
 
   -p                       Project name (used by docker-compose with '-p'). REQUIRED.
-  -o                       Output file where to store the results. (Note: not used for the 'tutorials' type) [$RESULT_FILE]
+  -o                       Output file where to store the results. [$RESULT_FILE]
   -t                       Docker tag used for the different images. the same tag is used for all of them. [$TAG]
   --type                   Type of tests to run. Either 'test', 'benchmark' or 'tutorials'. [$TYPE]
   
@@ -51,7 +51,7 @@ echoerr () {
 
 process_args "$@"
 [[ -z $PROJECT_NAME ]] && echoerr "ERROR: Missing project name. Use option '-p'" && exit 1
-[[ $TYPE != "test" && $TYPE != "benchmark" ]] && echoerr "ERROR: Unrecognized type '$TYPE'. Should be equal to 'test' or 'benchmark'" && exit 1
+[[ $TYPE != "test" && $TYPE != "benchmark" && $TYPE != "tutorials" ]] && echoerr "ERROR: Unrecognized type '$TYPE'. Should be equal to 'test', 'benchmark' or 'tutorials'" && exit 1
 export TAG=$TAG
 
 commandPrefix="docker-compose -f tools/docker-compose.yml -f tools/ci.yml --project-directory . "
@@ -59,19 +59,23 @@ echo "Initialise the database"
 $commandPrefix -p $PROJECT_NAME up db_init > /dev/null 2>&1
 
 if [[ $TYPE == "test" ]]; then
-  echo "Start all the services and the tests." 
+  echo "Start all the services and the tests."
   $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from tests db minio redis backend worker nginx tests
   exit_code=$?
-  echo "Retrive test results." 
+  echo "Retrieve test results." 
   $commandPrefix -p $PROJECT_NAME ps -q tests | xargs -I@ docker cp @:/var/www/testResults.xml $RESULT_FILE
 elif [[ $TYPE == "benchmark" ]]; then
-  echo "Start all the services and the benchmark." 
+  echo "Start all the services and the benchmark."
   $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from benchmark db minio redis backend worker nginx benchmark
   exit_code=$?
-  echo "Retrive benchmark results." 
+  echo "Retrieve benchmark results."
   $commandPrefix -p $PROJECT_NAME ps -q benchmark | xargs -I@ docker cp @:/app/results.json $RESULT_FILE
 elif [[ $TYPE == "tutorials" ]]; then
+  echo "Start all the services and the tutorial tests."
   $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from tutorials db minio redis backend worker nginx tutorials
+  exit_code=$?
+  echo "Retrieve tutorial tests results."
+  $commandPrefix -p $PROJECT_NAME ps -q tutorials | xargs -I@ docker cp @:/src/testResults.xml $RESULT_FILE
 else
   echo "Unknown type of tests $TYPE"
   exit 1
