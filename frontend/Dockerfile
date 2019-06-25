@@ -3,7 +3,7 @@
 
 FROM data61/anonlink-docs-builder:20190625 AS docsbuilder
 COPY ./docs /src/docs
-COPY ./backend/entityservice/api_def/swagger.yaml /src/docs/_static/swagger.yaml # Symlinks do not work well with dockerfiles...
+COPY ./backend/entityservice/api_def/swagger.yaml /src/docs/_static/swagger.yaml
 WORKDIR /src
 RUN python -m sphinx /src/docs /build
 
