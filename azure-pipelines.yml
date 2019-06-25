@@ -18,7 +18,7 @@
 variables:
   backendImageName: data61/anonlink-app
   frontendImageName: data61/anonlink-nginx
-#  tutorialImageName: data61/anonlink-entity-service-tutorial
+  tutorialImageName: data61/anonlink-docs-tutorials
   benchmarkingImageName: data61/anonlink-benchmark
 
 # This pipeline should be triggered by every local branches, but should not be used for external PRs.
@@ -47,7 +47,7 @@ stages:
       jobName: 'anonlink_app'
       
 - stage: stage_benchmark_image_build
-  displayName: Build benchmark images
+  displayName: Build benchmark image
   dependsOn: []
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml
@@ -55,6 +55,16 @@ stages:
       folder: './benchmarking'
       imageName: $(benchmarkingImageName)
       jobName: 'anonlink_benchmark'
+      
+- stage: stage_docs_tutorial_image_build
+  displayName: Build docs tutorials image
+  dependsOn: []
+  jobs:
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './docs/tutorial'
+      imageName: $(tutorialImageName)
+      jobName: 'anonlink_docs_tutorials'
 
 - stage: stage_integration_tests
   displayName: Integration tests
@@ -102,6 +112,22 @@ stages:
       inputs:
         artifactName: 'benchmark'
         targetPath: $(resultFile)
+
+- stage: stage_tutorials_tests
+  displayName: Tutorials tests
+  dependsOn: 
+  - stage_docker_image_build
+  - stage_docs_tutorial_image_build
+  jobs:
+  - job: TutorialsTests
+    timeoutInMinutes: 10
+    displayName: Tutorials Tests
+    pool:
+      vmImage: 'ubuntu-16.04'
+    steps:
+    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - script: |
+        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) --type tutorials
 
 - stage: stage_k8s_deployment
   displayName: Kubernetes deployment

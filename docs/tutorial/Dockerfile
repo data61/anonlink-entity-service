@@ -8,5 +8,3 @@ ADD tutorial-requirements.txt /src/requirements.txt
 WORKDIR /src
 RUN pip install -U -r requirements.txt
 ADD . /src
-
-CMD pytest --nbval-lax /src

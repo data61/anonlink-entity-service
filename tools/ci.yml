@@ -27,3 +27,14 @@ services:
       - worker
       - nginx
     entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python benchmark.py"
+    
+  tutorials:
+    image: data61/anonlink-docs-tutorials:${TAG:-latest}
+    environment:
+      - SERVER=http://nginx:8851
+    depends_on:
+      - db
+      - redis
+      - worker
+      - nginx
+    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m pytest --nbval-lax /src"

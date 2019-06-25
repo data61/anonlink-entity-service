@@ -14,9 +14,9 @@ by the entity service and the test or benchmark container, copying the results i
 The result is an xml file for the type 'test', and a JSON file for the type 'benchmark'.
 
   -p                       Project name (used by docker-compose with '-p'). REQUIRED.
-  -o                       Output file where to store the results. [$RESULT_FILE]
+  -o                       Output file where to store the results. (Note: not used for the 'tutorials' type) [$RESULT_FILE]
   -t                       Docker tag used for the different images. the same tag is used for all of them. [$TAG]
-  --type                   Type of tests to run. Either 'test' or 'benchmark'. [$TYPE]
+  --type                   Type of tests to run. Either 'test', 'benchmark' or 'tutorials'. [$TYPE]
   
   -h | --help              Print this message
 
@@ -64,12 +64,17 @@ if [[ $TYPE == "test" ]]; then
   exit_code=$?
   echo "Retrive test results." 
   $commandPrefix -p $PROJECT_NAME ps -q tests | xargs -I@ docker cp @:/var/www/testResults.xml $RESULT_FILE
-else 
+elif [[ $TYPE == "benchmark" ]]; then
   echo "Start all the services and the benchmark." 
   $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from benchmark db minio redis backend worker nginx benchmark
   exit_code=$?
   echo "Retrive benchmark results." 
   $commandPrefix -p $PROJECT_NAME ps -q benchmark | xargs -I@ docker cp @:/app/results.json $RESULT_FILE
+elif [[ $TYPE == "tutorials" ]]; then
+  $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from tutorials db minio redis backend worker nginx tutorials
+else
+  echo "Unknown type of tests $TYPE"
+  exit 1
 fi
 
 echo "Cleaning."
