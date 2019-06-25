@@ -1,14 +1,17 @@
-# This pipeline has four main stages (with a fifth one for optimization reasons):
+# This pipeline has four main stages (with two extra ones for optimization reasons):
 # 1) Building docker images
 #     - anonlink_nginx
 #     - anonling_app
 #     - anonlink_benchmark (done in a separate stage 1bis) to be able to depend on it)
+#     - anonlink_docs_tutorials (done in a separate stage 1ter) to be able to depend on it)
 # 2) Running the integration tests using docker-compose
 # 3) Running the benchmark using docker-compose
-# 4) Deploying on Kubernetes and running the corresponding tests.
+# 4) Running the tests for the tutorials using docker-compose
+# 5) Deploying on Kubernetes and running the corresponding tests.
 # The dependencies are the following:
-# 1 -> 2 -> 4
+# 1 -> 2 -> 5
 # 1, 1bis -> 3
+# 1, 1ter -> 4
 #
 # The dockerhub login is a secret in Azure Pipeline.
 # The kubeconfig file is a secret file in Azure Pipeline.
@@ -121,13 +124,22 @@ stages:
   jobs:
   - job: TutorialsTests
     timeoutInMinutes: 10
+    variables:
+      resultFile: tutorialTestResults.xml
     displayName: Tutorials Tests
     pool:
       vmImage: 'ubuntu-16.04'
     steps:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) --type tutorials
+        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(resultFile)'
+        testRunTitle: 'Publish tutorials tests results'
+        failTaskOnFailedTests: true
 
 - stage: stage_k8s_deployment
   displayName: Kubernetes deployment
