@@ -83,7 +83,7 @@ stages:
     steps:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type test
+        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
