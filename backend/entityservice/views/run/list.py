@@ -40,7 +40,7 @@ def post(project_id, run):
 
     log.debug("Saving run")
 
-    with db.DBConn() as db_conn:
+    with db.DBConn(get_db()) as db_conn:
         run_model.save(db_conn)
         project_object = db.get_project(db_conn, project_id)
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)

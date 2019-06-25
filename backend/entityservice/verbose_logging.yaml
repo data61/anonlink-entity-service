@@ -52,14 +52,14 @@ loggers:
 
   entityservice.tasks:
     level: DEBUG
-    propagate: no
+    propagate: yes
 
-  entityservice.database.util:
-    level: WARNING
-    propagate: no
+  entityservice.database:
+    level: INFO
+    propagate: yes
 
   celery:
-    level: INFO
+    level: WARNING
     propogate: yes
 
   jaeger_tracing:
