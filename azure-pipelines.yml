@@ -74,7 +74,7 @@ stages:
   dependsOn: [stage_docker_image_build]
   jobs:
   - job: integration_test
-    timeoutInMinutes: 10
+    timeoutInMinutes: 30
     variables:
       resultFile: testResults.xml
     displayName: Integration tests
