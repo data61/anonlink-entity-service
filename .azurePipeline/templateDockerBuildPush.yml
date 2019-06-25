@@ -1,9 +1,11 @@
 # Template to login into dockerhub, build a docker image and push it.
+# The paramater dockerFilePath is optional. If provided, will add the parameter -f ${{ parameters.dockerFile }} to the docker build command.
 
 # jobName should only include alphanumeric values and '_'.
 # extraJobs can contain a list of jobs to do in the same stage whic are dependent on the built and pushed docker image.
 
 parameters:
+  dockerFilePath: ''
   folder: ''
   imageName: ''
   jobName: ''
@@ -20,7 +22,11 @@ jobs:
   - script: |
       docker login -u $(dockerHubId) -p $(dockerHubPassword)
   - script: |
-      docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+      if [[ -z ${{ parameters.dockerFile }} ]]; then
+        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+      else
+        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFile }} ${{ parameters.folder }}
+      fi
       docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
       
 # Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
