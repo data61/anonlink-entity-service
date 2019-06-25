@@ -59,11 +59,11 @@ echo "Initialise the database"
 $commandPrefix -p $PROJECT_NAME up db_init > /dev/null 2>&1
 
 if [[ $TYPE == "tests" ]]; then
-  $CREATED_RESULT_FILE="/var/www/testResults.xml"
+  CREATED_RESULT_FILE="/var/www/testResults.xml"
 elif [[ $TYPE == "benchmark" ]]; then
-  $CREATED_RESULT_FILE="/app/results.json"
+  CREATED_RESULT_FILE="/app/results.json"
 elif [[ $TYPE == "tutorials" ]]; then
-  $CREATED_RESULT_FILE="/src/testResults.xml"
+  CREATED_RESULT_FILE="/src/testResults.xml"
 else
   echo "Unknown type of tests $TYPE"
   exit 1
