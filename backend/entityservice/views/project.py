@@ -35,22 +35,21 @@ def projects_post(project):
     There are multiple result types, see documentation for how these effect information leakage
     and the resulting data.
     """
-    logger = get_logger()
     logger.debug("Processing request to add a new project", project=project)
     try:
         project_model = models.Project.from_json(project)
-        logger = logger.bind(pid=project_model.project_id)
     except models.InvalidProjectParametersException as e:
         logger.info(f"Denied request to add a new project - {e.msg}", project=project)
         safe_fail_request(400, message=e.msg)
 
     # Persist the new project
-    logger.info("Adding new project to database")
+    log = logger.bind(pid=project_model.project_id)
+    log.info("Adding new project to database")
     try:
         with DBConn(get_db()) as conn:
             project_model.save(conn)
     except Exception as e:
-        logger.warn(e)
+        log.warn(e)
         safe_fail_request(500, 'Problem creating new project')
 
     return NewProjectResponse().dump(project_model), 201
@@ -113,6 +112,7 @@ def project_clks_post(project_id):
             safe_fail_request(401, message="Authentication token required")
 
         token = headers['Authorization']
+        #span.set_tag("headers", headers)
 
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
@@ -125,7 +125,7 @@ def project_clks_post(project_id):
     log.info("Receiving CLK data.")
     receipt_token = None
 
-    with opentracing.tracer.start_span('upload-data', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)
         if headers['Content-Type'] == "application/json":
             span.set_tag("content-type", 'json')
@@ -246,7 +246,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
             logger.info("Mismatch between expected stream length and header info")
             raise ValueError("Mismatch between expected stream length and header info")
 
-    with opentracing.tracer.start_span('update-database', child_of=parent_span):
+    with opentracing.tracer.start_span('update-database-with-metadata', child_of=parent_span):
         with DBConn(get_db()) as conn:
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
             db.set_dataprovider_upload_state(conn, dp_id, True)
@@ -274,7 +274,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
     filename = Config.RAW_FILENAME_FMT.format(receipt_token)
     logger.info("Storing user {} supplied clks from json".format(dp_id))
 
-    with opentracing.tracer.start_span('clk-splitting', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('splitting-json-clks', child_of=parent_span) as span:
         count = len(clk_json['clks'])
         span.set_tag("clks", count)
         data = b''.join(''.join(clk.split('\n')).encode() + b'\n' for clk in clk_json['clks'])
@@ -284,7 +284,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
         buffer = BytesIO(data)
 
     logger.info(f"Received {count} encodings. Uploading {fmt_bytes(num_bytes)} to object store")
-    with opentracing.tracer.start_span('save-to-quarantine', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
         span.set_tag('filename', filename)
         mc = connect_to_object_store()
         mc.put_object(
@@ -294,7 +294,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
             length=num_bytes
         )
 
-    with opentracing.tracer.start_span('update-db', child_of=parent_span) as span:
+    with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn(get_db()) as conn:
             db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
 
