@@ -18,7 +18,6 @@
 variables:
   backendImageName: data61/anonlink-app
   frontendImageName: data61/anonlink-nginx
-#  docsImageName: data61/anonlink-entity-service-docs
 #  tutorialImageName: data61/anonlink-entity-service-tutorial
   benchmarkingImageName: data61/anonlink-benchmark
 
@@ -37,7 +36,8 @@ stages:
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
-      folder: './frontend'
+      folder: '.'
+      dockerFile: './frontend/Dockerfile'
       imageName: $(frontendImageName)
       jobName: 'anonlink_nginx'
   - template: .azurePipeline/templateDockerBuildPush.yml
