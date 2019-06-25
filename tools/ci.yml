@@ -37,4 +37,4 @@ services:
       - redis
       - worker
       - nginx
-    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m pytest --nbval-lax /src"
+    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src"
