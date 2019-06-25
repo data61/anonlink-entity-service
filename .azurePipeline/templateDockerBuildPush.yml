@@ -22,10 +22,10 @@ jobs:
   - script: |
       docker login -u $(dockerHubId) -p $(dockerHubPassword)
   - script: |
-      if [[ -z ${{ parameters.dockerFile }} ]]; then
+      if [[ -z ${{ parameters.dockerFilePath }} ]]; then
         docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
       else
-        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFile }} ${{ parameters.folder }}
+        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
       fi
       docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
       

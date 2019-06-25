@@ -37,7 +37,7 @@ stages:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
       folder: '.'
-      dockerFile: './frontend/Dockerfile'
+      dockerFilePath: './frontend/Dockerfile'
       imageName: $(frontendImageName)
       jobName: 'anonlink_nginx'
   - template: .azurePipeline/templateDockerBuildPush.yml
