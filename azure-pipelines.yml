@@ -165,7 +165,7 @@ stages:
     # Prepare all the variables required during the scripts.
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        echo $(Build.SourceVersion)| head -c 40 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
+        echo es$(Build.SourceVersion)| head -c 40 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
       displayName: 'Set some variables part 1'
     - script: |
         echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
