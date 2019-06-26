@@ -41,12 +41,12 @@ stages:
     parameters:
       folder: '.'
       dockerFilePath: './frontend/Dockerfile'
-      imageName: anonlink-nginx
+      imageName: data61/anonlink-nginx
       jobName: 'anonlink_nginx'
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
       folder: './backend'
-      imageName: anonlink-app
+      imageName: data61/anonlink-app
       jobName: 'anonlink_app'
       
 - stage: stage_benchmark_image_build
@@ -56,7 +56,7 @@ stages:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
       folder: './benchmarking'
-      imageName: anonlink-benchmark
+      imageName: data61/anonlink-benchmark
       jobName: 'anonlink_benchmark'
       
 - stage: stage_docs_tutorial_image_build
@@ -66,7 +66,7 @@ stages:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
       folder: './docs/tutorial'
-      imageName: anonlink-docs-tutorials
+      imageName: data61/anonlink-docs-tutorials
       jobName: 'anonlink_docs_tutorials'
 
 #- stage: stage_integration_tests
@@ -165,7 +165,7 @@ stages:
     # Prepare all the variables required during the scripts.
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        echo $(DOCKER_TAG)$(Build.SourceVersion)| head -c 40 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
+        echo $(Build.SourceVersion)| head -c 40 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
       displayName: 'Set some variables part 1'
     - script: |
         echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
