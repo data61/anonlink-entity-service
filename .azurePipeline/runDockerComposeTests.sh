@@ -4,6 +4,7 @@ SCRIPT_NAME=$(basename "$0")
 TAG="latest"
 RESULT_FILE="testResults.xml"
 TYPE="test"
+NO_ANSI=FALSE
 
 help() {
   cat <<EOM
@@ -17,6 +18,7 @@ The result is an xml file for the type 'tests' and 'tutorials', and a JSON file 
   -o                       Output file where to store the results. [$RESULT_FILE]
   -t                       Docker tag used for the different images. the same tag is used for all of them. [$TAG]
   --type                   Type of tests to run. Either 'tests', 'benchmark' or 'tutorials'. [$TYPE]
+  --no-ansi                Do not print ANSI control characters. Preferable when running on the CI.
   
   -h | --help              Print this message
 
@@ -34,9 +36,9 @@ process_args () {
       -o) RESULT_FILE="$2" && shift 2 ;;
       -t) TAG="$2" && shift 2 ;;
       --type) TYPE="$2" && shift 2 ;;
+      --no-ansi) NO_ANSI=TRUE && shift ;;
 
       -h|--help) help; exit 0 ;;
-      --dry-run) DRY_RUN=1 && shift ;;
       *) echoerr "ERROR: Unknown cmd or flag '$1'" && help && exit 1 ;;
     esac
   done
@@ -55,6 +57,10 @@ process_args "$@"
 export TAG=$TAG
 
 commandPrefix="docker-compose -f tools/docker-compose.yml -f tools/ci.yml --project-directory . "
+if [[ "$NO_ANSI" == "TRUE" ]]; then
+  commandPrefix="$commandPrefix --no-ansi "
+fi
+  
 echo "Initialise the database"
 $commandPrefix -p $PROJECT_NAME up db_init > /dev/null 2>&1
 

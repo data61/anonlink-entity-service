@@ -83,7 +83,7 @@ stages:
     steps:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
+        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
@@ -108,7 +108,7 @@ stages:
     steps:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
+        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
     # Publish Pipeline Artifact
     # Publish a local directory or file as a named artifact for the current pipeline.
     - task: PublishPipelineArtifact@0
@@ -132,7 +132,7 @@ stages:
     steps:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
-        ./.azurePipeline/runDockerComposeTests.sh -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
+        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
