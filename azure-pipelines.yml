@@ -33,116 +33,116 @@ trigger:
     - '*'
 
 stages:
-- stage: stage_docker_image_build
-  displayName: Build docker images
-  dependsOn: []
-  jobs:
-  - template: .azurePipeline/templateDockerBuildPush.yml
-    parameters:
-      folder: '.'
-      dockerFilePath: './frontend/Dockerfile'
-      imageName: data61/anonlink-nginx
-      jobName: 'anonlink_nginx'
-  - template: .azurePipeline/templateDockerBuildPush.yml
-    parameters:
-      folder: './backend'
-      imageName: data61/anonlink-app
-      jobName: 'anonlink_app'
-      
-- stage: stage_benchmark_image_build
-  displayName: Build benchmark image
-  dependsOn: []
-  jobs:
-  - template: .azurePipeline/templateDockerBuildPush.yml
-    parameters:
-      folder: './benchmarking'
-      imageName: data61/anonlink-benchmark
-      jobName: 'anonlink_benchmark'
-      
-- stage: stage_docs_tutorial_image_build
-  displayName: Build docs tutorials image
-  dependsOn: []
-  jobs:
-  - template: .azurePipeline/templateDockerBuildPush.yml
-    parameters:
-      folder: './docs/tutorial'
-      imageName: data61/anonlink-docs-tutorials
-      jobName: 'anonlink_docs_tutorials'
-
-#- stage: stage_integration_tests
-#  displayName: Integration tests
-#  dependsOn: [stage_docker_image_build]
+#- stage: stage_docker_image_build
+#  displayName: Build docker images
+#  dependsOn: []
 #  jobs:
-#  - job: integration_test
-#    timeoutInMinutes: 60
+#  - template: .azurePipeline/templateDockerBuildPush.yml
+#    parameters:
+#      folder: '.'
+#      dockerFilePath: './frontend/Dockerfile'
+#      imageName: data61/anonlink-nginx
+#      jobName: 'anonlink_nginx'
+#  - template: .azurePipeline/templateDockerBuildPush.yml
+#    parameters:
+#      folder: './backend'
+#      imageName: data61/anonlink-app
+#      jobName: 'anonlink_app'
+#
+#- stage: stage_benchmark_image_build
+#  displayName: Build benchmark image
+#  dependsOn: []
+#  jobs:
+#  - template: .azurePipeline/templateDockerBuildPush.yml
+#    parameters:
+#      folder: './benchmarking'
+#      imageName: data61/anonlink-benchmark
+#      jobName: 'anonlink_benchmark'
+#
+#- stage: stage_docs_tutorial_image_build
+#  displayName: Build docs tutorials image
+#  dependsOn: []
+#  jobs:
+#  - template: .azurePipeline/templateDockerBuildPush.yml
+#    parameters:
+#      folder: './docs/tutorial'
+#      imageName: data61/anonlink-docs-tutorials
+#      jobName: 'anonlink_docs_tutorials'
+#
+##- stage: stage_integration_tests
+##  displayName: Integration tests
+##  dependsOn: [stage_docker_image_build]
+##  jobs:
+##  - job: integration_test
+##    timeoutInMinutes: 60
+##    variables:
+##      resultFile: testResults.xml
+##    displayName: Integration tests
+##    pool:
+##      vmImage: 'ubuntu-16.04'
+##    steps:
+##    - template: .azurePipeline/templateDockerTagFromBranch.yml
+##    - script: |
+##        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
+##      displayName: 'Start docker compose tests'
+##    - task: PublishTestResults@2
+##      condition: succeededOrFailed()
+##      inputs:
+##        testResultsFormat: 'JUnit'
+##        testResultsFiles: '$(resultFile)'
+##        testRunTitle: 'Publish integration test results'
+##        failTaskOnFailedTests: true
+#
+#- stage: stage_benchmark
+#  displayName: Benchmark
+#  dependsOn:
+#  - stage_docker_image_build
+#  - stage_benchmark_image_build
+#  jobs:
+#  - job: Benchmark
+#    timeoutInMinutes: 15
 #    variables:
-#      resultFile: testResults.xml
-#    displayName: Integration tests
+#      resultFile: results.json
+#    displayName: Benchmark
 #    pool:
 #      vmImage: 'ubuntu-16.04'
 #    steps:
 #    - template: .azurePipeline/templateDockerTagFromBranch.yml
 #    - script: |
-#        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
-#      displayName: 'Start docker compose tests'
+#        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
+#      displayName: 'Start docker compose benchmark'
+#    # Publish Pipeline Artifact
+#    # Publish a local directory or file as a named artifact for the current pipeline.
+#    - task: PublishPipelineArtifact@0
+#      inputs:
+#        artifactName: 'benchmark'
+#        targetPath: $(resultFile)
+#
+#- stage: stage_tutorials_tests
+#  displayName: Tutorials tests
+#  dependsOn:
+#  - stage_docker_image_build
+#  - stage_docs_tutorial_image_build
+#  jobs:
+#  - job: TutorialsTests
+#    timeoutInMinutes: 10
+#    variables:
+#      resultFile: tutorialTestResults.xml
+#    displayName: Tutorials Tests
+#    pool:
+#      vmImage: 'ubuntu-16.04'
+#    steps:
+#    - template: .azurePipeline/templateDockerTagFromBranch.yml
+#    - script: |
+#        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
+#      displayName: 'Start docker compose tutorials tests'
 #    - task: PublishTestResults@2
 #      condition: succeededOrFailed()
 #      inputs:
 #        testResultsFormat: 'JUnit'
 #        testResultsFiles: '$(resultFile)'
-#        testRunTitle: 'Publish integration test results'
+#        testRunTitle: 'Publish tutorials tests results'
 #        failTaskOnFailedTests: true
-
-- stage: stage_benchmark
-  displayName: Benchmark
-  dependsOn: 
-  - stage_docker_image_build
-  - stage_benchmark_image_build
-  jobs:
-  - job: Benchmark
-    timeoutInMinutes: 15
-    variables:
-      resultFile: results.json
-    displayName: Benchmark
-    pool:
-      vmImage: 'ubuntu-16.04'
-    steps:
-    - template: .azurePipeline/templateDockerTagFromBranch.yml
-    - script: |
-        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
-      displayName: 'Start docker compose benchmark'
-    # Publish Pipeline Artifact
-    # Publish a local directory or file as a named artifact for the current pipeline.
-    - task: PublishPipelineArtifact@0
-      inputs:
-        artifactName: 'benchmark'
-        targetPath: $(resultFile)
-
-- stage: stage_tutorials_tests
-  displayName: Tutorials tests
-  dependsOn: 
-  - stage_docker_image_build
-  - stage_docs_tutorial_image_build
-  jobs:
-  - job: TutorialsTests
-    timeoutInMinutes: 10
-    variables:
-      resultFile: tutorialTestResults.xml
-    displayName: Tutorials Tests
-    pool:
-      vmImage: 'ubuntu-16.04'
-    steps:
-    - template: .azurePipeline/templateDockerTagFromBranch.yml
-    - script: |
-        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
-      displayName: 'Start docker compose tutorials tests'
-    - task: PublishTestResults@2
-      condition: succeededOrFailed()
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: '$(resultFile)'
-        testRunTitle: 'Publish tutorials tests results'
-        failTaskOnFailedTests: true
 
 - stage: stage_k8s_deployment
   displayName: Kubernetes deployment
@@ -173,7 +173,15 @@ stages:
         echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
         echo $(DOCKER_TAG)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
       displayName: 'Set some variables part 2'
-    # Start the whole service using helm. We are currently lucky, the helm version on azure is compatible with the one on our cluster, but the latest version of helm (Client 2.14.1) is not (tested from my laptop).
+    - script: |
+        echo "Create Persistent Volume Claim"
+        cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
+        sed 's|\$PVC'"|$(PVC)|g" | \
+        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+        kubectl apply --wait=true -n=$(NAMESPACE) -f -
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+      displayName: 'Create persistent volume claim for future results.'
     - script: |
         echo "Start all the entity service pods"
         cd deployment/entity-service
@@ -193,15 +201,6 @@ stages:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Install the deployment on kubernetes'
     - script: |
-        echo "Create Persistent Volume Claim"
-        cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        kubectl apply -n=$(NAMESPACE) -f -
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Create persistent volume claim for future results.'
-    - script: |
         kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@:80"
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
@@ -213,7 +212,7 @@ stages:
         sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
         sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
         sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
-        kubectl apply --wait -n=$(NAMESPACE) -f -
+        kubectl apply --wait=true -n=$(NAMESPACE) -f -
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=300s --for=condition=Ready pods/@
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
       env:
