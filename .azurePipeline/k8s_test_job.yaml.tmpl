@@ -29,7 +29,7 @@ spec:
           env:
             - name: ENTITY_SERVICE_URL
               value: http://$SERVICE_IP/api/v1
-          command: ["dockerize", "-wait", "tcp://$SERVICE_IP:80/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
+          command: ["dockerize", "-wait", "tcp://$SERVICE_IP/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
           volumeMounts:
             - mountPath: /mnt
               name: results

@@ -202,7 +202,7 @@ stages:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Create persistent volume claim for future results.'
     - script: |
-        kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@"
+        kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@:80"
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Set a variable for the service IP'
