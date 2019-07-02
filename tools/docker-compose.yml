@@ -29,6 +29,7 @@ services:
     image: data61/anonlink-app:${TAG:-latest}
     environment:
       - DEBUG=false
+      #- LOG_CFG=entityservice/verbose_logging.yaml
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -61,6 +62,7 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - DEBUG=true
       - LOGGING_LEVEL=DEBUG
+      #- LOG_CFG=entityservice/verbose_logging.yaml
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true

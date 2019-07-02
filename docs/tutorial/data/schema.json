@@ -1,0 +1,111 @@
+
+{
+  "version": 2,
+  "clkConfig": {
+    "l": 1024,
+    "kdf": {
+      "type": "HKDF",
+      "hash": "SHA256",
+      "salt": "SCbL2zHNnmsckfzchsNkZY9XoHk96P/G5nUBrM7ybymlEFsMV6PAeDZCNp3rfNUPCtLDMOGQHG4pCQpfhiHCyA==",
+      "info": "c2NoZW1hX2V4YW1wbGU=",
+      "keySize": 64
+    }
+  },
+  "features": [
+    {
+      "identifier": "id",
+      "ignored": true
+    },
+    {
+      "identifier": "givenname",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 2,
+        "positional": false,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
+      }
+    },
+    {
+      "identifier": "surname",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 2,
+        "positional": false,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
+      }
+    },
+    {
+      "identifier": "dob",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 2,
+        "positional": true,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
+      }
+    },
+    {
+      "identifier": "gender",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 1,
+        "positional": true,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
+      }
+    },
+    {
+      "identifier": "city",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 2,
+        "positional": false,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 15}
+      }
+    },
+    {
+      "identifier": "income",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 1,
+        "positional": true,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 7}
+      }
+    },
+    {
+      "identifier": "phone number",
+      "format": {
+        "type": "string",
+        "encoding": "utf-8"
+      },
+      "hashing": {
+        "ngram": 1,
+        "positional": true,
+        "hash": {"type": "doubleHash"},
+        "strategy": {"k": 7}
+      }
+    }
+  ]
+}
