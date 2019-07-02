@@ -146,7 +146,7 @@ stages:
 
 - stage: stage_k8s_deployment
   displayName: Kubernetes deployment
-  dependsOn: [stage_docker_image_build]
+  #dependsOn: [stage_docker_image_build]
 #  dependsOn: [stage_docker_image_build, stage_integration_tests]
   jobs:
   - job: job_k8s_deployment
@@ -171,7 +171,7 @@ stages:
         echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
         echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
         echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
-        echo $(DOCKER_TAG)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
+        echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
       displayName: 'Set some variables part 2'
     - script: |
         echo "Create Persistent Volume Claim"
@@ -238,36 +238,36 @@ stages:
         testResultsFiles: 'k8s-results.xml'
         testRunTitle: 'Publish kubernetes test results'
         failTaskOnFailedTests: true 
-    - script: |
-        echo "Delete the test job"
-        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
-        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
-        kubectl delete -n=$(NAMESPACE) -f -
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the test job'
-    - script: |
-        echo "Delete the temp pod"
-        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
-        kubectl delete -n=$(NAMESPACE) -f -
-        
-        echo "Delete the pvc"
-        kubectl delete pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the temp pod and the pvc'
-    - script: |    
-        echo "Delete everything"
-        helm delete --purge $(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Purge the deployment'
+#    - script: |
+#        echo "Delete the test job"
+#        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
+#        sed 's|\$PVC'"|$(PVC)|g" | \
+#        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+#        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
+#        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
+#        kubectl delete -n=$(NAMESPACE) -f -
+#      condition: always()
+#      env:
+#        KUBECONFIG: $(KUBECONFIGFILE)
+#      displayName: 'Delete the test job'
+#    - script: |
+#        echo "Delete the temp pod"
+#        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
+#        sed 's|\$PVC'"|$(PVC)|g" | \
+#        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+#        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
+#        kubectl delete -n=$(NAMESPACE) -f -
+#
+#        echo "Delete the pvc"
+#        kubectl delete pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
+#      condition: always()
+#      env:
+#        KUBECONFIG: $(KUBECONFIGFILE)
+#      displayName: 'Delete the temp pod and the pvc'
+#    - script: |
+#        echo "Delete everything"
+#        helm delete --purge $(DEPLOYMENT)
+#      condition: always()
+#      env:
+#        KUBECONFIG: $(KUBECONFIGFILE)
+#      displayName: 'Purge the deployment'
