@@ -153,7 +153,7 @@ stages:
     displayName: Kubernetes deployment and test
     timeoutInMinutes: 40
     variables:
-     NAMESPACE: test-azure
+      NAMESPACE: test-azure
     pool:
       vmImage: 'ubuntu-16.04'
     steps:
@@ -214,7 +214,7 @@ stages:
         sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
         sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
         kubectl apply -n=$(NAMESPACE) -f -
-        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=120s --for=condition=Ready pods/@
+        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=300s --for=condition=Ready pods/@
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
