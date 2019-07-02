@@ -181,14 +181,14 @@ stages:
         helm init --client-only
         helm dependency update
         helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-                    -f values.yaml -f minimal-values.yaml \
-                    --set api.app.debug=true \
-                    --set global.postgresql.postgresqlPassword=notaproductionpassword \
-                    --set api.ingress.enabled=false \
-                    --set api.www.image.tag=$(DOCKER_TAG) \
-                    --set api.app.image.tag=$(DOCKER_TAG) \
-                    --set api.dbinit.image.tag=$(DOCKER_TAG) \
-                    --set workers.image.tag=$(DOCKER_TAG)
+        -f values.yaml -f minimal-values.yaml \
+        --set api.app.debug=true \
+        --set global.postgresql.postgresqlPassword=notaproductionpassword \
+        --set api.ingress.enabled=false \
+        --set api.www.image.tag=$(DOCKER_TAG) \
+        --set api.app.image.tag=$(DOCKER_TAG) \
+        --set api.dbinit.image.tag=$(DOCKER_TAG) \
+        --set workers.image.tag=$(DOCKER_TAG)
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Install the deployment on kubernetes'
@@ -213,7 +213,7 @@ stages:
         sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
         sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
         sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
-        kubectl apply -n=$(NAMESPACE) -f -
+        kubectl apply --wait -n=$(NAMESPACE) -f -
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=300s --for=condition=Ready pods/@
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
       env:
