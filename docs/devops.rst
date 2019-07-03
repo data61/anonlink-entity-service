@@ -1,12 +1,6 @@
 Devops
 ===========
 
-.. toctree::
-   :maxdepth: 2
-
-   index
-   
-
 Azure Pipeline
 --------------
 
