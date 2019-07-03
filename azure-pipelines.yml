@@ -69,30 +69,6 @@ stages:
       imageName: data61/anonlink-docs-tutorials
       jobName: 'anonlink_docs_tutorials'
 
-#- stage: stage_integration_tests
-#  displayName: Integration tests
-#  dependsOn: [stage_docker_image_build]
-#  jobs:
-#  - job: integration_test
-#    timeoutInMinutes: 60
-#    variables:
-#      resultFile: testResults.xml
-#    displayName: Integration tests
-#    pool:
-#      vmImage: 'ubuntu-16.04'
-#    steps:
-#    - template: .azurePipeline/templateDockerTagFromBranch.yml
-#    - script: |
-#        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tests
-#      displayName: 'Start docker compose tests'
-#    - task: PublishTestResults@2
-#      condition: succeededOrFailed()
-#      inputs:
-#        testResultsFormat: 'JUnit'
-#        testResultsFiles: '$(resultFile)'
-#        testRunTitle: 'Publish integration test results'
-#        failTaskOnFailedTests: true
-
 - stage: stage_benchmark
   displayName: Benchmark
   dependsOn:
@@ -152,6 +128,8 @@ stages:
   - job: job_k8s_deployment
     displayName: Kubernetes deployment and test
     timeoutInMinutes: 40
+    # All the deployments for tests are done in the namespace `test-azure`, simplying
+    # debugging or cleaning if something wrong happens.
     variables:
       NAMESPACE: test-azure
     pool:
@@ -164,15 +142,23 @@ stages:
         secureFile: awsClusterConfig
     # Prepare all the variables required during the scripts.
     - template: .azurePipeline/templateDockerTagFromBranch.yml
+    # We are selecting a deployment name to be unique, not to have collision when pushing multiple times on the same branch
+    # So we are using the git commit hash. BUT, a k8s deployment MUST start with a letter, so added `es` to start its name, 
+    # then it needs to be short enough not to fail other tags built from it. In fact, most of the created objects from the templates
+    # will use the deployment name as a prefix for their tags, adding extra suffixes. If the deployment name is too long, 
+    # the tags may be longer than 63 characters which can fail the deployment with some warnings hard to see.
     - script: |
         echo es$(Build.SourceVersion)| head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
       displayName: 'Set some variables part 1'
+    # The task setting variables is split in two, because we cannot re-use directly a set variable in the same task
+    # (in this case the value of $(DEPLOYMENT)).
     - script: |
         echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
         echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
         echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
         echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
       displayName: 'Set some variables part 2'
+    # The file `.azurePipeline/k8s_test_pvc.yaml.tmpl` is a template for the creation of persistent volume via kubectl
     - script: |
         echo "Create Persistent Volume Claim"
         cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
@@ -182,6 +168,8 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Create persistent volume claim for future results.'
+    # Starting the whole entity-service
+    # Note that helm need to be initialised first.
     - script: |
         echo "Start all the entity service pods"
         cd deployment/entity-service
@@ -200,11 +188,15 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Install the deployment on kubernetes'
+    # Task to get the IP of the service, which is require to run the test.
+    # Note that the port 80 is added at the end. This is in fact required for the command `dockerize -wait` to wait for a service before starting one.
     - script: |
         kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@:80"
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Set a variable for the service IP'
+    # The file `.azurePipeline/k8s_test_job.yaml.tmpl` is a template for the creation of the test job.
+    # The test job stops when all the tests have been ran, creating a test result file in the PVC.
     - script: |
         echo "Start the test job"
         cat .azurePipeline/k8s_test_job.yaml.tmpl | \
@@ -218,6 +210,10 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Start the test job'
+    # That is still something fun with kubernetes, we cannot copy a file from a stopped container in a pod (while this is possible with docker), which is
+    # why we are creating a persistent volume, running the test job using the volume, and finally starting a container to be up with the mounted
+    # volume and use `kubectl cp` on it while it still runs.
+    # This is tracked in https://github.com/kubernetes/kubectl/issues/454 but has been in April 2018, its priority raised in June 2019.
     - script: |
         echo "Get the test results"
         cat .azurePipeline/k8s_get_results.yaml.tmpl | \
@@ -231,6 +227,7 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Copy the results from the test job pod.'
+    # Finally, we can publish the test results.
     - task: PublishTestResults@2
       condition: succeeded()
       inputs:
@@ -238,6 +235,7 @@ stages:
         testResultsFiles: 'k8s-results.xml'
         testRunTitle: 'Publish kubernetes test results'
         failTaskOnFailedTests: true 
+    # And do a lot of cleaning.
     - script: |
         echo "Delete the test job"
         cat .azurePipeline/k8s_test_job.yaml.tmpl | \
