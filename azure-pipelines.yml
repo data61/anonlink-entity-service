@@ -122,8 +122,7 @@ stages:
 
 - stage: stage_k8s_deployment
   displayName: Kubernetes deployment
-  #dependsOn: [stage_docker_image_build]
-#  dependsOn: [stage_docker_image_build, stage_integration_tests]
+  dependsOn: [stage_docker_image_build]
   jobs:
   - job: job_k8s_deployment
     displayName: Kubernetes deployment and test
