@@ -4,6 +4,13 @@
 Changelog
 =========
 
+Version 1.11.1
+--------------
+
+- Include multiparty linkage tutorial/example.
+- Tightened up how we use a database connection from the flask app.
+- Deployment and logging documentation updates.
+
 Version 1.11.0
 --------------
 
