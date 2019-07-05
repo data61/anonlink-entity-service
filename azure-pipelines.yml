@@ -111,7 +111,7 @@ stages:
     - template: .azurePipeline/templateDockerTagFromBranch.yml
     - script: |
         ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
-      displayName: 'Start docker compose tutorials tests'
+      displayName: 'Test notebook tutorials'
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
@@ -148,7 +148,7 @@ stages:
     # the tags may be longer than 63 characters which can fail the deployment with some warnings hard to see.
     - script: |
         echo es$(Build.SourceVersion)| head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
-      displayName: 'Set some variables part 1'
+      displayName: 'Set variables part 1'
     # The task setting variables is split in two, because we cannot re-use directly a set variable in the same task
     # (in this case the value of $(DEPLOYMENT)).
     - script: |
@@ -156,7 +156,7 @@ stages:
         echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
         echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
         echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
-      displayName: 'Set some variables part 2'
+      displayName: 'Set variables part 2'
     # The file `.azurePipeline/k8s_test_pvc.yaml.tmpl` is a template for the creation of persistent volume via kubectl
     - script: |
         echo "Create Persistent Volume Claim"
@@ -166,7 +166,42 @@ stages:
         kubectl apply --wait=true -n=$(NAMESPACE) -f -
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Create persistent volume claim for future results.'
+      displayName: 'Create persistent volume claim for integration test results.'
+    # Prepare helm
+    - script: |
+        echo "Start all the entity service pods"
+        cd deployment/entity-service
+        helm version
+        helm init --client-only
+        helm dependency update
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+      displayName: 'Initialize Helm'
+    - script: |
+        echo "Lint"
+        helm ling --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
+        -f values.yaml -f minimal-values.yaml \
+        --set api.app.debug=true \
+        --set global.postgresql.postgresqlPassword=notaproductionpassword \
+        --set api.ingress.enabled=false \
+        --set api.www.image.tag=$(DOCKER_TAG) \
+        --set api.app.image.tag=$(DOCKER_TAG) \
+        --set api.dbinit.image.tag=$(DOCKER_TAG) \
+        --set workers.image.tag=$(DOCKER_TAG)
+        
+        echo "Dry run"
+        helm upgrade --install --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
+        -f values.yaml -f minimal-values.yaml \
+        --set api.app.debug=true \
+        --set global.postgresql.postgresqlPassword=notaproductionpassword \
+        --set api.ingress.enabled=false \
+        --set api.www.image.tag=$(DOCKER_TAG) \
+        --set api.app.image.tag=$(DOCKER_TAG) \
+        --set api.dbinit.image.tag=$(DOCKER_TAG) \
+        --set workers.image.tag=$(DOCKER_TAG)
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+      displayName: 'Lint and dry-run'
     # Starting the whole entity-service
     # Note that helm need to be initialised first.
     - script: |
@@ -186,7 +221,7 @@ stages:
         --set workers.image.tag=$(DOCKER_TAG)
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Install the deployment on kubernetes'
+      displayName: 'Kubernetes deployment'
     # Task to get the IP of the service, which is require to run the test.
     # Note that the port 80 is added at the end. This is in fact required for the command `dockerize -wait` to wait for a service before starting one.
     - script: |
@@ -195,7 +230,7 @@ stages:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Set a variable for the service IP'
     # The file `.azurePipeline/k8s_test_job.yaml.tmpl` is a template for the creation of the test job.
-    # The test job stops when all the tests have been ran, creating a test result file in the PVC.
+    # The test job stops when all the tests have been run, creating a test result file in the PVC.
     - script: |
         echo "Start the test job"
         cat .azurePipeline/k8s_test_job.yaml.tmpl | \
@@ -208,7 +243,7 @@ stages:
         kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Start the test job'
+      displayName: 'Run integration tests'
     # That is still something fun with kubernetes, we cannot copy a file from a stopped container in a pod (while this is possible with docker), which is
     # why we are creating a persistent volume, running the test job using the volume, and finally starting a container to be up with the mounted
     # volume and use `kubectl cp` on it while it still runs.
@@ -235,34 +270,16 @@ stages:
         testRunTitle: 'Publish kubernetes test results'
         failTaskOnFailedTests: true 
     # And do a lot of cleaning.
+    # Note that all the test resources (i.e. the pvc, the job and the pod has a label `deployment` set to $(DEPLOYMENT)
     - script: |
-        echo "Delete the test job"
-        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
-        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
-        kubectl delete -n=$(NAMESPACE) -f -
+        echo "Delete all the test resources"
+        kubectl get pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
       condition: always()
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the test job'
+      displayName: 'Delete the test resources'
     - script: |
-        echo "Delete the temp pod"
-        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
-        kubectl delete -n=$(NAMESPACE) -f -
-
-        echo "Delete the pvc"
-        kubectl delete pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the temp pod and the pvc'
-    - script: |
-        echo "Delete everything"
+        echo "Delete the deployment"
         helm delete --purge $(DEPLOYMENT)
       condition: always()
       env:
