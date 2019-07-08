@@ -169,7 +169,7 @@ stages:
       displayName: 'Create persistent volume claim for integration test results.'
     # Prepare helm
     - script: |
-        echo "Start all the entity service pods"
+        echo "Initialize Helm"
         cd deployment/entity-service
         helm version
         helm init --client-only
@@ -179,6 +179,8 @@ stages:
       displayName: 'Initialize Helm'
     - script: |
         echo "Lint"
+        cd deployment/entity-service
+        
         helm lint --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
@@ -207,9 +209,6 @@ stages:
     - script: |
         echo "Start all the entity service pods"
         cd deployment/entity-service
-        helm version
-        helm init --client-only
-        helm dependency update
         helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
