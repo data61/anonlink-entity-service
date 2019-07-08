@@ -179,7 +179,7 @@ stages:
       displayName: 'Initialize Helm'
     - script: |
         echo "Lint"
-        helm ling --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
+        helm lint --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
