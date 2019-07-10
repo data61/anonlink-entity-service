@@ -272,7 +272,7 @@ stages:
     # Note that all the test resources (i.e. the pvc, the job and the pod has a label `deployment` set to $(DEPLOYMENT)
     - script: |
         echo "Delete all the test resources"
-        kubectl get pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
+        kubectl delete pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
       condition: always()
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
