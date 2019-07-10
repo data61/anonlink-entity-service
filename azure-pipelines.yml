@@ -147,7 +147,7 @@ stages:
     # will use the deployment name as a prefix for their tags, adding extra suffixes. If the deployment name is too long, 
     # the tags may be longer than 63 characters which can fail the deployment with some warnings hard to see.
     - script: |
-        echo es$(Build.SourceVersion)| head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
+        echo es$(Build.SourceVersion)| tr [:upper:] [:lower:] | tr -cd [a-z0-9] | head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
       displayName: 'Set variables part 1'
     # The task setting variables is split in two, because we cannot re-use directly a set variable in the same task
     # (in this case the value of $(DEPLOYMENT)).
