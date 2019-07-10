@@ -13,7 +13,7 @@ parameters:
 
 jobs:
 - job: ${{ parameters.jobName }}
-  displayName: Building ${{ parameters.imageName }}
+  displayName: ${{ parameters.imageName }}
   pool:
     vmImage: "ubuntu-16.04"
 
@@ -21,6 +21,7 @@ jobs:
   - template: templateDockerTagFromBranch.yml
   - script: |
       docker login -u $(dockerHubId) -p $(dockerHubPassword)
+    displayName: 'Dockerhub login'
   - script: |
       if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
         docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
@@ -28,6 +29,7 @@ jobs:
         docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
       fi
       docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+    displayName: 'Create and push the image'
       
 # Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
 # The idea being able to define jobs depending on the creation of the previous image.

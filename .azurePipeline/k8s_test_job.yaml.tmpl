@@ -29,10 +29,8 @@ spec:
           env:
             - name: ENTITY_SERVICE_URL
               value: http://$SERVICE_IP/api/v1
-          command: ["python", "-m", "pytest", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
+          command: ["dockerize", "-wait", "tcp://$SERVICE_IP/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
           volumeMounts:
             - mountPath: /mnt
               name: results
-      imagePullSecrets:
-        - name: n1-quay-pull-secret
 
