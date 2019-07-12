@@ -49,7 +49,11 @@ def connect_db():
 
 
 def init_db(delay=0.5):
-    """Initializes the database."""
+    """
+    Initializes the database by creating the required tables.
+
+    @param float delay: Number of seconds to wait before executing the SQL.
+    """
     time.sleep(delay)
     db = connect_db()
     with current_app.open_resource('init-db-schema.sql', mode='r') as f:
@@ -60,8 +64,10 @@ def init_db(delay=0.5):
 
 class DBConn:
 
+    def __init__(self, conn=None):
+        self.conn = conn if conn is not None else connect_db()
+
     def __enter__(self):
-        self.conn = connect_db()
         return self.conn
 
     def __exit__(self, exc_type, exc_val, traceback):
@@ -69,7 +75,6 @@ class DBConn:
             self.conn.commit()
             for notice in self.conn.notices:
                 logger.debug(notice)
-            self.conn.close()
         else:
             # There was an exception in the DBConn body
             if isinstance(exc_type, psycopg2.Error):
@@ -96,7 +101,8 @@ def execute_returning_id(cur, query, args):
 
 def get_db():
     """Opens a new database connection if there is none yet for the
-    current flask application context.
+    current flask application context. The connection will be closed
+    at the end of the request.
     """
     conn = getattr(g, 'db', None)
     if conn is None:

@@ -15,8 +15,11 @@ The following named loggers are used:
 
 The following environment variables affect logging:
 
+* `LOG_CFG` - sets the path to a logging configuration file. There are two examples:
+  - `entityservice/default_logging.yaml`
+  - `entityservice/verbose_logging.yaml`
 * `DEBUG` - sets the logging level to debug for all application code.
-* `LOGFILE` - directs the log output to this file.
+* `LOGFILE` - directs the log output to this file instead of stdout.
 * `LOG_HTTP_HEADER_FIELDS` - HTTP headers to include in the application logs.
 
 Example logging output with `LOG_HTTP_HEADER_FIELDS=User-Agent,Host`::

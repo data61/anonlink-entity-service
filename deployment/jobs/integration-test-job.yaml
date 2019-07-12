@@ -28,5 +28,3 @@ spec:
           - "pytest"
           - "entityservice/tests"
           - "-x"
-      imagePullSecrets:
-      - name: n1-quay-pull-secret

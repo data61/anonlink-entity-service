@@ -7,6 +7,8 @@ Tutorials
    Record Linkage API.ipynb
    Permutations.ipynb
    Similarity Scores.ipynb
+   multiparty-linkage-with-clkhash.ipynb
+   multiparty-linkage-in-entity-service.ipynb
 
 
 External Tutorials
