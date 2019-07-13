@@ -3,7 +3,7 @@ kind: Job
 metadata:
   name: $DEPLOYMENT_NAME-test
   labels:
-    jobgroup: jenkins-es-integration-test
+    jobgroup: anonlink-integration-test
     deployment: $DEPLOYMENT_NAME
 spec:
   completions: 1
@@ -11,7 +11,7 @@ spec:
   template:
     metadata:
       labels:
-        jobgroup: jenkins-es-integration-test
+        jobgroup: anonlink-integration-test
         deployment: $DEPLOYMENT_NAME
     spec:
       securityContext:

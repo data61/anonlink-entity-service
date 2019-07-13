@@ -1,8 +1,10 @@
-# Template to login into dockerhub, build a docker image and push it.
-# The paramater dockerFilePath is optional. If provided, will add the parameter -f ${{ parameters.dockerFile }} to the docker build command.
+# Template to login into Dockerhub, build a docker image and push it.
 
+# Parameters:
+# `dockerFilePath` is optional. If provided, will add the
+# parameter -f ${{ parameters.dockerFile }} to the docker build command.
 # jobName should only include alphanumeric values and '_'.
-# extraJobs can contain a list of jobs to do in the same stage whic are dependent on the built and pushed docker image.
+# extraJobs can contain a list of jobs to do in the same stage which are dependent on the built and pushed docker image.
 
 parameters:
   dockerFilePath: ''
@@ -13,7 +15,7 @@ parameters:
 
 jobs:
 - job: ${{ parameters.jobName }}
-  displayName: ${{ parameters.imageName }}
+  displayName: ${{ parameters.jobName }}
   pool:
     vmImage: "ubuntu-16.04"
 

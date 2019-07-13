@@ -1,9 +1,9 @@
 # This pipeline has four main stages (with two extra ones for optimization reasons):
-# 1) Building docker images
-#     - anonlink_nginx
-#     - anonling_app
-#     - anonlink_benchmark (done in a separate stage 1bis) to be able to depend on it)
-#     - anonlink_docs_tutorials (done in a separate stage 1ter) to be able to depend on it)
+# 1) Building docker images:
+#     - anonlink-nginx
+#     - anonling-app
+#     - anonlink-benchmark (done in a separate stage 1bis) to be able to depend on it)
+#     - anonlink-docs-tutorials (done in a separate stage 1ter) to be able to depend on it)
 # 2) Running the integration tests using docker-compose
 # 3) Running the benchmark using docker-compose
 # 4) Running the tests for the tutorials using docker-compose
@@ -16,7 +16,8 @@
 # The dockerhub login is a secret in Azure Pipeline.
 # The kubeconfig file is a secret file in Azure Pipeline.
 #
-# The resources used by this pipeline are avilable in the folder `.azurePipeline`, where there are some kubectl templates, azure pipeline step templates and bash scripts.
+# The resources used by this pipeline are available in the folder `.azurePipeline`,
+# where there are some kubectl templates, azure pipeline step templates and bash scripts.
 
 variables:
   backendImageName: data61/anonlink-app
@@ -24,8 +25,8 @@ variables:
   tutorialImageName: data61/anonlink-docs-tutorials
   benchmarkingImageName: data61/anonlink-benchmark
 
-# This pipeline should be triggered by every local branches, but should not be used for external PRs.
-# In fact, this pipeline is able to use some of our secrets to push images on dockerhub and deploy on k8s.
+# This pipeline should be triggered by every push to any branches, but should not be used
+# for external PRs.
 pr: none
 trigger:
   branches:
@@ -34,7 +35,7 @@ trigger:
 
 stages:
 - stage: stage_docker_image_build
-  displayName: Build docker images
+  displayName: Docker build
   dependsOn: []
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml

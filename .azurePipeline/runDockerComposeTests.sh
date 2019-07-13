@@ -10,8 +10,8 @@ help() {
   cat <<EOM
 Usage: $SCRIPT_NAME [parameters]
 
-Script ran by the Azure Pipeline to start with docker-compose all the services required
-by the entity service and the test or benchmark container, copying the results in a chosen file.
+Script run by the Azure Pipeline to start all the services required by the entity service with
+docker-compose and the test or benchmark container, copying the results in a chosen file.
 The result is an xml file for the type 'tests' and 'tutorials', and a JSON file for the type 'benchmark'.
 
   -p                       Project name (used by docker-compose with '-p'). REQUIRED.
@@ -85,12 +85,3 @@ echo "Cleaning."
 $commandPrefix -p $PROJECT_NAME down -v
 
 exit $exit_code
-
-
-# Local Variables:
-# mode: sh
-# tab-width: 2
-# sh-basic-offset: 2
-# sh-indentation: 2
-# indent-tabs-mode: nil
-# End:
