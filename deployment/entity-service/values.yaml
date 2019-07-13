@@ -27,7 +27,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.2"
+      tag: "v1.4.3"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -69,7 +69,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: data61/anonlink-app
-      tag: "v1.11.1"
+      tag: "v1.11.2"
 
     resources:
       requests:
@@ -137,7 +137,7 @@ workers:
   debug: false
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.11.1"
+    tag: "v1.11.2"
     pullPolicy: IfNotPresent
 
   ## The number of workers for this deployment
