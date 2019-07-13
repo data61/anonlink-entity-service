@@ -37,7 +37,7 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
             # Turn groups into mapping and save that
             log.debug("Turning groups into mapping")
             mapping = groups_to_mapping(groups)
-            log.debug("Saving mappuing in the DB")
+            log.debug("Saving mapping in the DB")
             result_id = insert_mapping_result(db, run_id, mapping)
 
         dp_ids = get_dataprovider_ids(db, project_id)
