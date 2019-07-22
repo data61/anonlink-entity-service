@@ -1,13 +1,13 @@
 name: entity-service
-appVersion: 1.11.0
-version: 1.11.0
+appVersion: 1.11.2
+version: 1.11.2
 description: Privacy preserving record linkage service
 sources:
-  - https://github.com/n1analytics/entity-service
-  - https://github.com/n1analytics/anonlink
-  - https://github.com/n1analytics/clkhash
+  - https://github.com/data61/anonlink-entity-service
+  - https://github.com/data61/anonlink
+  - https://github.com/data61/clkhash
 maintainers:
-  - name: N1 Analytics
-    email: support@n1analytics.com
-    url: https://n1analytics.com
+  - name: Brian Thorne
+    email: brian.thorne@data61.csiro.au
+    url: https://data61.csiro.au
 icon: https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2016-04-11/33560836053_df0d62a81bf32f53df00_72.png

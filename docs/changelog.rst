@@ -4,6 +4,12 @@
 Changelog
 =========
 
+Version 1.11.2
+--------------
+
+- Switch to Azure Devops pipeline for CI.
+- Switch to docker hub for container hosting.
+
 Version 1.11.1
 --------------
 

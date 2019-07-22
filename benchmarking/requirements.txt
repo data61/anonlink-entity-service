@@ -1,4 +1,4 @@
-clkhash
+clkhash==0.14.0
 numpy
 pandas
 arrow

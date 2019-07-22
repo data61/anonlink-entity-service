@@ -1,15 +1,40 @@
-version: '2.1'
+version: '3.4'
 services:
 
 
   tests:
-    image: quay.io/n1analytics/entity-app
+    image: data61/anonlink-app:${TAG:-latest}
     environment:
       - ENTITY_SERVICE_URL=http://nginx:8851/api/v1
       - INITIAL_DELAY=20
-    entrypoint: /bin/sh -c "sleep 10; python -m pytest entityservice/tests -x"
+    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest entityservice/tests --junitxml=testResults.xml -x"
     depends_on:
       - db
       - redis
       - worker
       - nginx
+      
+  benchmark:
+    image: data61/anonlink-benchmark:${TAG:-latest}
+    environment:
+      - SERVER=http://nginx:8851
+      - DATA_PATH=/app/cache
+      - EXPERIMENT=/app/linkage-bench-cache-experiments.json
+      - RESULTS_PATH=/app/results.json
+    depends_on:
+      - db
+      - redis
+      - worker
+      - nginx
+    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python benchmark.py"
+    
+  tutorials:
+    image: data61/anonlink-docs-tutorials:${TAG:-latest}
+    environment:
+      - SERVER=http://nginx:8851
+    depends_on:
+      - db
+      - redis
+      - worker
+      - nginx
+    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src"

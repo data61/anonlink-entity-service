@@ -1,4 +1,4 @@
-version: '2.1'
+version: '3.4'
 services:
 
   db:
@@ -26,7 +26,7 @@ services:
 
   # The flask application server
   backend:
-    image: quay.io/n1analytics/entity-app
+    image: data61/anonlink-app:${TAG:-latest}
     environment:
       - DEBUG=false
       #- LOG_CFG=entityservice/verbose_logging.yaml
@@ -41,7 +41,7 @@ services:
 
   # The application server can also setup the database
   db_init:
-    image: quay.io/n1analytics/entity-app
+    image: data61/anonlink-app:${TAG:-latest}
     environment:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
@@ -53,7 +53,7 @@ services:
 
   # A celery worker
   worker:
-    image: quay.io/n1analytics/entity-app
+    image: data61/anonlink-app:${TAG:-latest}
     depends_on:
       - redis
       - db
@@ -76,7 +76,7 @@ services:
 
 
   nginx:
-    image: quay.io/n1analytics/entity-nginx
+    image: data61/anonlink-nginx:${TAG:-latest}
     ports:
       - 8851:8851
     depends_on:

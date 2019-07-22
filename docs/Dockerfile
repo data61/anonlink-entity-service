@@ -1,6 +1,5 @@
-# Note we expect the user to mount the sources to build...
-# Usage:
-# docker run -it -v <PATH TO PROJECT>:/src -v <OUTPUT HTML PATH>:/build quay.io/n1analytics/entity-app:doc-builder
+# This Dockerfile does not anything. It only pulls the required dependencies to be able to build the documentation when creating the frontend image.
+# If updated, it needs to be pushed manually to dockerhub.
 FROM python:3.7
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
@@ -15,5 +14,3 @@ ADD doc-requirements.txt /src/requirements.txt
 
 WORKDIR /src
 RUN pip install -U -r requirements.txt
-
-CMD python -m sphinx /src/docs /build

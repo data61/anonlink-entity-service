@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: $DEPLOYMENT_NAME-test
+  labels:
+    jobgroup: anonlink-integration-test
+    deployment: $DEPLOYMENT_NAME
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        jobgroup: anonlink-integration-test
+        deployment: $DEPLOYMENT_NAME
+    spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      restartPolicy: Never
+      volumes:
+        - name: results
+          persistentVolumeClaim:
+            claimName: $PVC
+      containers:
+        - name: entitytester
+          image: $IMAGE_NAME_WITH_TAG
+          imagePullPolicy: Always
+          env:
+            - name: ENTITY_SERVICE_URL
+              value: http://$SERVICE_IP/api/v1
+          command: ["dockerize", "-wait", "tcp://$SERVICE_IP/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
+          volumeMounts:
+            - mountPath: /mnt
+              name: results
+
