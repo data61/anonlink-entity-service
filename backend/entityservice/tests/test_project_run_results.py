@@ -5,7 +5,7 @@ def test_run_mapping_results(requests, mapping_project):
     run_id = post_run(requests, mapping_project, 0.95)
     wait_approx_run_time(mapping_project['size'])
 
-    result = get_run_result(requests, mapping_project, run_id)
+    result = get_run_result(requests, mapping_project, run_id, timeout=120)
     assert 'mapping' in result
     assert isinstance(result['mapping'], dict)
 

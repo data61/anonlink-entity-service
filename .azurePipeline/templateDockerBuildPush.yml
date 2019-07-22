@@ -1,0 +1,45 @@
+# Template to login into Dockerhub, build a docker image and push it.
+
+# Parameters:
+# `dockerFilePath` is optional. If provided, will add the
+# parameter -f ${{ parameters.dockerFile }} to the docker build command.
+# jobName should only include alphanumeric values and '_'.
+# extraJobs can contain a list of jobs to do in the same stage which are dependent on the built and pushed docker image.
+
+parameters:
+  dockerFilePath: ''
+  folder: ''
+  imageName: ''
+  jobName: ''
+  extraJobs: []
+
+jobs:
+- job: ${{ parameters.jobName }}
+  displayName: ${{ parameters.jobName }}
+  pool:
+    vmImage: "ubuntu-16.04"
+
+  steps:
+  - template: templateDockerTagFromBranch.yml
+  - script: |
+      docker login -u $(dockerHubId) -p $(dockerHubPassword)
+    displayName: 'Dockerhub login'
+  - script: |
+      if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
+        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+      else
+        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
+      fi
+      docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+    displayName: 'Create and push the image'
+      
+# Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
+# The idea being able to define jobs depending on the creation of the previous image.
+- ${{ each job in parameters.jobs }}: # Then do each job
+  - ${{ each pair in job }}:          # Insert all properties other than "dependsOn"
+      ${{ if ne(pair.key, 'dependsOn') }}:
+        ${{ pair.key }}: ${{ pair.value }}
+    dependsOn:                        # Inject dependency
+    - ${{ parameters.jobName }}
+    - ${{ if job.dependsOn }}:
+      - ${{ job.dependsOn }}

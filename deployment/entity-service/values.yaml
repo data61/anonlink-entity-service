@@ -1,6 +1,6 @@
 rbac:
   # TODO still needs work to fully lock down scope etc
-  # See https://github.com/n1analytics/entity-service/issues/88
+  # See issue #88
   create: false
 
 api:
@@ -26,8 +26,8 @@ api:
   www:
 
     image:
-      repository: quay.io/n1analytics/entity-nginx
-      tag: "v1.4.2"
+      repository: data61/anonlink-nginx
+      tag: "v1.4.3"
       ## "IfNotPresent" or "Always"
       pullPolicy: IfNotPresent
 
@@ -44,10 +44,10 @@ api:
 
   app:
     image:
-      repository: quay.io/n1analytics/entity-app
-      tag: "v1.11.0"
+      repository: data61/anonlink-app
+      tag: "v1.11.1"
       ## Options: "IfNotPresent" or "Always"
-      pullPolicy: Always
+      pullPolicy: IfNotPresent
 
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -68,8 +68,8 @@ api:
     ## Database init can only run during chart install
     ## It cannot be updated! So we have a separate image + tag
     image:
-      repository: quay.io/n1analytics/entity-app
-      tag: "v1.11.0"
+      repository: data61/anonlink-app
+      tag: "v1.11.2"
 
     resources:
       requests:
@@ -79,25 +79,24 @@ api:
         cpu: 250m
         memory: 256Mi
 
-
-  ## A shared pull secret for obtaining docker images
-  ## Needs to be pushed into the namespace prior to installation
-  #pullSecret: name-of-k8s-secret-in-namespace
-
   ingress:
     enabled: true
 
     ## Ingress annotations
     ##
-    annotations: #{}
+    annotations: # {}
      kubernetes.io/ingress.class: nginx
-     #certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
-     ## To handle large uploads we increase the nginx buffer size
+
+     ## To handle large uploads we increase the proxy buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+     ## Redirect to ssl
      nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+     ## Example ingress annotations for certmanager
+     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     ingress.kubernetes.io/force-ssl-redirect: "true"
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
@@ -108,7 +107,7 @@ api:
     ## This example setup is for nginx-ingress. We use certificate manager.
     ## to create the TLS secret in the namespace with the name
     ## below.
-    tls: #[]
+    tls: # []
     - secretName: beta-anonlink-data61-tls
       hosts:
       - beta.anonlink.data61.xyz
@@ -123,11 +122,9 @@ api:
     ## or access it from within the cluster (ClusterIP service).
     ## Set the service type and the port to serve it.
     ## ref: http://kubernetes.io/docs/user-guide/services/
-    ## Most likely if ingress is enabled, this should be ClusterIP,
-    ## Otherwise LoadBalancer. Note you should manually adjust the timeout on
-    ## an AWS ELB to 300+ seconds (from the default of 60).
+    ## Most likely ingress is enabled so this should be ClusterIP,
+    ## Otherwise "LoadBalancer".
     type: ClusterIP
-
     servicePort: 80
 
     ## If using a load balancer on AWS you can optionally lock down access
@@ -135,21 +132,19 @@ api:
     ## security group.
     loadBalancerSourceRanges: []
 
-
 workers:
   name: "matcher"
-
+  debug: false
   image:
-    repository: "quay.io/n1analytics/entity-app"
-    tag: "v1.11.0"
-    pullPolicy: Always
-    #pullSecret: "name-of-k8s-secret-in-namespace"
+    repository: "data61/anonlink-app"
+    tag: "v1.11.2"
+    pullPolicy: IfNotPresent
 
-  ## Usually this is set to 1 per compute node
+  ## The number of workers for this deployment
   replicaCount: 2
+
   autoscaler:
     enabled: false
-  debug: true
 
   podAnnotations: {}
 
@@ -192,9 +187,9 @@ workers:
 #      memory: 2Gi
 #      cpu: 200m
 
-  # At least one "high memory" worker is also required
+  ## At least one "high memory" worker is also required
   highmemory:
-    replicaCount: 2
+    replicaCount: 1
     resources:
       requests:
         memory: 16Gi
@@ -290,7 +285,7 @@ minio:
 
 
 provision:
-  # enable to deploy a standalone version of minio, otherwise connect minio to another service (e.g. S3)
+  # enable to deploy a standalone version of each service as part of the helm deployment
   minio: true
   postgresql: true
   redis: true

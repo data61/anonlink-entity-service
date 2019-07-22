@@ -1,0 +1,5 @@
+# Set the azure variable DOCKER_TAG to the name of the branch, in lower case and with all special characters removed.
+
+steps:
+- script: |
+    sourceBranch="$(Build.SourceBranch)"; echo ${sourceBranch##*/} | tr [:upper:] [:lower:] | tr -cd [a-z] | xargs -I@ echo "##vso[task.setvariable variable=DOCKER_TAG]@"

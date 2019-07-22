@@ -55,5 +55,6 @@ Table Of Contents
    security
    deployment
    development
+   devops
    benchmarking
    logging

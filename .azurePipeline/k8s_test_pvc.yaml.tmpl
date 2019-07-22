@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $PVC
+  labels:
+    jobgroup: anonlink-integration-test
+    deployment: $DEPLOYMENT_NAME
+spec:
+  storageClassName: default
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
