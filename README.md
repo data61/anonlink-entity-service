@@ -1,29 +1,17 @@
-# entity-service
+# Anonlink Entity Service
+
+[![Documentation Status](https://readthedocs.org/projects/anonlink-entity-service/badge/?version=stable)](https://anonlink-entity-service.readthedocs.io/en/stable/?badge=stable)
 
 A service for performing privacy preserving record linkage. Allows organizations to carry out record linkage without disclosing personally identifiable information.
 
-Clients should use [clkhash](https://github.com/n1analytics/clkhash/) or the [encoding-service](https://github.com/n1analytics/encoding-service/).
+Clients should use [clkhash](https://github.com/data61/clkhash/) or the [encoding-service](https://github.com/data61/anonlink-encoding-service/).
 
 ## Documentation
 
-The [docs](./docs) folder contains the service's documentation. A high level 
-description of the service is available in [docs/index.rst](./docs/index.rst).
+Project documentation including tutorials are hosted at https://anonlink-entity-service.readthedocs.io/en/stable/
+ 
+The [docs](./docs) folder contains the documentation source.
 
-
-### Building the docs
-
-To build and serve the html docs run:
-
-    pip install -r docs/doc-requirements.txt
-    sphinx-build -b html docs html-docs
-    cd html-docs
-    python -m http.server
-
-
-or using docker:
-
-    docker run -it -v <PATH TO PROJECT>:/src -v <OUTPUT HTML PATH>:/build quay.io/n1analytics/entity-docs
-    
 
 ## Build
 
@@ -34,17 +22,18 @@ or using docker:
 
 ### Building the docker containers
 
-Run `./tools/build.sh` (from this directory, not from `tools`). This will create the tagged
+Run `./tools/build.sh` (from this directory, not from `tools`). This will create the `latest` tagged
 images used by `docker-compose`.
 
-Note docker images are also pushed to quay.io, which can be used instead of building containers manually.
+Note docker images are pushed to Docker Hub, which can be used instead of building containers manually.
 
-| Component       | Quay.io |
-|-----------------|---------|
-|  Backend/Worker | [![Backend Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-app/status?token=ec8444d6-f940-4dcf-a840-2a077f56fb1b "Backend Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-app) |
-|  Nginx          | [![Nginx Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-nginx/status?token=f669c554-1852-45bc-b595-29bb902a911a "Nginx Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-nginx) |
-| Benchmark       |  [![Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-benchmark/status?token=642a6f47-e8db-4714-9508-f6f209915e33 "Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-benchmark) |
-| Docs            |  [![Docs Builder Docker Repository on Quay](https://quay.io/repository/n1analytics/entity-docs/status?token=38232319-38cb-4749-91ef-1bdca20c4363 "Docs Builder Docker Repository on Quay")](https://quay.io/repository/n1analytics/entity-docs) |
+
+| Component        | Docker Hub |
+|------------------|---------|
+|  Backend/Worker  | [data61/anonlink-app](https://hub.docker.com/r/data61/anonlink-app) |
+|  Nginx           | [data61/anonlink-nginx](https://hub.docker.com/r/data61/anonlink-nginx) |
+|  Benchmark       | [data61/anonlink-benchmark](https://hub.docker.com/r/data61/anonlink-benchmark) |
+|  Docs            | [data61/anonlink-docs-builder](https://hub.docker.com/r/data61/anonlink-docs-builder) |
 
 
 ## Running Locally
