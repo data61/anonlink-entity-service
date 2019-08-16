@@ -49,6 +49,10 @@ def load_experiments(filepath):
     with open(filepath, 'rt') as f:
         experiments = json.load(f)
 
+    for experiment in experiments:
+        if 'repetition' not in experiment:
+            experiment['repetition'] = 1
+
     jsonschema.validate(experiments, experiment_schema)
 
     return experiments
