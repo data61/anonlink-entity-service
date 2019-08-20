@@ -21,12 +21,12 @@ spec:
           mountPath: /cache
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-benchmark:v0.2.0
+        image: data61/anonlink-benchmark:v0.3.0-dev
         env:
           - name: SERVER
-            value: "https://testing.es.data61.xyz"
+            value: "https://benchmark.es.data61.xyz"
           - name: TIMEOUT
-            value: "1200"
+            value: "2400"
           - name: EXPERIMENT
             value: "/config/experiments.json"
           - name: DATA_PATH
@@ -34,7 +34,17 @@ spec:
           - name: SCHEMA
             value: "/cache/schema.json"
           - name: RESULTS_PATH
-            value: "/app/results.json"
+            value: "/tmp/results.json"
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: anonlink-benchmark-aws-credentials
+                key: AWS_ACCESS_KEY_ID
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: anonlink-benchmark-aws-credentials
+                key: AWS_SECRET_ACCESS_KEY
         volumeMounts:
           - name: experiments-volume
             mountPath: /config
