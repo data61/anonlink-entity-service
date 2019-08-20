@@ -7,7 +7,7 @@ import structlog
 
 from entityservice import serialization
 from entityservice import database
-from entityservice.database import logger
+from entityservice.database import logger, DBConn
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
@@ -59,19 +59,20 @@ def get_deserialized_filter(dp_id):
         return pickle.loads(r.get(key))
     else:
         logger.debug("Looking up popcounts and filename from database")
-        db = database.connect_db()
-        mc = connect_to_object_store()
-        serialized_filters_file = database.get_filter_metadata(db, dp_id)
+        with DBConn() as db:
+            #db = database.connect_db()
+            mc = connect_to_object_store()
+            serialized_filters_file = database.get_filter_metadata(db, dp_id)
 
-        logger.debug("Getting filters from object store")
+            logger.debug("Getting filters from object store")
 
-        # Note this uses already calculated popcounts unlike
-        # serialization.deserialize_filters()
-        raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
-        python_filters = serialization.binary_unpack_filters(raw_data_response)
+            # Note this uses already calculated popcounts unlike
+            # serialization.deserialize_filters()
+            raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
+            python_filters = serialization.binary_unpack_filters(raw_data_response)
 
-        set_deserialized_filter(dp_id, python_filters)
-        return python_filters
+            set_deserialized_filter(dp_id, python_filters)
+            return python_filters
 
 
 def remove_from_cache(dp_id):

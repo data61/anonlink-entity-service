@@ -12,8 +12,7 @@ from flask import request
 from connexion import ProblemException
 from structlog import get_logger
 
-from entityservice.database import connect_db, get_number_parties_uploaded, get_number_parties_ready
-from entityservice.database import get_project_column
+from entityservice.database import DBConn, get_number_parties_uploaded, get_number_parties_ready, get_project_column
 
 logger = get_logger()
 
@@ -126,16 +125,16 @@ def clks_uploaded_to_project(project_id, check_data_ready=False):
     """ See if the given project has had all parties contribute data.
     """
     logger.info("Counting contributing parties")
-    conn = connect_db()
-    if check_data_ready:
-        parties_contributed = get_number_parties_ready(conn, project_id)
-        logger.info("Parties where data is ready: {}".format(parties_contributed))
-    else:
-        parties_contributed = get_number_parties_uploaded(conn, project_id)
-        logger.info("Parties where data is uploaded: {}".format(parties_contributed))
-    number_parties = get_project_column(conn, project_id, 'parties')
-    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
-    return parties_contributed == number_parties
+    with DBConn() as conn:
+        if check_data_ready:
+            parties_contributed = get_number_parties_ready(conn, project_id)
+            logger.info("Parties where data is ready: {}".format(parties_contributed))
+        else:
+            parties_contributed = get_number_parties_uploaded(conn, project_id)
+            logger.info("Parties where data is uploaded: {}".format(parties_contributed))
+        number_parties = get_project_column(conn, project_id, 'parties')
+        logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
+        return parties_contributed == number_parties
 
 
 def similarity_matrix_from_csv_bytes(data):
