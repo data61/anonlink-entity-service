@@ -1,14 +1,16 @@
 import time
 
+import atexit
 import psycopg2
 import psycopg2.extras
-from flask import current_app, g
+from psycopg2.pool import ThreadedConnectionPool
+from flask import current_app
 from structlog import get_logger
 
-from entityservice import database
 from entityservice.settings import Config as config
 
 logger = get_logger()
+connection_pool = None
 
 
 def query_db(db, query, args=(), one=False):
@@ -25,29 +27,6 @@ def query_db(db, query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-def connect_db():
-    db = config.DATABASE
-    host = config.DATABASE_SERVER
-    user = config.DATABASE_USER
-    pw = config.DATABASE_PASSWORD
-
-    logger.info("Trying to connect to database.", database=db, user=user, host=host)
-    # We nest the try/except blocks to allow one re-attempt with defaults
-    try:
-        try:
-            conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
-        except psycopg2.OperationalError:
-            logger.warning("fallback connecting to default postgres db", database=db, user=user, host=host)
-            conn = psycopg2.connect(database='postgres', user=user, password=pw, host=host)
-
-    except psycopg2.Error:
-        logger.warning("Can't connect to database")
-        raise ConnectionError("Issue connecting to database")
-
-    logger.debug("Database connection established")
-    return conn
-
-
 def init_db(delay=0.5):
     """
     Initializes the database by creating the required tables.
@@ -55,22 +34,96 @@ def init_db(delay=0.5):
     @param float delay: Number of seconds to wait before executing the SQL.
     """
     time.sleep(delay)
-    db = connect_db()
-    with current_app.open_resource('init-db-schema.sql', mode='r') as f:
-        logger.warning("Initialising database")
-        db.cursor().execute(f.read())
-    db.commit()
+    with DBConn() as db:
+        with current_app.open_resource('init-db-schema.sql', mode='r') as f:
+            logger.warning("Initialising database")
+            db.cursor().execute(f.read())
+
+
+def init_db_pool():
+    db = config.DATABASE
+    host = config.DATABASE_SERVER
+    user = config.DATABASE_USER
+    pw = config.DATABASE_PASSWORD
+    db_max_connections = config.DATABASE_MAX_CONNECTIONS
+
+    global connection_pool
+    if connection_pool is None:
+        logger.info("Initialize the database connection pool.", database=db, user=user, password=pw, host=host)
+        try:
+            connection_pool = ThreadedConnectionPool(0, db_max_connections, database=db, user=user, password=pw, host=host)
+        except psycopg2.Error:
+            logger.warning("Can't connect to database")
+            raise ConnectionError("Issue connecting to database")
+    else:
+        logger.warning("The connection pool has already been initialized.")
+
+
+@atexit.register
+def close_db_pool():
+    """
+    If a connection pool is available, close all its connections and set it to None.
+    This method is always run at the exit of the application, to ensure that we free as much as possible
+    the database connections.
+    """
+    global connection_pool
+    logger.info("Close the database connection pool")
+    if connection_pool is not None:
+        connection_pool.closeall()
+        connection_pool = None
 
 
 class DBConn:
+    """
+    To connect to the database, it is preferred to use the pattern:
+    with DBConn() as conn:
+        ...
+    It will ensure that the connection is either taken from the connection pool if available and return it to the pool
+    when done, or it will create a single connection which is closed when done.
+    """
+
+    return_to_pool = True
 
     def __init__(self, conn=None):
-        self.conn = conn if conn is not None else connect_db()
+        if conn is None:
+            if connection_pool is not None:
+                logger.debug("Get a database connection from the pool.")
+                try:
+                    self.conn = connection_pool.getconn()
+                except psycopg2.Error:
+                    logger.warning("Can't connect to database")
+                    raise ConnectionError("Issue connecting to database")
+            else:
+                logger.debug("Get a database connection without a pool.")
+                self.__connect_db()
+                self.return_to_pool = False
+
+        else:
+            # Not sure where the connection is coming from...
+            logger.debug("Use our own connection.")
+            self.conn = conn
+            self.return_to_pool = False
 
     def __enter__(self):
         return self.conn
 
+    def __connect_db(self):
+        db = config.DATABASE
+        host = config.DATABASE_SERVER
+        user = config.DATABASE_USER
+        pw = config.DATABASE_PASSWORD
+
+        logger.info("Trying to connect to database.", database=db, user=user, host=host)
+        try:
+            self.conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
+        except psycopg2.Error:
+            logger.warning("Can't connect to database")
+            raise ConnectionError("Issue connecting to database")
+
+        logger.debug("Database connection established")
+
     def __exit__(self, exc_type, exc_val, traceback):
+        result = True
         if not exc_type:
             self.conn.commit()
             for notice in self.conn.notices:
@@ -81,7 +134,20 @@ class DBConn:
                 # It was a Postgres exception
                 logger.warning(f"{exc_val.diag.severity} - {exc_val.pgerror}")
             # Note if we return True we swallow the exception, False we propagate it
-            return False
+            result = False
+            self.conn.cancel()
+
+        if self.return_to_pool:
+            if self.conn.closed != 0:
+                logger.warning("Trying to put back a closed database connection in the pool.")
+            else:
+                logger.debug("Return the database connection to the pool.")
+                connection_pool.putconn(self.conn, close=False)
+        else:
+            logger.debug("Close the database connection.")
+            self.conn.close()
+
+        return result
 
 
 def execute_returning_id(cur, query, args):
@@ -97,15 +163,3 @@ def execute_returning_id(cur, query, args):
     else:
         resource_id = query_result[0]
         return resource_id
-
-
-def get_db():
-    """Opens a new database connection if there is none yet for the
-    current flask application context. The connection will be closed
-    at the end of the request.
-    """
-    conn = getattr(g, 'db', None)
-    if conn is None:
-        logger.debug("Caching a new database connection in application context")
-        conn = g.db = database.connect_db()
-    return conn
