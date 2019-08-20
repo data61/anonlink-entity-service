@@ -1,6 +1,7 @@
+arrow
+boto3
 clkhash==0.14.0
+jsonschema
 numpy
 pandas
-arrow
 requests
-jsonschema
