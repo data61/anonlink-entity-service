@@ -13,7 +13,8 @@ Configured via environment variables:
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 """
-
+import boto3
+import copy
 import json
 import logging
 import time
@@ -234,44 +235,69 @@ def run_experiments(config):
 
     results = {'experiments': []}
     for experiment in config['experiments']:
-        try:
-            threshold = experiment['threshold']
-            logger.info('running experiment: {}'.format(experiment))
-            size_a, size_b = get_exp_sizes(experiment)
-            # create project
-            credentials = rest_client.project_create(server, config['schema'], 'mapping', "benchy_{}".format(experiment))
-            try:
-                # upload clks
-                upload_binary_clks(config, size_a, size_b, credentials)
-                # create run
-                run = rest_client.run_create(server, credentials['project_id'], credentials['result_token'],
-                                             threshold,
-                                             "{}_{}".format(experiment, threshold))
-                # wait for result
-                run_id = run['run_id']
-                logger.info(f'waiting for run {run_id} to finish')
-                status = rest_client.wait_for_run(server, credentials['project_id'], run['run_id'],
-                                                  credentials['result_token'], timeout=config['timeout'])
-                if status['state'] != 'completed':
-                    raise RuntimeError('run did not finish!\n{}'.format(status))
-                logger.info('experiment successful. Evaluating results now...')
-                mapping = rest_client.run_get_result_text(server, credentials['project_id'], run['run_id'],
-                                                          credentials['result_token'])
-                mapping = json.loads(mapping)['mapping']
-                mapping = {int(k): int(v) for k, v in mapping.items()}
-                tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
-                result = compose_result(status, tt, experiment, (size_a, size_b), threshold)
-                results['experiments'].append(result)
-                logger.info('cleaning up...')
-                delete_resources(config, credentials, run)
-            except Exception as e:
-                delete_resources(config, credentials, run)
-                raise e
-        except Exception as e:
-            e_trace = format_exc()
-            logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
-            results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+        repetition = experiment['repetition']
+        threshold = experiment['threshold']
+        size_a, size_b = get_exp_sizes(experiment)
+
+        for rep in range(repetition):
+            current_experiment = copy.deepcopy(experiment)
+            current_experiment['rep'] = rep + 1
+            logger.info('running experiment: {}'.format(current_experiment))
+            if repetition != 1:
+                logger.info('\trepetition {} out of {}'.format(rep + 1, repetition))
+            result = run_single_experiment(server, config, threshold, size_a, size_b, current_experiment)
+            results['experiments'].append(result)
+
     return results
+
+
+def run_single_experiment(server, config, threshold, size_a, size_b, experiment):
+    result = {}
+    credentials = {}
+    run = {}
+    try:
+        credentials = rest_client.project_create(server, config['schema'], 'mapping',
+                                                 "benchy_{}".format(experiment))
+        # upload clks
+        upload_binary_clks(config, size_a, size_b, credentials)
+        # create run
+        run = rest_client.run_create(server, credentials['project_id'], credentials['result_token'],
+                                     threshold,
+                                     "{}_{}".format(experiment, threshold))
+        # wait for result
+        run_id = run['run_id']
+        result['run_id'] = run_id
+        logger.info(f'waiting for run {run_id} to finish')
+        status = rest_client.wait_for_run(server, credentials['project_id'], run['run_id'],
+                                          credentials['result_token'], timeout=config['timeout'])
+        if status['state'] != 'completed':
+            raise RuntimeError('run did not finish!\n{}'.format(status))
+        logger.info('experiment successful. Evaluating results now...')
+        mapping = rest_client.run_get_result_text(server, credentials['project_id'], run['run_id'],
+                                                  credentials['result_token'])
+        mapping = json.loads(mapping)['mapping']
+        mapping = {int(k): int(v) for k, v in mapping.items()}
+        tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
+        result.update(compose_result(status, tt, experiment, (size_a, size_b), threshold))
+    except Exception as e:
+        e_trace = format_exc()
+        logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
+        result.update({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+    finally:
+        logger.info('cleaning up...')
+        delete_resources(config, credentials, run)
+
+    return result
+
+
+def push_result_s3(experiment_file):
+    client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+    )
+    s3_bucket = "anonlink-benchmark-result"
+    client.upload_file(experiment_file, s3_bucket, "results.json")
 
 
 def main():
@@ -297,6 +323,7 @@ def main():
         pprint(results)
         with open(config['results_path'], 'wt') as f:
             json.dump(results, f)
+        push_result_s3(config['results_path'])
 
 
 if __name__ == '__main__':
