@@ -298,7 +298,8 @@ def push_result_s3(experiment_file):
         aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
     )
     s3_bucket = "anonlink-benchmark-result"
-    client.upload_file(experiment_file, s3_bucket, "results.json")
+    s3_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
+    client.upload_file(experiment_file, s3_bucket, s3_file_name)
 
 
 def main():
