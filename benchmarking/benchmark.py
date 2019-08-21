@@ -66,6 +66,8 @@ def read_config():
     DEFAULT_DATA_FOLDER = './data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
+    DEFAULT_S3_BUCKET = 'anonlink-benchmark-result'
+
     try:
         server = os.getenv('SERVER')
         data_path = os.getenv('DATA_PATH', DEFAULT_DATA_FOLDER)
@@ -77,7 +79,7 @@ def read_config():
 
         experiments = load_experiments(experiments_file)
 
-        return {
+        config = {
             'server': server,
             'experiments': experiments,
             'timeout': timeout,
@@ -86,6 +88,21 @@ def read_config():
             'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
             'results_path': results_path
         }
+
+        if 'AWS_ACCESS_KEY_ID' in os.environ:
+            aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+            aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+            s3_bucket = os.getenv('S3_BUCKET', DEFAULT_S3_BUCKET)
+            config.update({
+                'push_to_s3': True,
+                'aws_access_key_id': aws_access_key_id,
+                'aws_secret_access_key': aws_secret_access_key,
+                's3_bucket': s3_bucket
+            })
+        else:
+            config['push_to_s3'] = False
+
+        return config
     except Exception as e:
         raise ValueError(
             'Error loading environment variables!\n'
@@ -291,13 +308,17 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
     return result
 
 
-def push_result_s3(experiment_file):
+def push_result_s3(config):
+    experiment_file = config['results_path']
+    aws_access_key_id = config['aws_access_key_id']
+    aws_secret_access_key = config['aws_secret_access_key']
+    s3_bucket = config['s3_bucket']
+    logger.info('Pushing the results to s3, in the bucket {}'.format(s3_bucket))
     client = boto3.client(
         's3',
-        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
     )
-    s3_bucket = "anonlink-benchmark-result"
     s3_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
     client.upload_file(experiment_file, s3_bucket, s3_file_name)
 
@@ -325,7 +346,8 @@ def main():
         pprint(results)
         with open(config['results_path'], 'wt') as f:
             json.dump(results, f)
-        push_result_s3(config['results_path'])
+        if config['push_to_s3']:
+            push_result_s3(config)
 
 
 if __name__ == '__main__':
