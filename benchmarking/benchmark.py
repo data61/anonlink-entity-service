@@ -261,20 +261,21 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
         # upload clks
         upload_binary_clks(config, size_a, size_b, credentials)
         # create run
-        run = rest_client.run_create(server, credentials['project_id'], credentials['result_token'],
+        project_id = credentials['project_id']
+        result['project_id'] = project_id
+        run = rest_client.run_create(server, project_id, credentials['result_token'],
                                      threshold,
                                      "{}_{}".format(experiment, threshold))
         # wait for result
         run_id = run['run_id']
         result['run_id'] = run_id
-        logger.info(f'waiting for run {run_id} to finish')
-        status = rest_client.wait_for_run(server, credentials['project_id'], run['run_id'],
+        logger.info(f'waiting for run {run_id} from the project {project_id} to finish')
+        status = rest_client.wait_for_run(server, project_id, run_id,
                                           credentials['result_token'], timeout=config['timeout'])
         if status['state'] != 'completed':
             raise RuntimeError('run did not finish!\n{}'.format(status))
         logger.info('experiment successful. Evaluating results now...')
-        mapping = rest_client.run_get_result_text(server, credentials['project_id'], run['run_id'],
-                                                  credentials['result_token'])
+        mapping = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
         mapping = json.loads(mapping)['mapping']
         mapping = {int(k): int(v) for k, v in mapping.items()}
         tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
