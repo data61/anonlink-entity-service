@@ -33,7 +33,7 @@ class Config(object):
     DATABASE = os.getenv('DATABASE', 'postgres')
     DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
-    DATABASE_MAX_CONNECTIONS = os.getenv('DATABASE_MAX_CONNECTIONS', '5')
+    DATABASE_MAX_CONNECTIONS = os.getenv('DATABASE_MAX_CONNECTIONS', '1')
 
     CELERY_BROKER_URL = os.getenv(
         'CELERY_BROKER_URL',
