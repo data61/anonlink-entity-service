@@ -21,7 +21,7 @@ spec:
           mountPath: /cache
       containers:
       - name: entitytester
-        image: data61/anonlink-benchmark:v0.3.0-dev
+        image: data61/anonlink-benchmark:featurebenchmarkrepeat
         env:
           - name: SERVER
             value: "https://benchmark.es.data61.xyz"
