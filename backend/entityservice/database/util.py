@@ -45,13 +45,14 @@ def init_db_pool():
     host = config.DATABASE_SERVER
     user = config.DATABASE_USER
     pw = config.DATABASE_PASSWORD
+    db_min_connections = config.DATABASE_MIN_CONNECTIONS
     db_max_connections = config.DATABASE_MAX_CONNECTIONS
 
     global connection_pool
     if connection_pool is None:
         logger.info("Initialize the database connection pool.", database=db, user=user, password=pw, host=host)
         try:
-            connection_pool = ThreadedConnectionPool(1, db_max_connections, database=db, user=user, password=pw, host=host)
+            connection_pool = ThreadedConnectionPool(db_min_connections, db_max_connections, database=db, user=user, password=pw, host=host)
         except psycopg2.Error as e:
             logger.warning("Can't connect to database")
             raise ConnectionError("Issue connecting to database") from e
