@@ -79,49 +79,24 @@ class DBConn:
     To connect to the database, it is preferred to use the pattern:
     with DBConn() as conn:
         ...
-    It will ensure that the connection is either taken from the connection pool if available and return it to the pool
-    when done, or it will create a single connection which is closed when done.
+    It will ensure that the connection is taken from the connection pool return it to the pool
+    when done. The pool must be initialized first via `init_db_pool()`.
     """
 
-    return_to_pool = True
+    def __init__(self):
+        if connection_pool is None:
+            raise ValueError("The database connection pool has not been initialized by the application."
+                                  " Use 'init_db_pool()' to initialise it.")
 
-    def __init__(self, conn=None):
-        if conn is None:
-            if connection_pool is not None:
-                logger.debug("Get a database connection from the pool.")
-                try:
-                    self.conn = connection_pool.getconn()
-                except psycopg2.Error:
-                    logger.warning("Can't connect to database")
-                    raise ConnectionError("Issue connecting to database")
-            else:
-                logger.debug("Get a database connection without a pool.")
-                self.__connect_db()
-                self.return_to_pool = False
-
-        else:
-            # Not sure where the connection is coming from...
-            logger.debug("Use our own connection.")
-            self.conn = conn
-            self.return_to_pool = False
+        logger.debug("Get a database connection from the pool.")
+        try:
+            self.conn = connection_pool.getconn()
+        except psycopg2.Error as e:
+            logger.warning("Can't connect to database", e)
+            raise ConnectionError("Issue connecting to database") from e
 
     def __enter__(self):
         return self.conn
-
-    def __connect_db(self):
-        db = config.DATABASE
-        host = config.DATABASE_SERVER
-        user = config.DATABASE_USER
-        pw = config.DATABASE_PASSWORD
-
-        logger.info("Trying to connect to database.", database=db, user=user, host=host)
-        try:
-            self.conn = psycopg2.connect(database=db, user=user, password=pw, host=host)
-        except psycopg2.Error:
-            logger.warning("Can't connect to database")
-            raise ConnectionError("Issue connecting to database")
-
-        logger.debug("Database connection established")
 
     def __exit__(self, exc_type, exc_val, traceback):
         try:
@@ -142,11 +117,7 @@ class DBConn:
         except Exception as e:
             logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", e)
         finally:
-            if self.return_to_pool:
-                connection_pool.putconn(self.conn, close=False)
-            else:
-                logger.debug("Close the database connection.")
-                self.conn.close()
+            connection_pool.putconn(self.conn, close=False)
 
 
 def execute_returning_id(cur, query, args):
