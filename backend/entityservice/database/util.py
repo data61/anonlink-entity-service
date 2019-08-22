@@ -123,31 +123,29 @@ class DBConn:
         logger.debug("Database connection established")
 
     def __exit__(self, exc_type, exc_val, traceback):
-        result = True
-        if not exc_type:
-            self.conn.commit()
-            for notice in self.conn.notices:
-                logger.debug(notice)
-        else:
-            # There was an exception in the DBConn body
-            if isinstance(exc_type, psycopg2.Error):
-                # It was a Postgres exception
-                logger.warning(f"{exc_val.diag.severity} - {exc_val.pgerror}")
-            # Note if we return True we swallow the exception, False we propagate it
-            result = False
-            self.conn.cancel()
-
-        if self.return_to_pool:
-            if self.conn.closed != 0:
-                logger.warning("Trying to put back a closed database connection in the pool.")
+        try:
+            result = True
+            if not exc_type:
+                self.conn.commit()
+                for notice in self.conn.notices:
+                    logger.debug(notice)
             else:
-                logger.debug("Return the database connection to the pool.")
+                # There was an exception in the DBConn body
+                if isinstance(exc_type, psycopg2.Error):
+                    # It was a Postgres exception
+                    logger.warning(f"{exc_val.diag.severity} - {exc_val.pgerror}")
+                # Note if we return True we swallow the exception, False we propagate it
+                result = False
+                self.conn.cancel()
+            return result
+        except Exception as e:
+            logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", e)
+        finally:
+            if self.return_to_pool:
                 connection_pool.putconn(self.conn, close=False)
-        else:
-            logger.debug("Close the database connection.")
-            self.conn.close()
-
-        return result
+            else:
+                logger.debug("Close the database connection.")
+                self.conn.close()
 
 
 def execute_returning_id(cur, query, args):
