@@ -272,6 +272,7 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
     result = {}
     credentials = {}
     run = {}
+    logger.info("Starting time: {}".format(time.asctime()))
     try:
         credentials = rest_client.project_create(server, config['schema'], 'mapping',
                                                  "benchy_{}".format(experiment))
@@ -305,6 +306,7 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
         logger.info('cleaning up...')
         delete_resources(config, credentials, run)
 
+    logger.info("Ending time: {}".format(time.asctime()))
     return result
 
 
