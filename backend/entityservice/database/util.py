@@ -33,6 +33,7 @@ def init_db(delay=0.5):
 
     @param float delay: Number of seconds to wait before executing the SQL.
     """
+    init_db_pool()
     time.sleep(delay)
     with DBConn() as db:
         with current_app.open_resource('init-db-schema.sql', mode='r') as f:
@@ -86,7 +87,7 @@ class DBConn:
     def __init__(self):
         if connection_pool is None:
             raise ValueError("The database connection pool has not been initialized by the application."
-                                  " Use 'init_db_pool()' to initialise it.")
+                             " Use 'init_db_pool()' to initialise it.")
 
         logger.debug("Get a database connection from the pool.")
         try:
