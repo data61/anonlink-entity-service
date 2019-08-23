@@ -42,6 +42,9 @@ def init_db(delay=0.5):
 
 
 def init_db_pool():
+    """
+    Initializes the database connection pool required by the application to connect to the database.
+    """
     db = config.DATABASE
     host = config.DATABASE_SERVER
     user = config.DATABASE_USER
