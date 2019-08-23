@@ -66,7 +66,7 @@ def read_config():
     DEFAULT_DATA_FOLDER = './data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
-    DEFAULT_S3_BUCKET = 'anonlink-benchmark-result'
+    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-result'
 
     try:
         server = os.getenv('SERVER')
@@ -89,18 +89,20 @@ def read_config():
             'results_path': results_path
         }
 
-        if 'AWS_ACCESS_KEY_ID' in os.environ:
-            aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
-            aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-            s3_bucket = os.getenv('S3_BUCKET', DEFAULT_S3_BUCKET)
+        if 'OBJECT_STORE_ACCESS_KEY' in os.environ:
+            object_store_server = os.getenv('OBJECT_STORE_SERVER')
+            object_store_access_key = os.getenv('OBJECT_STORE_ACCESS_KEY')
+            object_store_secret_key = os.getenv('OBJECT_STORE_SECRET_KEY')
+            object_store_bucket = os.getenv('OBJECT_STORE_BUCKET', DEFAULT_OBJECT_STORE_BUCKET)
             config.update({
-                'push_to_s3': True,
-                'aws_access_key_id': aws_access_key_id,
-                'aws_secret_access_key': aws_secret_access_key,
-                's3_bucket': s3_bucket
+                'push_to_object_store': True,
+                'object_store_server': object_store_server,
+                'object_store_access_key': object_store_access_key,
+                'object_store_secret_key': object_store_secret_key,
+                'object_store_bucket': object_store_bucket
             })
         else:
-            config['push_to_s3'] = False
+            config['push_to_object_store'] = False
 
         return config
     except Exception as e:
@@ -310,19 +312,22 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
     return result
 
 
-def push_result_s3(config):
+def push_to_object_store(config):
     experiment_file = config['results_path']
-    aws_access_key_id = config['aws_access_key_id']
-    aws_secret_access_key = config['aws_secret_access_key']
-    s3_bucket = config['s3_bucket']
-    logger.info('Pushing the results to s3, in the bucket {}'.format(s3_bucket))
+    endpoint_url = config['object_store_server']
+    object_store_access_key = config['object_store_access_key']
+    object_store_secret_key = config['object_store_secret_key']
+    object_store_bucket = config['object_store_bucket']
+    logger.info('Pushing the results to {}, in the bucket {}'.format('s3' if endpoint_url is None else endpoint_url,
+                                                                     object_store_bucket))
     client = boto3.client(
         's3',
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key
+        endpoint_url=endpoint_url,
+        aws_access_key_id=object_store_access_key,
+        aws_secret_access_key=object_store_secret_key
     )
-    s3_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
-    client.upload_file(experiment_file, s3_bucket, s3_file_name)
+    result_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
+    client.upload_file(experiment_file, object_store_bucket, result_file_name)
 
 
 def main():
@@ -348,8 +353,8 @@ def main():
         pprint(results)
         with open(config['results_path'], 'wt') as f:
             json.dump(results, f)
-        if config['push_to_s3']:
-            push_result_s3(config)
+        if config['push_to_object_store']:
+            push_to_object_store(config)
 
 
 if __name__ == '__main__':

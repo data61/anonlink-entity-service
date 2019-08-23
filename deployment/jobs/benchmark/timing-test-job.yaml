@@ -35,16 +35,16 @@ spec:
             value: "/cache/schema.json"
           - name: RESULTS_PATH
             value: "/tmp/results.json"
-          - name: AWS_ACCESS_KEY_ID
+          - name: OBJECT_STORE_ACCESS_KEY
             valueFrom:
               secretKeyRef:
                 name: anonlink-benchmark-aws-credentials
-                key: AWS_ACCESS_KEY_ID
-          - name: AWS_SECRET_ACCESS_KEY
+                key: OBJECT_STORE_ACCESS_KEY
+          - name: OBJECT_STORE_SECRET_KEY
             valueFrom:
               secretKeyRef:
                 name: anonlink-benchmark-aws-credentials
-                key: AWS_SECRET_ACCESS_KEY
+                key: OBJECT_STORE_SECRET_KEY
         volumeMounts:
           - name: experiments-volume
             mountPath: /config
