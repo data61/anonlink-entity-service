@@ -13,7 +13,8 @@ Configured via environment variables:
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 """
-
+import boto3
+import copy
 import json
 import logging
 import time
@@ -49,6 +50,10 @@ def load_experiments(filepath):
     with open(filepath, 'rt') as f:
         experiments = json.load(f)
 
+    for experiment in experiments:
+        if 'repetition' not in experiment:
+            experiment['repetition'] = 1
+
     jsonschema.validate(experiments, experiment_schema)
 
     return experiments
@@ -61,6 +66,8 @@ def read_config():
     DEFAULT_DATA_FOLDER = './data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
+    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-result'
+
     try:
         server = os.getenv('SERVER')
         data_path = os.getenv('DATA_PATH', DEFAULT_DATA_FOLDER)
@@ -72,7 +79,7 @@ def read_config():
 
         experiments = load_experiments(experiments_file)
 
-        return {
+        config = {
             'server': server,
             'experiments': experiments,
             'timeout': timeout,
@@ -81,6 +88,23 @@ def read_config():
             'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
             'results_path': results_path
         }
+
+        if 'OBJECT_STORE_ACCESS_KEY' in os.environ:
+            object_store_server = os.getenv('OBJECT_STORE_SERVER')
+            object_store_access_key = os.getenv('OBJECT_STORE_ACCESS_KEY')
+            object_store_secret_key = os.getenv('OBJECT_STORE_SECRET_KEY')
+            object_store_bucket = os.getenv('OBJECT_STORE_BUCKET', DEFAULT_OBJECT_STORE_BUCKET)
+            config.update({
+                'push_to_object_store': True,
+                'object_store_server': object_store_server,
+                'object_store_access_key': object_store_access_key,
+                'object_store_secret_key': object_store_secret_key,
+                'object_store_bucket': object_store_bucket
+            })
+        else:
+            config['push_to_object_store'] = False
+
+        return config
     except Exception as e:
         raise ValueError(
             'Error loading environment variables!\n'
@@ -230,44 +254,80 @@ def run_experiments(config):
 
     results = {'experiments': []}
     for experiment in config['experiments']:
-        try:
-            threshold = experiment['threshold']
-            logger.info('running experiment: {}'.format(experiment))
-            size_a, size_b = get_exp_sizes(experiment)
-            # create project
-            credentials = rest_client.project_create(server, config['schema'], 'mapping', "benchy_{}".format(experiment))
-            try:
-                # upload clks
-                upload_binary_clks(config, size_a, size_b, credentials)
-                # create run
-                run = rest_client.run_create(server, credentials['project_id'], credentials['result_token'],
-                                             threshold,
-                                             "{}_{}".format(experiment, threshold))
-                # wait for result
-                run_id = run['run_id']
-                logger.info(f'waiting for run {run_id} to finish')
-                status = rest_client.wait_for_run(server, credentials['project_id'], run['run_id'],
-                                                  credentials['result_token'], timeout=config['timeout'])
-                if status['state'] != 'completed':
-                    raise RuntimeError('run did not finish!\n{}'.format(status))
-                logger.info('experiment successful. Evaluating results now...')
-                mapping = rest_client.run_get_result_text(server, credentials['project_id'], run['run_id'],
-                                                          credentials['result_token'])
-                mapping = json.loads(mapping)['mapping']
-                mapping = {int(k): int(v) for k, v in mapping.items()}
-                tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
-                result = compose_result(status, tt, experiment, (size_a, size_b), threshold)
-                results['experiments'].append(result)
-                logger.info('cleaning up...')
-                delete_resources(config, credentials, run)
-            except Exception as e:
-                delete_resources(config, credentials, run)
-                raise e
-        except Exception as e:
-            e_trace = format_exc()
-            logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
-            results['experiments'].append({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+        repetition = experiment['repetition']
+        threshold = experiment['threshold']
+        size_a, size_b = get_exp_sizes(experiment)
+
+        for rep in range(repetition):
+            current_experiment = copy.deepcopy(experiment)
+            current_experiment['rep'] = rep + 1
+            logger.info('running experiment: {}'.format(current_experiment))
+            if repetition != 1:
+                logger.info('\trepetition {} out of {}'.format(rep + 1, repetition))
+            result = run_single_experiment(server, config, threshold, size_a, size_b, current_experiment)
+            results['experiments'].append(result)
+
     return results
+
+
+def run_single_experiment(server, config, threshold, size_a, size_b, experiment):
+    result = {}
+    credentials = {}
+    run = {}
+    logger.info("Starting time: {}".format(time.asctime()))
+    try:
+        credentials = rest_client.project_create(server, config['schema'], 'mapping',
+                                                 "benchy_{}".format(experiment))
+        # upload clks
+        upload_binary_clks(config, size_a, size_b, credentials)
+        # create run
+        project_id = credentials['project_id']
+        result['project_id'] = project_id
+        run = rest_client.run_create(server, project_id, credentials['result_token'],
+                                     threshold,
+                                     "{}_{}".format(experiment, threshold))
+        # wait for result
+        run_id = run['run_id']
+        result['run_id'] = run_id
+        logger.info(f'waiting for run {run_id} from the project {project_id} to finish')
+        status = rest_client.wait_for_run(server, project_id, run_id,
+                                          credentials['result_token'], timeout=config['timeout'])
+        if status['state'] != 'completed':
+            raise RuntimeError('run did not finish!\n{}'.format(status))
+        logger.info('experiment successful. Evaluating results now...')
+        mapping = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
+        mapping = json.loads(mapping)['mapping']
+        mapping = {int(k): int(v) for k, v in mapping.items()}
+        tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
+        result.update(compose_result(status, tt, experiment, (size_a, size_b), threshold))
+    except Exception as e:
+        e_trace = format_exc()
+        logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
+        result.update({'name': experiment, 'status': 'ERROR', 'description': e_trace})
+    finally:
+        logger.info('cleaning up...')
+        delete_resources(config, credentials, run)
+
+    logger.info("Ending time: {}".format(time.asctime()))
+    return result
+
+
+def push_to_object_store(config):
+    experiment_file = config['results_path']
+    endpoint_url = config['object_store_server']
+    object_store_access_key = config['object_store_access_key']
+    object_store_secret_key = config['object_store_secret_key']
+    object_store_bucket = config['object_store_bucket']
+    logger.info('Pushing the results to {}, in the bucket {}'.format('s3' if endpoint_url is None else endpoint_url,
+                                                                     object_store_bucket))
+    client = boto3.client(
+        's3',
+        endpoint_url=endpoint_url,
+        aws_access_key_id=object_store_access_key,
+        aws_secret_access_key=object_store_secret_key
+    )
+    result_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
+    client.upload_file(experiment_file, object_store_bucket, result_file_name)
 
 
 def main():
@@ -293,6 +353,8 @@ def main():
         pprint(results)
         with open(config['results_path'], 'wt') as f:
             json.dump(results, f)
+        if config['push_to_object_store']:
+            push_to_object_store(config)
 
 
 if __name__ == '__main__':
