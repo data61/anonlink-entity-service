@@ -7,7 +7,7 @@ import structlog
 
 from entityservice import serialization
 from entityservice import database
-from entityservice.database import logger
+from entityservice.database import logger, DBConn
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
@@ -59,10 +59,10 @@ def get_deserialized_filter(dp_id):
         return pickle.loads(r.get(key))
     else:
         logger.debug("Looking up popcounts and filename from database")
-        db = database.connect_db()
-        mc = connect_to_object_store()
-        serialized_filters_file = database.get_filter_metadata(db, dp_id)
+        with DBConn() as db:
+            serialized_filters_file = database.get_filter_metadata(db, dp_id)
 
+        mc = connect_to_object_store()
         logger.debug("Getting filters from object store")
 
         # Note this uses already calculated popcounts unlike

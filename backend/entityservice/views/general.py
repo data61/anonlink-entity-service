@@ -14,13 +14,12 @@ def status_get():
 
     if status is None:
         # We ensure we can connect to the database during the status check
-        db1 = db.get_db()
+        with db.DBConn() as conn:
+            number_of_mappings = db.query_db(conn, '''
+                        SELECT COUNT(*) FROM projects
+                        ''', one=True)['count']
 
-        number_of_mappings = db.query_db(db1, '''
-                    SELECT COUNT(*) FROM projects
-                    ''', one=True)['count']
-
-        current_rate = db.get_latest_rate(db1)
+            current_rate = db.get_latest_rate(conn)
 
         status = {
             'status': 'ok',

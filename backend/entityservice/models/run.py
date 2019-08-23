@@ -1,6 +1,7 @@
 from structlog import get_logger
 
 import entityservice.database as db
+from entityservice.database import DBConn
 from entityservice import cache
 from entityservice.settings import Config as config
 from entityservice.utils import generate_code
@@ -64,9 +65,10 @@ class Run(object):
         self.run_id = generate_code()
         logger.info("Created run id", rid=self.run_id)
 
-        self.type = 'no_mapping' \
-            if db.get_project_column(db.get_db(), project_id, 'result_type') == 'similarity_scores' \
-            else 'default'
+        with DBConn() as conn:
+            self.type = 'no_mapping' \
+                if db.get_project_column(conn, project_id, 'result_type') == 'similarity_scores' \
+                else 'default'
 
     @staticmethod
     def from_json(data, project_id):

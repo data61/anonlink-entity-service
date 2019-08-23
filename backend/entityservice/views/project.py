@@ -11,7 +11,7 @@ from entityservice.tasks import handle_raw_upload, check_for_executable_runs, re
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
     clks_uploaded_to_project, fmt_bytes
-from entityservice.database import get_db, DBConn
+from entityservice.database import DBConn
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
 from entityservice import models
@@ -25,7 +25,8 @@ logger = get_logger()
 
 def projects_get():
     logger.info("Getting list of all projects")
-    projects = db.query_db(get_db(), 'select project_id, time_added from projects')
+    with DBConn() as conn:
+        projects = db.query_db(conn, 'select project_id, time_added from projects')
     return ProjectList().dump(projects)
 
 
@@ -46,7 +47,7 @@ def projects_post(project):
     log = logger.bind(pid=project_model.project_id)
     log.info("Adding new project to database")
     try:
-        with DBConn(get_db()) as conn:
+        with DBConn() as conn:
             project_model.save(conn)
     except Exception as e:
         log.warn(e)
@@ -65,7 +66,7 @@ def project_delete(project_id):
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
     log.info("Marking project for deletion")
 
-    with DBConn(get_db()) as db_conn:
+    with DBConn() as db_conn:
         db.mark_project_deleted(db_conn, project_id)
 
     log.info("Queuing authorized request to delete project resources")
@@ -82,7 +83,7 @@ def project_get(project_id):
     log.info("Getting detail for a project")
     abort_if_project_doesnt_exist(project_id)
     authorise_get_request(project_id)
-    with DBConn(get_db()) as db_conn:
+    with DBConn() as db_conn:
         project_object = db.get_project(db_conn, project_id)
         # Expose the number of data providers who have uploaded clks
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
@@ -117,7 +118,7 @@ def project_clks_post(project_id):
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
 
-    with DBConn(db.get_db()) as conn:
+    with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
 
@@ -203,7 +204,7 @@ def authorise_get_request(project_id):
     dp_id = None
     # Check the resource exists
     abort_if_project_doesnt_exist(project_id)
-    with DBConn(get_db()) as dbinstance:
+    with DBConn() as dbinstance:
         project_object = db.get_project(dbinstance, project_id)
     logger.info("Checking credentials")
     result_type = project_object['result_type']
@@ -225,7 +226,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     receipt_token = generate_code()
     filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
-    with DBConn(get_db()) as conn:
+    with DBConn() as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
@@ -247,7 +248,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
             raise ValueError("Mismatch between expected stream length and header info")
 
     with opentracing.tracer.start_span('update-database-with-metadata', child_of=parent_span):
-        with DBConn(get_db()) as conn:
+        with DBConn() as conn:
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
             db.set_dataprovider_upload_state(conn, dp_id, True)
 
@@ -295,7 +296,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span):
         )
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
-        with DBConn(get_db()) as conn:
+        with DBConn() as conn:
             db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
 
     return receipt_token, filename

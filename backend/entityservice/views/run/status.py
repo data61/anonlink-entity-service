@@ -2,10 +2,8 @@ from flask import request, g
 from structlog import get_logger
 import opentracing
 
-from entityservice import app, database as db, cache as cache
-from entityservice.database import get_db
-from entityservice.views.auth_checks import abort_if_run_doesnt_exist, abort_if_invalid_results_token, \
-    get_authorization_token_type_or_abort
+from entityservice import database as db, cache as cache
+from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 from entityservice.views.serialization import completed, running, error
 from entityservice.models.run import RUN_TYPES
 
@@ -25,9 +23,9 @@ def get(project_id, run_id):
         log.debug("Run status authorized using {} token".format(auth_token_type))
 
     with opentracing.tracer.start_span('get-status-from-db', child_of=parent_span) as span:
-        dbinstance = get_db()
-        run_status = db.get_run_status(dbinstance, run_id)
-        project_in_error = db.get_encoding_error_count(dbinstance, project_id) > 0
+        with db.DBConn() as conn:
+            run_status = db.get_run_status(conn, run_id)
+            project_in_error = db.get_encoding_error_count(conn, project_id) > 0
         span.set_tag('stage', run_status['stage'])
 
     run_type = RUN_TYPES[run_status['type']]
@@ -45,13 +43,15 @@ def get(project_id, run_id):
     # trying to get progress if available
     if stage == 1:
         # waiting for CLKs
-        abs_val = db.get_number_parties_uploaded(dbinstance, project_id)
-        max_val = db.get_project_column(dbinstance, project_id, 'parties')
+        with db.DBConn() as conn:
+            abs_val = db.get_number_parties_uploaded(conn, project_id)
+            max_val = db.get_project_column(conn, project_id, 'parties')
     elif stage == 2:
         # Computing similarity
         abs_val = cache.get_progress(run_id)
         if abs_val is not None:
-            max_val = db.get_total_comparisons_for_project(dbinstance, project_id)
+            with db.DBConn() as conn:
+                max_val = db.get_total_comparisons_for_project(conn, project_id)
     else:
         # Solving for mapping (no progress)
         abs_val = None

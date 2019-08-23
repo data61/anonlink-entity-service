@@ -18,9 +18,8 @@ def get(project_id, run_id):
     abort_if_invalid_results_token(project_id, request.headers.get('Authorization'))
 
     log.info("request for run description authorized")
-
-    db_conn = db.get_db()
-    run_object = db.get_run(db_conn, run_id)
+    with db.DBConn() as conn:
+        run_object = db.get_run(conn, run_id)
 
     return RunDescription().dump(run_object)
 
