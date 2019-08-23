@@ -60,19 +60,18 @@ def get_deserialized_filter(dp_id):
     else:
         logger.debug("Looking up popcounts and filename from database")
         with DBConn() as db:
-            #db = database.connect_db()
-            mc = connect_to_object_store()
             serialized_filters_file = database.get_filter_metadata(db, dp_id)
 
-            logger.debug("Getting filters from object store")
+        mc = connect_to_object_store()
+        logger.debug("Getting filters from object store")
 
-            # Note this uses already calculated popcounts unlike
-            # serialization.deserialize_filters()
-            raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
-            python_filters = serialization.binary_unpack_filters(raw_data_response)
+        # Note this uses already calculated popcounts unlike
+        # serialization.deserialize_filters()
+        raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
+        python_filters = serialization.binary_unpack_filters(raw_data_response)
 
-            set_deserialized_filter(dp_id, python_filters)
-            return python_filters
+        set_deserialized_filter(dp_id, python_filters)
+        return python_filters
 
 
 def remove_from_cache(dp_id):
