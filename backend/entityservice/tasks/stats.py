@@ -32,6 +32,5 @@ def calculate_comparison_rate():
             with dbinstance.cursor() as cur:
                 insert_comparison_rate(cur, rate)
 
-            dbinstance.commit()
         else:
             logger.warning("Can't compute comparison rate yet")
