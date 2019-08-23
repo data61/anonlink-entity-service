@@ -11,8 +11,8 @@ logger = get_logger()
 def abort_if_project_in_error_state(project_id):
     with DBConn() as conn:
         num_parties_with_error = db.get_encoding_error_count(conn, project_id)
-        if num_parties_with_error > 0:
-            safe_fail_request(500, message="Can't post run as project has errors")
+    if num_parties_with_error > 0:
+        safe_fail_request(500, message="Can't post run as project has errors")
 
 
 def abort_if_project_doesnt_exist(project_id):

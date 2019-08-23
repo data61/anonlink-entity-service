@@ -133,8 +133,8 @@ def clks_uploaded_to_project(project_id, check_data_ready=False):
             parties_contributed = get_number_parties_uploaded(conn, project_id)
             logger.info("Parties where data is uploaded: {}".format(parties_contributed))
         number_parties = get_project_column(conn, project_id, 'parties')
-        logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
-        return parties_contributed == number_parties
+    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
+    return parties_contributed == number_parties
 
 
 def similarity_matrix_from_csv_bytes(data):
