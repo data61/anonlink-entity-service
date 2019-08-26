@@ -54,11 +54,11 @@ def init_db_pool():
 
     global connection_pool
     if connection_pool is None:
-        logger.info("Initialize the database connection pool.", database=db, user=user, password=pw, host=host)
+        logger.info("Initialize the database connection pool.")
         try:
             connection_pool = ThreadedConnectionPool(db_min_connections, db_max_connections, database=db, user=user, password=pw, host=host)
         except psycopg2.Error as e:
-            logger.warning("Can't connect to database")
+            logger.warning("Can't connect to database", exc_info=True)
             raise ConnectionError("Issue connecting to database") from e
     else:
         logger.warning("The connection pool has already been initialized.")
@@ -96,7 +96,7 @@ class DBConn:
         try:
             self.conn = connection_pool.getconn()
         except psycopg2.Error as e:
-            logger.warning("Can't connect to database", e)
+            logger.warning("Can't connect to database", exc_info=True)
             raise ConnectionError("Issue connecting to database") from e
 
     def __enter__(self):
@@ -117,8 +117,8 @@ class DBConn:
                 # Note if we return True we swallow the exception, False we propagate it
                 result = False
                 self.conn.cancel()
-        except Exception as e:
-            logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", e)
+        except Exception:
+            logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", exc_info=True)
         finally:
             connection_pool.putconn(self.conn, close=False)
             return result
@@ -128,8 +128,7 @@ def execute_returning_id(cur, query, args):
     try:
         cur.execute(query, args)
     except psycopg2.Error as e:
-        logger.debug("Error running db query")
-        logger.debug(e.diag.message_primary)
+        logger.debug("Error running db query", exc_info=True)
         raise e
     query_result = cur.fetchone()
     if query_result is None:
