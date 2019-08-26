@@ -103,8 +103,8 @@ class DBConn:
         return self.conn
 
     def __exit__(self, exc_type, exc_val, traceback):
+        result = True
         try:
-            result = True
             if not exc_type:
                 self.conn.commit()
                 for notice in self.conn.notices:
@@ -117,11 +117,11 @@ class DBConn:
                 # Note if we return True we swallow the exception, False we propagate it
                 result = False
                 self.conn.cancel()
-            return result
         except Exception as e:
             logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", e)
         finally:
             connection_pool.putconn(self.conn, close=False)
+            return result
 
 
 def execute_returning_id(cur, query, args):
