@@ -54,14 +54,15 @@ def init_db_pool():
 
     global connection_pool
     if connection_pool is None:
-        logger.info("Initialize the database connection pool.")
+        logger.info("Initialize the database connection pool. db: '%s', user: '%s', host: '%s'.", db, user, host)
         try:
             connection_pool = ThreadedConnectionPool(db_min_connections, db_max_connections, database=db, user=user, password=pw, host=host)
         except psycopg2.Error as e:
-            logger.warning("Can't connect to database", exc_info=True)
-            raise ConnectionError("Issue connecting to database") from e
+            logger.exception("Issue initializing the database connection pool. db: '%s', user: '%s', host: '%s'.",
+                             db, user, host)
+            raise ConnectionError("Issue initializing the database connection pool") from e
     else:
-        logger.warning("The connection pool has already been initialized.")
+        logger.warning("The database connection pool has already been initialized.")
 
 
 @atexit.register
@@ -96,7 +97,10 @@ class DBConn:
         try:
             self.conn = connection_pool.getconn()
         except psycopg2.Error as e:
-            logger.warning("Can't connect to database", exc_info=True)
+            db = config.DATABASE
+            host = config.DATABASE_SERVER
+            user = config.DATABASE_USER
+            logger.exception("Can't connect to database. db: '%s', user: '%s', host: '%s'.", db, user, host)
             raise ConnectionError("Issue connecting to database") from e
 
     def __enter__(self):
@@ -118,9 +122,10 @@ class DBConn:
                 result = False
                 self.conn.cancel()
         except Exception:
-            logger.warning("Exception cleaning a connection before closing it or returning it to the pool.", exc_info=True)
+            logger.exception("Exception cleaning a connection before closing it or returning it to the pool.")
         finally:
             connection_pool.putconn(self.conn, close=False)
+            self.conn = None
             return result
 
 
@@ -128,7 +133,7 @@ def execute_returning_id(cur, query, args):
     try:
         cur.execute(query, args)
     except psycopg2.Error as e:
-        logger.debug("Error running db query", exc_info=True)
+        logger.exception("Error running db query")
         raise e
     query_result = cur.fetchone()
     if query_result is None:
