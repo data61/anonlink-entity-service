@@ -68,7 +68,7 @@ def get_similarity_score_result(dbinstance, run_id):
         return get_similarity_scores(filename)
 
     except TypeError:
-        logger.warning("Couldn't find the similarity score file")
+        logger.exception("Couldn't find the similarity score file for the runId %s", run_id)
         safe_fail_request(500, "Failed to retrieve similarity scores")
 
 
