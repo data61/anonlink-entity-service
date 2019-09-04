@@ -64,7 +64,7 @@ class Config(object):
     CELERY_ACKS_LATE = os.getenv('CELERY_ACKS_LATE', 'false') == 'true'
 
     # Number of comparisons per chunk (on average).
-    CHUNK_SIZE_AIM = int(os.getenv('CHUNK_SIZE_AIM', '300000000'))
+    CHUNK_SIZE_AIM = int(os.getenv('CHUNK_SIZE_AIM', '300_000_000'))
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.getenv('MAX_CACHE_SIZE', '1000000'))

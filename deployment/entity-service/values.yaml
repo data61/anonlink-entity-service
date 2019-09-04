@@ -134,7 +134,7 @@ api:
 
 workers:
   name: "matcher"
-  debug: false
+
   image:
     repository: "data61/anonlink-app"
     tag: "v1.11.2"
@@ -154,21 +154,23 @@ workers:
   ##
   extraArgs: {}
 
-  # TODO move these settings into a config file
+  ## Worker configuration
+  ## These settings populate the deployment's configmap.
 
-  SMALL_COMPARISON_CHUNK_SIZE: "100000000"
-  LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
+  debug: false
 
-  # A minimum of say 100M because any smaller than
-  # this isn't worth splitting across nodes.
-  SMALL_JOB_SIZE: "100000000"
-  LARGE_JOB_SIZE: "100000000000"
-
-  # Default threshold for considering something a match
-  MATCH_THRESHOLD: "0.90"
+  # Desired task size in "number of comparisons"
+  # Note there is some overhead creating a task and a single dedicated cpu core can do between 50M and 100M
+  # comparisons per second, so much lower that 100M isn't generally worth splitting across celery workers.
+  CHUNK_SIZE_AIM: "300_000_000"
 
   # More than this many entities and we skip caching in redis
-  MAX_CACHE_SIZE: "1000000"
+  MAX_CACHE_SIZE: "1_000_000"
+
+  # Optional path to a logging configuration file
+  # Eventually this config can be stored in a configmap
+  # See https://github.com/data61/anonlink-entity-service/issues/323
+  #LOG_CFG: "entityservice/verbose_logging.yaml"
 
   celery:
     PREFETCH_MULTIPLIER: "1"

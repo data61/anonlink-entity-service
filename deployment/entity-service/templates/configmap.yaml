@@ -24,15 +24,13 @@ data:
   DATABASE: "postgres"
   {{ end }}
   DEBUG: {{ .Values.workers.debug | quote }}
-  ENTITY_MATCH_THRESHOLD: {{ .Values.workers.MATCH_THRESHOLD | quote }}
-  SMALL_COMPARISON_CHUNK_SIZE: {{ .Values.workers.SMALL_COMPARISON_CHUNK_SIZE | quote }}
-  LARGE_COMPARISON_CHUNK_SIZE: {{ .Values.workers.LARGE_COMPARISON_CHUNK_SIZE | quote }}
-  SMALL_JOB_SIZE: {{ .Values.workers.SMALL_JOB_SIZE | quote }}
-  LARGE_JOB_SIZE: {{ .Values.workers.LARGE_JOB_SIZE | quote }}
+  {{ if .Values.workers.LOG_CFG }}
+  LOG_CFG: {{ .Values.workers.LOG_CFG | quote }}
+  {{ end }}
+  CHUNK_SIZE_AIM: {{ .Values.workers.CHUNK_SIZE_AIM | quote }}
   CELERYD_PREFETCH_MULTIPLIER: {{ .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
   CELERYD_MAX_TASKS_PER_CHILD: {{ .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
   CELERY_ACKS_LATE: {{ .Values.workers.celery.ACKS_LATE | quote }}
-  ENCRYPTION_MIN_KEY_LENGTH: "1024"
   {{ if .Values.provision.minio }}
   MINIO_SERVER: "{{ .Release.Name }}-minio:9000"
   {{ else }}
