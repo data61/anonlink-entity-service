@@ -196,17 +196,27 @@ def create_project_upload_data(
     return new_project_data, json_responses
 
 
+def _check_delete_response(r):
+    # Note we allow for a 403 because the project may already have been deleted
+    assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
+    # Delete project & run are both asynchronous so we generously allow the server some time to
+    # delete resources before moving on (e.g. running the next test)
+    time.sleep(0.5)
+
+
 def delete_project(requests, project):
     project_id = project['project_id']
     result_token = project['result_token']
     r = requests.delete(url + '/projects/{}'.format(project_id),
                         headers={'Authorization': result_token})
 
-    # Note we allow for a 403 because the project may already have been deleted
-    assert r.status_code in {204, 403}, 'I received this instead: {}'.format(r.text)
-    # Delete project is asynchronous so we generously allow the server some time to
-    # delete resources before running the next test
-    time.sleep(0.5)
+    _check_delete_response(r)
+
+
+def delete_run(requests, project_id, run_id, result_token):
+    r = requests.delete(url + '/projects/{}/runs/{}'.format(project_id, run_id),
+                        headers={'Authorization': result_token})
+    _check_delete_response(r)
 
 
 def get_run_status(requests, project, run_id, result_token = None):
