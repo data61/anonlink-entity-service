@@ -25,18 +25,19 @@ def get(project_id, run_id):
 
 def delete(project_id, run_id):
     log = logger.bind(pid=project_id, rid=run_id)
-    log.info("request to delete run")
+    log.debug("request to delete run")
     authorize_run_detail(project_id, run_id)
-    log.info("approved request to delete run")
+    log.debug("approved request to delete run")
 
     with db.DBConn() as conn:
         log.debug("Retrieving run details from database")
         similarity_file = get_similarity_file_for_run(conn, run_id)
         if similarity_file:
-            log.debug(f"Queuing task to remove similarities file from object store")
+            log.debug("Queuing task to remove similarities file from object store")
             delete_minio_objects.delay([similarity_file], project_id)
         delete_run_data(conn, run_id)
 
+    log.debug("Deleted run")
     return '', 204
 
 
