@@ -1,3 +1,4 @@
+import psycopg2
 from flask import request
 from structlog import get_logger
 
@@ -29,15 +30,19 @@ def delete(project_id, run_id):
     authorize_run_detail(project_id, run_id)
     log.debug("approved request to delete run")
 
-    with db.DBConn() as conn:
-        log.debug("Retrieving run details from database")
-        similarity_file = get_similarity_file_for_run(conn, run_id)
-        if similarity_file:
-            log.debug("Queuing task to remove similarities file from object store")
-            delete_minio_objects.delay([similarity_file], project_id)
-        delete_run_data(conn, run_id)
+    try:
+        with db.DBConn() as conn:
+            log.debug("Retrieving run details from database")
+            similarity_file = get_similarity_file_for_run(conn, run_id)
+            delete_run_data(conn, run_id)
+    except psycopg2.IntegrityError as e:
+        log.warning("Failed to delete run")
+        log.exception(e)
+    log.debug("Deleted run from database")
 
-    log.debug("Deleted run")
+    if similarity_file:
+        log.debug("Queuing task to remove similarities file from object store")
+        delete_minio_objects.delay([similarity_file], project_id)
     return '', 204
 
 
