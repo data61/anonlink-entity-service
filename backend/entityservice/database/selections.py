@@ -378,7 +378,14 @@ def get_all_objects_for_project(db, project_id):
             object_store_files.append(clk_file_ref['file'])
 
     if result_type == "similarity_scores":
-        query_response = query_db(db, """
+        similarity_files = get_project_similarity_files(db, project_id)
+        object_store_files.extend(similarity_files)
+
+    return object_store_files
+
+
+def get_project_similarity_files(db, project_id):
+    query_response = query_db(db, """
             SELECT 
               similarity_scores.file
             FROM 
@@ -387,7 +394,20 @@ def get_all_objects_for_project(db, project_id):
               runs.run_id = similarity_scores.run AND
               runs.project = %s
             """, [project_id])
-        similarity_files = [res['file'] for res in query_response]
-        object_store_files.extend(similarity_files)
+    similarity_files = [res['file'] for res in query_response]
+    return similarity_files
 
-    return object_store_files
+
+def get_similarity_file_for_run(db, run_id):
+    query_response = query_db(db, """
+            SELECT 
+              similarity_scores.file
+            FROM 
+              similarity_scores
+            WHERE 
+              similarity_scores.run = %s
+            """, [run_id])
+    similarity_files = [res['file'] for res in query_response]
+    if len(similarity_files):
+        assert len(similarity_files) == 1, "More than one similarity score file associated with a single run"
+        return similarity_files[0]
