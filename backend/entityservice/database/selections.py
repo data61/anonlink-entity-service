@@ -409,4 +409,5 @@ def get_similarity_file_for_run(db, run_id):
             """, [run_id])
     similarity_files = [res['file'] for res in query_response]
     if len(similarity_files):
+        assert len(similarity_files) == 1, "More than one similarity score file associated with a single run"
         return similarity_files[0]
