@@ -7,8 +7,9 @@ def delete_run_data(conn, run_id):
     """
     Deletes a run and all associated results.
     """
+    log = logger.bind(rid=run_id)
     with conn:
-        logger.debug("start db transaction to delete run")
+        log.debug("start db transaction to delete run")
         with conn.cursor() as cur:
             # Note, data in tables
             # run_results, similarity_scores, permutations
@@ -20,8 +21,8 @@ def delete_run_data(conn, run_id):
                 WHERE
                     run_id = %s
                 """, [run_id])
-        logger.debug("Finishing DB transaction to delete run")
-    logger.info("Run resources removed")
+        log.debug("Finishing DB transaction to delete run")
+    log.info("Run resources removed")
 
 
 def delete_project_data(conn, project_id):
@@ -30,10 +31,11 @@ def delete_project_data(conn, project_id):
 
     This is very manual, looking forward to https://github.com/n1analytics/entity-service/issues/133
     """
+    log = logger.bind(pid=project_id)
     # Note the first context manager begins a database transaction
     with conn:
         with conn.cursor() as cur:
-            logger.debug("Beginning db transaction to remove result data associated with project")
+            log.debug("Beginning db transaction to remove result data associated with project")
             cur.execute("""
                 DELETE
                 FROM run_results
@@ -59,5 +61,5 @@ def delete_project_data(conn, project_id):
                     permutation_masks.project =  %s
                 """, [project_id])
 
-        logger.debug("Committing removal of project resource")
+        log.debug("Committing removal of project resource")
 
