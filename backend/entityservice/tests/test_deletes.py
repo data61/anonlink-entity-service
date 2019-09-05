@@ -4,11 +4,7 @@ import pytest
 
 
 def test_delete_project_after_creating_run_with_clks(requests, result_type_number_parties):
-    result_type, number_parties = result_type_number_parties
-    project, _ = create_project_upload_fake_data(
-        requests, [100] * number_parties, overlap=0.5, result_type=result_type)
-    post_run(requests, project, 1.0)
-
+    project, run_id = _create_data_linkage_run(requests, result_type_number_parties)
     delete_project(requests, project)
     with pytest.raises(AssertionError):
         get_project_description(requests, project)
