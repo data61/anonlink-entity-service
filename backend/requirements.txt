@@ -22,4 +22,5 @@ redis==3.2.1
 requests==2.21.0
 setproctitle==1.1.10 # used by celery to change process name
 structlog==18.2.0
+tenacity==5.1.1
 tornado==4.5.3
