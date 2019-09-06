@@ -4,6 +4,20 @@
 Changelog
 =========
 
+Next Version
+------------
+
+Several old settings have been removed from the default values.yaml and docker files:
+- ``SMALL_COMPARISON_CHUNK_SIZE``
+- ``LARGE_COMPARISON_CHUNK_SIZE``
+- ``SMALL_JOB_SIZE``
+- ``LARGE_JOB_SIZE``
+
+Have all been replaced by ``CHUNK_SIZE_AIM``
+
+``MATCH_THRESHOLD`` -> ``ENTITY_MATCH_THRESHOLD``
+But really should be removed in favour of each run providing a threshold.
+
 Version 1.11.2
 --------------
 
