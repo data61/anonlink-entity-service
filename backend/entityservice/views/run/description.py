@@ -1,7 +1,7 @@
 import psycopg2
 from flask import request
 from structlog import get_logger
-from retrying import retry
+from tenacity import retry, wait_random_exponential, retry_if_exception_type
 
 from entityservice import database as db
 from entityservice.database import delete_run_data, get_similarity_file_for_run
@@ -25,14 +25,10 @@ def get(project_id, run_id):
     return RunDescription().dump(run_object)
 
 
-def _is_postgres_integrity(exc):
-    return isinstance(exc, psycopg2.IntegrityError)
-
-
-@retry(wait_exponential_multiplier=1000, wait_exponential_max=10000, retry_on_exception=_is_postgres_integrity)
+@retry(wait=wait_random_exponential(multiplier=1, max=60), retry=retry_if_exception_type(psycopg2.IntegrityError))
 def _delete_run(run_id, log):
     # Retry if a db integrity error occurs (e.g. when a worker is writing to the same row)
-    # Wait 2^x * 1000 milliseconds between each retry, up to 10 seconds, then 10 seconds afterwards
+    # Randomly wait up to 2^x * 1 seconds between each retry until the range reaches 60 seconds, then randomly up to 60 seconds afterwards
     with db.DBConn() as conn:
         log.debug("Retrieving run details from database")
         similarity_file = get_similarity_file_for_run(conn, run_id)
