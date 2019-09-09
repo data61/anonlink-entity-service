@@ -147,9 +147,9 @@ def upload_binary_clks(config, sizes, credentials):
         logger.info('uploading clks for {} took {:.3f}'.format(participant, tick() - start))
 
     assert len(sizes) == len(credentials['update_tokens'])
-    for participant in range(len(sizes)):
+    for participant_id in range(len(sizes)):
         # participant's name starts from the letter `a` to be back portable.
-        upload_data(chr(97 + participant), credentials['update_tokens'][participant], sizes[participant])
+        upload_data(chr(97 + participant_id), credentials['update_tokens'][participant_id], sizes[participant_id])
 
 
 def load_truth(config, sizes):
