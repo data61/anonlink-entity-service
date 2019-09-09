@@ -113,11 +113,11 @@ def read_config():
 
 def get_exp_sizes(experiment):
     sizes = experiment['sizes']
-    assert len(sizes) == 2
-    return EXP_LOOKUP[sizes[0]], EXP_LOOKUP[sizes[1]]
+    assert len(sizes) >= 2
+    return [EXP_LOOKUP[size] for size in sizes]
 
 
-def upload_binary_clks(config, length_a, length_b, credentials):
+def upload_binary_clks(config, sizes, credentials):
     data_path = config['data_path']
     server = config['server']
     tick = time.perf_counter
@@ -125,7 +125,9 @@ def upload_binary_clks(config, length_a, length_b, credentials):
     def upload_data(participant, auth_token, clk_length):
         start = tick()
 
-        with open(os.path.join(data_path, "clk_{}_{}_v2.bin".format(participant, clk_length)), 'rb') as f:
+        file_name = os.path.join(data_path, "{}Parties".format(len(sizes)),
+                                 "clk_{}_{}_v2.bin".format(participant, clk_length))
+        with open(file_name, 'rb') as f:
             facs_data = f.read()
         assert len(facs_data) % SIZE_PER_CLK == 0
         try:
@@ -144,27 +146,29 @@ def upload_binary_clks(config, length_a, length_b, credentials):
             logger.warning('oh no...\n{}'.format(e))
         logger.info('uploading clks for {} took {:.3f}'.format(participant, tick() - start))
 
-    upload_data('a', credentials['update_tokens'][0], length_a)
-    upload_data('b', credentials['update_tokens'][1], length_b)
+    assert len(sizes) == len(credentials['update_tokens'])
+    for participant in range(len(sizes)):
+        # participant's name starts from the letter `a` to be back portable.
+        upload_data(chr(97 + participant), credentials['update_tokens'][participant], sizes[participant])
 
 
-def load_truth(config, size_a, size_b):
-    nb_parties = 2
-    groups = {}
+def load_truth(config, sizes):
     data_path = config['data_path']
+    nb_parties = len(sizes)
+    groups = {}
+    folder = os.path.join(data_path, "{}Parties".format(nb_parties))
 
-    def read_values_from_csv(file, solution_index):
-        csv_content = pd.read_csv(file, usecols=['entity_id'])
-        for idx, entity_id in csv_content.itertuples():
-            if entity_id not in groups:
-                groups[entity_id] = [-1] * nb_parties
-            groups[entity_id][solution_index] = idx
-
-    with open(os.path.join(data_path, f'PII_a_{size_a}.csv'), 'rt') as f:
-        read_values_from_csv(f, 0)
-
-    with open(os.path.join(data_path, f'PII_b_{size_b}.csv'), 'rt') as f:
-        read_values_from_csv(f, 1)
+    # In this loop, we are creating a dictionary where the key is the entity_id read from the datasets, and the value
+    # is an array of size the number of participants for which its value at the index i is the row number of this entity
+    # in the dataset i. The value is -1 if not present in the corresponding dataset.
+    for i in range(nb_parties):
+        file_name = os.path.join(folder, 'PII_{}_{}.csv'.format(chr(97 + i), sizes[i]))
+        with open(os.path.join(data_path, file_name), 'rt') as f:
+            csv_content = pd.read_csv(f, usecols=['entity_id'])
+            for idx, entity_id in csv_content.itertuples():
+                if entity_id not in groups:
+                    groups[entity_id] = [-1] * nb_parties
+                groups[entity_id][i] = idx
 
     # Now filter all the entities which are non matched, i.e. they are present only in a single dataset
     # We filter them because the group results that the entity service is creating does not include them.
@@ -174,7 +178,7 @@ def load_truth(config, size_a, size_b):
     return map(lambda x: tuple(groups[x]), matched_entities_only)
 
 
-def score_accuracy(groups, truth_groups):
+def score_accuracy(groups, truth_groups, nb_parties):
 
     def group_transform(group):
         """
@@ -185,7 +189,7 @@ def score_accuracy(groups, truth_groups):
         :param group: List of 2 elements array representing a matched entity where each element (x, y) of the list
          means that the entity is in the dataset x in the row y.
         """
-        result = [-1] * 2
+        result = [-1] * nb_parties
         for link in group:
             result[link[0]] = link[1]
         return tuple(result)
@@ -213,10 +217,7 @@ def compose_result(status, tt, experiment, sizes, threshold):
     accuracy = positives / (positives + negatives)
     result = {'experiment': experiment,
               'threshold': threshold,
-              'sizes': {
-                  'size_a': sizes[0],
-                  'size_b': sizes[1]
-              },
+              'sizes': sizes_dic,
               'status': 'completed',
               'groups_results': {'positives': positives, 'negatives': negatives, 'false_positives': false_positives,
                                  'accuracy': accuracy}
@@ -240,6 +241,7 @@ def delete_resources(config, credentials, run):
 
 
 def download_file_if_not_present(url_base, local_base, filename):
+    os.makedirs(local_base, exist_ok=True)
     local_path = os.path.join(local_base, filename)
     if os.path.exists(local_path):
         logger.debug(f'Skipping already downloaded file: {filename}')
@@ -256,7 +258,12 @@ def download_file_if_not_present(url_base, local_base, filename):
 def download_data(config):
     """
     Download data used in the configured experiments.
+    On S3, the data is organised in folders for the number of parties (e.g. folder `3Parties` for the data related to
+    the 3 party linkage), and then a number a file following the format `PII_{user}_{size_data}.csv`, `clk_{user}_{size_data}_v2.bin`
+    and `clk_{user}_{size_data}.json` where $user is a letter starting from `a` indexing the data owner, and `size_data`
+    is a integer representing the number of data rows in the dataset (e.g. 10000). Note that the csv usually has a header.
 
+    The data is stored in the folder provided from the configuration, following the same structure as the one on S3.
     """
     logger.info('Downloading synthetic datasets from S3')
     base = config['data_base_url']
@@ -264,20 +271,33 @@ def download_data(config):
     os.makedirs(data_folder, exist_ok=True)
     download_file_if_not_present(base, data_folder, 'schema.json')
 
-    sizes = set()
+    to_download = {}
     for experiment in config['experiments']:
-        sizes.update(set(experiment['sizes']))
-    for user in ('a', 'b'):
-        for size in sizes:
-            pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
-            clk_file = f"clk_{user}_{EXP_LOOKUP[size]}_v2.bin"
-            download_file_if_not_present(base, data_folder, pii_file)
-            download_file_if_not_present(base, data_folder, clk_file)
+        nb_parties = len(experiment['sizes'])
+        if nb_parties in to_download:
+            to_download[nb_parties].update(set(experiment['sizes']))
+        else:
+            to_download[nb_parties] = set(experiment['sizes'])
+
+    for nb_parties in to_download:
+        folder = os.path.join(base, "{}Parties/".format(nb_parties))
+        local_data_folder = os.path.join(data_folder, "{}Parties/".format(nb_parties))
+
+        sizes = to_download[nb_parties]
+        for user in [chr(x + 97) for x in range(nb_parties)]:
+            for size in sizes:
+                pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
+                clk_file = f"clk_{user}_{EXP_LOOKUP[size]}_v2.bin"
+                download_file_if_not_present(folder, local_data_folder, pii_file)
+                download_file_if_not_present(folder, local_data_folder, clk_file)
 
     logger.info('Downloads complete')
 
 
 def run_experiments(config):
+    """
+        Run all the experiments specified in the configuration.
+    """
     server = config['server']
     rest_client.server_get_status(server)
 
@@ -285,7 +305,7 @@ def run_experiments(config):
     for experiment in config['experiments']:
         repetition = experiment['repetition']
         threshold = experiment['threshold']
-        size_a, size_b = get_exp_sizes(experiment)
+        sizes = get_exp_sizes(experiment)
 
         for rep in range(repetition):
             current_experiment = copy.deepcopy(experiment)
@@ -293,22 +313,23 @@ def run_experiments(config):
             logger.info('running experiment: {}'.format(current_experiment))
             if repetition != 1:
                 logger.info('\trepetition {} out of {}'.format(rep + 1, repetition))
-            result = run_single_experiment(server, config, threshold, size_a, size_b, current_experiment)
+            result = run_single_experiment(server, config, threshold, sizes, current_experiment)
             results['experiments'].append(result)
 
     return results
 
 
-def run_single_experiment(server, config, threshold, size_a, size_b, experiment):
+def run_single_experiment(server, config, threshold, sizes, experiment):
     result = {}
     credentials = {}
     run = {}
     logger.info("Starting time: {}".format(time.asctime()))
+    nb_parties = len(sizes)
     try:
         credentials = rest_client.project_create(server, config['schema'], 'groups',
-                                                 "benchy_{}".format(experiment), parties=2)
+                                                 "benchy_{}".format(experiment), parties=nb_parties)
         # upload clks
-        upload_binary_clks(config, size_a, size_b, credentials)
+        upload_binary_clks(config, sizes, credentials)
         # create run
         project_id = credentials['project_id']
         result['project_id'] = project_id
@@ -326,10 +347,10 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
         logger.info('experiment successful. Evaluating results now...')
         groups = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
         groups = json.loads(groups)['groups']
-        truth_groups = load_truth(config, size_a, size_b)
-        tt = score_accuracy(groups, truth_groups)
-        result.update(compose_result(status, tt, experiment, (size_a, size_b), threshold))
-    except Exception as e:
+        truth_groups = load_truth(config, sizes)
+        tt = score_accuracy(groups, truth_groups, nb_parties)
+        result.update(compose_result(status, tt, experiment, sizes, threshold))
+    except Exception:
         e_trace = format_exc()
         logger.warning("experiment '{}' failed: {}".format(experiment, e_trace))
         result.update({'name': experiment, 'status': 'ERROR', 'description': e_trace})
