@@ -149,40 +149,68 @@ def upload_binary_clks(config, length_a, length_b, credentials):
 
 
 def load_truth(config, size_a, size_b):
+    nb_parties = 2
+    groups = {}
     data_path = config['data_path']
+
+    def read_values_from_csv(file, solution_index):
+        csv_content = pd.read_csv(file, usecols=['entity_id'])
+        for idx, entity_id in csv_content.itertuples():
+            if entity_id not in groups:
+                groups[entity_id] = [-1] * nb_parties
+            groups[entity_id][solution_index] = idx
+
     with open(os.path.join(data_path, f'PII_a_{size_a}.csv'), 'rt') as f:
-        dfa = pd.read_csv(f)
-        a_ids = dfa['entity_id'].values
+        read_values_from_csv(f, 0)
+
     with open(os.path.join(data_path, f'PII_b_{size_b}.csv'), 'rt') as f:
-        dfb = pd.read_csv(f)
-        b_ids = dfb['entity_id'].values
-    mask_a = np.isin(a_ids, b_ids)
-    mask_b = np.isin(b_ids, a_ids)
-    return a_ids, b_ids, mask_a, mask_b
+        read_values_from_csv(f, 1)
+
+    # Now filter all the entities which are non matched, i.e. they are present only in a single dataset
+    # We filter them because the group results that the entity service is creating does not include them.
+    matched_entities_only = filter(lambda x: len([y for y in groups[x] if y > -1]) > 1, groups)
+    # Finally, map this dictionary into a list of tuples, where the tuples are built from the values in the dictionary
+    # (We drop the key which has no reason anymore).
+    return map(lambda x: tuple(groups[x]), matched_entities_only)
 
 
-def score_mapping(mapping, truth_a, truth_b, mask_a, mask_b):
-    tp = fp = tn = fn = 0
+def score_accuracy(groups, truth_groups):
 
-    for idx in range(len(truth_a)):
-        if idx in mapping.keys():
-            if mask_a[idx]:
-                if truth_a[idx] == truth_b[mapping[idx]]:
-                    tp += 1
-                else:
-                    fp += 1
-            else:
-                fp += 1
-        else:
-            if mask_a[idx]:
-                fn += 1
-            else:
-                tn += 1
-    return tp, tn, fp, fn
+    def group_transform(group):
+        """
+        Transform a group provided by the entity service into a tuple of size the number of participants. The ith
+        element of the tuple is equal to the entity's row in the dataset i. The value is -1 if the entity is not in the
+        dataset.
+
+        :param group: List of 2 elements array representing a matched entity where each element (x, y) of the list
+         means that the entity is in the dataset x in the row y.
+        """
+        result = [-1] * 2
+        for link in group:
+            result[link[0]] = link[1]
+        return tuple(result)
+
+    transformed_groups = [group_transform(group) for group in groups]
+
+    # Now everything is in a good form, let's use sets to do an intersection.
+    # Current computed values are:
+    # - positives: all the groups which have been computed by the entity service and which are in the ground truth
+    #       (exact group, not counting parts of groups),
+    # - negatives: number of groups in the ground truth which have not been found by the entity service,
+    # - false_positives: number of groups which have been found by the entity service but shouldn't have been.
+    truth_groups_set = set(truth_groups)
+    positives = len(truth_groups_set.intersection(set(transformed_groups)))
+    negatives = len(truth_groups_set) - positives
+    false_positives = len(transformed_groups) - positives
+    return positives, negatives, false_positives
 
 
 def compose_result(status, tt, experiment, sizes, threshold):
-    tp, tn, fp, fn = tt
+    positives, negatives, false_positives = tt
+    sizes_dic = {'size_{}'.format(chr(97 + i)): sizes[i] for i in range(len(sizes))}
+    # Compute the accuracy, i.e. number of positives divided by the number of matched entities in the ground
+    # truth (positives + negatives)
+    accuracy = positives / (positives + negatives)
     result = {'experiment': experiment,
               'threshold': threshold,
               'sizes': {
@@ -190,7 +218,8 @@ def compose_result(status, tt, experiment, sizes, threshold):
                   'size_b': sizes[1]
               },
               'status': 'completed',
-              'match_results': {'tp': tp, 'tn': tn, 'fp': fp, 'fn': fn}
+              'groups_results': {'positives': positives, 'negatives': negatives, 'false_positives': false_positives,
+                                 'accuracy': accuracy}
               }
     timings = {'started': status['time_started'], 'added:': status['time_added'], 'completed': status['time_completed']}
     start = arrow.get(status['time_started']).datetime
@@ -276,8 +305,8 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
     run = {}
     logger.info("Starting time: {}".format(time.asctime()))
     try:
-        credentials = rest_client.project_create(server, config['schema'], 'mapping',
-                                                 "benchy_{}".format(experiment))
+        credentials = rest_client.project_create(server, config['schema'], 'groups',
+                                                 "benchy_{}".format(experiment), parties=2)
         # upload clks
         upload_binary_clks(config, size_a, size_b, credentials)
         # create run
@@ -295,10 +324,10 @@ def run_single_experiment(server, config, threshold, size_a, size_b, experiment)
         if status['state'] != 'completed':
             raise RuntimeError('run did not finish!\n{}'.format(status))
         logger.info('experiment successful. Evaluating results now...')
-        mapping = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
-        mapping = json.loads(mapping)['mapping']
-        mapping = {int(k): int(v) for k, v in mapping.items()}
-        tt = score_mapping(mapping, *load_truth(config, size_a, size_b))
+        groups = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
+        groups = json.loads(groups)['groups']
+        truth_groups = load_truth(config, size_a, size_b)
+        tt = score_accuracy(groups, truth_groups)
         result.update(compose_result(status, tt, experiment, (size_a, size_b), threshold))
     except Exception as e:
         e_trace = format_exc()
