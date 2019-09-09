@@ -13,27 +13,27 @@ Configured via environment variables:
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 """
+import arrow
 import boto3
 import copy
 import json
+import jsonschema
 import logging
+import pandas as pd
+import requests
 import time
-from pprint import pprint
-from traceback import format_exc
 import os
 
-import pandas as pd
-import numpy as np
-import arrow
-import requests
 from clkhash import rest_client
-import jsonschema
+from pprint import pprint
+from traceback import format_exc
 
 
 EXP_LOOKUP = {
-    '100K': 100000,
-    '1M': 1000000,
-    '10M': 10000000
+    '10K': 10_000,
+    '100K': 100_000,
+    '1M': 1_000_000,
+    '10M': 10_000_000
 }
 
 SIZE_PER_CLK = 128  # As per serialization.py.
