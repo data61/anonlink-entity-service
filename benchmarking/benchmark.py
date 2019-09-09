@@ -63,7 +63,7 @@ def read_config():
 
     # Defaults
     DEFAULT_TIMEOUT = 1200  # in sec
-    DEFAULT_DATA_FOLDER = './data'
+    DEFAULT_DATA_FOLDER = '/tmp/data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
     DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-result'
