@@ -207,7 +207,6 @@ def score_accuracy(groups, truth_groups):
 
 def compose_result(status, tt, experiment, sizes, threshold):
     positives, negatives, false_positives = tt
-    sizes_dic = {'size_{}'.format(chr(97 + i)): sizes[i] for i in range(len(sizes))}
     # Compute the accuracy, i.e. number of positives divided by the number of matched entities in the ground
     # truth (positives + negatives)
     accuracy = positives / (positives + negatives)
