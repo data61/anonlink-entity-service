@@ -270,14 +270,7 @@ stages:
         testRunTitle: 'Publish kubernetes test results'
         failTaskOnFailedTests: true 
     # And do a lot of cleaning.
-    # Note that all the test resources (i.e. the pvc, the job and the pod has a label `deployment` set to $(DEPLOYMENT)
-    - script: |
-        echo "Delete all the test resources"
-        kubectl delete pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the test resources'
+    # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
     - script: |
         echo "Delete the deployment"
         helm delete --purge $(DEPLOYMENT)
@@ -285,3 +278,10 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Purge the deployment'
+    - script: |
+        echo "Delete all the test resources"
+        kubectl delete pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
+      condition: always()
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+      displayName: 'Delete the test resources'
