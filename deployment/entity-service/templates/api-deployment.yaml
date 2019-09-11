@@ -77,6 +77,9 @@ spec:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: minioSecretKey
+            # Flask should get access to more connections if required. It is often asking for run status directly into the database.
+            - name: DATABASE_MAX_CONNECTIONS
+              value: "10"
           ports:
             - containerPort: 8000
               name: entity-flask
