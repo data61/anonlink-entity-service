@@ -5,6 +5,14 @@ metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
 data:
+  DEBUG: {{ required "workers.debug is required." .Values.workers.debug | quote }}
+
+  CONNEXION_STRICT_VALIDATION: "true"
+  CONNEXION_RESPONSE_VALIDATION: "true"
+
+  # LOGFILE not provided
+  # LOG_HTTP_HEADER_FIELDS not provided
+
   {{ if .Values.provision.redis }}
   REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}
   REDIS_USE_SENTINEL: "true"
@@ -12,34 +20,50 @@ data:
   REDIS_SERVER: {{ required "redis.server is required if provision.redis is set to false or absent." .Values.redis.server }}
   REDIS_USE_SENTINEL: {{ required "redis.use_sentinel is required if provision.redis is set to false or absent." .Values.redis.use_sentinel }}
   {{ end }}
-  {{ if .Values.provision.postgresql }}
-  DATABASE_SERVER: {{ .Release.Name }}-{{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}
-  {{ else }}
-  DATABASE_SERVER: {{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}
-  {{ end }} 
-  DATABASE_USER: {{ required "global.postgresql.postgresqlUsername is required." .Values.global.postgresql.postgresqlUsername }}
-  {{ if .Values.global.postgresql.postgresqlDatabase }}
-  DATABASE: {{ .Values.global.postgresql.postgresqlDatabase }}
-  {{ else }}
-  DATABASE: "postgres"
-  {{ end }}
-  {{ if .Values.workers.LOG_CFG }}
-  LOG_CFG: {{ .Values.workers.LOG_CFG | quote }}
-  {{ end }}
-  DEBUG: {{ required "workers.debug is required." .Values.workers.debug | quote }}
-  CELERYD_CONCURRENCY: {{ required "workers.celery.CONCURRENCY is required." .Values.workers.celery.CONCURRENCY | quote }}
-  CELERYD_PREFETCH_MULTIPLIER: {{ required "workers.celery.PREFETCH_MULTIPLIER is required." .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
-  CELERYD_MAX_TASKS_PER_CHILD: {{ required "workers.celery.MAX_TASKS_PER_CHILD is required." .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
-  CELERY_ACKS_LATE: {{ required "workers.celery.ACKS_LATE is required." .Values.workers.celery.ACKS_LATE | quote }}
+  # REDIS_PASSWORD provided as a secret
+
   {{ if .Values.provision.minio }}
   MINIO_SERVER: "{{ .Release.Name }}-minio:9000"
   {{ else }}
   MINIO_SERVER: {{ required "minio.server is required if provision.minio is set to false or absent." .Values.minio.server | quote }}
   {{ end }}
+  # MINIO_ACCESS_KEY provided as a secret
+  # MINIO_SECRET_KEY provided as a secret
   MINIO_BUCKET: {{ required "minio.bucket is required." .Values.minio.bucket | quote }}
-  CONNEXION_STRICT_VALIDATION: "true"
-  CONNEXION_RESPONSE_VALIDATION: "true"
+
+  {{ if .Values.provision.postgresql }}
+  DATABASE_SERVER: {{ .Release.Name }}-{{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}
+  {{ else }}
+  DATABASE_SERVER: {{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}
+  {{ end }}
+  {{ if .Values.global.postgresql.postgresqlDatabase }}
+  DATABASE: {{ .Values.global.postgresql.postgresqlDatabase }}
+  {{ else }}
+  DATABASE: "postgres"
+  {{ end }}
+
+  DATABASE_USER: {{ required "global.postgresql.postgresqlUsername is required." .Values.global.postgresql.postgresqlUsername }}
+  # DATABASE_PASSWORD provided as a secret
+  DATABASE_MIN_CONNECTIONS: "1"
+  DATABASE_MAX_CONNECTIONS: "3"
+
+  # CELERY_BROKER_URL not provided
+  CELERYD_PREFETCH_MULTIPLIER: {{ required "workers.celery.PREFETCH_MULTIPLIER is required." .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
+  CELERYD_MAX_TASKS_PER_CHILD: {{ required "workers.celery.MAX_TASKS_PER_CHILD is required." .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
+  CELERYD_CONCURRENCY: {{ required "workers.celery.CONCURRENCY is required." .Values.workers.celery.CONCURRENCY | quote }}
+  CELERY_ACKS_LATE: {{ required "workers.celery.ACKS_LATE is required." .Values.workers.celery.ACKS_LATE | quote }}
+
+  CHUNK_SIZE_AIM: {{ required "workers.CHUNK_SIZE_AIM is required." .Values.workers.CHUNK_SIZE_AIM | quote }}
+
+  MAX_CACHE_SIZE: {{ required "workers.MAX_CACHE_SIZE is required." .Values.workers.MAX_CACHE_SIZE | quote }}
+
+  # ENTITY_MATCH_THRESHOLD not provided
+  # ENTITY_CACHE_THRESHOLD not provided
+
   MIN_ENCODING_SIZE: "8"
   MAX_ENCODING_SIZE: "1024"
-  CHUNK_SIZE_AIM: {{ required "workers.CHUNK_SIZE_AIM is required." .Values.workers.CHUNK_SIZE_AIM | quote }}
-  MAX_CACHE_SIZE: {{ required "workers.MAX_CACHE_SIZE is required." .Values.workers.MAX_CACHE_SIZE | quote }}
+
+  # Not from the setting.py file.
+  {{ if .Values.workers.LOG_CFG }}
+  LOG_CFG: {{ .Values.workers.LOG_CFG | quote }}
+  {{ end }}
