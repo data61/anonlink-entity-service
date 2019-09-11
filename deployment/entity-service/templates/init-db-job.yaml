@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: db-init
-        image: {{ .Values.api.dbinit.image.repository }}:{{ .Values.api.dbinit.image.tag }}
+        image: {{ required "api.dbinit.image.repository must be provided." .Values.api.dbinit.image.repository }}:{{ required "api.dbinit.image.tag must be provided." .Values.api.dbinit.image.tag }}
         resources:
 {{ toYaml .Values.api.dbinit.resources | indent 10 }}
         envFrom:

@@ -7,7 +7,7 @@ metadata:
     component: "{{ .Values.api.name }}"
     tier: frontend
 spec:
-  replicas: {{ .Values.api.replicaCount }}
+  replicas: {{ required "api.replicaCount must be provided." .Values.api.replicaCount }}
   selector:
     matchLabels:
       app: {{ template "es.fullname" . }}
@@ -33,10 +33,10 @@ spec:
       containers:
         # TODO add hash of config e.g. .Values.configmapReload.name
         - name: entityservice-nginx
-          image: {{ .Values.api.www.image.repository}}:{{ .Values.api.www.image.tag }}
-          imagePullPolicy: {{ .Values.api.www.pullPolicy }}
+          image: {{ required "api.www.image.repository must be provided." .Values.api.www.image.repository }}:{{ required "api.www.image.tag must be provided." .Values.api.www.image.tag }}
+          imagePullPolicy: {{ .Values.api.www.pullPolicy | default "" }}
           resources:
-{{ toYaml .Values.api.www.resources | indent 12 }}
+{{ required "api.www.resources must be provided." .Values.api.www.resources | toYaml | indent 12 }}
           ports:
             - containerPort: 8851
               name: entity-nginx
@@ -49,10 +49,10 @@ spec:
                 # SIGTERM triggers a quick exit; gracefully terminate instead
                 command: ["/usr/sbin/nginx","-s","quit"]
         - name: entityservice-flask
-          image: {{ .Values.api.app.image.repository}}:{{ .Values.api.app.image.tag }}
-          imagePullPolicy: {{ .Values.api.app.pullPolicy }}
+          image: {{ required "api.app.image.repository must be provided." .Values.api.app.image.repository }}:{{ required "api.app.image.tag must be provided." .Values.api.app.image.tag }}
+          imagePullPolicy: {{ .Values.api.app.pullPolicy | default ""}}
           resources:
-{{ toYaml .Values.api.app.resources | indent 12 }}
+{{ required "api.app.resources must be provided." .Values.api.app.resources | toYaml | indent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}

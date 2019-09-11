@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: celery-monitor
-        image: {{ .Values.api.app.image.repository}}:{{ .Values.api.app.image.tag }}
+        image: {{ required "api.app.image.repository must be provided." .Values.api.app.image.repository }}:{{ required "api.app.image.tag must be provided." .Values.api.app.image.tag }}
         imagePullPolicy: Always
         ports:
           - containerPort: 8888

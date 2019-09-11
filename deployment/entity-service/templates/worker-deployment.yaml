@@ -3,11 +3,11 @@ kind: Deployment
 metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    component: "{{ .Values.workers.name }}"
+    component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
     tier: backend
   name: {{ .Release.Name }}-worker
 spec:
-  replicas: {{ .Values.workers.replicaCount }}
+  replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:
     matchLabels:
       app: {{ template "es.fullname" . }}
@@ -23,16 +23,16 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
-    {{- end }}
+{{- end }}
       labels:
         {{- include "es.release_labels" . | indent 8 }}
-        component: "{{ .Values.workers.name }}"
+        component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
         tier: backend
     spec:
       containers:
         - name: celery-worker
-          image: {{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}
-          imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
+          image: {{ required "workers.image.repository must be provided." .Values.workers.image.repository }}:{{ required "workers.image.tag must be provided." .Values.workers.image.tag }}
+          imagePullPolicy: {{ .Values.workers.image.pullPolicy | default "" | quote }}
           resources:
 {{ toYaml .Values.workers.resources | indent 12 }}
           envFrom:
