@@ -7,7 +7,7 @@ api:
 
   ## Deployment component name
   name: server
-  # Defines the serviceAccountName to use when `rbac.create=false`
+  ## Defines the serviceAccountName to use when `rbac.create=false`
   serviceAccountName: default
 
   replicaCount: 1
@@ -22,7 +22,7 @@ api:
   podAnnotations: {}
     # iam.amazonaws.com/role: linkage
 
-  # Settings for the nginx proxy
+  ## Settings for the nginx proxy
   www:
 
     image:
@@ -47,7 +47,7 @@ api:
       repository: data61/anonlink-app
       tag: "v1.11.1"
       ## Options: "IfNotPresent" or "Always"
-      pullPolicy: IfNotPresent
+      pullPolicy: Always
 
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -138,10 +138,10 @@ workers:
   image:
     repository: "data61/anonlink-app"
     tag: "v1.11.2"
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
 
   ## The number of workers for this deployment
-  replicaCount: 2
+  replicaCount: 6
 
   autoscaler:
     enabled: false
@@ -172,9 +172,19 @@ workers:
   # See https://github.com/data61/anonlink-entity-service/issues/323
   #LOG_CFG: "entityservice/verbose_logging.yaml"
 
+  ## Specific configuration for celery
   celery:
+    ## Number of fork worker celery node will have. It is recommended to use the same concurrency as the number of limits
+    ## CPU.
+    CONCURRENCY: "2"
+    ## How many messages to prefetch at a time multiplied by the number of concurrent processes. Set to 1 because
+    ## our tasks are usually quite "long".
     PREFETCH_MULTIPLIER: "1"
-    MAX_TASKS_PER_CHILD: "4096"
+    ## Maximum number of tasks a pool worker process can execute before it’s replaced with a new one
+    ## Low number is recommended, otherwise the celery workers may exhaust the available memory and threads.
+    ## Cf issue https://github.com/data61/anonlink-entity-service/issues/410
+    MAX_TASKS_PER_CHILD: "30"
+    ## Late ack means the task messages will be acknowledged after the task has been executed, not just before.
     ACKS_LATE: "true"
 
   monitor:
@@ -183,19 +193,24 @@ workers:
   ## https://kubernetes.io/docs/user-guide/compute-resources
   resources:
     requests:
-      memory: 2Gi
-      cpu: 800m
-#    limits:
-#      memory: 2Gi
-#      cpu: 200m
+      memory: 500Mi
+      cpu: 500m
+    ## It is recommended to set limits. celery does not like to share resources.
+    limits:
+      memory: 1Gi
+      cpu: 2
 
   ## At least one "high memory" worker is also required
   highmemory:
     replicaCount: 1
     resources:
       requests:
-        memory: 16Gi
-        cpu: 800m
+        memory: 2Gi
+        cpu: 1
+      ## It is recommended to set limits. celery does not like to share resources.
+      limits:
+        memory: 2Gi
+        cpu: 2
 
 postgresql:
   # See available settings and defaults at:
@@ -206,7 +221,7 @@ postgresql:
     enabled: true
     size: 8Gi
   metrics:
-    enabled: false
+    enabled: true
   resources:
     #limits:
     #  memory: 8Gi
@@ -216,10 +231,13 @@ postgresql:
 
 global:
   postgresql:
+    postgresqlDatabase: postgres
     postgresqlUsername: postgres
-    #postgresqlPassword:
+    #postgresqlPassword: "examplePostgresPassword"
 
 
+## In this section, we are not installing any redis pods. The main goal is to get configuration values for the
+## other services.
 redis:
   ## Note the `server` and `use_sentinel` options are ignored if provisioning redis
   ## using this chart.
@@ -231,14 +249,15 @@ redis:
   use_sentinel: false
 
   ## Note if deploying redis-ha you MUST have the same password below!
-  password: "9X9RFrRnQHcB"
+  #password: "exampleRedisPassword"
+
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
   ## https://github.com/helm/charts/tree/master/stable/redis-ha
   ## Provisioning is controlled in the `provision` section
   auth: true
-  redisPassword: "9X9RFrRnQHcB"
+  #redisPassword: "exampleRedisPassword"
   replicas: 3
   redis:
     resources:
@@ -265,8 +284,8 @@ minio:
   # https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
   ## Access credentials for the object store
-  accessKey: "xtoNfbmB7cUaW4sLPzKBXVPXd8oAvVbvkAosxsEXAMPLE"
-  secretKey: "6hkE6FzMLBd4tkzhVjXjPdEzQikmEtjRDQwyobEXAMPLE"
+  #accessKey: "exampleAccessKey"
+  #secretKey: "exampleSecretKet"
 
   ## Settings required for connecting to another object store, the server is ignored
   ## if provisioning minio during deployment.
@@ -284,6 +303,13 @@ minio:
     size: 50Gi
     storageClass: "default"
   nameOverride: "minio"
+  
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 5Gi
 
 
 provision:
