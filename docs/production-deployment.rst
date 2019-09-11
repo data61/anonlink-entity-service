@@ -99,6 +99,20 @@ the credentials:
 * ``minio.accessKey`` and ``minio.secretKey``
 
 
+Configuration of the celery workers
+-----------------------------------
+
+Celery is highly configurable and wrong configurations can lead to a number of runtime issues, such as exhausting
+the number of connection the database can handle, to threads exhaustion blocking the underlying machine.
+
+We are thus recommending some sets of attributes, but note that every deployment is different and may require its
+own tweaking.
+
+First observation: celery is not a good sharer of resources (cf issues <https://github.com/data61/anonlink-entity-service/issues/410>).
+We would thus recommend to specify a limit of number of CPUs each worker can use, and set correspondingly the concurrency of the workers
+to this limit. More help is provided directly in the `values.yaml` file.
+
+
 Installation
 ~~~~~~~~~~~~
 
