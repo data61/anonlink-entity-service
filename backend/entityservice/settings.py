@@ -61,6 +61,7 @@ class Config(object):
 
     CELERYD_PREFETCH_MULTIPLIER = int(os.getenv('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '4'))
+    CELERYD_CONCURRENCY = int(os.getenv("CELERYD_CONCURRENCY", '0'))
     CELERY_ACKS_LATE = os.getenv('CELERY_ACKS_LATE', 'false') == 'true'
 
     # Number of comparisons per chunk (on average).
