@@ -10,8 +10,9 @@ import logging
 class Config(object):
     """
     Hard coded default configuration which can be overwritten with environment variables.
-    If adding or deleting any, please ensure that the changelog will mention them.
     """
+
+    # If adding or deleting any, please ensure that the changelog will mention them.
 
     DEBUG = os.getenv("DEBUG", "false") == "true"
 
