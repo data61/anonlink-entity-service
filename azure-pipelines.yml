@@ -211,7 +211,6 @@ stages:
         echo "Start all the entity service pods"
         cd deployment/entity-service
         helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
