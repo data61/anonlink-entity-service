@@ -183,7 +183,6 @@ stages:
         cd deployment/entity-service
         
         helm lint --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
@@ -194,7 +193,6 @@ stages:
         
         echo "Dry run"
         helm upgrade --install --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
