@@ -100,7 +100,7 @@ the credentials:
 
 
 Configuration of the celery workers
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Celery is highly configurable and wrong configurations can lead to a number of runtime issues, such as exhausting
 the number of connection the database can handle, to threads exhaustion blocking the underlying machine.
@@ -111,6 +111,41 @@ own tweaking.
 First observation: celery is not a good sharer of resources (cf issues <https://github.com/data61/anonlink-entity-service/issues/410>).
 We would thus recommend to specify a limit of number of CPUs each worker can use, and set correspondingly the concurrency of the workers
 to this limit. More help is provided directly in the `values.yaml` file.
+
+
+Before Installation
+~~~~~~~~~~~~~~~~~~~
+
+Before installation, it is best practice to run some checks that helm provides.
+The first one is to execute::
+
+    helm lint -f extraValues.yaml
+
+Note that it uses all the default deployment values provided in the `values.yaml` file, and overwrite them 
+with the given values in `extraValues.yaml`.
+It should return some information if some values are missing, e.g.::
+
+    2019/09/11 15:13:10 [INFO] Missing required value: global.postgresql.postgresqlPassword must be provided.
+    2019/09/11 15:13:10 [INFO] Missing required value: minio.accessKey must be provided.
+    2019/09/11 15:13:10 [INFO] Missing required value: minio.secretKey must be provided.
+    ==> Linting .
+    Lint OK
+
+    1 chart(s) linted, no failures
+
+Notes:
+ - the `lint` command does not exit with a non 0 exit code, and our templates are currently failing if linting with the option `--strict`.
+ - if the folder `Charts` is not deleted, the linting may throw some errors from the dependent charts if a
+  value is missing without clear description, e.g. if the redis password is missing, the following error is returned from the `redis-ha` template
+  because the method `b64enc` requires a non empty string, but the template does not check first if the value is empty::
+
+     ==> Linting .
+    [ERROR] templates/: render error in "entity-service/charts/redis-ha/templates/redis-auth-secret.yaml": template: entity-service/charts/redis-ha/templates/redis-auth-secret.yaml:10:35: executing "entity-service/charts/redis-ha/templates/redis-auth-secret.yaml" at <b64enc>: invalid value; expected string
+
+    Error: 1 chart(s) linted, 1 chart(s) failed
+
+
+Then, it advised to use the `--dry-run --debug` options before deploying with `helm`, which will return *all* the resources yaml descriptions.
 
 
 Installation
