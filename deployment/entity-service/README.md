@@ -1,8 +1,8 @@
 Few helm tips:
 
-To check if the provided values are sufficient, remove/delete the `Charts` folder and run:
+To check all necessary values have been provided before deployment run:
 ```bash
-helm lint -f values.yaml -f extraValues.yaml
+helm lint -f extraValues.yaml
 ```
 It should return some information if some values are missing, e.g.
 ```bash
@@ -17,7 +17,7 @@ Lint OK
 
 Notes:
  - it does not exit with a non 0 exit code, and our templates are currently failing if linting with the option `--strict`.
- - if the folder `Charts` is not deleted, the linting may throw some errors from the dependency charts if a
+ - if the folder `Charts` is not deleted, the linting may throw some errors from the dependent charts if a
   value is missing, the error being slightly not descriptive, e.g. if the redis password is missing:
  ```bash
  ==> Linting .
@@ -26,4 +26,4 @@ Notes:
 Error: 1 chart(s) linted, 1 chart(s) failed
 ```
 
-Then, it advised to use the `--dry-run` option before installing the template with `helm`.
+Then, it advised to use the `--dry-run --debug` options before deploying with `helm`.
