@@ -194,13 +194,19 @@ def test_project_json_data_upload_with_too_large_encoded_size(
         result_type=result_type,
         encoding_size=4096
     )
+    # Just initializing it before the loop.
+    project_description = {'error': False}
+    rep = 0
+    max_rep = 10
+    while not project_description['error'] and rep < max_rep:
+        rep += 1
+        time.sleep(1)
+        project_description = requests.get(
+            url + '/projects/{}'.format(new_project_data['project_id']),
+            headers={'Authorization': new_project_data['result_token']}
+        ).json()
+        assert 'error' in project_description
 
-    time.sleep(5)
-    project_description = requests.get(
-        url + '/projects/{}'.format(new_project_data['project_id']),
-        headers={'Authorization': new_project_data['result_token']}
-    ).json()
-    assert 'error' in project_description
     assert project_description['error']
 
 

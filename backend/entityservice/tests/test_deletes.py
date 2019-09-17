@@ -19,7 +19,7 @@ def test_delete_runs_after_creating_run_with_clks(requests, result_type_number_p
 def test_delete_runs_after_completed_run(requests, result_type_number_parties):
     project, run_id = _create_data_linkage_run(requests, result_type_number_parties)
     result_token = project['result_token']
-    wait_for_run_completion(requests, project, run_id, result_token, timeout=20)
+    wait_for_run_completion(requests, project, run_id, result_token, timeout=30)
     delete_run(requests, project['project_id'], run_id, result_token)
     _checks_after_run_deleted(requests, project, run_id)
     delete_run(requests, project['project_id'], run_id, result_token)
