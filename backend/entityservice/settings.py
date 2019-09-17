@@ -3,8 +3,6 @@
 Config shared between the application backend and the celery workers.
 """
 import os
-import math
-import logging
 
 
 class Config(object):
@@ -35,13 +33,17 @@ class Config(object):
     DATABASE = os.getenv('DATABASE', 'postgres')
     DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
-    DATABASE_MIN_CONNECTIONS = os.getenv('DATABASE_MIN_CONNECTIONS', '1')
-    DATABASE_MAX_CONNECTIONS = os.getenv('DATABASE_MAX_CONNECTIONS', '3')
+
+    FLASK_DB_MIN_CONNECTIONS = os.getenv('FLASK_DB_MIN_CONNECTIONS', '1')
+    FLASK_DB_MAX_CONNECTIONS = os.getenv('FLASK_DB_MAX_CONNECTIONS', '10')
 
     CELERY_BROKER_URL = os.getenv(
         'CELERY_BROKER_URL',
         ('sentinel://:{}@{}:26379/0' if REDIS_USE_SENTINEL else 'redis://:{}@{}:6379/0').format(REDIS_PASSWORD, REDIS_SERVER)
     )
+
+    CELERY_DB_MIN_CONNECTIONS = os.getenv('CELERY_DB_MIN_CONNECTIONS', '1')
+    CELERY_DB_MAX_CONNECTIONS = os.getenv('CELERY_DB_MAX_CONNECTIONS', '3')
 
     CELERY_BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
 
