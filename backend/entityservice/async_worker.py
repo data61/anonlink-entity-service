@@ -34,7 +34,9 @@ logger.debug("Debug logging enabled")
 
 @worker_process_init.connect()
 def init_worker(**kwargs):
-    init_db_pool()
+    db_min_connections = Config.CELERY_DB_MIN_CONNECTIONS
+    db_max_connections = Config.CELERY_DB_MAX_CONNECTIONS
+    init_db_pool(db_min_connections, db_max_connections)
 
 
 @worker_process_shutdown.connect()
