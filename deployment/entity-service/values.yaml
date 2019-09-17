@@ -191,7 +191,7 @@ workers:
 
   ## Currently, enable only the monitoring of celery.
   monitor:
-    enabled: true
+    enabled: false
 
   ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
