@@ -44,10 +44,13 @@ data:
 
   DATABASE_USER: {{ required "global.postgresql.postgresqlUsername is required." .Values.global.postgresql.postgresqlUsername }}
   # DATABASE_PASSWORD provided as a secret
-  DATABASE_MIN_CONNECTIONS: "1"
-  DATABASE_MAX_CONNECTIONS: "3"
+
+  FLASK_DB_MIN_CONNECTIONS: "1"
+  FLASK_DB_MAX_CONNECTIONS: "10"
 
   # CELERY_BROKER_URL not provided
+  CELERY_DB_MIN_CONNECTIONS: '1'
+  CELERY_DB_MAX_CONNECTIONS: '3'
   CELERYD_PREFETCH_MULTIPLIER: {{ required "workers.celery.PREFETCH_MULTIPLIER is required." .Values.workers.celery.PREFETCH_MULTIPLIER | quote }}
   CELERYD_MAX_TASKS_PER_CHILD: {{ required "workers.celery.MAX_TASKS_PER_CHILD is required." .Values.workers.celery.MAX_TASKS_PER_CHILD | quote }}
   CELERYD_CONCURRENCY: {{ required "workers.celery.CONCURRENCY is required." .Values.workers.celery.CONCURRENCY | quote }}
