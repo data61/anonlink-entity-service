@@ -1,0 +1,28 @@
+{{- if .Values.api.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+
+{{- if .Values.api.metrics.service.annotations }}
+{{ toYaml .Values.api.metrics.service.annotations | indent 4 }}
+{{- end }}
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
+    component: "{{ .Values.api.name }}-metrics"
+{{- if .Values.api.metrics.service.labels }}
+{{ toYaml .Values.api.metrics.service.labels | indent 4 }}
+{{- end }}
+  name: {{ template "api.fullname" . }}-metrics
+spec:
+  ports:
+    - name: http
+      port: 8000
+      protocol: TCP
+      targetPort: "entity-flask"
+  selector:
+    app: {{ template "es.fullname" . }}
+    component: {{ required "api.name must be provided." .Values.api.name | quote }}
+    release: {{ .Release.Name }}
+  type: {{ .Values.api.metrics.service.type }}
+{{- end }}
