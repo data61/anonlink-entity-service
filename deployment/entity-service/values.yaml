@@ -139,7 +139,7 @@ api:
     ## A k8s service exposing application metrics
     service:
       annotations:
-        - prometheus.io/scrape: 'true'
+        prometheus.io/scrape: 'true'
       type: ClusterIP
       #labels: []
 
