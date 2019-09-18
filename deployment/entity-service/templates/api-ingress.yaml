@@ -1,6 +1,6 @@
 {{- if .Values.api.ingress.enabled }}
 {{- $serviceName := include "api.fullname" . }}
-{{- $servicePort := .Values.api.service.servicePort -}}
+{{- $servicePort := (required "api.service.servicePort must be provided." .Values.api.service.servicePort) -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:

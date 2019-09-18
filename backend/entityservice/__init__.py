@@ -50,7 +50,9 @@ def initdb_command():
 
 @app.before_first_request
 def before_first_request():
-    db.init_db_pool()
+    db_min_connections = config.FLASK_DB_MIN_CONNECTIONS
+    db_max_connections = config.FLASK_DB_MAX_CONNECTIONS
+    db.init_db_pool(db_min_connections, db_max_connections)
 
 
 @app.before_request

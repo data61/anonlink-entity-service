@@ -18,6 +18,21 @@ Have all been replaced by ``CHUNK_SIZE_AIM``
 ``MATCH_THRESHOLD`` -> ``ENTITY_MATCH_THRESHOLD``
 But really should be removed in favour of each run providing a threshold.
 
+Celery configuration updates to solve threads and memory leaks in deployment.
+Update helm charts and docker-compose to use these new preferred configurations.
+
+Update helm `values.yaml` file to be a minimal working deployment.
+
+New environment variables: ``CELERY_DB_MIN_CONNECTIONS``, ``FLASK_DB_MIN_CONNECTIONS``, ``CELERY_DB_MAX_CONNECTIONS`` and ``FLASK_DB_MAX_CONNECTIONS``
+to configure the database connections pool.
+
+
+Update benchmark to handle more than 2 parties, being able to repeat experiments and pushing the results to minio object store.
+Required a change in the result created by the benchmark.
+
+Deleting a run is now implemented.
+
+
 Version 1.11.2
 --------------
 

@@ -33,7 +33,7 @@ def init_db(delay=0.5):
 
     @param float delay: Number of seconds to wait before executing the SQL.
     """
-    init_db_pool()
+    init_db_pool(1, 3)
     time.sleep(delay)
     with DBConn() as db:
         with current_app.open_resource('init-db-schema.sql', mode='r') as f:
@@ -41,7 +41,7 @@ def init_db(delay=0.5):
             db.cursor().execute(f.read())
 
 
-def init_db_pool():
+def init_db_pool(db_min_connections, db_max_connections):
     """
     Initializes the database connection pool required by the application to connect to the database.
     """
@@ -49,8 +49,6 @@ def init_db_pool():
     host = config.DATABASE_SERVER
     user = config.DATABASE_USER
     pw = config.DATABASE_PASSWORD
-    db_min_connections = config.DATABASE_MIN_CONNECTIONS
-    db_max_connections = config.DATABASE_MAX_CONNECTIONS
 
     global connection_pool
     if connection_pool is None:

@@ -24,11 +24,11 @@ spec:
 {{- end }}
   ports:
     - name: http
-      port: {{ .Values.api.service.servicePort }}
+      port: {{ required "api.service.servicePort must be provided." .Values.api.service.servicePort }}
       protocol: TCP
       targetPort: "entity-nginx"
   selector:
     app: {{ template "es.fullname" . }}
-    component: "{{ .Values.api.name }}"
+    component: {{ required "api.name must be provided." .Values.api.name | quote }}
     release: {{ .Release.Name }}
-  type: {{ .Values.api.service.type }}
+  type: {{ required "api.service.type must be provided." .Values.api.service.type }}

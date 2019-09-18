@@ -3,14 +3,14 @@
 Config shared between the application backend and the celery workers.
 """
 import os
-import math
-import logging
 
 
 class Config(object):
     """
-    Hard coded default configuration which can be overwritten with environment variables
+    Hard coded default configuration which can be overwritten with environment variables.
     """
+
+    # If adding or deleting any, please ensure that the changelog will mention them.
 
     DEBUG = os.getenv("DEBUG", "false") == "true"
 
@@ -33,13 +33,17 @@ class Config(object):
     DATABASE = os.getenv('DATABASE', 'postgres')
     DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
     DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', '')
-    DATABASE_MIN_CONNECTIONS = os.getenv('DATABASE_MIN_CONNECTIONS', '1')
-    DATABASE_MAX_CONNECTIONS = os.getenv('DATABASE_MAX_CONNECTIONS', '3')
+
+    FLASK_DB_MIN_CONNECTIONS = os.getenv('FLASK_DB_MIN_CONNECTIONS', '1')
+    FLASK_DB_MAX_CONNECTIONS = os.getenv('FLASK_DB_MAX_CONNECTIONS', '10')
 
     CELERY_BROKER_URL = os.getenv(
         'CELERY_BROKER_URL',
         ('sentinel://:{}@{}:26379/0' if REDIS_USE_SENTINEL else 'redis://:{}@{}:6379/0').format(REDIS_PASSWORD, REDIS_SERVER)
     )
+
+    CELERY_DB_MIN_CONNECTIONS = os.getenv('CELERY_DB_MIN_CONNECTIONS', '1')
+    CELERY_DB_MAX_CONNECTIONS = os.getenv('CELERY_DB_MAX_CONNECTIONS', '3')
 
     CELERY_BROKER_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
 
@@ -61,6 +65,7 @@ class Config(object):
 
     CELERYD_PREFETCH_MULTIPLIER = int(os.getenv('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '4'))
+    CELERYD_CONCURRENCY = int(os.getenv("CELERYD_CONCURRENCY", '0'))
     CELERY_ACKS_LATE = os.getenv('CELERY_ACKS_LATE', 'false') == 'true'
 
     # Number of comparisons per chunk (on average).
