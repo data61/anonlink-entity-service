@@ -7,7 +7,7 @@ import structlog
 
 from entityservice import serialization
 from entityservice import database
-from entityservice.database import logger, DBConn
+from entityservice.database import DBConn
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
 
