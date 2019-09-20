@@ -108,6 +108,7 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         Chunk info returned by ``anonlink.concurrency.split_to_chunks``.
         Additionally, "storeFilename" is added to each dataset chunk.
     :param project_id:
+    :param run_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
     :param parent_span: A serialized opentracing span context.
@@ -116,11 +117,8 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
     span = compute_filter_similarity.span
-    log.debug("Checking that the resource exists (in case of job being canceled)")
-    with DBConn() as db:
-        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Failing task as project or run not found in database.")
-            raise DBResourceMissing("project or run not found in database")
+    log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
+    assert_valid_run(project_id, run_id, log)
 
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
@@ -184,6 +182,13 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         t5 - t0)
     )
     return num_results, file_size, result_filename
+
+
+def assert_valid_run(project_id, run_id, log):
+    with DBConn() as db:
+        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
+            log.info("Project or run not found in database.")
+            raise DBResourceMissing("project or run not found in database")
 
 
 def _put_placeholder_empty_file(mc, log):
