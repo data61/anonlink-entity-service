@@ -81,12 +81,6 @@ def remove_from_cache(dp_id):
     r.delete(key)
 
 
-def update_progress(comparisons, run_id):
-    r = connect_to_redis()
-    key = 'progress-{}'.format(run_id)
-    r.incr(key, comparisons)
-
-
 def get_progress(run_id):
     r = connect_to_redis(read_only=True)
     key = 'progress-{}'.format(run_id)
@@ -122,4 +116,6 @@ def set_status(status):
 
 def save_current_progress(comparisons, run_id):
     logger.debug(f"Progress. Compared {comparisons} CLKS", run_id=run_id)
-    update_progress(comparisons, run_id)
+    r = connect_to_redis()
+    key = 'progress-{}'.format(run_id)
+    r.incr(key, comparisons)
