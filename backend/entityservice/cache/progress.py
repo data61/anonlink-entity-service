@@ -1,6 +1,7 @@
 import structlog
 
 from entityservice.cache.connection import connect_to_redis
+from entityservice.cache.helpers import _get_run_hash_key
 
 logger = structlog.get_logger()
 
@@ -8,14 +9,14 @@ logger = structlog.get_logger()
 def save_current_progress(comparisons, run_id):
     logger.debug(f"Updating progress. Compared {comparisons} CLKS", run_id=run_id)
     r = connect_to_redis()
-    key = 'progress-{}'.format(run_id)
-    r.incr(key, comparisons)
+    key = _get_run_hash_key(run_id)
+    r.hincrby(key, 'progress', comparisons)
 
 
 def get_progress(run_id):
     r = connect_to_redis(read_only=True)
-    key = 'progress-{}'.format(run_id)
-    res = r.get(key)
+    key = _get_run_hash_key(run_id)
+    res = r.hget(key, 'progress')
     # redis returns bytes, and None if not present
     if res is not None:
         return int(res)
@@ -25,5 +26,5 @@ def get_progress(run_id):
 
 def clear_progress(run_id):
     r = connect_to_redis()
-    key = 'progress-{}'.format(run_id)
-    r.delete(key)
+    key = _get_run_hash_key(run_id)
+    r.hdel(key, 'progress')
