@@ -1,6 +1,7 @@
 import psycopg2
 
 from entityservice.cache import progress as progress_cache
+from entityservice.cache.active_runs import set_run_state
 from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
 from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
@@ -35,6 +36,7 @@ def prerun_check(project_id, run_id, parent_span=None):
             return
 
         log.debug("Setting run as in progress")
+        set_run_state(run_id, 'active')
         update_run_set_started(conn, run_id)
         progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
