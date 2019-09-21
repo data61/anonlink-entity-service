@@ -1,8 +1,6 @@
 import array
-import csv
 import heapq
 import operator
-import os
 import time
 
 import anonlink
@@ -10,7 +8,7 @@ import minio
 import psycopg2
 from celery import chord
 
-from entityservice.utils import fmt_bytes
+from entityservice.tasks.pre_run_check import assert_valid_run
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
 from entityservice.errors import DBResourceMissing, RunDeleted
@@ -182,13 +180,6 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         t5 - t0)
     )
     return num_results, file_size, result_filename
-
-
-def assert_valid_run(project_id, run_id, log):
-    with DBConn() as db:
-        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Project or run not found in database.")
-            raise DBResourceMissing("project or run not found in database")
 
 
 def _put_placeholder_empty_file(mc, log):
