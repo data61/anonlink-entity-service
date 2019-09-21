@@ -1,7 +1,7 @@
 from minio.error import MinioError
 
 import entityservice.database as db
-from entityservice.cache.active_runs import set_run_state
+from entityservice.cache.active_runs import set_run_state_deleted
 from entityservice.database import DBConn
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
@@ -23,7 +23,7 @@ def remove_project(project_id):
         run_objects = db.get_runs(conn, project_id)
         log.debug("Setting run status as 'deleted'")
         for run in run_objects:
-            set_run_state(run_id=run['run_id'], state='deleted')
+            set_run_state_deleted(run_id=run['run_id'])
         log.debug("Deleting project resourced from database")
         db.delete_project_data(conn, project_id)
         log.debug("Getting object store files associated with project from database")
