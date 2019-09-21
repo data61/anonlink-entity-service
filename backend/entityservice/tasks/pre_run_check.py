@@ -1,8 +1,6 @@
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, get_created_runs_and_queue, get_uploaded_encoding_sizes, \
-    get_project_schema_encoding_size, get_project_encoding_size, set_project_encoding_size, check_project_exists, \
-    check_run_exists
-from entityservice.errors import DBResourceMissing
+    get_project_schema_encoding_size, get_project_encoding_size, set_project_encoding_size
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.settings import Config as config
 from entityservice.tasks.base_task import TracedTask
@@ -75,8 +73,3 @@ def check_and_set_project_encoding_size(project_id, conn):
         raise ValueError("Encoding size out of configured bounds")
 
 
-def assert_valid_run(project_id, run_id, log):
-    with DBConn() as db:
-        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Project or run not found in database.")
-            raise DBResourceMissing("project or run not found in database")

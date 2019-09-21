@@ -1,8 +1,8 @@
 from structlog import get_logger
 
+from entityservice.cache import progress as progress_cache
 import entityservice.database as db
 from entityservice.database import DBConn
-from entityservice import cache
 from entityservice.settings import Config as config
 from entityservice.utils import generate_code
 
@@ -41,7 +41,7 @@ def progress_run_stage(conn, run_id):
     log.info("Run progressing to next stage")
     db.progress_run_stage(conn, run_id)
     # clear progress in cache
-    cache.clear_progress(run_id)
+    progress_cache.clear_progress(run_id)
 
 
 class InvalidRunParametersException(ValueError):

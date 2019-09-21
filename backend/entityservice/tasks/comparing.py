@@ -8,22 +8,24 @@ import minio
 import psycopg2
 from celery import chord
 
-from entityservice.tasks.pre_run_check import assert_valid_run
-from entityservice.object_store import connect_to_object_store
+
 from entityservice.async_worker import celery, logger
-from entityservice.errors import DBResourceMissing, RunDeleted
+from entityservice.cache.encodings import remove_from_cache
+from entityservice.cache.progress import save_current_progress
+from entityservice.errors import RunDeleted
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
     get_filter_metadata, get_project_column, get_project_dataset_sizes,
     get_project_encoding_size, get_run, insert_similarity_score_file,
     update_run_mark_failure)
 from entityservice.models.run import progress_run_stage as progress_stage
+from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import get_chunk_from_object_store
 from entityservice.settings import Config
 from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
-from entityservice.cache import save_current_progress, remove_from_cache
+from entityservice.tasks.assert_valid_run import assert_valid_run
 from entityservice.utils import generate_code, iterable_to_stream
 
 
