@@ -3,6 +3,8 @@ Cache information about the run state in redis.
 
 Note across the cache we use a common redis hash for each run,
 this module uses the 'state' key.
+
+See https://redis.io/commands#hash
 """
 from enum import Enum
 import structlog
@@ -14,6 +16,14 @@ logger = structlog.get_logger()
 
 
 class RunState(Enum):
+    """
+    A run state is stored in the cache to provide a fast method of
+    differentiating between an active, completed, or deleted run.
+
+    An unlikely option of ``MISSING`` will occur if there is
+    no corresponding entry in redis for a ``run_id``. Note redis
+    returns ``None`` hence the value in this Enum.
+    """
     MISSING = None
     ACTIVE = b'active'
     DELETED = b'deleted'
