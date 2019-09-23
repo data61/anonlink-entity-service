@@ -26,6 +26,7 @@ class RunState(Enum):
     """
     MISSING = None
     ACTIVE = b'active'
+    COMPLETE = b'complete'
     DELETED = b'deleted'
 
 
@@ -51,6 +52,10 @@ def set_run_state_deleted(run_id):
 
 def set_run_state_active(run_id):
     return _set_run_state(run_id, state=RunState.ACTIVE)
+
+
+def set_run_state_complete(run_id):
+    return _set_run_state(run_id, state=RunState.COMPLETE)
 
 
 def is_run_active(run_id):
