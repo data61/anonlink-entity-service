@@ -2,5 +2,9 @@
   {
     "sizes": ["100K", "100K"],
     "threshold": 0.95
+  },
+  {
+    "sizes": ["10K", "10K", "10K"],
+    "threshold": 0.8
   }
 ]
