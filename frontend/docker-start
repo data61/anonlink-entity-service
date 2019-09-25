@@ -1,20 +1,5 @@
 #!/bin/sh
 
-ETCD_KEY="n1/services/entity/url"
-
-if [ -n "$ETCD_URL" ]; then
-  url="http://$PUBLIC_IP:$PUBLIC_PORT"
-  echo "[INFO]  Setting etcd key '$ETCD_KEY' to '$url'"
-  success=1
-  while [ $success != 0 ]; do
-    e_url=$ETCD_URL/v2/keys/$ETCD_KEY
-    curl -s --fail -L -XPUT $e_url -d value="$url" -o /dev/null
-    success=$?
-    echo "[DEBUG] ... result $success - etcd_url: $e_url"
-    [[ $success != 0 ]] && sleep 5
-  done
-fi
-
 # Tell nginx the address of the backend service to proxy to
 sed -i "s/{{TARGET_SERVICE}}/${TARGET_SERVICE:-localhost}/g;" /etc/nginx/nginx.conf
 sleep 2
