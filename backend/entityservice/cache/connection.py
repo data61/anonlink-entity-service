@@ -17,7 +17,7 @@ def connect_to_redis(read_only=False):
     """
     logger.debug("Connecting to redis", server=redis_host, port=redis_port)
     if config.REDIS_USE_SENTINEL:
-        sentinel = Sentinel([(redis_host, )], password=redis_pass, socket_timeout=5)
+        sentinel = Sentinel([(redis_host, redis_port)], password=redis_pass, socket_timeout=5)
         if read_only:
             logger.debug("Looking up read only redis slave using sentinel protocol")
             r = sentinel.slave_for('mymaster')
