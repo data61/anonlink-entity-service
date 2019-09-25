@@ -15,12 +15,12 @@ data:
 
   {{ if .Values.provision.redis }}
   REDIS_SERVER: {{ .Release.Name }}-{{ index .Values "redis-ha" "nameOverride" }}
-  REDIS_USE_SENTINEL: "true"
   {{ else }}
   REDIS_SERVER: {{ required "redis.server is required if provision.redis is set to false or absent." .Values.redis.server }}
-  REDIS_USE_SENTINEL: {{ required "redis.use_sentinel is required if provision.redis is set to false or absent." .Values.redis.use_sentinel }}
   {{ end }}
   # REDIS_PASSWORD provided as a secret
+  REDIS_USE_SENTINEL: {{ required "redis.useSentinel is required." .Values.redis.useSentinel | quote }}
+  REDIS_SENTINEL_NAME: {{ required "redis.sentinelName is required." .Values.redis.sentinelName }}
 
   {{ if .Values.provision.minio }}
   MINIO_SERVER: "{{ .Release.Name }}-minio:9000"
