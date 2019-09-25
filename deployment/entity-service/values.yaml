@@ -244,14 +244,15 @@ global:
 ## In this section, we are not installing any redis pods. The main goal is to get configuration values for the
 ## other services.
 redis:
-  ## Note the `server` and `use_sentinel` options are ignored if provisioning redis
+  ## Note the `server` options are ignored if provisioning redis
   ## using this chart.
 
   ## External redis server url/ip
   server: ""
 
-  ## Does the external redis server support the sentinel protocol?
-  use_sentinel: false
+  ## Does the redis server support the sentinel protocol
+  useSentinel: true
+  sentinelName: "mymaster"
 
   ## Note if deploying redis-ha you MUST have the same password below!
   password: "exampleRedisPassword"
