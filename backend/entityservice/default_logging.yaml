@@ -47,12 +47,7 @@ handlers:
 
 loggers:
   entityservice:
-    level: DEBUG
-    propagate: yes
-
-  entityservice.tasks:
-    level: DEBUG
-    propagate: no
+    level: INFO
 
   entityservice.database.util:
     level: WARNING
@@ -60,9 +55,11 @@ loggers:
   entityservice.cache:
     level: WARNING
 
+  entityservice.utils:
+    level: INFO
+
   celery:
     level: INFO
-    propogate: yes
 
   jaeger_tracing:
     level: WARNING

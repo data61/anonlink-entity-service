@@ -71,6 +71,7 @@ class TracedTask(BaseTask):
         return serialized_span
 
     def __call__(self, *args, **kwargs):
+        logger.debug('setting up tracing on task')
         args_dict = dict(zip(self.run.__code__.co_varnames, args))
         args_dict.update(kwargs)
         parent = args_dict.get(getattr(self, 'parent_span_arg', 'parent_span'), None)
