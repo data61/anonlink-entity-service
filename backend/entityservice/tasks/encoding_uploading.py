@@ -1,6 +1,7 @@
 import io
 
-from entityservice import cache
+from entityservice.cache import encodings as encoding_cache
+
 from entityservice.database import *
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
@@ -75,7 +76,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     if expected_count < Config.ENTITY_CACHE_THRESHOLD:
         log.info("Caching pickled clk data")
         python_filters = list(python_filters)
-        cache.set_deserialized_filter(dp_id, python_filters)
+        encoding_cache.set_deserialized_filter(dp_id, python_filters)
     else:
         log.info("Not caching clk data as it is too large")
 

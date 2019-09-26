@@ -2,7 +2,8 @@ import random
 
 import anonlink
 
-from entityservice import cache
+from entityservice.cache import encodings as encoding_cache
+
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
     get_run_result, insert_permutation, insert_permutation_mask
@@ -64,7 +65,7 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
     log.debug("Removing clk filters from redis cache")
 
     for dp_id in dp_ids:
-        cache.remove_from_cache(dp_id)
+        encoding_cache.remove_from_cache(dp_id)
     calculate_comparison_rate.delay()
 
 

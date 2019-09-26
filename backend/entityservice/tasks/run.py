@@ -1,5 +1,6 @@
 import psycopg2
 
+from entityservice.cache import progress as progress_cache
 from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
 from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
@@ -35,6 +36,7 @@ def prerun_check(project_id, run_id, parent_span=None):
 
         log.debug("Setting run as in progress")
         update_run_set_started(conn, run_id)
+        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
         log.debug("Getting dp ids for compute similarity task")
         dp_ids = get_dataprovider_ids(conn, project_id)

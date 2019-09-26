@@ -1,8 +1,6 @@
 import array
-import csv
 import heapq
 import operator
-import os
 import time
 
 import anonlink
@@ -10,22 +8,24 @@ import minio
 import psycopg2
 from celery import chord
 
-from entityservice.utils import fmt_bytes
-from entityservice.object_store import connect_to_object_store
+
 from entityservice.async_worker import celery, logger
-from entityservice.errors import DBResourceMissing, RunDeleted
+from entityservice.cache.encodings import remove_from_cache
+from entityservice.cache.progress import save_current_progress
+from entityservice.errors import RunDeleted
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
     get_filter_metadata, get_project_column, get_project_dataset_sizes,
     get_project_encoding_size, get_run, insert_similarity_score_file,
     update_run_mark_failure)
 from entityservice.models.run import progress_run_stage as progress_stage
+from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import get_chunk_from_object_store
 from entityservice.settings import Config
 from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
-from entityservice.cache import save_current_progress, remove_from_cache
+from entityservice.tasks.assert_valid_run import assert_valid_run
 from entityservice.utils import generate_code, iterable_to_stream
 
 
@@ -108,6 +108,7 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         Chunk info returned by ``anonlink.concurrency.split_to_chunks``.
         Additionally, "storeFilename" is added to each dataset chunk.
     :param project_id:
+    :param run_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
     :param parent_span: A serialized opentracing span context.
@@ -116,11 +117,8 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
     span = compute_filter_similarity.span
-    log.debug("Checking that the resource exists (in case of job being canceled)")
-    with DBConn() as db:
-        if not check_project_exists(db, project_id) or not check_run_exists(db, project_id, run_id):
-            log.info("Failing task as project or run not found in database.")
-            raise DBResourceMissing("project or run not found in database")
+    log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
+    assert_valid_run(project_id, run_id, log)
 
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
