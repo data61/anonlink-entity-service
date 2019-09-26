@@ -1,5 +1,6 @@
 import structlog
 
+from entityservice.settings import Config as config
 from entityservice.cache.connection import connect_to_redis
 from entityservice.cache.helpers import _get_run_hash_key
 
@@ -11,6 +12,7 @@ def save_current_progress(comparisons, run_id):
     r = connect_to_redis()
     key = _get_run_hash_key(run_id)
     r.hincrby(key, 'progress', comparisons)
+    r.expire(key, config.CACHE_EXPIRY)
 
 
 def get_progress(run_id):

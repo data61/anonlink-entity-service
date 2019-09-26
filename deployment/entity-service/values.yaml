@@ -168,6 +168,10 @@ workers:
   ## More than this many entities and we skip caching in redis
   MAX_CACHE_SIZE: "1_000_000"
 
+  ## How many seconds do we keep cache ephemeral data such as run progress
+  ## Default is 30 days:
+  CACHE_EXPIRY_SECONDS: "2592000"
+
   ## Optional path to a logging configuration file
   ## Eventually this config can be stored in a configmap
   ## See https://github.com/data61/anonlink-entity-service/issues/323

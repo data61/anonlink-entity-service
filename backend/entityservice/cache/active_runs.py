@@ -9,6 +9,7 @@ See https://redis.io/commands#hash
 from enum import Enum
 import structlog
 
+from entityservice.settings import Config as config
 from entityservice.cache.connection import connect_to_redis
 from entityservice.cache.helpers import _get_run_hash_key
 
@@ -34,7 +35,9 @@ def _set_run_state(run_id, state):
     logger.debug(f"Setting run state to '{state.name}'", run_id=run_id)
     r = connect_to_redis()
     key = _get_run_hash_key(run_id)
-    return r.hset(key, 'state', state.value)
+    res = r.hset(key, 'state', state.value)
+    r.expire(key, config.CACHE_EXPIRY)
+    return res
 
 
 def _get_run_state(run_id):
