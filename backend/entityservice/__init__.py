@@ -21,7 +21,8 @@ app = con_app.app
 
 import entityservice.views
 from entityservice.tracing import initialize_tracer
-from flask_opentracing import FlaskTracer
+import opentracing
+from flask_opentracing import FlaskTracing
 from entityservice import database as db
 from entityservice.serialization import generate_scores
 from entityservice.object_store import connect_to_object_store
@@ -40,7 +41,7 @@ app.config.from_object(config)
 
 logger = structlog.wrap_logger(app.logger)
 # Tracer setup (currently just trace all requests)
-flask_tracer = FlaskTracer(initialize_tracer, True, app)
+flask_tracer = FlaskTracing(initialize_tracer, True, app)
 
 
 @app.cli.command('initdb')
