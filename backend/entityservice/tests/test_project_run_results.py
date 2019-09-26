@@ -18,7 +18,7 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
 
 def test_run_permutations_results(requests, permutations_project, threshold):
     run_id = post_run(requests, permutations_project, threshold)
-    mask_result = get_run_result(requests, permutations_project, run_id)
+    mask_result = get_run_result(requests, permutations_project, run_id, timeout=120)
     assert 'mask' in mask_result
     assert len(mask_result['mask']) == min(permutations_project['size'])
 
@@ -39,7 +39,7 @@ def test_run_permutations_results(requests, permutations_project, threshold):
 
 def test_run_groups_results(requests, groups_project, threshold):
     run_id = post_run(requests, groups_project, threshold)
-    result = get_run_result(requests, groups_project, run_id)
+    result = get_run_result(requests, groups_project, run_id, timeout=120)
     
     assert 'groups' in result
     groups = result['groups']
@@ -57,4 +57,4 @@ def test_run_groups_results(requests, groups_project, threshold):
 def test_run_mapping_results_no_data(requests):
     empty_project = create_project_no_data(requests)
     run_id = post_run(requests, empty_project, 0.95)
-    get_run_result(requests, empty_project, run_id, expected_status = 404, wait=False)
+    get_run_result(requests, empty_project, run_id, expected_status=404, wait=False)
