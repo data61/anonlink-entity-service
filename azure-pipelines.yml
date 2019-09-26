@@ -37,9 +37,19 @@ trigger:
     - '*'
 
 stages:
+- stage: stage_base_docker_image_build
+  displayName: Base Docker build
+  dependsOn: []
+  jobs:
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './base'
+      imageName: data61/anonlink-base
+      jobName: 'anonlink_base'
+      imageTag: 'briantest'
 - stage: stage_docker_image_build
   displayName: Docker build
-  dependsOn: []
+  dependsOn: [stage_base_docker_image_build]
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
