@@ -12,7 +12,7 @@ def test_run_mapping_results(requests, mapping_project):
 
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):
     run_id = post_run(requests, similarity_scores_project, threshold)
-    result = get_run_result(requests, similarity_scores_project, run_id)
+    result = get_run_result(requests, similarity_scores_project, run_id, timeout=120)
     assert 'similarity_scores' in result
 
 

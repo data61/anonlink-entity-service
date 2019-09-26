@@ -190,7 +190,7 @@ stages:
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
         --set workers.image.tag=$(DOCKER_TAG)
-        
+
         echo "Dry run"
         helm upgrade --install --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         --set api.app.debug=true \
@@ -215,7 +215,8 @@ stages:
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Kubernetes deployment'
