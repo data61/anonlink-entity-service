@@ -26,23 +26,21 @@ def prerun_check(project_id, run_id, parent_span=None):
             raise RunDeleted(run_id)
 
         try:
-            state = get_run_state_for_update(conn, run_id)
+            db_state = get_run_state_for_update(conn, run_id)
         except psycopg2.OperationalError:
             log.warning("Run started in another task. Skipping this race.")
             return
 
-        if state in {'running', 'completed', 'error'}:
+        if db_state in {'running', 'completed', 'error'}:
             log.warning("Run already started. Skipping")
             return
 
         log.debug("Setting run as in progress")
-        set_run_state_active(run_id)
         update_run_set_started(conn, run_id)
-        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
-        log.debug("Getting dp ids for compute similarity task")
-        dp_ids = get_dataprovider_ids(conn, project_id)
-        log.debug("Data providers: {}".format(dp_ids))
+        log.debug("Updating redis cache with run progress and state")
+        set_run_state_active(run_id)
+        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
     create_comparison_jobs.delay(project_id, run_id, prerun_check.get_serialized_span())
     log.info("CLK similarity computation scheduled")
