@@ -53,7 +53,10 @@ class Config(object):
     CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
 
     CELERY_ANNOTATIONS = {
-        'async_worker.calculate_mapping': {'rate_limit': '1/s'}
+        # Note that these are per worker instance per task rate limits.
+        # tasks would get delayed before being run
+        # https://celery.readthedocs.io/en/latest/userguide/tasks.html#Task.rate_limit
+        #'entityservice.tasks.comparing.create_comparison_jobs': {'rate_limit': '1/m'}
     }
 
     CELERY_ROUTES = {
