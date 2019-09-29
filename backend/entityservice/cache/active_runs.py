@@ -65,6 +65,10 @@ def is_run_active(run_id):
     return RunState.ACTIVE == _get_run_state(run_id)
 
 
+def is_run_missing(run_id):
+    return RunState.MISSING == _get_run_state(run_id)
+
+
 def clear_run_state(run_id):
     r = connect_to_redis()
     key = _get_run_hash_key(run_id)

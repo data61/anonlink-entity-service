@@ -1,7 +1,7 @@
 import psycopg2
 
 from entityservice.cache import progress as progress_cache
-from entityservice.cache.active_runs import set_run_state_active
+from entityservice.cache.active_runs import set_run_state_active, is_run_missing
 from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
 from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
@@ -35,10 +35,15 @@ def prerun_check(project_id, run_id, parent_span=None):
             log.warning("Run already started. Skipping")
             return
 
-        log.debug("Setting run as in progress")
+        # being very defensive here checking if the run state is already in the redis cache
+        if not is_run_missing(run_id):
+            log.warning("unexpectedly the run state is present in redis before starting")
+            return
+
+        log.debug("Setting run state in db as 'running'")
         update_run_set_started(conn, run_id)
 
-        log.debug("Updating redis cache with run progress and state")
+        log.debug("Updating redis cache for run")
         set_run_state_active(run_id)
         progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
