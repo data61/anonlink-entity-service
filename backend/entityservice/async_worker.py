@@ -28,8 +28,6 @@ if Config.CELERYD_CONCURRENCY > 0:
 # Set up our logging
 setup_structlog()
 logger = structlog.wrap_logger(logging.getLogger('entityservice.tasks'))
-logger.info("Setting up entityservice worker")
-logger.debug("Debug logging enabled")
 
 
 @worker_process_init.connect()
@@ -37,11 +35,14 @@ def init_worker(**kwargs):
     db_min_connections = Config.CELERY_DB_MIN_CONNECTIONS
     db_max_connections = Config.CELERY_DB_MAX_CONNECTIONS
     init_db_pool(db_min_connections, db_max_connections)
+    logger.info("Setting up worker process")
+    logger.debug("Debug logging enabled")
 
 
 @worker_process_shutdown.connect()
 def shutdown_worker(**kwargs):
     close_db_pool()
+    logger.info("Shutting down a worker process")
 
 
 @task_prerun.connect()
