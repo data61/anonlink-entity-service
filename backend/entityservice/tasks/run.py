@@ -15,6 +15,11 @@ def prerun_check(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Sanity check that we need to compute run")
 
+    # being very defensive here checking if the run state is already in the redis cache
+    if not is_run_missing(run_id):
+        log.warning("unexpectedly the run state is present in redis before starting")
+        return
+
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.debug("Project not found. Skipping")
@@ -33,11 +38,6 @@ def prerun_check(project_id, run_id, parent_span=None):
 
         if db_state in {'running', 'completed', 'error'}:
             log.warning("Run already started. Skipping")
-            return
-
-        # being very defensive here checking if the run state is already in the redis cache
-        if not is_run_missing(run_id):
-            log.warning("unexpectedly the run state is present in redis before starting")
             return
 
         log.debug("Setting run state in db as 'running'")
