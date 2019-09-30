@@ -14,6 +14,10 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
     run_id = post_run(requests, similarity_scores_project, threshold)
     result = get_run_result(requests, similarity_scores_project, run_id, timeout=120)
     assert 'similarity_scores' in result
+    for index1, index2, score in result['similarity_scores']:
+        assert 0.0 <= score >= 1.0
+        assert 0 <= index1
+        assert 0 <= index2
 
 
 def test_run_permutations_results(requests, permutations_project, threshold):
