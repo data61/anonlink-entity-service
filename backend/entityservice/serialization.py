@@ -1,5 +1,6 @@
 import io
 
+import typing
 import urllib3
 from bitarray import bitarray
 import base64
@@ -120,15 +121,14 @@ def deserialize_filters_concurrent(filters):
     return res
 
 
-def generate_scores(sims_iter):
+def generate_scores(candidate_pair_stream: typing.BinaryIO):
     """
-    Processes a TextIO stream of csv similarity scores into
+    Processes a TextIO stream of candidate pair similarity scores into
     a json generator.
-
     """
-    cs_sims_iter = (
-        f'{rec_i0}, {rec_i1}, {sim}'
-        for sim, _, _, rec_i0, rec_i1 in sims_iter)
+    sims, (dset_is0, dset_is1), (rec_is0, rec_is1) = anonlink.serialization.load_candidate_pairs(candidate_pair_stream)
+
+    cs_sims_iter = (f'{rec_i0}, {rec_i1}, {sim}' for sim, rec_i0, rec_i1 in zip(sims, rec_is0, rec_is1))
     yield '{"similarity_scores": ['
     line_iter = iter(cs_sims_iter)
 
@@ -163,13 +163,9 @@ def get_similarity_scores(filename):
     logger.info("Starting download stream of similarity scores.", filename=filename, filesize=details.size)
 
     try:
-        sims_data_stream = mc.get_object(config.MINIO_BUCKET, filename)
-        # TODO: Below is an Anonlink 'private' API. It should be made
-        # public.
-        sims_iter, *_ = anonlink.serialization._load_to_iterable(
-            sims_data_stream)
+        candidate_pair_binary_stream = mc.get_object(config.MINIO_BUCKET, filename)
 
-        return Response(generate_scores(sims_iter), mimetype='application/json')
+        return Response(generate_scores(candidate_pair_binary_stream), mimetype='application/json')
 
     except urllib3.exceptions.ResponseError:
         logger.warning("Attempt to read the similarity scores file failed with an error response.", filename=filename)
