@@ -82,9 +82,6 @@ class Config(object):
     _CACHE_EXPIRY_SECONDS = int(os.getenv('CACHE_EXPIRY_SECONDS', datetime.timedelta(days=10).total_seconds()))
     CACHE_EXPIRY = datetime.timedelta(seconds=_CACHE_EXPIRY_SECONDS)
 
-    # Anything above this threshold is considered a match. Note each mapping job can override this
-    ENTITY_MATCH_THRESHOLD = float(os.getenv('ENTITY_MATCH_THRESHOLD', '0.95'))
-
     ENTITY_CACHE_THRESHOLD = int(os.getenv('ENTITY_CACHE_THRESHOLD', '1000000'))
 
     RAW_FILENAME_FMT = "quarantine/{}.txt"

@@ -73,7 +73,7 @@ class Run(object):
     @staticmethod
     def from_json(data, project_id):
         # Get optional fields from JSON data
-        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
+        threshold = data['threshold']
         if threshold <= 0.0 or threshold > 1.0:
             raise InvalidRunParametersException("Threshold parameter out of range")
         logger.info("Threshold for run is: {}".format(threshold))
