@@ -32,6 +32,35 @@ variables. Multiple workers can be used to distribute the work beyond
 one machine - by default all cores will be used for computing similarity
 scores and encrypting the mask vector.
 
+Redis
+-----
+
+Redis is used as the default message broker for celery as well as a cross-container
+in memory cache.
+
+Redis key/values used directly by the Anonlink Entity Service:
+
++------------------------+------------+-------------------+
+| Key                    | Redis Type | Description       |
++========================+============+===================+
+| "entityservice-status" |    String  | pickled status    |
++------------------------+------------+-------------------+
+| "run:{run_id}"         |    Hash    | run info          |
++------------------------+------------+-------------------+
+| "clk-pkl-{dp_id}"      |    String  | pickled encodings |
++------------------------+------------+-------------------+
+
+
+Redis Cache: Run Info
+~~~~~~~~~~~~~~~~~~~~~
+
+The run info ``HASH`` stores:
+
+- similarity scoring progress for each run under ``"progress"``
+- run state under ``"state"``, current valid states are
+  ``{active, complete, deleted}``. See
+  ``backend/entityservice/cache/active_runs.py`` for implementation.
+
 
 Continuous Integration Testing
 ------------------------------

@@ -3,6 +3,10 @@ class InvalidConfiguration(ValueError):
     """Config wasn't as expected"""
 
 
+class InactiveRun(AssertionError):
+    pass
+
+
 class DatabaseInconsistent(Exception):
     pass
 
@@ -26,5 +30,5 @@ class RunDeleted(DBResourceMissing):
 
 
 class DataProviderDeleted(DBResourceMissing):
-    """The database is missing data that indicates the a run has been deleted"""
+    """The database is missing data that indicates that a data provider has been deleted"""
     resource_type = 'dataprovider'

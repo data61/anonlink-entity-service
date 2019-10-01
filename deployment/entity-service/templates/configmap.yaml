@@ -62,6 +62,7 @@ data:
 
   # ENTITY_MATCH_THRESHOLD not provided
   # ENTITY_CACHE_THRESHOLD not provided
+  CACHE_EXPIRY_SECONDS: {{ required "workers.CACHE_EXPIRY_SECONDS is required." .Values.workers.CACHE_EXPIRY_SECONDS | quote }}
 
   MIN_ENCODING_SIZE: "8"
   MAX_ENCODING_SIZE: "1024"
