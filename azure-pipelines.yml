@@ -270,7 +270,7 @@ stages:
     # And do a lot of cleaning.
     # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
     - script: |
-        echo "Delete the deployment"
+        echo "Delete the deployment: '$(DEPLOYMENT)'"
         helm delete --purge $(DEPLOYMENT)
       condition: always()
       env:

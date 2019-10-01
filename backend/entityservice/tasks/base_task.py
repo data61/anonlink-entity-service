@@ -7,7 +7,7 @@ import psycopg2
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, update_run_mark_failure
 from entityservice.tracing import create_tracer
-from entityservice.errors import DBResourceMissing
+from entityservice.errors import DBResourceMissing, InactiveRun
 
 
 class BaseTask(celery.Task, ABC):
@@ -28,11 +28,10 @@ class BaseTask(celery.Task, ABC):
         """Log the exceptions"""
         logger.info("An exception '{}' was raised in a task".format(exc.__class__.__name__))
 
-        if isinstance(exc, (DBResourceMissing, psycopg2.IntegrityError)):
+        if isinstance(exc, (InactiveRun, DBResourceMissing, psycopg2.IntegrityError)):
             logger.info("Task was running when a resource was deleted, or db was inconsistent. Ignoring")
             # Note it will still be logged by celery
             # http://docs.celeryproject.org/en/master/userguide/tasks.html#Task.throws
-
         else:
             logger.exception(f"Unexpected exception raised in task {task_id}", exc_info=einfo)
             super(BaseTask, self).on_failure(exc, task_id, args, kwargs, einfo)

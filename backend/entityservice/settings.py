@@ -2,6 +2,7 @@
 """
 Config shared between the application backend and the celery workers.
 """
+import datetime
 import os
 
 
@@ -52,7 +53,10 @@ class Config(object):
     CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {'master_name': "mymaster"} if REDIS_USE_SENTINEL else {}
 
     CELERY_ANNOTATIONS = {
-        'async_worker.calculate_mapping': {'rate_limit': '1/s'}
+        # Note that these are per worker instance per task rate limits.
+        # tasks would get delayed before being run
+        # https://celery.readthedocs.io/en/latest/userguide/tasks.html#Task.rate_limit
+        #'entityservice.tasks.comparing.create_comparison_jobs': {'rate_limit': '1/m'}
     }
 
     CELERY_ROUTES = {
@@ -74,6 +78,9 @@ class Config(object):
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.getenv('MAX_CACHE_SIZE', '1000000'))
+
+    _CACHE_EXPIRY_SECONDS = int(os.getenv('CACHE_EXPIRY_SECONDS', datetime.timedelta(days=10).total_seconds()))
+    CACHE_EXPIRY = datetime.timedelta(seconds=_CACHE_EXPIRY_SECONDS)
 
     # Anything above this threshold is considered a match. Note each mapping job can override this
     ENTITY_MATCH_THRESHOLD = float(os.getenv('ENTITY_MATCH_THRESHOLD', '0.95'))

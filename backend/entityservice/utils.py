@@ -124,16 +124,17 @@ def generate_code(length=24):
 def clks_uploaded_to_project(project_id, check_data_ready=False):
     """ See if the given project has had all parties contribute data.
     """
-    logger.info("Counting contributing parties")
+    log = logger.bind(pid=project_id)
+    log.info("Counting contributing parties")
     with DBConn() as conn:
         if check_data_ready:
             parties_contributed = get_number_parties_ready(conn, project_id)
-            logger.info("Parties where data is ready: {}".format(parties_contributed))
+            log.info("Parties where data is ready: {}".format(parties_contributed))
         else:
             parties_contributed = get_number_parties_uploaded(conn, project_id)
-            logger.info("Parties where data is uploaded: {}".format(parties_contributed))
+            log.info("Parties where data is uploaded: {}".format(parties_contributed))
         number_parties = get_project_column(conn, project_id, 'parties')
-    logger.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
+    log.info("{}/{} parties have contributed clks".format(parties_contributed, number_parties))
     return parties_contributed == number_parties
 
 

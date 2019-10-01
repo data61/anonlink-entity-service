@@ -1,6 +1,7 @@
 import psycopg2
 
 from entityservice.cache import progress as progress_cache
+from entityservice.cache.active_runs import set_run_state_active, is_run_missing
 from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
 from entityservice.database import update_run_set_started, get_dataprovider_ids
 from entityservice.errors import RunDeleted, ProjectDeleted
@@ -14,6 +15,11 @@ def prerun_check(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Sanity check that we need to compute run")
 
+    # being very defensive here checking if the run state is already in the redis cache
+    if not is_run_missing(run_id):
+        log.warning("unexpectedly the run state is present in redis before starting")
+        return
+
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.debug("Project not found. Skipping")
@@ -25,22 +31,21 @@ def prerun_check(project_id, run_id, parent_span=None):
             raise RunDeleted(run_id)
 
         try:
-            state = get_run_state_for_update(conn, run_id)
+            db_state = get_run_state_for_update(conn, run_id)
         except psycopg2.OperationalError:
             log.warning("Run started in another task. Skipping this race.")
             return
 
-        if state in {'running', 'completed', 'error'}:
+        if db_state in {'running', 'completed', 'error'}:
             log.warning("Run already started. Skipping")
             return
 
-        log.debug("Setting run as in progress")
+        log.debug("Setting run state in db as 'running'")
         update_run_set_started(conn, run_id)
-        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
-        log.debug("Getting dp ids for compute similarity task")
-        dp_ids = get_dataprovider_ids(conn, project_id)
-        log.debug("Data providers: {}".format(dp_ids))
+        log.debug("Updating redis cache for run")
+        set_run_state_active(run_id)
+        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
     create_comparison_jobs.delay(project_id, run_id, prerun_check.get_serialized_span())
     log.info("CLK similarity computation scheduled")
