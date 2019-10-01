@@ -25,6 +25,6 @@ steps:
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pods logs in Azure'
   inputs:
-    artifactName: Artifacts
+    artifactName: PodLogs
     targetPath: ${{ parameters.logsFolderPath }}
   condition: failed()
