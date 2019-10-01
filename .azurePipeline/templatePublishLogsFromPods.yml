@@ -13,7 +13,7 @@ parameters:
 steps:
 - task: UsePythonVersion@0
   inputs:
-    versionSpec: '3.6'
+    versionSpec: '3.7'
   condition: failed()
 - script: |
     echo "Copy the pods' logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
