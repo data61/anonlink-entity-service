@@ -14,10 +14,12 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.6'
+  condition: failed()
 - script: |
     echo "Copy the pods' logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
     python ./azurePipeline/getPodsLogs.py ${{ parameters.logsFolderPath }} ${{ parameters.releaseName }}
   displayName: 'Copy the logs from the service pods.'
+  condition: failed()
   env:
     KUBECONFIG: ${{ parameters.kubeConfigFile }}
 - task: PublishPipelineArtifact@1
@@ -25,3 +27,4 @@ steps:
   inputs:
     artifactName: Artifacts
     targetPath: ${{ parameters.logsFolderPath }}
+  condition: failed()
