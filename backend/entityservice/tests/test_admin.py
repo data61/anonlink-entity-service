@@ -24,3 +24,7 @@ def test_status(record_property):
     assert 'rate' in status_json
     assert 'project_count' in status_json
 
+
+def test_fail():
+    # TO BE DELETED
+    raise Exception("Yep, this is expected")
