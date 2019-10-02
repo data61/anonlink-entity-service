@@ -60,7 +60,6 @@ data:
 
   MAX_CACHE_SIZE: {{ required "workers.MAX_CACHE_SIZE is required." .Values.workers.MAX_CACHE_SIZE | quote }}
 
-  # ENTITY_MATCH_THRESHOLD not provided
   # ENTITY_CACHE_THRESHOLD not provided
   CACHE_EXPIRY_SECONDS: {{ required "workers.CACHE_EXPIRY_SECONDS is required." .Values.workers.CACHE_EXPIRY_SECONDS | quote }}
 

@@ -3,7 +3,6 @@ from structlog import get_logger
 from entityservice.cache import progress as progress_cache
 import entityservice.database as db
 from entityservice.database import DBConn
-from entityservice.settings import Config as config
 from entityservice.utils import generate_code
 
 
@@ -72,12 +71,12 @@ class Run(object):
 
     @staticmethod
     def from_json(data, project_id):
-        # Get optional fields from JSON data
-        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
+        threshold = data['threshold']
         if threshold <= 0.0 or threshold > 1.0:
             raise InvalidRunParametersException("Threshold parameter out of range")
         logger.info("Threshold for run is: {}".format(threshold))
 
+        # Get optional fields from JSON data
         name = data.get('name', '')
         notes = data.get('notes', '')
 
