@@ -14,24 +14,24 @@ steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.7'
-  condition: failed()
+  condition: always()
 
 - script: |
     pip install ansicolors
   displayName: 'Install Python dependencies.'
-  condition: failed()
+  condition: always()
 
 - script: |
     echo "Copy the pods logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
     python .azurePipeline/getPodsLogs.py ${{ parameters.logsFolderPath }} ${{ parameters.releaseName }}
   displayName: 'Copy the logs from the service pods.'
-  condition: failed()
+  condition: always()
   env:
     KUBECONFIG: ${{ parameters.kubeConfigFile }}
-    
+
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pods logs in Azure'
   inputs:
     artifactName: PodLogs
     targetPath: ${{ parameters.logsFolderPath }}
-  condition: failed()
+  condition: always()
