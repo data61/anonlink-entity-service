@@ -44,8 +44,9 @@ def info_from_pod(_pod, _directory, _release_name):
                 'name': name_container, 'image': image_name, 'restart_count': restart_count}
         
         with open(_directory / 'pod-{}_container-{}.log'.format(info['short_pod_name'], info['name']), 'wt') as f:
-            json.dump(info, f, indent=2, sort_keys=True)
-            f.write('\n\n')
+            for key, value in info.items():
+                f.write("{}: {}\n".format(key, value))
+            f.write('{}\n\n'.format('-'*25))
         with open(_directory / 'pod-{}_container-{}.log'.format(info['short_pod_name'], info['name']), 'at') as f:
             get_logs_container(info, f)
         if restart_count > 0:
