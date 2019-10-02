@@ -5,6 +5,7 @@ The script will currently be used in the Azure Pipeline to get back the logs of 
 allowing developers to document the issue.
 """
 
+import colors
 import json
 from pathlib import Path
 import subprocess
@@ -26,7 +27,9 @@ def get_logs_container(container_info, file, previous=False):
     cmd = "kubectl --namespace {} logs {} {}".format(NAMESPACE, container_info['full_pod_name'], container_info['name'])
     if previous:
         cmd += " --previous"
-    subprocess.call(cmd.split(" "), stdout=file)
+    output = subprocess.run(cmd.split(" "), capture_output=True)
+    # The returned logs contain colored characters. So use ansicolors to strip them out before writing them to file.
+    file.write(colors.strip_color(output.stdout.decode("utf-8")))
 
 
 def info_from_pod(_pod, _directory):

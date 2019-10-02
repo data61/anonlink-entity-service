@@ -16,7 +16,11 @@ steps:
     versionSpec: '3.7'
   condition: failed()
 - script: |
-    echo "Copy the pods' logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
+    pip install ansicolors
+  displayName: 'Install Python dependencies.'
+  condition: failed()
+- script: |
+    echo "Copy the pods logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
     python .azurePipeline/getPodsLogs.py ${{ parameters.logsFolderPath }} ${{ parameters.releaseName }}
   displayName: 'Copy the logs from the service pods.'
   condition: failed()
