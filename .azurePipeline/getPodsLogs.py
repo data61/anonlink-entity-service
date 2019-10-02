@@ -32,14 +32,15 @@ def get_logs_container(container_info, file, previous=False):
     file.write(colors.strip_color(output.stdout.decode("utf-8")))
 
 
-def info_from_pod(_pod, _directory):
+def info_from_pod(_pod, _directory, _release_name):
     pod_name = _pod.get('metadata').get('name')
     list_containers = _pod.get('status').get('containerStatuses')
     for container in list_containers:
         name_container = container.get('name')
         restart_count = container.get('restartCount')
         image_name = container.get('image')
-        info = {'full_pod_name': pod_name, 'short_pod_name': pod_name[len('benchmark-es-data61-xyz-'):],
+        prefix_to_remove = "{}-".format(_release_name)
+        info = {'full_pod_name': pod_name, 'short_pod_name': pod_name[len(prefix_to_remove):],
                 'name': name_container, 'image': image_name, 'restart_count': restart_count}
         
         with open(_directory / 'pod-{}_container-{}.log'.format(info['short_pod_name'], info['name']), 'wt') as f:
@@ -66,7 +67,7 @@ def main():
     release_name = sys.argv[2]
     list_pods = get_list_pods(release_name)
     for pod in list_pods:
-        info_from_pod(pod, directory)
+        info_from_pod(pod, directory, release_name)
 
 
 if __name__ == '__main__':
