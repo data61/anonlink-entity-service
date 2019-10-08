@@ -32,6 +32,6 @@ steps:
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pods logs in Azure'
   inputs:
-    artifactName: PodLogs
+    artifactName: PodLogs${{ System.JobAttempt }}
     targetPath: ${{ parameters.logsFolderPath }}
   condition: always()
