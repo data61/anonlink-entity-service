@@ -266,7 +266,14 @@ stages:
         testResultsFormat: 'JUnit'
         testResultsFiles: 'k8s-results.xml'
         testRunTitle: 'Publish kubernetes test results'
-        failTaskOnFailedTests: true 
+        failTaskOnFailedTests: true
+    # Publish all the pods logs if some tests failed.
+    - template: .azurePipeline/templatePublishLogsFromPods.yml
+      parameters:
+        logsFolderPath: $(Build.ArtifactStagingDirectory)
+        releaseName: $(DEPLOYMENT)
+        kubeConfigFile: $(KUBECONFIGFILE)
+        JobAttempt: $(System.JobAttempt)
     # And do a lot of cleaning.
     # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
     - script: |

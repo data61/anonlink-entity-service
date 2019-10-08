@@ -25,7 +25,7 @@ The continuous integration stages are:
 - runs the benchmark using ``docker-compose`` and publishes the results as an artifact in Azure
 - runs the tutorial tests using ``docker-compose`` and publishes the results in Azure
 - runs the integration tests by deploying the whole service on ``Kubernetes``, running the integration
-  tests and publishing the results in Azure.
+  tests and publishing the results in Azure. It also publishes the pods logs if some tests failed.
 
 The build pipeline is triggered for every push on every branch. It is not triggered by Pull
 Requests to avoid duplicate testing and building potentially untrusted external code.
