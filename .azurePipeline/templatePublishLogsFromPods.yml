@@ -4,6 +4,9 @@
 # `logsFolderPath` is the folder where the logs from the pods will be stored.
 # `releaseName` is the name of the release used to get the relevant list of pods.
 # `kubeConfigFile` is the kubeConfigFile path.
+# `JobAttempt` should be provided by the variable `System.JobAttempt` which is not directly accessible from the template.
+#   This incremental value is required to be able to re-run the job, in fact the `PublishPipelineArtifact` step fails
+#   if the build publish an artifact with the same name twice.
 
 parameters:
   logsFolderPath: ''
