@@ -9,6 +9,7 @@ parameters:
   logsFolderPath: ''
   releaseName: ''
   kubeConfigFile: ''
+  JobAttempt: ''
 
 steps:
 - task: UsePythonVersion@0
@@ -32,6 +33,6 @@ steps:
 - task: PublishPipelineArtifact@1
   displayName: 'Publish pods logs in Azure'
   inputs:
-    artifactName: PodLogs${{ variables.System.JobAttempt }}
+    artifactName: PodLogs${{ parameters.JobAttempt }}
     targetPath: ${{ parameters.logsFolderPath }}
   condition: always()
