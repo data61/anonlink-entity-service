@@ -7,6 +7,12 @@ Changelog
 Next Version
 ------------
 
+Logging configurable in the deployed entity service by creating a configmap
+containing the configuration file, and pointing to it via the dictionary ``workers.loggingCfgm``
+having ``name`` and ``key`` as keys, where ``name`` is the name of the configmap to use, and ``key``
+the key to the value containing the logging configuration.
+
+
 Several old settings have been removed from the default values.yaml and docker files:
 - ``SMALL_COMPARISON_CHUNK_SIZE``
 - ``LARGE_COMPARISON_CHUNK_SIZE``

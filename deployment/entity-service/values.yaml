@@ -172,10 +172,15 @@ workers:
   ## Default is 30 days:
   CACHE_EXPIRY_SECONDS: "2592000"
 
-  ## Optional path to a logging configuration file
-  ## Eventually this config can be stored in a configmap
-  ## See https://github.com/data61/anonlink-entity-service/issues/323
-  #LOG_CFG: "entityservice/verbose_logging.yaml"
+  ## Optional parameters to configure the logging used by the workers and the flask app. By default, the application
+  ## will use the logging configuration specified in the `default_logging.yaml` file at the time the docker image has
+  ## been created.
+  ## Cf `production-deployment.rst` documentation on how to create a configmap from a logging file.
+  ## loggingCfgm.name is the name of the configmap from which to read from to access the logging configuration file.
+  ## loggingCfgm.key is the key which associated value in the configmap is the content of the logging configuration file.
+  #loggingCfgm:
+  #  name: configmapname
+  #  key: keyInTheConfigMap
 
   ## Specific configuration for celery
   ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,

@@ -248,6 +248,26 @@ To use a separate install of redis using the server ``shared-redis-ha-redis-ha.d
          --set redis.use_sentinel=true
 
 
+Logging Configuration
+---------------------
+
+To provide a specific logging configurations used by the workers and the flask container, few steps are required.
+
+First, create a `yaml` logging file which will be used by the application. See `backend/entityservice/default_logging.yaml`
+ or `backend/entityservice/verbose_logging.yaml` as examples.
+
+Then, create a configmap from the logging file::
+
+    kubectl create configmap logconfigmap \
+         --from-file=loggingValues=verbose_logging.yaml
+
+where ``logconfigmap`` is the created name of the configmap, ``loggingValues`` is the key under which the file
+``verbose_logging.yaml`` will be stored.
+
+Finally, in the deployment configuration file, set the parameters ``workers.loggingCfgm.name`` to the selected configmap
+name and ``workers.loggingCfgm.key`` to the selected key, which in our example are respectively ``logconfigmap``
+and ``loggingValues``.
+
 Uninstalling
 ------------
 
