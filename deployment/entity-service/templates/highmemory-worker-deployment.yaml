@@ -59,7 +59,6 @@ spec:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: minioSecretKey
-
           command:
             - "celery"
             - "-A"
@@ -70,10 +69,24 @@ spec:
             - "fair"
             - "-Q"
             - "celery,compute,highmemory"
+          {{- if .Values.workers.loggingCfgm }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /var/config
+          {{- end }}
           args:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
+      {{- if .Values.workers.loggingCfgm }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ required ".workers.logging_cfgm.name is required to provide the name of the configmap where the logging configuration is stored." .Values.workers.loggingCfgm.name }}
+            items:
+              - key: {{ required ".workers.logging_cfgm.key is required to provide the key in the configmap which value is the content of the logging configuration." .Values.workers.loggingCfgm.key }}
+                path: "logging_file.yaml"
+      {{- end }}
       {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}
