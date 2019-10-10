@@ -189,17 +189,19 @@ stages:
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
 
         echo "Dry run"
-        helm upgrade --install --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
+        helm upgrade --install --debug --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Lint and dry-run'
