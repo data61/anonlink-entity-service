@@ -150,13 +150,8 @@ Groups Result
 The groups result has been created for multi-party linkage, and will replace the direct mapping result
 for two parties as it contains the same information in a different format.
 
-To create a project, the project owner is also required to provide the number of data providers via
-the parameter ``"number_parties"``. The server returns one ``update_token`` per parties.
-From this point, the `i-th` party is the party who received the `i-th` update token or
-`receipt_token` received after updating the clks.
-
 The result is a list of groups of records. Every record in such a group belongs to the same entity and
-consists of two values, the party id and the row index::
+consists of two values, the party index and the row index::
 
     [
       [
