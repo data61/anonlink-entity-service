@@ -19,5 +19,8 @@ def connect_to_object_store():
     logger.debug("Connected to minio")
     if not mc.bucket_exists(config.MINIO_BUCKET):
         logger.info("Creating bucket {}".format(config.MINIO_BUCKET))
-        mc.make_bucket(config.MINIO_BUCKET)
+        try:
+            mc.make_bucket(config.MINIO_BUCKET)
+        except minio.error.BucketAlreadyOwnedByYou:
+            logger.info("The bucket {} was already created.".format(config.MINIO_BUCKET))
     return mc
