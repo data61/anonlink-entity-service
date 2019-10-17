@@ -94,12 +94,12 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
             timeoutSeconds: 5
-          {{- if .Values.workers.loggingCfg }}
+          {{- if .Values.loggingCfg }}
           volumeMounts:
             - name: config-volume
               mountPath: /var/config
           {{- end }}
-      {{- if .Values.workers.loggingCfg }}
+      {{- if .Values.loggingCfg }}
       volumes:
         - name: config-volume
           configMap:

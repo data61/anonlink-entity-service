@@ -1,4 +1,4 @@
-{{- if .Values.workers.loggingCfg }}
+{{- if .Values.loggingCfg }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,5 +7,5 @@ metadata:
     {{- include "es.release_labels" . | indent 4 }}
 data:
   loggingCfg: |-
-{{ .Values.workers.loggingCfg | indent 4 }}
+{{ .Values.loggingCfg | indent 4 }}
 {{- end }}

@@ -69,7 +69,7 @@ spec:
             - "fair"
             - "-Q"
             - "celery,compute"
-          {{- if .Values.workers.loggingCfg }}
+          {{- if .Values.loggingCfg }}
           volumeMounts:
             - name: config-volume
               mountPath: /var/config
@@ -78,7 +78,7 @@ spec:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
-      {{- if .Values.workers.loggingCfg }}
+      {{- if .Values.loggingCfg }}
       volumes:
         - name: config-volume
           configMap:
