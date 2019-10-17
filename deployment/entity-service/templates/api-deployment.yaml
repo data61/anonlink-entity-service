@@ -94,6 +94,20 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 60
             timeoutSeconds: 5
+          {{- if .Values.loggingCfg }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /var/config
+          {{- end }}
+      {{- if .Values.loggingCfg }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ template "es.fullname" . }}-logging
+            items:
+              - key: "loggingCfg"
+                path: "logging_file.yaml"
+      {{- end }}
       {{- if .Values.api.pullSecret }}
       imagePullSecrets:
         - name: {{ .Values.api.pullSecret }}

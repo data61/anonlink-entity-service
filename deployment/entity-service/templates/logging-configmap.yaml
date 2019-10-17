@@ -1,0 +1,11 @@
+{{- if .Values.loggingCfg }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "es.fullname" . }}-logging
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
+data:
+  loggingCfg: |-
+{{ .Values.loggingCfg | indent 4 }}
+{{- end }}

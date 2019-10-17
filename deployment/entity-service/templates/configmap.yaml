@@ -66,7 +66,7 @@ data:
   MIN_ENCODING_SIZE: "8"
   MAX_ENCODING_SIZE: "1024"
 
+  {{- if .Values.loggingCfg }}
   # Not from the setting.py file.
-  {{ if .Values.workers.LOG_CFG }}
-  LOG_CFG: {{ .Values.workers.LOG_CFG | quote }}
-  {{ end }}
+  LOG_CFG: "/var/config/logging_file.yaml"
+  {{- end }}

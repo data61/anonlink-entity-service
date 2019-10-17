@@ -7,6 +7,9 @@ Changelog
 Next Version
 ------------
 
+Logging configurable in the deployed entity service by using the key ``loggingCfg``.
+
+
 Several old settings have been removed from the default values.yaml and docker files:
 - ``SMALL_COMPARISON_CHUNK_SIZE``
 - ``LARGE_COMPARISON_CHUNK_SIZE``
