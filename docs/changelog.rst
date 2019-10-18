@@ -7,34 +7,47 @@ Changelog
 Next Version
 ------------
 
-Logging configurable in the deployed entity service by using the key ``loggingCfg``.
 
 
-Several old settings have been removed from the default values.yaml and docker files:
-- ``SMALL_COMPARISON_CHUNK_SIZE``
-- ``LARGE_COMPARISON_CHUNK_SIZE``
-- ``SMALL_JOB_SIZE``
-- ``LARGE_JOB_SIZE``
 
-Have all been replaced by ``CHUNK_SIZE_AIM``
+Version 1.12.0
+--------------
 
-``MATCH_THRESHOLD`` -> ``ENTITY_MATCH_THRESHOLD``
-But really should be removed in favour of each run providing a threshold.
-
-Celery configuration updates to solve threads and memory leaks in deployment.
-Update helm charts and docker-compose to use these new preferred configurations.
-
-Update helm `values.yaml` file to be a minimal working deployment.
-
-New environment variables: ``CELERY_DB_MIN_CONNECTIONS``, ``FLASK_DB_MIN_CONNECTIONS``, ``CELERY_DB_MAX_CONNECTIONS`` and ``FLASK_DB_MAX_CONNECTIONS``
-to configure the database connections pool.
-
-
-Update benchmark to handle more than 2 parties, being able to repeat experiments and pushing the results to minio object store.
-Required a change in the result created by the benchmark.
-
-Deleting a run is now implemented.
-
+- Logging configurable in the deployed entity service by using the key ``loggingCfg``. (#448)
+- Several old settings have been removed from the default values.yaml and docker
+  files which have been replaced by ``CHUNK_SIZE_AIM`` (#414):
+  - ``SMALL_COMPARISON_CHUNK_SIZE``
+  - ``LARGE_COMPARISON_CHUNK_SIZE``
+  - ``SMALL_JOB_SIZE``
+  - ``LARGE_JOB_SIZE``
+- Remove ``ENTITY_MATCH_THRESHOLD`` environment variable (#444)
+- Celery configuration updates to solve threads and memory leaks in deployment. (#427)
+- Update docker-compose files to use these new preferred configurations.
+- Update helm charts with preferred configuration default deployment is a minimal working deployment.
+- New environment variables: ``CELERY_DB_MIN_CONNECTIONS``, ``FLASK_DB_MIN_CONNECTIONS``, ``CELERY_DB_MAX_CONNECTIONS``
+  and ``FLASK_DB_MAX_CONNECTIONS`` to configure the database connections pool. (#405)
+- Simplify access to the database from services relying on a single way to get a connection via a connection pool. (#405)
+- Deleting a run is now implemented. (#413)
+- Added some missing documentation about the output type `groups` (#449)
+- Sentinel name is configurable. (#436)
+- Improvement on the Kubernetes deployment test stage on Azure DevOps:
+  - Re-order cleaning steps to first purge the deployment and then deleting the remaining. (#426)
+  - Run integration tests in parallel, reducing pipeline stage `Kubernetes deployment tests` from 30 minutes to 15 minutes. (#438)
+  - Tests running on a deployed entity-service on k8s creates an artifact containing all the logs of all the containers, useful for debugging. (#445)
+  - Test container not restarted on test failure. (#434)
+- Benchmark improvements:
+  - Benchmark output has been modified to handle multi-party linkage.
+  - Benchmark to handle more than 2 parties, being able to repeat experiments. 
+    and pushing the results to minio object store. (#406, #424 and #425)
+  - Azure DevOps benchmark stage runs a 3 parties linkage. (#433)
+- Improvements on Redis cache:
+  - Refactor the cache. (#430)
+  - Run state kept in cache (instead of fully relying on database) (#431 and #432)
+- Update dependencies:
+  - anonlink to v0.12.5. (#423)
+  - redis to from 3.2.0 to 3.2.1 (#415)
+  - alpine from 3.9 to 3.10.1 (#404)
+- Add some release documentation. (#455)
 
 Version 1.11.2
 --------------
