@@ -6,6 +6,8 @@ Development
 
    changelog
    future
+   releasing
+
 
 Implementation Details
 ----------------------
@@ -113,3 +115,5 @@ to which the results are written (as ``results.xml``). During the testing the py
 and then the Job's pod terminates. We create a temporary pod which mounts the same results volume and then we copy
 across the produced artifact for rendering in Jenkins. This dance is only necessary to retrieve files from the cluster
 to our Jenkins instance, it would be straightforward if we only wanted the stdout from each pod/job.
+
+
