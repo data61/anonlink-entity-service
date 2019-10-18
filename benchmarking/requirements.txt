@@ -1,6 +1,6 @@
-clkhash==0.14.0
-numpy
-pandas
 arrow
-requests
+boto3
+clkhash==0.14.0
 jsonschema
+pandas
+requests

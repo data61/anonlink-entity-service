@@ -6,6 +6,8 @@ Development
 
    changelog
    future
+   releasing
+
 
 Implementation Details
 ----------------------
@@ -31,6 +33,35 @@ external services (redis, postgres, minio) can be configured through environment
 variables. Multiple workers can be used to distribute the work beyond
 one machine - by default all cores will be used for computing similarity
 scores and encrypting the mask vector.
+
+Redis
+-----
+
+Redis is used as the default message broker for celery as well as a cross-container
+in memory cache.
+
+Redis key/values used directly by the Anonlink Entity Service:
+
++------------------------+------------+-------------------+
+| Key                    | Redis Type | Description       |
++========================+============+===================+
+| "entityservice-status" |    String  | pickled status    |
++------------------------+------------+-------------------+
+| "run:{run_id}"         |    Hash    | run info          |
++------------------------+------------+-------------------+
+| "clk-pkl-{dp_id}"      |    String  | pickled encodings |
++------------------------+------------+-------------------+
+
+
+Redis Cache: Run Info
+~~~~~~~~~~~~~~~~~~~~~
+
+The run info ``HASH`` stores:
+
+- similarity scoring progress for each run under ``"progress"``
+- run state under ``"state"``, current valid states are
+  ``{active, complete, deleted}``. See
+  ``backend/entityservice/cache/active_runs.py`` for implementation.
 
 
 Continuous Integration Testing
@@ -84,3 +115,5 @@ to which the results are written (as ``results.xml``). During the testing the py
 and then the Job's pod terminates. We create a temporary pod which mounts the same results volume and then we copy
 across the produced artifact for rendering in Jenkins. This dance is only necessary to retrieve files from the cluster
 to our Jenkins instance, it would be straightforward if we only wanted the stdout from each pod/job.
+
+

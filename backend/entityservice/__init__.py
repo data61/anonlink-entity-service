@@ -48,6 +48,13 @@ def initdb_command():
     print('Initialised the database.')
 
 
+@app.before_first_request
+def before_first_request():
+    db_min_connections = config.FLASK_DB_MIN_CONNECTIONS
+    db_max_connections = config.FLASK_DB_MAX_CONNECTIONS
+    db.init_db_pool(db_min_connections, db_max_connections)
+
+
 @app.before_request
 def before_request():
     g.log = logger.new(request=str(uuid.uuid4())[:8])
@@ -59,17 +66,6 @@ def before_request():
                 headers[header] = request.headers[header]
         g.log.bind(**headers)
     g.flask_tracer = flask_tracer
-
-
-@app.teardown_appcontext
-def close_db(error):
-    db = g.pop('db', None)
-
-    if db is not None:
-        g.log.debug("Closing database connection")
-        for notice in db.notices:
-            g.log.debug(notice)
-        db.close()
 
 
 if __name__ == '__main__':

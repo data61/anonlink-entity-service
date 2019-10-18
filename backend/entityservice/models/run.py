@@ -1,8 +1,8 @@
 from structlog import get_logger
 
+from entityservice.cache import progress as progress_cache
 import entityservice.database as db
-from entityservice import cache
-from entityservice.settings import Config as config
+from entityservice.database import DBConn
 from entityservice.utils import generate_code
 
 
@@ -40,7 +40,7 @@ def progress_run_stage(conn, run_id):
     log.info("Run progressing to next stage")
     db.progress_run_stage(conn, run_id)
     # clear progress in cache
-    cache.clear_progress(run_id)
+    progress_cache.clear_progress(run_id)
 
 
 class InvalidRunParametersException(ValueError):
@@ -64,18 +64,19 @@ class Run(object):
         self.run_id = generate_code()
         logger.info("Created run id", rid=self.run_id)
 
-        self.type = 'no_mapping' \
-            if db.get_project_column(db.get_db(), project_id, 'result_type') == 'similarity_scores' \
-            else 'default'
+        with DBConn() as conn:
+            self.type = 'no_mapping' \
+                if db.get_project_column(conn, project_id, 'result_type') == 'similarity_scores' \
+                else 'default'
 
     @staticmethod
     def from_json(data, project_id):
-        # Get optional fields from JSON data
-        threshold = data.get('threshold', config.ENTITY_MATCH_THRESHOLD)
+        threshold = data['threshold']
         if threshold <= 0.0 or threshold > 1.0:
             raise InvalidRunParametersException("Threshold parameter out of range")
         logger.info("Threshold for run is: {}".format(threshold))
 
+        # Get optional fields from JSON data
         name = data.get('name', '')
         notes = data.get('notes', '')
 

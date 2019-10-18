@@ -1,4 +1,4 @@
-FROM amancevice/pandas:0.24.2
+FROM amancevice/pandas:0.25.0
 
 EXPOSE 8000
 ADD requirements.txt /app/requirements.txt

@@ -1,11 +1,7 @@
 {
-  "version": 1,
+  "version": 2,
   "clkConfig": {
     "l": 1024,
-    "k": 20,
-    "hash": {
-      "type": "doubleHash"
-    },
     "kdf": {
       "type": "HKDF",
       "hash": "SHA256",
@@ -16,53 +12,54 @@
   },
   "features": [
     {
-      "identifier": "",
+      "identifier": "entity_id",
       "ignored": true
     },
     {
-      "identifier": " given_name",
-      "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 2, "weight": 1.5 }
+      "identifier": "given_name",
+      "format": { "type": "string", "encoding": "utf-8", "maxLength": 64 },
+      "hashing": { "ngram": 2, "strategy": {"numBits": 200}, "hash": {"type": "doubleHash"} }
     },
     {
-      "identifier": " surname",
-      "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 2, "weight": 1.5 }
+      "identifier": "surname",
+      "format": { "type": "string", "encoding": "utf-8", "maxLength": 64 },
+      "hashing": { "ngram": 2, "strategy": {"numBits": 200}, "hash": {"type": "doubleHash"} }
     },
     {
-      "identifier": " street_number",
+      "identifier": "street_number",
       "format": { "type": "integer" },
-      "hashing": { "ngram": 1, "positional": true, "weight": 0.5, "missingValue": {"sentinel": ""} }
+      "hashing": { "ngram": 1, "positional": true, "strategy": {"numBits": 100}, "missingValue": {"sentinel": ""} }
     },
     {
-      "identifier": " address_1",
+      "identifier": "address_1",
       "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 2, "weight": 0.5 }
+      "hashing": { "ngram": 2, "strategy": {"numBits":  100} }
     },
     {
-      "identifier": " address_2",
+      "identifier": "address_2",
       "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 2, "weight": 0.1 }
+      "hashing": { "ngram": 2, "strategy": {"numBits":  100} }
     },
     {
-      "identifier": " suburb",
+      "identifier": "suburb",
       "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 2, "weight": 0.5 }
+      "hashing": { "ngram": 2, "strategy": {"numBits":  100} }
     },
     {
-      "identifier": " postcode",
-      "format": { "type": "string", "encoding": "utf-8" },
-      "hashing": { "ngram": 1, "positional": true, "weight": 0.5 }
+      "identifier": "postcode",
+      "format": { "type": "integer", "minimum": 0, "maximum": 9999 },
+      "hashing": { "ngram": 1, "positional": true, "strategy": {"numBits":  100} }
     },
     {
-      "identifier": " state",
-      "format": { "type": "string", "encoding": "utf-8", "maxLength": 7 },
-      "hashing": { "ngram": 2, "weight": 2 }
+      "identifier": "state",
+      "format": { "type": "string", "encoding":  "utf-8"},
+      "hashing": {"ngram": 2, "positional": true, "strategy": {"numBits": 100}, "missingValue": {"sentinel":  ""}
+      }
     },
     {
-      "identifier": " date_of_birth",
+      "identifier": "date_of_birth",
       "format": { "type": "integer" },
-      "hashing": { "ngram": 1, "positional": true, "weight": 1, "missingValue": {"sentinel": ""} }
+      "hashing": { "ngram": 1, "positional": true, "strategy": {"numBits":  200}, "missingValue": {"sentinel": ""} }
     },
     {
       "identifier": " age",

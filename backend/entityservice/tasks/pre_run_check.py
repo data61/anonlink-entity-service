@@ -71,3 +71,5 @@ def check_and_set_project_encoding_size(project_id, conn):
         for dp_id, _ in uploaded_encoding_sizes:
             handle_invalid_encoding_data(project_id, dp_id)
         raise ValueError("Encoding size out of configured bounds")
+
+

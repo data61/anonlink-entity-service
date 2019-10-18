@@ -1,13 +1,13 @@
 rbac:
-  # TODO still needs work to fully lock down scope etc
-  # See issue #88
+  ## TODO still needs work to fully lock down scope etc
+  ## See issue #88
   create: false
 
 api:
 
   ## Deployment component name
   name: server
-  # Defines the serviceAccountName to use when `rbac.create=false`
+  ## Defines the serviceAccountName to use when `rbac.create=false`
   serviceAccountName: default
 
   replicaCount: 1
@@ -22,18 +22,17 @@ api:
   podAnnotations: {}
     # iam.amazonaws.com/role: linkage
 
-  # Settings for the nginx proxy
+  ## Settings for the nginx proxy
   www:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.3"
-      ## "IfNotPresent" or "Always"
+      tag: "v1.4.5"
+      # pullPolicy: Always
       pullPolicy: IfNotPresent
 
     ## Nginx proxy server resource requests and limits
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
-    ##
     resources:
       limits:
         cpu: 200m
@@ -45,13 +44,12 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.11.1"
-      ## Options: "IfNotPresent" or "Always"
-      pullPolicy: IfNotPresent
+      tag: "v1.12.0"
+      # pullPolicy: IfNotPresent
+      pullPolicy: Always
 
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
-    ##
     resources:
       limits:
         cpu: 1
@@ -69,8 +67,9 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: data61/anonlink-app
-      tag: "v1.11.2"
+      tag: "v1.12.0"
 
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
       requests:
         cpu: 100m
@@ -80,10 +79,10 @@ api:
         memory: 256Mi
 
   ingress:
-    enabled: true
+    ## By default, we do not want the service to be accessible outside of the cluster.
+    enabled: false
 
     ## Ingress annotations
-    ##
     annotations: # {}
      kubernetes.io/ingress.class: nginx
 
@@ -108,6 +107,8 @@ api:
     ## to create the TLS secret in the namespace with the name
     ## below.
     tls: # []
+    ## secretName is the kubernetes secret which will contain the TLS secret and certificates
+    ## for the provided host url. It is automatically generated from the deployed certmanager.
     - secretName: beta-anonlink-data61-tls
       hosts:
       - beta.anonlink.data61.xyz
@@ -121,7 +122,7 @@ api:
     ## Expose the service to be accessed from outside the cluster (LoadBalancer service).
     ## or access it from within the cluster (ClusterIP service).
     ## Set the service type and the port to serve it.
-    ## ref: http://kubernetes.io/docs/user-guide/services/
+    ## Ref: http://kubernetes.io/docs/user-guide/services/
     ## Most likely ingress is enabled so this should be ClusterIP,
     ## Otherwise "LoadBalancer".
     type: ClusterIP
@@ -134,14 +135,14 @@ api:
 
 workers:
   name: "matcher"
-  debug: false
+
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.11.2"
-    pullPolicy: IfNotPresent
+    tag: "v1.12.0"
+    pullPolicy: Always
 
   ## The number of workers for this deployment
-  replicaCount: 2
+  replicaCount: 1
 
   autoscaler:
     enabled: false
@@ -154,57 +155,77 @@ workers:
   ##
   extraArgs: {}
 
-  # TODO move these settings into a config file
+  ## Worker configuration
+  ## These settings populate the deployment's configmap.
 
-  SMALL_COMPARISON_CHUNK_SIZE: "100000000"
-  LARGE_COMPARISON_CHUNK_SIZE: "1000000000"
+  debug: false
 
-  # A minimum of say 100M because any smaller than
-  # this isn't worth splitting across nodes.
-  SMALL_JOB_SIZE: "100000000"
-  LARGE_JOB_SIZE: "100000000000"
+  ## Desired task size in "number of comparisons"
+  ## Note there is some overhead creating a task and a single dedicated cpu core can do between 50M and 100M
+  ## comparisons per second, so much lower that 100M isn't generally worth splitting across celery workers.
+  CHUNK_SIZE_AIM: "300_000_000"
 
-  # Default threshold for considering something a match
-  MATCH_THRESHOLD: "0.90"
+  ## More than this many entities and we skip caching in redis
+  MAX_CACHE_SIZE: "1_000_000"
 
-  # More than this many entities and we skip caching in redis
-  MAX_CACHE_SIZE: "1000000"
+  ## How many seconds do we keep cache ephemeral data such as run progress
+  ## Default is 30 days:
+  CACHE_EXPIRY_SECONDS: "2592000"
 
+  ## Specific configuration for celery
+  ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,
+  ## except for the requested resources and replicaCount which can differ.
   celery:
+    ## Number of fork worker celery node will have. It is recommended to use the same concurrency as workers.resources.limits.cpu
+    CONCURRENCY: "2"
+    ## How many messages to prefetch at a time multiplied by the number of concurrent processes. Set to 1 because
+    ## our tasks are usually quite "long".
     PREFETCH_MULTIPLIER: "1"
-    MAX_TASKS_PER_CHILD: "4096"
+    ## Maximum number of tasks a pool worker process can execute before it’s replaced with a new one
+    ## Low number is recommended, otherwise the celery workers may exhaust the available memory and threads.
+    ## Cf issue https://github.com/data61/anonlink-entity-service/issues/410
+    MAX_TASKS_PER_CHILD: "30"
+    ## Late ack means the task messages will be acknowledged after the task has been executed, not just before.
     ACKS_LATE: "true"
 
+  ## Currently, enable only the monitoring of celery.
   monitor:
     enabled: false
 
-  ## https://kubernetes.io/docs/user-guide/compute-resources
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
     requests:
-      memory: 2Gi
-      cpu: 800m
-#    limits:
-#      memory: 2Gi
-#      cpu: 200m
+      memory: 500Mi
+      cpu: 500m
+    ## It is recommended to set limits. celery does not like to share resources.
+    limits:
+      memory: 1Gi
+      cpu: 2
 
   ## At least one "high memory" worker is also required
   highmemory:
     replicaCount: 1
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
       requests:
-        memory: 16Gi
-        cpu: 800m
+        memory: 2Gi
+        cpu: 1
+      ## It is recommended to set limits. celery does not like to share resources.
+      limits:
+        memory: 2Gi
+        cpu: 2
 
 postgresql:
-  # See available settings and defaults at:
-  # https://github.com/kubernetes/charts/tree/master/stable/postgresql
+  ## See available settings and defaults at:
+  ## https://github.com/kubernetes/charts/tree/master/stable/postgresql
   nameOverride: "db"
 
   persistence:
-    enabled: true
+    enabled: false
     size: 8Gi
   metrics:
-    enabled: false
+    enabled: true
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
     #limits:
     #  memory: 8Gi
@@ -214,29 +235,34 @@ postgresql:
 
 global:
   postgresql:
+    postgresqlDatabase: postgres
     postgresqlUsername: postgres
-    #postgresqlPassword:
+    postgresqlPassword: "examplePostgresPassword"
 
 
+## In this section, we are not installing any redis pods. The main goal is to get configuration values for the
+## other services.
 redis:
-  ## Note the `server` and `use_sentinel` options are ignored if provisioning redis
+  ## Note the `server` options are ignored if provisioning redis
   ## using this chart.
 
   ## External redis server url/ip
   server: ""
 
-  ## Does the external redis server support the sentinel protocol?
-  use_sentinel: false
+  ## Does the redis server support the sentinel protocol
+  useSentinel: true
+  sentinelName: "mymaster"
 
   ## Note if deploying redis-ha you MUST have the same password below!
-  password: "9X9RFrRnQHcB"
+  password: "exampleRedisPassword"
+
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
   ## https://github.com/helm/charts/tree/master/stable/redis-ha
   ## Provisioning is controlled in the `provision` section
   auth: true
-  redisPassword: "9X9RFrRnQHcB"
+  redisPassword: "exampleRedisPassword"
   replicas: 3
   redis:
     resources:
@@ -246,6 +272,7 @@ redis-ha:
       limits:
         memory: 10Gi
   sentinel:
+    ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
       requests:
         cpu: 100m
@@ -253,24 +280,24 @@ redis-ha:
       limits:
         memory: 256Mi
   persistentVolume:
-    enabled: true
+    enabled: false
     size: 10Gi
   nameOverride: "memstore"
 
 
 minio:
-  # Configure the object storage
-  # https://github.com/helm/charts/blob/master/stable/minio/values.yaml
+  ## Configure the object storage
+  ## https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
   ## Access credentials for the object store
-  accessKey: "xtoNfbmB7cUaW4sLPzKBXVPXd8oAvVbvkAosxsEXAMPLE"
-  secretKey: "6hkE6FzMLBd4tkzhVjXjPdEzQikmEtjRDQwyobEXAMPLE"
+  accessKey: "exampleMinioAccessKey"
+  secretKey: "exampleMinioSecretKet"
 
   ## Settings required for connecting to another object store, the server is ignored
   ## if provisioning minio during deployment.
   server: "s3.amazonaws.com"
 
-  bucket: "confidentialcomputing-k8s-objectstore"
+  bucket: "example-bucket"
 
   ## Settings for deploying standalone object store
   ## https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
@@ -278,10 +305,18 @@ minio:
   mode: "standalone"
   service.type: "ClusterIP"
   persistence:
-    enabled: true
+    enabled: false
     size: 50Gi
     storageClass: "default"
   nameOverride: "minio"
+  
+  ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 5Gi
 
 
 provision:
@@ -289,3 +324,29 @@ provision:
   minio: true
   postgresql: true
   redis: true
+
+## Custom logging file used to override the default settings. Will be used by the workers and the flask container.
+## Example of logging configuration:
+#loggingCfg: |-
+#  version: 1
+#  disable_existing_loggers: False
+#  formatters:
+#    simple:
+#      format: "%(message)s"
+#    file:
+#      format: "%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s"
+#  filters:
+#    stderr_filter:
+#      (): entityservice.logger_setup.StdErrFilter
+#    stdout_filter:
+#      (): entityservice.logger_setup.StdOutFilter
+#  handlers:
+#    stdout:
+#      class: logging.StreamHandler
+#      level: DEBUG
+#      formatter: simple
+#      filters: [stdout_filter]
+#      stream: ext://sys.stdout
+#  root:
+#    level: INFO
+#    handlers: [stdout]

@@ -1,9 +1,9 @@
 from flask import request, g
 from structlog import get_logger
 
-from entityservice import app, database as db
+from entityservice import database as db
 from entityservice.tasks import check_for_executable_runs
-from entityservice.database import get_db, get_runs, update_run_mark_queued
+from entityservice.database import get_runs, update_run_mark_queued
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token, \
@@ -21,8 +21,10 @@ def get(project_id):
     authorize_run_listing(project_id)
 
     log.info("Authorized request to list runs")
+    with db.DBConn() as conn:
+        runs = get_runs(conn, project_id)
 
-    return RunList().dump(get_runs(get_db(), project_id))
+    return RunList().dump(runs)
 
 
 def post(project_id, run):
@@ -40,7 +42,7 @@ def post(project_id, run):
 
     log.debug("Saving run")
 
-    with db.DBConn(get_db()) as db_conn:
+    with db.DBConn() as db_conn:
         run_model.save(db_conn)
         project_object = db.get_project(db_conn, project_id)
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)

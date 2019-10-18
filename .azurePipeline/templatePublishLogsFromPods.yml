@@ -1,0 +1,41 @@
+# Template to login into Dockerhub, build a docker image and push it.
+
+# Parameters:
+# `logsFolderPath` is the folder where the logs from the pods will be stored.
+# `releaseName` is the name of the release used to get the relevant list of pods.
+# `kubeConfigFile` is the kubeConfigFile path.
+# `JobAttempt` should be provided by the variable `System.JobAttempt` which is not directly accessible from the template.
+#   This incremental value is required to be able to re-run the job, in fact the `PublishPipelineArtifact` step fails
+#   if the build publish an artifact with the same name twice.
+
+parameters:
+  logsFolderPath: ''
+  releaseName: ''
+  kubeConfigFile: ''
+  JobAttempt: ''
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.7'
+  condition: always()
+
+- script: |
+    pip install ansicolors
+  displayName: 'Install Python dependencies.'
+  condition: always()
+
+- script: |
+    echo "Copy the pods logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
+    python .azurePipeline/getPodsLogs.py ${{ parameters.logsFolderPath }} ${{ parameters.releaseName }}
+  displayName: 'Copy the logs from the service pods.'
+  condition: always()
+  env:
+    KUBECONFIG: ${{ parameters.kubeConfigFile }}
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish pods logs in Azure'
+  inputs:
+    artifactName: PodLogs${{ parameters.JobAttempt }}
+    targetPath: ${{ parameters.logsFolderPath }}
+  condition: always()

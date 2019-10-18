@@ -3,6 +3,10 @@ import unittest
 import random
 
 import json
+from array import array
+
+import anonlink
+
 from entityservice.serialization import deserialize_bytes, generate_scores
 from entityservice.tests.util import serialize_bytes
 
@@ -28,30 +32,43 @@ class SerializationTest(unittest.TestCase):
         dsrb = deserialize_bytes(srb)
         self.assertEqual(dsrb, rb)
 
+    def test_generate_scores_produces_json(self):
+        sims_iter = (
+            array('d', [0.1, 0.01, 1.0]),
+            (array('I', [0, 0, 0]), array('I', [1, 1, 1])),
+            (array('I', [1, 2, 5]), array('I', [2, 2, 5]))
+        )
 
-    def test_sims_to_json(self):
-        sims_iter = ((0.1, 0, 1, 1, 2),
-                     (0.01, 0, 1, 1, 2),
-                     (1.0, 0, 1, 5, 5))
-        json_iterator = generate_scores(sims_iter)
+        buffer = io.BytesIO()
+        anonlink.serialization.dump_candidate_pairs(sims_iter, buffer)
+        buffer.seek(0)
+        json_iterator = generate_scores(buffer)
 
         # Consume the whole iterator and ensure it is valid json
         json_str = ''.join(json_iterator)
         json_obj = json.loads(json_str)
         self.assertIn('similarity_scores', json_obj)
+        assert len(json_obj["similarity_scores"]) == 3
         for score in json_obj["similarity_scores"]:
             self.assertEqual(len(score), 3)
 
     def test_sims_to_json_empty(self):
-        sims_iter = ()
-        json_iterator = generate_scores(sims_iter)
+        sims_iter = (
+            array('d', []),
+            (array('I', []), array('I', [])),
+            (array('I', []), array('I', []))
+        )
+
+        buffer = io.BytesIO()
+        anonlink.serialization.dump_candidate_pairs(sims_iter, buffer)
+        buffer.seek(0)
+        json_iterator = generate_scores(buffer)
 
         # Consume the whole iterator and ensure it is valid json
         json_str = ''.join(json_iterator)
         json_obj = json.loads(json_str)
         self.assertIn('similarity_scores', json_obj)
-        for score in json_obj["similarity_scores"]:
-            self.assertEqual(len(score), 3)
+        assert len(json_obj["similarity_scores"]) == 0
 
 
 if __name__ == "__main__":

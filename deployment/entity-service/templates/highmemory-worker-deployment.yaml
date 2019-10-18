@@ -3,15 +3,15 @@ kind: Deployment
 metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    component: "{{ .Values.workers.name }}-highmemory"
+    component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
     tier: backend
   name: {{ .Release.Name }}-highmemory-worker
 spec:
-  replicas: {{ .Values.workers.highmemory.replicaCount }}
+  replicas: {{ required "workers.highmemory.replicaCount must be provided." .Values.workers.highmemory.replicaCount }}
   selector:
     matchLabels:
       app: {{ template "es.fullname" . }}
-      component: "{{ .Values.workers.name }}-highmemory"
+      component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
       tier: backend
   {{- if .Values.workers.strategy }}
   strategy:
@@ -23,7 +23,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
-    {{- end }}
+{{- end }}
       labels:
         {{- include "es.release_labels" . | indent 8 }}
         component: "{{ .Values.workers.name }}-highmemory"
@@ -31,8 +31,8 @@ spec:
     spec:
       containers:
         - name: celery-worker
-          image: {{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag }}
-          imagePullPolicy: "{{ .Values.workers.image.pullPolicy }}"
+          image: {{ required "workers.image.repository must be provided." .Values.workers.image.repository }}:{{ required "workers.image.tag must be provided." .Values.workers.image.tag }}
+          imagePullPolicy: {{ .Values.workers.image.pullPolicy | default "" | quote }}
           resources:
 {{ toYaml .Values.workers.highmemory.resources | indent 12 }}
           envFrom:
@@ -59,20 +59,34 @@ spec:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: minioSecretKey
-
           command:
             - "celery"
             - "-A"
             - "entityservice.async_worker"
             - "worker"
             - "--loglevel=info"
-            - "-Ofair"
+            - "-O"
+            - "fair"
             - "-Q"
             - "celery,compute,highmemory"
+          {{- if .Values.loggingCfg }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /var/config
+          {{- end }}
           args:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
+      {{- if .Values.loggingCfg }}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ template "es.fullname" . }}-logging
+            items:
+              - key: loggingCfg
+                path: "logging_file.yaml"
+      {{- end }}
       {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}

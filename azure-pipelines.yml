@@ -183,25 +183,25 @@ stages:
         cd deployment/entity-service
         
         helm lint --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
-        
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
+
         echo "Dry run"
-        helm upgrade --install --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f values.yaml -f minimal-values.yaml \
+        helm upgrade --install --debug --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Lint and dry-run'
@@ -211,14 +211,14 @@ stages:
         echo "Start all the entity service pods"
         cd deployment/entity-service
         helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        -f values.yaml -f minimal-values.yaml \
         --set api.app.debug=true \
         --set global.postgresql.postgresqlPassword=notaproductionpassword \
         --set api.ingress.enabled=false \
         --set api.www.image.tag=$(DOCKER_TAG) \
         --set api.app.image.tag=$(DOCKER_TAG) \
         --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG)
+        --set workers.image.tag=$(DOCKER_TAG) \
+        --set workers.replicaCount=4
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Kubernetes deployment'
@@ -268,9 +268,23 @@ stages:
         testResultsFormat: 'JUnit'
         testResultsFiles: 'k8s-results.xml'
         testRunTitle: 'Publish kubernetes test results'
-        failTaskOnFailedTests: true 
+        failTaskOnFailedTests: true
+    # Publish all the pods logs if some tests failed.
+    - template: .azurePipeline/templatePublishLogsFromPods.yml
+      parameters:
+        logsFolderPath: $(Build.ArtifactStagingDirectory)
+        releaseName: $(DEPLOYMENT)
+        kubeConfigFile: $(KUBECONFIGFILE)
+        JobAttempt: $(System.JobAttempt)
     # And do a lot of cleaning.
-    # Note that all the test resources (i.e. the pvc, the job and the pod has a label `deployment` set to $(DEPLOYMENT)
+    # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
+    - script: |
+        echo "Delete the deployment: '$(DEPLOYMENT)'"
+        helm delete --purge $(DEPLOYMENT)
+      condition: always()
+      env:
+        KUBECONFIG: $(KUBECONFIGFILE)
+      displayName: 'Purge the deployment'
     - script: |
         echo "Delete all the test resources"
         kubectl delete pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
@@ -278,10 +292,3 @@ stages:
       env:
         KUBECONFIG: $(KUBECONFIGFILE)
       displayName: 'Delete the test resources'
-    - script: |
-        echo "Delete the deployment"
-        helm delete --purge $(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Purge the deployment'

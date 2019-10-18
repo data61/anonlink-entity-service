@@ -2,7 +2,7 @@ import platform
 
 import anonlink
 
-from entityservice import cache
+from entityservice.cache import service_status
 import entityservice.database as db
 from entityservice.version import __version__
 
@@ -10,17 +10,16 @@ from entityservice.version import __version__
 def status_get():
     """Displays the latest mapping statistics"""
 
-    status = cache.get_status()
+    status = service_status.get_status()
 
     if status is None:
         # We ensure we can connect to the database during the status check
-        db1 = db.get_db()
+        with db.DBConn() as conn:
+            number_of_mappings = db.query_db(conn, '''
+                        SELECT COUNT(*) FROM projects
+                        ''', one=True)['count']
 
-        number_of_mappings = db.query_db(db1, '''
-                    SELECT COUNT(*) FROM projects
-                    ''', one=True)['count']
-
-        current_rate = db.get_latest_rate(db1)
+            current_rate = db.get_latest_rate(conn)
 
         status = {
             'status': 'ok',
@@ -28,7 +27,7 @@ def status_get():
             'rate': current_rate
         }
 
-        cache.set_status(status)
+        service_status.set_status(status)
     return status
 
 

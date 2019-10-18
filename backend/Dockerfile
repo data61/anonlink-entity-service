@@ -1,4 +1,4 @@
-FROM alpine:3.9
+FROM alpine:3.10.1
 
 EXPOSE 8000
 ADD requirements.txt /var/www/requirements.txt
@@ -18,7 +18,7 @@ RUN apk add --no-cache python3 libstdc++ mpc1-dev yajl libpq && \
     pip3 install --upgrade -r requirements.txt && \
     apk del --no-cache .build-deps && \
     rm -fr /tmp/* /var/cache/apk/* /root/.cache/pip
-    
+
 ENV DOCKERIZE_VERSION v0.6.1
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \

@@ -5,7 +5,7 @@ import opentracing
 from entityservice import database as db
 from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
-from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort, abort_if_invalid_results_token
+from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 
 logger = get_logger()
 
@@ -20,20 +20,19 @@ def get(project_id, run_id):
         # Check the caller has a valid results token.
         token = request.headers.get('Authorization')
         log.info("request to access run result authorized")
+    with db.DBConn() as conn:
+        with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
+            state = db.get_run_state(conn, run_id)
+            log.info("run state is '{}'".format(state))
 
-    with opentracing.tracer.start_span('get-run-state', child_of=parent_span) as span:
-        dbinstance = db.get_db()
-        state = db.get_run_state(dbinstance, run_id)
-        log.info("run state is '{}'".format(state))
-
-    # Check that the run is not in a terminal state, otherwise 404
-    if state == 'completed':
-        with opentracing.tracer.start_span('get-run-result', child_of=parent_span) as span:
-            return get_result(dbinstance, project_id, run_id, token)
-    elif state == 'error':
-        safe_fail_request(500, message='Error during computation of run')
-    else:
-        safe_fail_request(404, message='run is not complete')
+        # Check that the run is not in a terminal state, otherwise 404
+        if state == 'completed':
+            with opentracing.tracer.start_span('get-run-result', child_of=parent_span) as span:
+                return get_result(conn, project_id, run_id, token)
+        elif state == 'error':
+            safe_fail_request(500, message='Error during computation of run')
+        else:
+            safe_fail_request(404, message='run is not complete')
 
 
 def get_result(dbinstance, project_id, run_id, token):
@@ -69,7 +68,7 @@ def get_similarity_score_result(dbinstance, run_id):
         return get_similarity_scores(filename)
 
     except TypeError:
-        logger.warning("Couldn't find the similarity score file")
+        logger.exception("Couldn't find the similarity score file for the runId %s", run_id)
         safe_fail_request(500, "Failed to retrieve similarity scores")
 
 
