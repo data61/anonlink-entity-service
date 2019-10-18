@@ -27,7 +27,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.2"
+      tag: "v1.4.5"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
