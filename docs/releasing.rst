@@ -24,7 +24,7 @@ frontend.
 - Open a PR to merge the release branch into ``master``, only proceed if the CI tests all pass. Merge, rather than
   squashing the commits.
 - Create a git tag of the form ``vX.Y.Z[-aN|-bN]`` (e.g. using GitHub's releases ui).
-- Tag and push release versions of docker images from this tag (manually for now but ideally using CI).
+- Tag and push release versions of docker images from this tag and the tag `latest` (manually for now but ideally using CI).
 - Commit to develop (via a PR) creating a new ``"Next Version`` section in the changelog.
 - Proudly announce the new release on the anonlink google group https://groups.google.com/forum/#!forum/anonlink
 
