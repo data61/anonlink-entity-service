@@ -16,10 +16,12 @@ Version 1.12.0
 - Logging configurable in the deployed entity service by using the key ``loggingCfg``. (#448)
 - Several old settings have been removed from the default values.yaml and docker
   files which have been replaced by ``CHUNK_SIZE_AIM`` (#414):
-  - ``SMALL_COMPARISON_CHUNK_SIZE``
-  - ``LARGE_COMPARISON_CHUNK_SIZE``
-  - ``SMALL_JOB_SIZE``
-  - ``LARGE_JOB_SIZE``
+
+   - ``SMALL_COMPARISON_CHUNK_SIZE``
+   - ``LARGE_COMPARISON_CHUNK_SIZE``
+   - ``SMALL_JOB_SIZE``
+   - ``LARGE_JOB_SIZE``
+
 - Remove ``ENTITY_MATCH_THRESHOLD`` environment variable (#444)
 - Celery configuration updates to solve threads and memory leaks in deployment. (#427)
 - Update docker-compose files to use these new preferred configurations.
@@ -31,22 +33,30 @@ Version 1.12.0
 - Added some missing documentation about the output type `groups` (#449)
 - Sentinel name is configurable. (#436)
 - Improvement on the Kubernetes deployment test stage on Azure DevOps:
-  - Re-order cleaning steps to first purge the deployment and then deleting the remaining. (#426)
-  - Run integration tests in parallel, reducing pipeline stage `Kubernetes deployment tests` from 30 minutes to 15 minutes. (#438)
-  - Tests running on a deployed entity-service on k8s creates an artifact containing all the logs of all the containers, useful for debugging. (#445)
-  - Test container not restarted on test failure. (#434)
+
+   - Re-order cleaning steps to first purge the deployment and then deleting the remaining. (#426)
+   - Run integration tests in parallel, reducing pipeline stage `Kubernetes deployment tests` from 30 minutes to 15 minutes. (#438)
+   - Tests running on a deployed entity-service on k8s creates an artifact containing all the logs of all the containers, useful for debugging. (#445)
+   - Test container not restarted on test failure. (#434)
+
 - Benchmark improvements:
-  - Benchmark output has been modified to handle multi-party linkage.
-  - Benchmark to handle more than 2 parties, being able to repeat experiments. 
-    and pushing the results to minio object store. (#406, #424 and #425)
-  - Azure DevOps benchmark stage runs a 3 parties linkage. (#433)
+
+   - Benchmark output has been modified to handle multi-party linkage.
+   - Benchmark to handle more than 2 parties, being able to repeat experiments.
+     and pushing the results to minio object store. (#406, #424 and #425)
+   - Azure DevOps benchmark stage runs a 3 parties linkage. (#433)
+
 - Improvements on Redis cache:
-  - Refactor the cache. (#430)
-  - Run state kept in cache (instead of fully relying on database) (#431 and #432)
+
+   - Refactor the cache. (#430)
+   - Run state kept in cache (instead of fully relying on database) (#431 and #432)
+
 - Update dependencies:
-  - anonlink to v0.12.5. (#423)
-  - redis to from 3.2.0 to 3.2.1 (#415)
-  - alpine from 3.9 to 3.10.1 (#404)
+
+   - anonlink to v0.12.5. (#423)
+   - redis to from 3.2.0 to 3.2.1 (#415)
+   - alpine from 3.9 to 3.10.1 (#404)
+
 - Add some release documentation. (#455)
 
 Version 1.11.2
