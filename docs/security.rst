@@ -10,16 +10,16 @@ be linked.
 Considerations for each output type
 -----------------------------------
 
-Direct Mapping Table
-~~~~~~~~~~~~~~~~~~~~
+Groups
+~~~~~~
 
 The default output of the Entity Service comprises a list of edges - connections between rows in
-dataset A to rows in dataset B. This assumes at most a 1-1 corrospondence - each entity will
+the different datasets. This assumes at most a 1-1 correspondence - each entity will
 only be present in zero or one edge.
 
 This output is only available to the client who created the mapping,
 but it is worth highlighting that it does (by design) leak information about the intersection of the
-two sets of entities.
+sets of entities.
 
 **Knowledge about set intersection**
 This output contains information about which particular entities are shared, and which are not.
@@ -81,7 +81,7 @@ There are three different types of tokens:
 
 - *update_token*: required to upload a party's CLKs.
 - *result_token*: required to access the result of the entity resolution process. This is, depending on the
-  :ref:`output type <result-types>`, either similarity scores, a direct mapping table, or a mask.
+  :ref:`output type <result-types>`, either similarity scores, a group output, or a mask.
 - *receipt-token*: this token is returned to either party after uploading their respective CLKs. With this
   *receipt-token* they can then access their respective permutations, if the output type of the mapping is set to
   permutation and mask.
