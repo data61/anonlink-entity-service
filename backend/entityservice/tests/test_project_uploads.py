@@ -49,15 +49,7 @@ def test_project_binary_data_uploaded(requests, valid_project_params):
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
 
-    if valid_project_params['result_type'] == 'mapping':
-        assert 'mapping' in result
-
-        # Since we uploaded the same file it should have identified the
-        # same rows as matches
-        for i in range(1, 1000):
-            assert str(i) in result['mapping']
-            assert result['mapping'][str(i)] == str(i)
-    elif valid_project_params['result_type'] == 'groups':
+    if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
         groups = result['groups']
         assert len(groups) == 1000
@@ -101,10 +93,7 @@ def test_project_binary_data_upload_with_different_encoded_size(
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    if valid_project_params['result_type'] == 'mapping':
-        assert 'mapping' in result
-        assert result['mapping']['499'] == '0'
-    elif valid_project_params['result_type'] == 'groups':
+    if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
         groups = result['groups']
         groups_set = {frozenset(map(tuple, group)) for group in groups}
@@ -127,10 +116,7 @@ def test_project_json_data_upload_with_various_encoded_sizes(
 
     run_id = post_run(requests, new_project_data, 0.9)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    if result_type == 'mapping':
-        assert 'mapping' in result
-        assert len(result['mapping']) >= 400
-    elif result_type == 'groups':
+    if result_type == 'groups':
         assert 'groups' in result
         # This is a pretty bad bound, but we're not testing the
         # accuracy.

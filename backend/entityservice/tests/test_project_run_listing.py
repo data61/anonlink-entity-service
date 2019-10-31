@@ -21,7 +21,7 @@ def test_list_run_invalid_auth(requests):
 
 
 def test_list_run_after_posting_runs(requests):
-    with temporary_blank_project(requests, result_type='mapping') as project:
+    with temporary_blank_project(requests, result_type='groups') as project:
 
         for i in range(1, 11):
             run_id = post_run(requests, project, 0.95)

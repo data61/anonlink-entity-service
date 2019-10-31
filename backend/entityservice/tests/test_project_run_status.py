@@ -3,12 +3,17 @@ from entityservice.tests.util import post_run, get_run_status, is_run_status, \
     create_project_no_data, ensure_run_progressing
 
 
-def test_run_status_with_clks_2p(requests, mapping_project):
-    size = mapping_project['size']
-    ensure_run_progressing(requests, mapping_project, size)
+def test_permutations_run_status_with_clks_2p(requests, permutations_project):
+    size = permutations_project['size']
+    ensure_run_progressing(requests, permutations_project, size)
 
 
-def test_run_status_with_clks_np(requests, groups_project):
+def test_similarity_scores_run_status_with_clks_2p(requests, similarity_scores_project):
+    size = similarity_scores_project['size']
+    ensure_run_progressing(requests, similarity_scores_project, size)
+
+
+def test_groups_run_status_with_clks_np(requests, groups_project):
     size = groups_project['size']
     ensure_run_progressing(requests, groups_project, size)
 

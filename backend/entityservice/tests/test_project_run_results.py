@@ -1,13 +1,4 @@
-from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time
-
-
-def test_run_mapping_results(requests, mapping_project):
-    run_id = post_run(requests, mapping_project, 0.95)
-    wait_approx_run_time(mapping_project['size'])
-
-    result = get_run_result(requests, mapping_project, run_id, timeout=120)
-    assert 'mapping' in result
-    assert isinstance(result['mapping'], dict)
+from entityservice.tests.util import create_project_no_data, post_run, get_run_result
 
 
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):
