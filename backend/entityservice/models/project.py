@@ -41,8 +41,9 @@ class Project(object):
         self.data = {}
         self.result = {}
 
-    VALID_RESULT_TYPES = {'permutations', 'mapping',
-                          'similarity_scores', 'groups'}
+    VALID_RESULT_TYPES = {'groups',
+                          'permutations',
+                          'similarity_scores'}
 
     @staticmethod
     def from_json(data):

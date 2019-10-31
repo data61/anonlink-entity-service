@@ -208,7 +208,7 @@ def authorise_get_request(project_id):
         project_object = db.get_project(dbinstance, project_id)
     logger.info("Checking credentials")
     result_type = project_object['result_type']
-    if result_type in {'mapping', 'similarity_scores', 'groups'}:
+    if result_type in {'groups', 'similarity_scores'}:
         # Check the caller has a valid results token if we are including results
         abort_if_invalid_results_token(project_id, auth_header)
     elif result_type == 'permutations':
