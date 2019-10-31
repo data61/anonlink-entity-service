@@ -5,7 +5,6 @@ from entityservice.async_worker import celery, logger
 from entityservice.settings import Config as config
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.permutation import save_and_permute
-from entityservice.utils import similarity_matrix_from_csv_bytes
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
