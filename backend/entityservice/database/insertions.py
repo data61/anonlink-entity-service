@@ -215,17 +215,6 @@ def update_run_mark_failure(conn, run_id):
         cur.execute(sql_query, [run_id])
 
 
-def update_run_mark_queued(db, run_id):
-    with db.cursor() as cur:
-        sql_query = """
-            UPDATE runs SET
-              state = 'queued'
-            WHERE
-              run_id = %s
-            """
-        cur.execute(sql_query, [run_id])
-
-
 def mark_project_deleted(db, project_id):
     with db.cursor() as cur:
         sql_query = """
@@ -263,7 +252,7 @@ def get_created_runs_and_queue(db, project_id):
             UPDATE runs SET
               state = 'queued'
             WHERE
-              state IN ('created', 'queued') AND project = %s
+              state = 'created' AND project = %s
             RETURNING
               run_id;
         """
