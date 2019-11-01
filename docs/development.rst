@@ -5,6 +5,7 @@ Development
    :maxdepth: 1
 
    changelog
+   devops
    future
    releasing
 
@@ -63,31 +64,6 @@ The run info ``HASH`` stores:
   ``{active, complete, deleted}``. See
   ``backend/entityservice/cache/active_runs.py`` for implementation.
 
-
-Continuous Integration Testing
-------------------------------
-
-We test the service using `Jenkins <https://jenkins.io/>`__. Every pull request gets deployed in the
-local configuration using Docker Compose, as well as in the production deployment to kubernetes.
-
-At a high level the testing covers:
-
-- building the docker containers
-- deploying using Docker Compose
-- testing the tutorial notebooks don't error
-- running the integration tests against the local deployment
-- running a benchmark suite against the local deployment
-- building and packaging the documentation
-- publishing the containers to quay.io
-- deploying to kubernetes
-- running the integration tests against the kubernetes deployment
-
-
-All of this is orchestrated using the jenkins pipeline script at ``Jenkinsfile.groovy``. There is one custom
-library which is `n1-pipeline <https://github.com/n1analytics/n1-pipeline/>`__ a collection of helpers that
-we created for common jenkins tasks.
-
-The integration tests currently take around 30 minutes.
 
 Testing Local Deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~
