@@ -7,12 +7,18 @@ Changelog
 Next Version
 ------------
 
+- fixed bug where invalid state changes could occur when starting a run (#459)
 - ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
 
+- Update dependencies:
+
+    - requests from 2.21.0 to 2.22.0 (#459)
+    
 Breaking Change
 ~~~~~~~~~~~~~~~
 
 - ``matching`` output type is not available anymore. (#458)
+
 
 Version 1.12.0
 --------------
@@ -58,7 +64,7 @@ Version 1.12.0
 - Update dependencies:
 
    - anonlink to v0.12.5. (#423)
-   - redis to from 3.2.0 to 3.2.1 (#415)
+   - redis from 3.2.0 to 3.2.1 (#415)
    - alpine from 3.9 to 3.10.1 (#404)
 
 - Add some release documentation. (#455)

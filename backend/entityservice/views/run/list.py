@@ -3,7 +3,7 @@ from structlog import get_logger
 
 from entityservice import database as db
 from entityservice.tasks import check_for_executable_runs
-from entityservice.database import get_runs, update_run_mark_queued
+from entityservice.database import get_runs
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token, \
@@ -44,23 +44,11 @@ def post(project_id, run):
 
     with db.DBConn() as db_conn:
         run_model.save(db_conn)
-        project_object = db.get_project(db_conn, project_id)
-        parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-        ready_to_run = parties_contributed == project_object['parties']
-        log.debug("Expecting {} parties to upload data. Have received {}".format(
-            project_object['parties'], parties_contributed
-        ))
-        if ready_to_run:
-            log.info("Scheduling task to carry out all runs for project {} now".format(project_id))
-            update_run_mark_queued(db_conn, run_model.run_id)
-        else:
-            log.info("Task queued but won't start until CLKs are all uploaded")
 
-    if ready_to_run:
-        span = g.flask_tracer.get_span()
-        span.set_tag("run_id", run_model.run_id)
-        span.set_tag("project_id", run_model.project_id)
-        check_for_executable_runs.delay(project_id, serialize_span(span))
+    span = g.flask_tracer.get_span()
+    span.set_tag("run_id", run_model.run_id)
+    span.set_tag("project_id", run_model.project_id)
+    check_for_executable_runs.delay(project_id, serialize_span(span))
     return RunDescription().dump(run_model), 201
 
 
