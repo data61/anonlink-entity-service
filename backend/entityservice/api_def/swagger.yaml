@@ -40,7 +40,7 @@ info:
     The personally identifiable information used for linking is first locally transformed
     to anonymous linking codes called [Cryptographic Longterm Keys](concepts.html#cryptographic-longterm-key)
     (CLKs). Each party then uploads its CLKs to the service for matching.
-    The service supports four different [types of outputs](concepts.html#result-types)
+    The service supports three different [types of outputs](concepts.html#result-types)
     of matching results, varying in privacy properties.
     For the CLKs to be comparable, the parties need to agree on and follow a particular
     [linkage schema](concepts.html#schema) and agree on a shared secret before generating
@@ -68,7 +68,7 @@ info:
 
     ## Matching Protocols
 
-    The Entity Service supports four different **result types** with varying privacy properties which define the produced result,
+    The Entity Service supports three different **result types** with varying privacy properties which define the produced result,
     and who may see the which part of the output.
 
     See the documentation section on [output types](./concepts.html#result-types).

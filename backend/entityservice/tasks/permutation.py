@@ -94,13 +94,13 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_
         random.shuffle(remaining_new_indexes)
         log.info("Assigning random indexes for {} matched entities".format(number_in_common))
 
-        for mapping_number, group in enumerate(groups):
+        for group_number, group in enumerate(groups):
             # It should not fail because the permutation result is only available for 2 parties, but let's be to safe.
             assert 2 == len(group)
             (_, a_index), (_, b_index) = sorted(group)
 
             # Choose the index in the new mapping (randomly)
-            mapping_index = remaining_new_indexes[mapping_number]
+            mapping_index = remaining_new_indexes[group_number]
 
             a_permutation[a_index] = mapping_index
             b_permutation[b_index] = mapping_index
