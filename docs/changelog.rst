@@ -8,10 +8,16 @@ Next Version
 ------------
 
 - fixed bug where invalid state changes could occur when starting a run (#459)
+- ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
 
 - Update dependencies:
 
     - requests from 2.21.0 to 2.22.0 (#459)
+    
+Breaking Change
+~~~~~~~~~~~~~~~
+
+- ``matching`` output type is not available anymore. (#458)
 
 
 Version 1.12.0

@@ -128,22 +128,6 @@ A score of ``1.0`` means the CLKs were identical. Threshold values are usually b
         Comparing two data sets each containing 1 million records with a threshold
         of ``0.0`` will return 1 trillion results (``1e+12``).
 
-Direct Mapping Table (Deprecated for Groups Result)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The direct mapping takes the similarity scores and simply assigns the highest scores as links.
-
-The links are exposed as a lookup table using indices from the two organizations::
-
-    {
-        index_a: index_b,
-        ...
-    }
-
-
-The ``result_token`` (generated when creating the mapping) is required to retrieve the results. The
-``result_type`` should be set to ``"mapping"``.
-
 Groups Result
 ~~~~~~~~~~~~~
 

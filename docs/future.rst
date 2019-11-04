@@ -18,7 +18,7 @@ Road map for the entity service
 - optimise anonlink memory management and C++ code
 
 Bigger Projects
-- consider more than 2 organizations participating in one mapping
+
 - GPU implementation of core similarity scoring
 - somewhat homomorphic encryption could be used for similarity score
 - consider allowing users to upload raw PII

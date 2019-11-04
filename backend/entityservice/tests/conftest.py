@@ -4,8 +4,7 @@ import pytest
 import requests as requests_library
 import itertools
 
-from entityservice.tests.util import create_project_upload_fake_data, delete_project, temporary_blank_project, \
-    create_project_no_data
+from entityservice.tests.util import create_project_upload_fake_data, delete_project, create_project_no_data
 
 THROTTLE_SLEEP = 0.2
 
@@ -29,7 +28,7 @@ def requests():
 #
 # - pairs of dataset sizes
 # - overlap of the sizes
-# - result_type in ['mapping', 'similarity_scores', 'permutations']
+# - result_type for 2 parties in ['similarity_scores', 'permutations'] and for more parties in ['groups']
 # - threshold
 
 ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
@@ -70,7 +69,7 @@ PROJECT_PARAMS_2P = tuple(
     itertools.product(SIZES_2P, OVERLAPS, ENCODING_SIZES))
 PROJECT_PARAMS_NP = tuple(
     itertools.product(SIZES_NP, OVERLAPS, ENCODING_SIZES))
-PROJECT_RESULT_TYPES_2P = ['mapping', 'similarity_scores', 'permutations']
+PROJECT_RESULT_TYPES_2P = ['similarity_scores', 'permutations']
 PROJECT_RESULT_TYPES_NP = ['groups']
 
 
@@ -102,14 +101,6 @@ def create_project_response(requests, size, overlap, result_type, encoding_size=
         'dp_responses': dp_responses
     })
     return project
-
-
-@pytest.fixture(scope='function', params=PROJECT_PARAMS_2P)
-def mapping_project(request, requests):
-    size, overlap, encoding_size = request.param
-    prj = create_project_response(requests, size, overlap, 'mapping', encoding_size)
-    yield prj
-    delete_project(requests, prj)
 
 
 @pytest.fixture(scope='function', params=PROJECT_PARAMS_2P)

@@ -26,7 +26,6 @@ def the_truth(scope='module'):
         sims, _, (rec_is_a, rec_is_b) = candidate_pairs
 
         groups = anonlink.solving.greedy_solve(candidate_pairs)
-        mapping = dict(anonlink.solving.pairs_from_groups(groups))
 
         similarity_scores = {(a, b): sim
                              for sim, a, b in zip(sims, rec_is_a, rec_is_b)}
@@ -35,7 +34,6 @@ def the_truth(scope='module'):
                'entity_ids_b': entity_ids_b,
                'similarity_scores': similarity_scores,
                'groups': groups,
-               'mapping': mapping,
                'threshold': threshold,
                'clks_a': clks_a,
                'clks_b': clks_b}
@@ -62,25 +60,6 @@ def test_similarity_scores(requests, the_truth):
     delete_project(requests, project_data)
 
 
-def test_mapping(requests, the_truth):
-    project_data, _ = create_project_upload_data(
-        requests,
-        (the_truth['clks_a'], the_truth['clks_b']),
-        result_type='mapping')
-    run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    result = get_run_result(requests, project_data, run)
-    # compare mapping with the truth
-    mapping = {int(k): int(result['mapping'][k]) for k in result['mapping']}
-
-    # NB: Anonlink is more strict on enforcing the k parameter, so there
-    # is a small chance the below won't hold. This should only be the
-    # case for more noisy problems.
-    assert mapping.keys() == the_truth['mapping'].keys()
-    for key, value in mapping.items():
-        assert value == the_truth['mapping'][key]
-        assert the_truth['entity_ids_a'][key] == the_truth['entity_ids_b'][value]
-
-
 def test_permutation(requests, the_truth):
     project_data, (r_a, r_b) = create_project_upload_data(
         requests,
@@ -93,7 +72,9 @@ def test_permutation(requests, the_truth):
     # compare permutations and mask against mapping of the truth
     permutation_a = inverse_of_permutation(perm_a_result['permutation'])
     permutation_b = inverse_of_permutation(perm_b_result['permutation'])
-    mapping = the_truth['mapping']
+    groups = the_truth['groups']
+    # Use a mapping output to simplify the checking.
+    mapping = dict(anonlink.solving.pairs_from_groups(groups))
 
     # NB: Anonlink is more strict on enforcing the k parameter, so there
     # is a small chance the below won't hold. This should only be the
