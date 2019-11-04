@@ -263,7 +263,6 @@ def wait_approx_run_time(size, assumed_rate=1_000_000):
     """
     number_comparisons = sum(
         size0 * size1 for size0, size1 in itertools.combinations(size, 2))
-    time.sleep(1)
     time.sleep(number_comparisons / assumed_rate)
 
 
