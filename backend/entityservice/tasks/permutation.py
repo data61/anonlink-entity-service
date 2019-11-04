@@ -1,9 +1,6 @@
 import random
 
-import anonlink
-
 from entityservice.cache import encodings as encoding_cache
-
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, get_project_column, insert_mapping_result, get_dataprovider_ids, \
     get_run_result, insert_permutation, insert_permutation_mask
@@ -11,11 +8,6 @@ from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks import mark_run_complete
 from entityservice.tasks.stats import calculate_comparison_rate
 from entityservice.utils import convert_mapping_to_list
-
-
-def groups_to_mapping(groups):
-    return {str(i): str(j)
-            for i, j in anonlink.solving.pairs_from_groups(groups)}
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
@@ -30,17 +22,9 @@ def save_and_permute(similarity_result, project_id, run_id, parent_span):
     with DBConn() as db:
         result_type = get_project_column(db, project_id, 'result_type')
 
-        if result_type == "groups":
-            # Save the raw groups
-            log.debug("Saving the groups in the DB")
-            result_id = insert_mapping_result(db, run_id, groups)
-        else:
-            # Turn groups into mapping and save that
-            log.debug("Turning groups into mapping")
-            mapping = groups_to_mapping(groups)
-            log.debug("Saving mapping in the DB")
-            result_id = insert_mapping_result(db, run_id, mapping)
-
+        # Save the raw groups
+        log.debug("Saving the groups in the DB")
+        result_id = insert_mapping_result(db, run_id, groups)
         dp_ids = get_dataprovider_ids(db, project_id)
 
     log.info("Result saved to db with result id {}".format(result_id))
@@ -84,10 +68,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_
 
     with DBConn() as conn:
 
-        mapping_str = get_run_result(conn, run_id)
-
-        # Convert to int: int
-        mapping = {int(k): int(mapping_str[k]) for k in mapping_str}
+        groups = get_run_result(conn, run_id)
 
         log.info("Creating random permutations")
         log.debug("Entities in dataset A: {}, Entities in dataset B: {}".format(len_filters1, len_filters2))
@@ -100,7 +81,7 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_
         """
         smaller_dataset_size = min(len_filters1, len_filters2)
         log.debug("Smaller dataset size is {}".format(smaller_dataset_size))
-        number_in_common = len(mapping)
+        number_in_common = len(groups)
         a_permutation = {}  # Should be length of filters1
         b_permutation = {}  # length of filters2
 
@@ -113,11 +94,13 @@ def permute_mapping_data(project_id, run_id, len_filters1, len_filters2, parent_
         random.shuffle(remaining_new_indexes)
         log.info("Assigning random indexes for {} matched entities".format(number_in_common))
 
-        for mapping_number, a_index in enumerate(mapping):
-            b_index = mapping[a_index]
+        for group_number, group in enumerate(groups):
+            # It should not fail because the permutation result is only available for 2 parties, but let's be to safe.
+            assert 2 == len(group)
+            (_, a_index), (_, b_index) = sorted(group)
 
             # Choose the index in the new mapping (randomly)
-            mapping_index = remaining_new_indexes[mapping_number]
+            mapping_index = remaining_new_indexes[group_number]
 
             a_permutation[a_index] = mapping_index
             b_permutation[b_index] = mapping_index

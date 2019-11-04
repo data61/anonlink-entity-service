@@ -7,10 +7,10 @@ CASCADE;
 DROP TYPE IF EXISTS MAPPINGRESULT;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
-  'mapping',
+  'groups',
   'permutations',
-  'similarity_scores',
-  'groups'
+  'similarity_scores'
+
 );
 
 -- The table of entity matching jobs

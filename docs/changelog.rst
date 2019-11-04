@@ -7,8 +7,12 @@ Changelog
 Next Version
 ------------
 
+- ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
 
+Breaking Change
+~~~~~~~~~~~~~~~
 
+- ``matching`` output type is not available anymore. (#458)
 
 Version 1.12.0
 --------------

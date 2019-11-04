@@ -39,12 +39,7 @@ def get_result(dbinstance, project_id, run_id, token):
     result_type = db.get_project_column(dbinstance, project_id, 'result_type')
     auth_token_type = get_authorization_token_type_or_abort(project_id, token)
 
-    if result_type == 'mapping':
-        logger.info("Mapping result being returned")
-        result = db.get_run_result(dbinstance, run_id)
-        return {"mapping": result}
-
-    elif result_type == 'groups':
+    if result_type == 'groups':
         logger.info("Groups result being returned")
         result = db.get_run_result(dbinstance, run_id)
         return {"groups": result}
