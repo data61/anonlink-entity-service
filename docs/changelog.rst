@@ -4,7 +4,7 @@
 Changelog
 =========
 
-Next Version
+Version 1.13.0-alpha
 ------------
 
 - fixed bug where invalid state changes could occur when starting a run (#459)
