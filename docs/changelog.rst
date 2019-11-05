@@ -4,8 +4,11 @@
 Changelog
 =========
 
-Version 1.13.0-alpha
+Next Version
 ------------
+
+Version 1.13.0-alpha
+--------------------
 
 - fixed bug where invalid state changes could occur when starting a run (#459)
 - ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
