@@ -12,7 +12,7 @@ Version 1.13.0-alpha
 
 - fixed bug where invalid state changes could occur when starting a run (#459)
 - ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
-- fixed a bug where a dataprovider could upload her clks multiple time in a project using the same upload token (463)
+- fixed a bug where a dataprovider could upload her clks multiple time in a project using the same upload token (#463)
 
 - Update dependencies:
 
@@ -22,7 +22,7 @@ Breaking Change
 ~~~~~~~~~~~~~~~
 
 - ``matching`` output type is not available anymore. (#458)
-- the ``dataproviders`` table `uploaded` field has been modified from a BOOL to an ENUM type (463)
+- the ``dataproviders`` table `uploaded` field has been modified from a BOOL to an ENUM type (#463)
 
 
 Version 1.12.0
