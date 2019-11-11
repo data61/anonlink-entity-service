@@ -237,6 +237,11 @@ def test_project_single_party_empty_data_upload(
 
 
 def test_project_upload_wrong_authentication(requests, valid_project_params):
+    """
+    Test that a token cannot be re-used to upload clks.
+    So first, create a project, upload clks with a token (which should work), and then re-upload clks using the same
+    token which should return a 403 error.
+    """
     expected_number_parties = get_expected_number_parties(valid_project_params)
     if expected_number_parties < 2:
         # The test is not made for less than two parties
@@ -263,6 +268,11 @@ def test_project_upload_wrong_authentication(requests, valid_project_params):
 
 
 def test_project_upload_fail_then_works(requests, valid_project_params):
+    """
+    Test that a token can be re-used to upload clks after the upload failed.
+    So first, create a project, upload clks with a token (which should NOT work with a 400 error),
+    and then re-upload clks using the same token which should work.
+    """
     expected_number_parties = get_expected_number_parties(valid_project_params)
 
     new_project_data = requests.post(url + '/projects',
@@ -276,6 +286,7 @@ def test_project_upload_fail_then_works(requests, valid_project_params):
 
     small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
     token_to_reuse = update_tokens[0]
+    # This should fail as we are not providing the good count.
     upload_binary_data_from_file(
         requests,
         small_file_path, new_project_data['project_id'], token_to_reuse, 2000, expected_status_code=400)
