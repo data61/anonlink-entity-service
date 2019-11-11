@@ -206,15 +206,15 @@ def test_project_binary_data_invalid_buffer_size(
     pid = new_project_data['project_id']
     file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
 
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], -1, status=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], -1, expected_status_code=400)
 
     # Now try upload with valid hash-count but doesn't match actual size:
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1000000, status=400)
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 3, status=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1000000, expected_status_code=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 3, expected_status_code=400)
 
     # Now try the minimum upload size (1 clk)
     file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/single_clk.bin')
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1, status=201)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1, expected_status_code=201)
 
 
 def test_project_single_party_empty_data_upload(
