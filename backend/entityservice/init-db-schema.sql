@@ -85,6 +85,12 @@ RETURNS bool AS $$
   SELECT $1.state = 'completed'
 $$ STABLE LANGUAGE SQL;
 
+CREATE TYPE UPLOADEDSTATE AS ENUM (
+  'not_started',
+  'in_progress',
+  'done',
+  'error'
+);
 
 CREATE TABLE dataproviders (
   id       SERIAL PRIMARY KEY,
@@ -93,7 +99,7 @@ CREATE TABLE dataproviders (
   token    CHAR(48) NOT NULL UNIQUE,
 
   -- Set after the bloom filter data has been added
-  uploaded BOOL     NOT NULL DEFAULT FALSE,
+  uploaded UPLOADEDSTATE     NOT NULL,
 
   project  CHAR(48) REFERENCES projects (project_id) on DELETE CASCADE
 );
