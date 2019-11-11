@@ -235,3 +235,51 @@ def test_project_single_party_empty_data_upload(
     )
     assert r.status_code == 400
 
+
+def test_project_upload_wrong_authentication(requests, valid_project_params):
+    expected_number_parties = get_expected_number_parties(valid_project_params)
+    if expected_number_parties < 2:
+        # The test is not made for less than two parties
+        return
+
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    update_tokens = new_project_data['update_tokens']
+
+    assert len(update_tokens) == expected_number_parties
+
+    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
+    token_to_reuse = update_tokens[0]
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000)
+
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000, expected_status_code=403)
+
+
+def test_project_upload_fail_then_works(requests, valid_project_params):
+    expected_number_parties = get_expected_number_parties(valid_project_params)
+
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    update_tokens = new_project_data['update_tokens']
+
+    assert len(update_tokens) == expected_number_parties
+
+    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
+    token_to_reuse = update_tokens[0]
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 2000, expected_status_code=400)
+
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000)
