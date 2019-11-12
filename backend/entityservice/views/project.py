@@ -121,7 +121,7 @@ def project_clks_post(project_id):
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
-        upload_state_updated = db.get_and_set_dataprovider_upload_state_in_progress(conn, dp_id)
+        upload_state_updated = db.is_dataprovider_allowed_to_upload_and_lock(conn, dp_id)
 
     if not upload_state_updated:
         return safe_fail_request(403, "This token has already been used to upload clks.")
