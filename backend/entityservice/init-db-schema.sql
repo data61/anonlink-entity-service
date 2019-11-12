@@ -89,8 +89,8 @@ $$ STABLE LANGUAGE SQL;
 CREATE TYPE UPLOADEDSTATE AS ENUM (
   'not_started', -- default state, a dataprovider has not tried yet to upload her clks
   'in_progress', -- the upload is in progress, so no-one else should be able to upload at the same time
-  'done', -- the clks have  been uploaded, it should stay this way
-  'error' -- the dataprovider has tred to upload the clks but an error occurred, having this state allows a dataprovider to try again.
+  'done', -- the clks have been uploaded, it should stay this way
+  'error' -- the dataprovider has tried to upload the clks but an error occurred, having this state allows a dataprovider to try again.
 );
 
 CREATE TABLE dataproviders (
