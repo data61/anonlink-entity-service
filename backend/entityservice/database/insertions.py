@@ -261,12 +261,15 @@ def get_created_runs_and_queue(db, project_id):
     return res
 
 
-def get_and_set_dataprovider_upload_state_in_progress(db, dp_id):
+def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     """
-    This method returns true if it was able to update the uploaded status of this dataprovider from false to true.
-    It return false otherwise (i.e. the state was already set to true).
+    This method returns true if the dataprovider is allowed to upload her clks.
+    A data provider is allowed to upload clks if they have not yet been uploaded or if the upload is already in progress.
+    This method will lock the resource by setting the upload state to `in_progress` and returning `true`.
+    Note that the upload state can be `error`, in which case we are allowing the dataprovider to re-try uploading
+    her clks not to block a project if a failure occurred.
     """
-    logger.debug("Setting dataprovider {} upload state to True".format(dp_id))
+    logger.debug("Setting dataprovider {} upload state to `in_progress``".format(dp_id))
     sql_update = """
         UPDATE dataproviders
         SET uploaded = 'in_progress'
@@ -279,5 +282,5 @@ def get_and_set_dataprovider_upload_state_in_progress(db, dp_id):
     if length < 1:
         return False
     elif length > 1:
-        raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times its clks.")
+        raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times her clks.")
     return True
