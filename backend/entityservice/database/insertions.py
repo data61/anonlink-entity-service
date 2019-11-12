@@ -264,7 +264,7 @@ def get_created_runs_and_queue(db, project_id):
 def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     """
     This method returns true if the dataprovider is allowed to upload her clks.
-    A data provider is allowed to upload clks if they have not yet been uploaded or if the upload is already in progress.
+    A dataprovider is not allowed to upload clks if she has already uploaded them, or if the upload is in progress.
     This method will lock the resource by setting the upload state to `in_progress` and returning `true`.
     Note that the upload state can be `error`, in which case we are allowing the dataprovider to re-try uploading
     her clks not to block a project if a failure occurred.
@@ -282,5 +282,7 @@ def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     if length < 1:
         return False
     elif length > 1:
+        logger.error("{} rows in the table `dataproviders` are associated to the same dataprovider id {}, while each"
+                     " dataprovider id should be unique.".format(length, dp_id))
         raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times her clks.")
     return True
