@@ -236,7 +236,7 @@ def test_project_single_party_empty_data_upload(
     assert r.status_code == 400
 
 
-def test_project_upload_wrong_authentication(requests, valid_project_params):
+def test_project_upload_re_used_authentication(requests, valid_project_params):
     """
     Test that a token cannot be re-used to upload clks.
     So first, create a project, upload clks with a token (which should work), and then re-upload clks using the same
@@ -267,7 +267,7 @@ def test_project_upload_wrong_authentication(requests, valid_project_params):
         small_file_path, new_project_data['project_id'], token_to_reuse, 1000, expected_status_code=403)
 
 
-def test_project_upload_fail_then_works(requests, valid_project_params):
+def test_project_upload_invalid_clks_then_valid_clks_same_authentication(requests, valid_project_params):
     """
     Test that a token can be re-used to upload clks after the upload failed.
     So first, create a project, upload clks with a token (which should NOT work with a 400 error),
