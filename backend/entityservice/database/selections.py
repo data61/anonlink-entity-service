@@ -32,7 +32,7 @@ def get_dataprovider_ids(db, project_id):
         FROM dataproviders
         WHERE
           dataproviders.project = %s AND
-          dataproviders.uploaded = TRUE
+          dataproviders.uploaded = 'done'
         ORDER BY dataproviders.id
         """
     query_result = query_db(db, sql_query, [project_id])
@@ -65,7 +65,7 @@ def get_number_parties_uploaded(db, project_id):
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
-          dataproviders.uploaded = TRUE
+          dataproviders.uploaded = 'done'
         """
     query_result = query_db(db, sql_query, [project_id], one=True)
     return query_result['count']
@@ -93,7 +93,7 @@ def get_number_parties_ready(db, resource_id):
         WHERE
           dataproviders.project = %s AND
           bloomingdata.dp = dataproviders.id AND
-          dataproviders.uploaded = TRUE AND
+          dataproviders.uploaded = 'done' AND
           bloomingdata.state = 'ready'
         """
     query_result = query_db(db, sql_query, [resource_id], one=True)

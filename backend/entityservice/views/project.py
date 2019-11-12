@@ -121,6 +121,10 @@ def project_clks_post(project_id):
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
+        upload_state_updated = db.is_dataprovider_allowed_to_upload_and_lock(conn, dp_id)
+
+    if not upload_state_updated:
+        return safe_fail_request(403, "This token has already been used to upload clks.")
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
@@ -128,50 +132,58 @@ def project_clks_post(project_id):
 
     with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)
-        if headers['Content-Type'] == "application/json":
-            span.set_tag("content-type", 'json')
-            # TODO: Previously, we were accessing the CLKs in a streaming fashion to avoid parsing the json in one hit. This
-            #       enables running the web frontend with less memory.
-            #       However, as connexion is very, very strict about input validation when it comes to json, it will always
-            #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
-            #       json into memory. -> issue #184
+        try:
+            if headers['Content-Type'] == "application/json":
+                span.set_tag("content-type", 'json')
+                # TODO: Previously, we were accessing the CLKs in a streaming fashion to avoid parsing the json in one hit. This
+                #       enables running the web frontend with less memory.
+                #       However, as connexion is very, very strict about input validation when it comes to json, it will always
+                #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
+                #       json into memory. -> issue #184
 
-            receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span)
-            # Schedule a task to deserialize the hashes, and carry
-            # out a pop count.
-            handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
-            log.info("Job scheduled to handle user uploaded hashes")
-        elif headers['Content-Type'] == "application/octet-stream":
-            span.set_tag("content-type", 'binary')
-            log.info("Handling binary CLK upload")
-            try:
-                count, size = check_binary_upload_headers(headers)
-                log.info(f"Headers tell us to expect {count} encodings of {size} bytes")
-                span.log_kv({'count': count, 'size': size})
-            except Exception:
-                log.warning("Upload failed due to problem with headers in binary upload")
-                raise
-            # Check against project level encoding size (if it has been set)
-            if project_encoding_size is not None and size != project_encoding_size:
-                # fail fast - we haven't stored the encoded data yet
-                return safe_fail_request(400, "Upload 'Hash-Size' doesn't match project settings")
+                receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span)
+                # Schedule a task to deserialize the hashes, and carry
+                # out a pop count.
+                handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
+                log.info("Job scheduled to handle user uploaded hashes")
+            elif headers['Content-Type'] == "application/octet-stream":
+                span.set_tag("content-type", 'binary')
+                log.info("Handling binary CLK upload")
+                try:
+                    count, size = check_binary_upload_headers(headers)
+                    log.info(f"Headers tell us to expect {count} encodings of {size} bytes")
+                    span.log_kv({'count': count, 'size': size})
+                except Exception:
+                    log.warning("Upload failed due to problem with headers in binary upload")
+                    raise
+                # Check against project level encoding size (if it has been set)
+                if project_encoding_size is not None and size != project_encoding_size:
+                    # fail fast - we haven't stored the encoded data yet
+                    return safe_fail_request(400, "Upload 'Hash-Size' doesn't match project settings")
 
-            # TODO actually stream the upload data straight to Minio. Currently we can't because
-            # connexion has already read the data before our handler is called!
-            # https://github.com/zalando/connexion/issues/592
-            # stream = get_stream()
-            stream = BytesIO(request.data)
-            expected_bytes = binary_format(size).size * count
-            log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
-            if len(request.data) != expected_bytes:
-                safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
-            try:
-                receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
-            except ValueError:
-                safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
-        else:
-            safe_fail_request(400, "Content Type not supported")
-
+                # TODO actually stream the upload data straight to Minio. Currently we can't because
+                # connexion has already read the data before our handler is called!
+                # https://github.com/zalando/connexion/issues/592
+                # stream = get_stream()
+                stream = BytesIO(request.data)
+                expected_bytes = binary_format(size).size * count
+                log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
+                if len(request.data) != expected_bytes:
+                    safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
+                try:
+                    receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
+                except ValueError:
+                    safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
+            else:
+                safe_fail_request(400, "Content Type not supported")
+        except Exception:
+            log.info("The dataprovider was not able to upload her clks,"
+                     " re-enable the corresponding upload token to be used.")
+            with DBConn() as conn:
+                db.set_dataprovider_upload_state(conn, dp_id, state='error')
+            raise
+    with DBConn() as conn:
+        db.set_dataprovider_upload_state(conn, dp_id, state='done')
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
@@ -250,7 +262,6 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     with opentracing.tracer.start_span('update-database-with-metadata', child_of=parent_span):
         with DBConn() as conn:
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
-            db.set_dataprovider_upload_state(conn, dp_id, True)
 
     # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
