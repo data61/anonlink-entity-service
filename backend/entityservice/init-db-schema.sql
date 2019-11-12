@@ -85,11 +85,12 @@ RETURNS bool AS $$
   SELECT $1.state = 'completed'
 $$ STABLE LANGUAGE SQL;
 
+-- Describe the state of the upload of the clks to the entity-service.
 CREATE TYPE UPLOADEDSTATE AS ENUM (
-  'not_started',
-  'in_progress',
-  'done',
-  'error'
+  'not_started', -- default state, a dataprovider has not tried yet to upload her clks
+  'in_progress', -- the upload is in progress, so no-one else should be able to upload at the same time
+  'done', -- the clks have  been uploaded, it should stay this way
+  'error' -- the dataprovider has tred to upload the clks but an error occurred, having this state allows a dataprovider to try again.
 );
 
 CREATE TABLE dataproviders (
@@ -107,10 +108,11 @@ CREATE TABLE dataproviders (
 CREATE INDEX ON dataproviders (project);
 CREATE INDEX ON dataproviders (uploaded);
 
-CREATE TYPE UPLOADSTATE AS ENUM (
-  'pending',
-  'ready',
-  'error'
+-- It describes the state of the processing of the uploaded clks.
+CREATE TYPE PROCESSEDSTATE AS ENUM (
+  'pending', -- waiting for some processing to be done
+  'ready', -- processing done
+  'error' -- an error occurred during the processing
 );
 
 -- The encoded PII data for each dataprovider
@@ -127,7 +129,7 @@ CREATE TABLE bloomingdata (
   -- Store the raw CLK data in a file
   file  CHAR(64)    NOT NULL,
 
-  state UPLOADSTATE NOT NULL,
+  state PROCESSEDSTATE NOT NULL,
 
   -- Size in bytes of the uploaded encoding
   encoding_size  INT    NULL,
