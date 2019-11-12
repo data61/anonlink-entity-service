@@ -236,7 +236,7 @@ def test_project_single_party_empty_data_upload(
     assert r.status_code == 400
 
 
-def test_project_upload_re_used_authentication(requests, valid_project_params):
+def test_project_upload_using_twice_same_authentication(requests, valid_project_params):
     """
     Test that a token cannot be re-used to upload clks.
     So first, create a project, upload clks with a token (which should work), and then re-upload clks using the same
