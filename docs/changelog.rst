@@ -7,12 +7,21 @@ Changelog
 Next Version
 ------------
 
+- fixed a bug where a dataprovider could upload her clks multiple time in a project using the same upload token (#463)
+- modify `similiraty_score` output to follow the group format, which will simplify extending this output type to more parties (#464)
+
+Breaking Change
+~~~~~~~~~~~~~~~
+
+- the ``dataproviders`` table `uploaded` field has been modified from a BOOL to an ENUM type (#463)
+- the `similiraty_score` output type has been modified, it now returns a JSON array of JSON objects, where such an object
+  looks like `{'group': [[party_id_0, row_index_0], [party_id_1, row_index_1]], 'sim': score}`.
+
 Version 1.13.0-alpha
 --------------------
 
 - fixed bug where invalid state changes could occur when starting a run (#459)
 - ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
-- fixed a bug where a dataprovider could upload her clks multiple time in a project using the same upload token (#463)
 
 - Update dependencies:
 
@@ -22,7 +31,6 @@ Breaking Change
 ~~~~~~~~~~~~~~~
 
 - ``matching`` output type is not available anymore. (#458)
-- the ``dataproviders`` table `uploaded` field has been modified from a BOOL to an ENUM type (#463)
 
 
 Version 1.12.0
