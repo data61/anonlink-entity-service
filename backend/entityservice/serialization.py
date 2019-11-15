@@ -128,7 +128,7 @@ def generate_scores(candidate_pair_stream: typing.BinaryIO):
     """
     sims, (dset_is0, dset_is1), (rec_is0, rec_is1) = anonlink.serialization.load_candidate_pairs(candidate_pair_stream)
 
-    cs_sims_iter = (f'"group": [[{dset_i0}, {rec_i0}], [{dset_i1}, {rec_i1}]], "sim": {sim}'
+    cs_sims_iter = (f'[{dset_i0}, {rec_i0}], [{dset_i1}, {rec_i1}], {sim}'
                     for sim, dset_i0, dset_i1, rec_i0, rec_i1 in zip(sims, dset_is0, dset_is1, rec_is0, rec_is1))
     yield '{"similarity_scores": ['
     line_iter = iter(cs_sims_iter)
@@ -141,11 +141,11 @@ def generate_scores(candidate_pair_stream: typing.BinaryIO):
         return
 
     for line in line_iter:
-        yield '{{{}}},'.format(prev_line.strip())
+        yield '[{}],'.format(prev_line.strip())
         prev_line = line
 
     # Yield the last line without a trailing comma, instead close the json object
-    yield '{{{}}}'.format(prev_line.strip())
+    yield '[{}]'.format(prev_line.strip())
     yield ']}'
 
 

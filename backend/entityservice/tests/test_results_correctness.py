@@ -48,8 +48,8 @@ def test_similarity_scores(requests, the_truth):
     result = get_run_result(requests, project_data, run, timeout=60)
     
     true_scores = the_truth['similarity_scores']
-    result_scores = {tuple(index for _, index in sorted(candidate_pair['group'])): candidate_pair['sim']
-                     for candidate_pair in result['similarity_scores']}
+    result_scores = {tuple(index for _, index in sorted([a, b])): score
+                     for a, b, score in result['similarity_scores']}
 
     # Anonlink is more strict on enforcing the k parameter. Hence the
     # subset.

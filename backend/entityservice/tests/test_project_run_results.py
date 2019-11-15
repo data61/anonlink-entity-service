@@ -4,11 +4,13 @@ from entityservice.tests.util import create_project_no_data, post_run, get_run_r
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):
     run_id = post_run(requests, similarity_scores_project, threshold)
     result = get_run_result(requests, similarity_scores_project, run_id, timeout=120)
-    assert 'similarity_scores' in result
-    for candidate_pair in result['similarity_scores']:
-        assert 0.0 <= candidate_pair['sim'] >= 1.0
-        for _, index in candidate_pair['group']:
-            assert 0 <= index
+    for (party_id_1, rec_id_1), (party_id_2, rec_id_2), score in result['similarity_scores']:
+        assert 0.0 <= score >= 1.0
+        assert 0 <= party_id_1
+        assert 0 <= party_id_2
+        assert party_id_1 != party_id_2
+        assert 0 <= rec_id_1
+        assert 0 <= rec_id_2
 
 
 def test_run_permutations_results(requests, permutations_project, threshold):

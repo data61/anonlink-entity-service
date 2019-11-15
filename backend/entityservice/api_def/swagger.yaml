@@ -509,26 +509,27 @@ paths:
 
         ### result_type = "similarity_scores"
 
-        The list of the candidate of potential matches and their similarity score
-        where the similarity score is greater than the mapping threshold.
+        The list of the pairwise similarity scores where the score
+        is greater than the similarity threshold.
         Data is returned as `json` object e.g.,
 
             {
                 "similarity_scores":
                     [
-                        {'group': [[0, 5], [1, 27]], 'sim': 1.0},
-                        {'group': [[1, 10], [0, 14]], 'sim': 1.0}
+                        [[0, 5], [1, 27], 1.0],
+                        [[1, 10], [0, 14], 1.0]
                     ]
             }
 
 
-        The element in the list is of the following format `{'group': [[party_id_0, row_index_0], [party_id_1, row_index_1]], 'sim': score}`,
-        where the value of `group` is a candidate pair represented in a `group` format, i.e. `[party_id_0, row_index_0]`
-        refers to the record at the index `row_index_0` from the dataset `party_id_0`, similarly for `[party_id_1, row_index_1]`,
-        and `score` is the similarity score representing the likelihood that the group is a match.
+        The element in the list is a list of three elements of the following format
+        `[[party_id_0, row_index_0], [party_id_1, row_index_1], score]`, where `[party_id_0, row_index_0]`
+        refers to the record at the index `row_index_0` from the dataset `party_id_0`, similarly for
+        `[party_id_1, row_index_1]`, and `score` is the similarity score representing the likelihood
+        that this pair or records is a match.
 
         `ds_index_0`, `rec_index_0, `ds_index_1` and `rec_index_1` start from 0, and `party_id_0 != party_id_1` but
-        not necessarilly ordered.
+        are not necessarilly ordered.
 
         The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
         and 1.0 corresponds to total match.

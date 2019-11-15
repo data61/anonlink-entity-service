@@ -106,10 +106,10 @@ relationships.
 The ``result_token`` (generated when creating the mapping) is required. The ``result_type`` should
 be set to ``"similarity_scores"``.
 
-Results are a JSON array of JSON objects::
+Results are a JSON array of JSON arrays of three elements::
 
    [
-       {'group': [[party_id_0, row_index_0], [party_id_1, row_index_1]], 'sim': score},
+       [[party_id_0, row_index_0], [party_id_1, row_index_1], score],
        ...
    ]
 
