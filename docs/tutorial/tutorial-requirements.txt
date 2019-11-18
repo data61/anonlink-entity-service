@@ -1,4 +1,4 @@
-clkhash>=0.13.0
+clkhash>=0.15.0
 ipython
 matplotlib
 recordlinkage
