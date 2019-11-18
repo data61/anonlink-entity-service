@@ -531,8 +531,8 @@ paths:
         `ds_index_0`, `rec_index_0, `ds_index_1` and `rec_index_1` start from 0, and `party_id_0 != party_id_1` but
         are not necessarilly ordered.
 
-        The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
-        and 1.0 corresponds to total match.
+        The value of `score` is between 0.0 and 1.0. The higher the score, the higher the similarity between
+        the compared CLKs.
 
         ### result_type = "permutations"
 
