@@ -272,10 +272,13 @@ def post_run(requests, project, threshold):
         headers={'Authorization': result_token},
         json={'threshold': threshold})
     assert req.status_code == 201
-    return req.json()['run_id']
+    run_id = req.json()['run_id']
+    # Each time we post a new run, we also check that the run endpoint works well.
+    get_run(requests, project, run_id, expected_threshold=threshold)
+    return run_id
 
 
-def get_runs(requests, project, result_token = None, expected_status = 200):
+def get_runs(requests, project, result_token=None, expected_status=200):
     project_id = project['project_id']
     result_token = project['result_token'] if result_token is None else result_token
 
@@ -286,15 +289,25 @@ def get_runs(requests, project, result_token = None, expected_status = 200):
     return req.json()
 
 
-def get_run(requests, project, run_id, expected_status = 200):
+def get_run(requests, project, run_id, expected_status=200, expected_threshold=None):
     project_id = project['project_id']
     result_token = project['result_token']
 
     req = requests.get(
         url + '/projects/{}/runs/{}'.format(project_id, run_id),
         headers={'Authorization': result_token})
+
     assert req.status_code == expected_status
-    return req.json()
+    run = req.json()
+    if expected_status == 200:
+        # only check these assertions if all went well.
+        assert 'run_id' in run
+        assert run['run_id'] == run_id
+        assert 'notes' in run
+        assert 'threshold' in run
+        if expected_threshold:
+            assert expected_threshold == run['threshold']
+    return run
 
 
 def get_run_result(requests, project, run_id, result_token=None, expected_status=200, wait=True, timeout=60):
