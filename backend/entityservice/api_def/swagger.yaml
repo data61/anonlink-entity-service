@@ -509,28 +509,30 @@ paths:
 
         ### result_type = "similarity_scores"
 
-        The list of the indices of potential matches and their similarity score
-        where the similarity score is greater than the mapping threshold.
+        The list of the pairwise similarity scores where the score
+        is greater than the similarity threshold.
         Data is returned as `json` object e.g.,
 
             {
                 "similarity_scores":
                     [
-                        [5, 27, 1.0],
-                        [14, 10, 1.0]
+                        [[0, 5], [1, 27], 1.0],
+                        [[1, 10], [0, 14], 1.0]
                     ]
             }
 
 
-        The element in the list is of the following format `[indexA, indexB, score]`,
-        where `indexA` refers to the index of entity from data provider 1, `indexB` is the index of entity
-        from data provider 2 that is a potential match to entity in `indexA`, and `score` is the similarity score
-        representing the likelihood that entity in `indexA` and entity in `indexB` is a match.
+        The element in the list is a list of three elements of the following format
+        `[[party_id_0, row_index_0], [party_id_1, row_index_1], score]`, where `[party_id_0, row_index_0]`
+        refers to the record at the index `row_index_0` from the dataset `party_id_0`, similarly for
+        `[party_id_1, row_index_1]`, and `score` is the similarity score representing the likelihood
+        that this pair or records is a match.
 
-        `indexA` and `indexB` starts from 0.
+        `ds_index_0`, `rec_index_0, `ds_index_1` and `rec_index_1` start from 0, and `party_id_0 != party_id_1` but
+        are not necessarilly ordered.
 
-        The value of `score` is between 0.0 and 1.0, where 0.0 corresponds to no match
-        and 1.0 corresponds to total match.
+        The value of `score` is between 0.0 and 1.0. The higher the score, the higher the similarity between
+        the compared CLKs.
 
         ### result_type = "permutations"
 
