@@ -106,14 +106,14 @@ relationships.
 The ``result_token`` (generated when creating the mapping) is required. The ``result_type`` should
 be set to ``"similarity_scores"``.
 
-Results are a simple JSON array of arrays::
+Results are a JSON array of JSON arrays of three elements::
 
    [
-       [index_a, index_b, score],
+       [[party_id_0, row_index_0], [party_id_1, row_index_1], score],
        ...
    ]
 
-Where the index values will be the 0 based row index from the uploaded CLKs, and
+Where the index values will be the 0 based dataset index and row index from the uploaded CLKs, and
 the score will be a Number between the provided threshold and ``1.0``.
 
 A score of ``1.0`` means the CLKs were identical. Threshold values are usually between

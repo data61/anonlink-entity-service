@@ -49,8 +49,11 @@ class SerializationTest(unittest.TestCase):
         json_obj = json.loads(json_str)
         self.assertIn('similarity_scores', json_obj)
         assert len(json_obj["similarity_scores"]) == 3
-        for score in json_obj["similarity_scores"]:
-            self.assertEqual(len(score), 3)
+        for pair_and_score in json_obj["similarity_scores"]:
+            self.assertEqual(len(pair_and_score), 3)
+            a, b, score = pair_and_score
+            self.assertEqual(len(a), 2)
+            self.assertEqual(len(b), 2)
 
     def test_sims_to_json_empty(self):
         sims_iter = (
