@@ -234,7 +234,7 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
     Poll project/run_id until its status is one of the ok_statuses. Raise a
     TimeoutError if we've waited more than timeout seconds.
     It also checks that the status are progressing normally, using the checks implemented in
-    `has_not_progressed_invalidly`.
+    `has_progressed_validly`.
     """
     start_time = time.time()
     old_status = None
