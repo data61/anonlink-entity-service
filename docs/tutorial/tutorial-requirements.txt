@@ -1,5 +1,6 @@
 clkhash==0.15.0
 ipython
 matplotlib
+pandas
 recordlinkage
 requests
