@@ -5,17 +5,17 @@ from entityservice.database.util import execute_returning_id, logger, query_db
 from entityservice.errors import RunDeleted
 
 
-def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes):
+def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes, uses_blocking):
     sql_query = """
         INSERT INTO projects
-        (project_id, name, access_token, schema, notes, parties, result_type)
+        (project_id, name, access_token, schema, notes, parties, result_type, uses_blocking)
         VALUES
-        (%s, %s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING project_id;
         """
     return execute_returning_id(cur, sql_query,
                                 [project_id, name, access_token, psycopg2.extras.Json(schema), notes, num_parties,
-                                 result_type])
+                                 result_type, uses_blocking])
 
 
 def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
