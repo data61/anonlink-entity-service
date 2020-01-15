@@ -41,7 +41,9 @@ CREATE TABLE projects (
 
   result_type         MAPPINGRESULT NOT NULL,
 
-  marked_for_deletion boolean   DEFAULT FALSE
+  marked_for_deletion boolean   DEFAULT FALSE,
+
+  uses_blocking       boolean   DEFAULT FALSE
 );
 
 CREATE TYPE RUNSTATE AS ENUM (
