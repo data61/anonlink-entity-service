@@ -20,13 +20,14 @@ class Project(object):
 
     Exists before insertion into the database.
     """
-    def __init__(self, result_type, schema, name, notes, parties):
+    def __init__(self, result_type, schema, name, notes, parties, uses_blocking):
         logger.debug("Creating project codes")
         self.result_type = result_type
         self.schema = schema
         self.name = name
         self.notes = notes
         self.number_parties = parties
+        self.uses_blocking = uses_blocking
 
         self.project_id = generate_code()
         logger.debug("Generated project code", pid=self.project_id)
@@ -60,12 +61,13 @@ class Project(object):
         name = data.get('name', '')
         notes = data.get('notes', '')
         parties = data.get('number_parties', 2)
+        uses_blocking = data.get('uses_blocking', False)
 
         if parties > 2 and result_type != 'groups':
             raise InvalidProjectParametersException(
                 "Multi-party linkage requires result type 'groups'.")            
 
-        return Project(result_type, schema, name, notes, parties)
+        return Project(result_type, schema, name, notes, parties, uses_blocking)
 
     def save(self, conn):
         with conn.cursor() as cur:
@@ -77,7 +79,8 @@ class Project(object):
                                                self.project_id,
                                                self.number_parties,
                                                self.name,
-                                               self.notes
+                                               self.notes,
+                                               self.uses_blocking
                                                )
 
             logger.debug("New project created in DB")
