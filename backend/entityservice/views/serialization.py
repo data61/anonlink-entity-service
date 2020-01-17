@@ -20,6 +20,7 @@ class ProjectDescription(Schema):
     name = fields.String()
     notes = fields.String()
     error = fields.Boolean()
+    uses_blocking = fields.Boolean()
 
 
 class NewProjectResponse(Schema):

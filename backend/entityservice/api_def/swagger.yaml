@@ -764,6 +764,11 @@ definitions:
       notes:
         description: Any free text to store with this project.
         type: string
+      uses_blocking:
+        type: boolean
+        description: |
+          Whether the linkage uses blocking. This requires that the CLKs are uploaded with corresponding blocking
+          information.
     required:
       - schema
       - result_type
