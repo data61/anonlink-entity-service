@@ -24,7 +24,7 @@ spec:
         image: data61/anonlink-benchmark:v0.3.0
         env:
           - name: SERVER
-            value: "https://benchmark.es.data61.xyz"
+            value: "https://anonlink.easd.data61.xyz"
           - name: TIMEOUT
             value: "2400"
           - name: EXPERIMENT

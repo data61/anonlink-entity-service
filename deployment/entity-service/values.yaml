@@ -176,7 +176,8 @@ workers:
   ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,
   ## except for the requested resources and replicaCount which can differ.
   celery:
-    ## Number of fork worker celery node will have. It is recommended to use the same concurrency as workers.resources.limits.cpu
+    ## Number of fork worker celery node will have. It is recommended to use the same concurrency
+    ## as workers.resources.limits.cpu
     CONCURRENCY: "2"
     ## How many messages to prefetch at a time multiplied by the number of concurrent processes. Set to 1 because
     ## our tasks are usually quite "long".
