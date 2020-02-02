@@ -41,8 +41,7 @@ Requests to avoid duplicate testing and building potentially untrusted external 
 
 The build pipeline requires two environment variables provided by Azure environment:
 
-- `dockerHubId`: username for the pipeline to push images to Data61 dockerhub
+- `dockerHubId`: username for the pipeline to push images to Data61's Docker hub account.
 - `dockerHubPassword`: password for the corresponding username (this is a secret variable).
 
-It also requires a connection to a ``k8s`` cluster to be configured.
-
+It also requires a service connection to a ``k8s`` cluster to be configured.
