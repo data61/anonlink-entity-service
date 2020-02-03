@@ -6,6 +6,7 @@ import psycopg2.extras
 from psycopg2.pool import ThreadedConnectionPool
 from flask import current_app
 from structlog import get_logger
+from tenacity import retry, wait_random_exponential, retry_if_exception_type, stop_after_delay
 
 from entityservice.settings import Config as config
 
@@ -41,6 +42,9 @@ def init_db(delay=0.5):
             db.cursor().execute(f.read())
 
 
+@retry(wait=wait_random_exponential(multiplier=1, max=60),
+       retry=(retry_if_exception_type(psycopg2.OperationalError) | retry_if_exception_type(ConnectionError)),
+       stop=stop_after_delay(120))
 def init_db_pool(db_min_connections, db_max_connections):
     """
     Initializes the database connection pool required by the application to connect to the database.
@@ -52,9 +56,10 @@ def init_db_pool(db_min_connections, db_max_connections):
 
     global connection_pool
     if connection_pool is None:
-        logger.info("Initialize the database connection pool. db: '%s', user: '%s', host: '%s'.", db, user, host)
+        logger.info("Initializing the database connection pool. db: '%s', user: '%s', host: '%s'.", db, user, host)
         try:
-            connection_pool = ThreadedConnectionPool(db_min_connections, db_max_connections, database=db, user=user, password=pw, host=host)
+            connection_pool = ThreadedConnectionPool(db_min_connections, db_max_connections, database=db, user=user,
+                                                     password=pw, host=host)
         except psycopg2.Error as e:
             logger.exception("Issue initializing the database connection pool. db: '%s', user: '%s', host: '%s'.",
                              db, user, host)
@@ -67,11 +72,11 @@ def init_db_pool(db_min_connections, db_max_connections):
 def close_db_pool():
     """
     If a connection pool is available, close all its connections and set it to None.
-    This method is always run at the exit of the application, to ensure that we free as much as possible
-    the database connections.
+    This method is always run at the exit of the application, to ensure that we free
+    the database connections when possible.
     """
     global connection_pool
-    logger.info("Close the database connection pool")
+    logger.info("Closing the database connection pool")
     if connection_pool is not None:
         connection_pool.closeall()
         connection_pool = None
@@ -82,7 +87,8 @@ class DBConn:
     To connect to the database, it is preferred to use the pattern:
     with DBConn() as conn:
         ...
-    It will ensure that the connection is taken from the connection pool return it to the pool
+
+    This ensures that the connection is taken from the connection pool and returned to the pool
     when done. The pool must be initialized first via `init_db_pool()`.
     """
 

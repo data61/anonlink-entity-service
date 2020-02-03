@@ -3,6 +3,7 @@ import uuid
 import connexion
 from flask import g, request
 import structlog
+from tenacity import RetryError
 try:
     import ijson.backends.yajl2_cffi as ijson
 except ImportError:
@@ -52,7 +53,11 @@ def initdb_command():
 def before_first_request():
     db_min_connections = config.FLASK_DB_MIN_CONNECTIONS
     db_max_connections = config.FLASK_DB_MAX_CONNECTIONS
-    db.init_db_pool(db_min_connections, db_max_connections)
+    try:
+        db.init_db_pool(db_min_connections, db_max_connections)
+    except RetryError:
+        logger.error("Giving up on connecting to database")
+        raise SystemExit("Couldn't establish connection to database pool")
 
 
 @app.before_request
