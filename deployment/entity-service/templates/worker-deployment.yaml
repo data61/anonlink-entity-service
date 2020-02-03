@@ -10,7 +10,7 @@ spec:
   replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.fullname" . }}
+      app: {{ template "es.appname" . }}
       component: "{{ .Values.workers.name }}"
       tier: backend
   {{- if .Values.workers.strategy }}

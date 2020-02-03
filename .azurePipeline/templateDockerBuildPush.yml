@@ -17,22 +17,22 @@ jobs:
 - job: ${{ parameters.jobName }}
   displayName: ${{ parameters.jobName }}
   pool:
-    vmImage: "ubuntu-16.04"
+    vmImage: "ubuntu-latest"
 
   steps:
-  - template: templateDockerTagFromBranch.yml
-  - script: |
-      docker login -u $(dockerHubId) -p $(dockerHubPassword)
-    displayName: 'Dockerhub login'
-  - script: |
-      if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
-        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
-      else
-        docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
-      fi
-      docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
-    displayName: 'Create and push the image'
-      
+    - template: templateSetVariableDockerTag.yml   # Set DOCKER_TAG
+    - script: |
+        docker login -u $(dockerHubId) -p $(dockerHubPassword)
+      displayName: 'Dockerhub login'
+    - script: |
+        if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+        else
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
+        fi
+        docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+      displayName: 'Build and push docker image'
+
 # Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
 # The idea being able to define jobs depending on the creation of the previous image.
 - ${{ each job in parameters.jobs }}: # Then do each job
