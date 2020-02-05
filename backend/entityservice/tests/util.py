@@ -170,7 +170,7 @@ def create_project_upload_data(
     new_project_data = create_project_no_data(
         requests, result_type=result_type, number_parties=number_parties)
 
-    upload_url = url + f'/projects/{new_project_data["project_id"]}/clks'
+    upload_url = url + f'/projects/{new_project_data["project_id"]}/{"binary" if binary else ""}clks'
     json_responses = []
     for clks, update_token in zip(data, new_project_data['update_tokens']):
         if binary:
@@ -405,7 +405,7 @@ def is_run_status(status):
 
 def upload_binary_data(requests, data, project_id, token, count, size=128, expected_status_code=201):
     r = requests.post(
-        url + '/projects/{}/clks'.format(project_id),
+        url + '/projects/{}/binaryclks'.format(project_id),
         headers={
             'Authorization': token,
             'Content-Type': 'application/octet-stream',
