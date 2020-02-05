@@ -3,7 +3,7 @@
 
 FROM data61/anonlink-docs-builder:20190625 AS docsbuilder
 COPY ./docs /src/docs
-COPY ./backend/entityservice/api_def/swagger.yaml /src/docs/_static/swagger.yaml
+COPY ./backend/entityservice/api_def/openapi.yaml /src/docs/_static/openapi.yaml
 WORKDIR /src
 RUN python -m sphinx /src/docs /build
 
