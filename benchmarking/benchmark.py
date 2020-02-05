@@ -85,7 +85,7 @@ def read_config():
             'timeout': timeout,
             'schema_path': schema_path,
             'data_path': data_path,
-            'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
+            'data_base_url': "https://public-linkage-data.s3-ap-southeast-2.amazonaws.com/febrl/",
             'results_path': results_path
         }
 
