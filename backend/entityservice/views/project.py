@@ -98,6 +98,82 @@ def project_get(project_id):
     return ProjectDescription().dump(project_object)
 
 
+def project_binaryclks_post(project_id):
+    """
+    Update a project to provide encoded PII data.
+    """
+    log = logger.bind(pid=project_id)
+    headers = request.headers
+
+    parent_span = g.flask_tracer.get_span()
+
+    with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
+        abort_if_project_doesnt_exist(project_id)
+        if headers is None or 'Authorization' not in headers:
+            safe_fail_request(401, message="Authentication token required")
+
+        token = headers['Authorization']
+
+        # Check the caller has valid token -> otherwise 403
+        abort_if_invalid_dataprovider_token(token)
+
+    with DBConn() as conn:
+        dp_id = db.get_dataprovider_id(conn, token)
+        project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
+        upload_state_updated = db.is_dataprovider_allowed_to_upload_and_lock(conn, dp_id)
+
+    if not upload_state_updated:
+        return safe_fail_request(403, "This token has already been used to upload clks.")
+
+    log = log.bind(dp_id=dp_id)
+    log.info("Receiving CLK data.")
+    receipt_token = None
+
+    with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
+        span.set_tag("project_id", project_id)
+        try:
+            if headers['Content-Type'] == "application/octet-stream":
+                span.set_tag("content-type", 'binary')
+                log.info("Handling binary CLK upload")
+                try:
+                    count, size = check_binary_upload_headers(headers)
+                    log.info(f"Headers tell us to expect {count} encodings of {size} bytes")
+                    span.log_kv({'count': count, 'size': size})
+                except Exception:
+                    log.warning("Upload failed due to problem with headers in binary upload")
+                    raise
+                # Check against project level encoding size (if it has been set)
+                if project_encoding_size is not None and size != project_encoding_size:
+                    # fail fast - we haven't stored the encoded data yet
+                    return safe_fail_request(400, "Upload 'Hash-Size' doesn't match project settings")
+
+                # TODO actually stream the upload data straight to Minio. Currently we can't because
+                # connexion has already read the data before our handler is called!
+                # https://github.com/zalando/connexion/issues/592
+                # stream = get_stream()
+                stream = BytesIO(request.data)
+                expected_bytes = binary_format(size).size * count
+                log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
+                if len(request.data) != expected_bytes:
+                    safe_fail_request(400,
+                                      "Uploaded data did not match the expected size. Check request headers are correct")
+                try:
+                    receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
+                except ValueError:
+                    safe_fail_request(400,
+                                      "Uploaded data did not match the expected size. Check request headers are correct.")
+            else:
+                safe_fail_request(400, "Content Type not supported")
+        except Exception:
+            log.info("The dataprovider was not able to upload her clks,"
+                     " re-enable the corresponding upload token to be used.")
+            with DBConn() as conn:
+                db.set_dataprovider_upload_state(conn, dp_id, state='error')
+            raise
+    with DBConn() as conn:
+        db.set_dataprovider_upload_state(conn, dp_id, state='done')
+    return {'message': 'Updated', 'receipt_token': receipt_token}, 201
+
 def project_clks_post(project_id):
     """
     Update a project to provide encoded PII data.
