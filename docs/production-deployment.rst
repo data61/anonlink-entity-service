@@ -133,8 +133,8 @@ It should return some information if some values are missing, e.g.::
 Notes:
  - the `lint` command does not exit with a non 0 exit code, and our templates are currently failing if linting with the option `--strict`.
  - if the folder `Charts` is not deleted, the linting may throw some errors from the dependent charts if a
-  value is missing without clear description, e.g. if the redis password is missing, the following error is returned from the `redis-ha` template
-  because the method `b64enc` requires a non empty string, but the template does not check first if the value is empty::
+   value is missing without clear description, e.g. if the redis password is missing, the following error is returned from the `redis-ha` template
+   because the method `b64enc` requires a non empty string, but the template does not check first if the value is empty::
 
      ==> Linting .
     [ERROR] templates/: render error in "entity-service/charts/redis-ha/templates/redis-auth-secret.yaml": template: entity-service/charts/redis-ha/templates/redis-auth-secret.yaml:10:35: executing "entity-service/charts/redis-ha/templates/redis-auth-secret.yaml" at <b64enc>: invalid value; expected string
