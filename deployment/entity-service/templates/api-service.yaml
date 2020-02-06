@@ -28,7 +28,7 @@ spec:
       protocol: TCP
       targetPort: "entity-nginx"
   selector:
-    app: {{ template "es.fullname" . }}
+    app: {{ template "es.appname" . }}
     component: {{ required "api.name must be provided." .Values.api.name | quote }}
     release: {{ .Release.Name }}
   type: {{ required "api.service.type must be provided." .Values.api.service.type }}

@@ -29,8 +29,8 @@ spec:
           imagePullPolicy: Always
           env:
             - name: ENTITY_SERVICE_URL
-              value: http://$SERVICE_IP/api/v1
-          command: ["dockerize", "-wait", "tcp://$SERVICE_IP/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "-n", "4", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
+              value: http://$SERVICE/api/v1
+          command: ["dockerize", "-wait", "http://$SERVICE/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "-n", "4", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
           volumeMounts:
             - mountPath: /mnt
               name: results

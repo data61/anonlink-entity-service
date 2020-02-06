@@ -5,8 +5,19 @@ Expand the name of the chart.
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+
+
 {{/*
-Create a default fully qualified app name.
+Create a safe version of the app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+*/}}
+{{- define "es.appname" -}}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- printf "%s" $name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified release name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 */}}
 {{- define "es.fullname" -}}
@@ -28,7 +39,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 We define the release labels that will be applied to all deployments.
 */}}
 {{- define "es.release_labels" }}
-app: {{ template "es.fullname" . }}
+app: {{ template "es.appname" . }}
 chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 # The "heritage" label is used to track which tool deployed a given chart.
 # It is useful for admins who want to see what releases a particular tool

@@ -10,7 +10,8 @@ spec:
   replicas: {{ required "api.replicaCount must be provided." .Values.api.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.fullname" . }}
+      app: {{ template "es.appname" . }}
+      release: {{ .Release.Name }}
       component: "{{ .Values.api.name }}"
       tier: frontend
   {{- if .Values.api.strategy }}

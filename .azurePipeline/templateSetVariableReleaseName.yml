@@ -1,0 +1,8 @@
+# Select a deployment name to be unique, not to have collisions when multiple pushes/builds occur of the same Git branch.
+# We use the git commit hash. BUT, a k8s deployment MUST start with a letter, so we prepend with `azk`.
+# The release also needs to be short enough so other k8s resources can prepend the release name and still be under
+# 63 characters, so we just take the first 10 chars of the git hash.
+steps:
+  - script: |
+      echo azk$(Build.SourceVersion) | tr [:upper:] [:lower:] | tr -cd [a-z0-9] | head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
+    displayName: 'Set DEPLOYMENT Variable'

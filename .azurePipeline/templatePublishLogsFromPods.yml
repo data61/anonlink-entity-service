@@ -1,4 +1,4 @@
-# Template to login into Dockerhub, build a docker image and push it.
+# Template to pull logs from Kubernetes pods.
 
 # Parameters:
 # `logsFolderPath` is the folder where the logs from the pods will be stored.
@@ -11,31 +11,62 @@
 parameters:
   logsFolderPath: ''
   releaseName: ''
-  kubeConfigFile: ''
+  kubernetesServiceEndpoint: ''
   JobAttempt: ''
+  namespace: ''
 
 steps:
-- task: UsePythonVersion@0
+
+- task: Kubernetes@1
+  displayName: 'Anonlink Entity Service Backend Worker Logs'
+  condition: always()
   inputs:
-    versionSpec: '3.7'
-  condition: always()
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=backend --tail=-1 --all-containers=true --prefix=true'
 
-- script: |
-    pip install ansicolors
-  displayName: 'Install Python dependencies.'
+- task: Kubernetes@1
+  displayName: 'Anonlink Entity Service NGINX Logs'
   condition: always()
-
-- script: |
-    echo "Copy the pods logs from the release '${{ parameters.releaseName }}' to '${{ parameters.logsFolderPath }}'."
-    python .azurePipeline/getPodsLogs.py ${{ parameters.logsFolderPath }} ${{ parameters.releaseName }}
-  displayName: 'Copy the logs from the service pods.'
-  condition: always()
-  env:
-    KUBECONFIG: ${{ parameters.kubeConfigFile }}
-
-- task: PublishPipelineArtifact@1
-  displayName: 'Publish pods logs in Azure'
   inputs:
-    artifactName: PodLogs${{ parameters.JobAttempt }}
-    targetPath: ${{ parameters.logsFolderPath }}
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=frontend --tail=-1 --container=entityservice-nginx --prefix=true'
+
+- task: Kubernetes@1
+  displayName: 'Anonlink Entity Service API Logs'
   condition: always()
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=frontend --tail=-1 --container=entityservice-flask --prefix=true'
+
+- task: Kubernetes@1
+  displayName: 'DB Logs'
+  condition: always()
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=db --tail=-1 --all-containers=true --prefix=true'
+
+- task: Kubernetes@1
+  displayName: 'Redis Logs'
+  condition: always()
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=memstore --tail=-1 --all-containers=true --prefix=true'
+
+- task: Kubernetes@1
+  displayName: 'Minio Logs'
+  condition: always()
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
+    command: 'logs'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=minio --tail=-1 --all-containers=true --prefix=true'
