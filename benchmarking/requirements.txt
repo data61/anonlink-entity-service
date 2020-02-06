@@ -1,6 +1,6 @@
 arrow
 boto3
-clkhash==0.14.0
+clkhash==0.15.1
 jsonschema
 pandas
 requests
