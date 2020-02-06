@@ -89,7 +89,7 @@ def read_config():
             'results_path': results_path
         }
 
-        if 'OBJECT_STORE_ACCESS_KEY' in os.environ:
+        if 'OBJECT_STORE_BUCKET' in os.environ:
             object_store_server = os.getenv('OBJECT_STORE_SERVER')
             object_store_access_key = os.getenv('OBJECT_STORE_ACCESS_KEY')
             object_store_secret_key = os.getenv('OBJECT_STORE_SECRET_KEY')
