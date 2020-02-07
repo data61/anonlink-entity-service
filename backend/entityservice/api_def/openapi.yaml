@@ -1062,15 +1062,14 @@ components:
         clknblocks:
           type: array
           items:
-            allOf:
-              - type: string
-                format: byte
-                description: Base64 encoded CLK data
-              - type: array
-                items:
-                  oneOf:
-                    - type: integer
-                    - type: string
+            type: array
+            items:
+              anyOf:
+                - type: string
+                  format: byte
+                  description: Base64 encoded CLK data
+                - type: string
+                - type: integer
 
     UploadReceipt:
       properties:
