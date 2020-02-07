@@ -24,7 +24,7 @@ import requests
 import time
 import os
 
-from clkhash.rest_client import RestClient
+from anonlinkclient.rest_client import RestClient
 from pprint import pprint
 from traceback import format_exc
 
