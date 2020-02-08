@@ -1,6 +1,6 @@
+anonlink-client==0.0.1
 arrow
 boto3
-clkhash==0.14.0
 jsonschema
 pandas
 requests
