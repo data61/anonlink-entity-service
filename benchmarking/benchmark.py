@@ -68,7 +68,7 @@ def read_config():
     DEFAULT_DATA_FOLDER = '/tmp/data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
-    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-result'
+    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-results'
 
     try:
         server = os.getenv('SERVER')
@@ -380,6 +380,7 @@ def push_to_object_store(config):
     )
     result_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
     client.upload_file(experiment_file, object_store_bucket, result_file_name)
+    logger.info('Results saved in file: {}'.format(result_file_name))
 
 
 def main():
