@@ -18,7 +18,7 @@ Usage
 You can download the tutorials from `github <https://github.com/data61/anonlink-entity-service/tree/master/docs/tutorial>`_.
 The dependencies are listed in ``tutorial-requirements.txt``.
 The code is often evolving and may include some breaking changes not yet deployed in our testing deployment (at the
-URL `<https://testing.es.data61.xyz>`_). So to run the tutorials, you can either:
+URL `<https://anonlink.easd.data61.xyz>`_). So to run the tutorials, you can either:
 
  - use the tutorials from the ``master`` branch of this repository which will work with the currently deployed testing service,
  - or build and deploy the service from the same branch as the tutorials you would like to run, providing its URL to
