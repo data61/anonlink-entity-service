@@ -29,7 +29,7 @@ data:
   {{ end }}
   # MINIO_ACCESS_KEY provided as a secret
   # MINIO_SECRET_KEY provided as a secret
-  MINIO_BUCKET: {{ required "minio.bucket is required." .Values.minio.bucket | quote }}
+  MINIO_BUCKET: {{ required "minio.defaultBucket.name is required." .Values.minio.defaultBucket.name | quote }}
 
   {{ if .Values.provision.postgresql }}
   DATABASE_SERVER: {{ .Release.Name }}-{{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}

@@ -4,7 +4,7 @@ dependencies:
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.redis
   - name: minio
-    version: 1.6.2
+    version: 5.0.6
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.minio
   - name: postgresql
