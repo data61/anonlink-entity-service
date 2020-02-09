@@ -194,6 +194,7 @@ stages:
         inputs:
           action: 'bake'
           helmChart: 'deployment/entity-service'
+          namespace: $(NAMESPACE)
           releaseName: $(DEPLOYMENT)
           overrides: |
             api.app.debug:true
