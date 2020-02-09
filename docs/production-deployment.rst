@@ -182,8 +182,8 @@ Create an ``integration-test-job.yaml`` file with the following content::
             image: data61/anonlink-app:v1.12.0
             imagePullPolicy: Always
             env:
-              - name: ENTITY_SERVICE_URL
-                value: https://anonlink.easd.data61.xyz/api/v1
+              - name: SERVER
+                value: https://anonlink.easd.data61.xyz
             command:
               - "python"
               - "-m"
@@ -191,7 +191,7 @@ Create an ``integration-test-job.yaml`` file with the following content::
               - "entityservice/tests"
               - "-x"
 
-Update the server url then create the new job on the cluster with::
+Update the ``SERVER`` url then create the new job on the cluster with::
 
     kubectl create -f integration-test-job.yaml
 
