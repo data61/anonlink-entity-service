@@ -18,8 +18,8 @@ spec:
         image: data61/anonlink-app:v1.12.0
         imagePullPolicy: Always
         env:
-          - name: ENTITY_SERVICE_URL
-            value: https://anonlink.easd.data61.xyz/api/v1
+          - name: SERVER
+            value: https://anonlink.easd.data61.xyz
           - name: LOGGING_LEVEL
             value: "INFO"
         command:

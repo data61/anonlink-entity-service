@@ -28,8 +28,8 @@ spec:
           image: $IMAGE_NAME_WITH_TAG
           imagePullPolicy: Always
           env:
-            - name: ENTITY_SERVICE_URL
-              value: http://$SERVICE/api/v1
+            - name: SERVER
+              value: http://$SERVICE
           command: ["dockerize", "-wait", "http://$SERVICE/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "-n", "4", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
           volumeMounts:
             - mountPath: /mnt

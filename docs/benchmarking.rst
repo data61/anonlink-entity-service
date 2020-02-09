@@ -2,7 +2,7 @@ Benchmarking
 ============
 
 In the `benchmarking` folder is a benchmarking script and associated Dockerfile.
-The docker image is published at ``https://quay.io/repository/n1analytics/entity-benchmark``
+The docker image is published at ``data61/anonlink-benchmark``
 
 The container/script is configured via environment variables.
 
@@ -22,7 +22,7 @@ Run Benchmarking Container
 Run the container directly with docker - substituting configuration information as required::
 
     docker run -it
-        -e SERVER=https://testing.es.data61.xyz \
+        -e SERVER=https://anonlink.easd.data61.xyz \
         -e RESULTS_PATH=/app/results.json \
         quay.io/n1analytics/entity-benchmark:latest
 
