@@ -11,26 +11,36 @@ Next Version
 Version 1.13.0-beta
 -------------------
 
-- fixed a bug where a dataprovider could upload their clks multiple time in a project using the same upload token (#463)
-- modify ``similarity_score`` output to follow the group format, which will simplify extending this output type to more parties (#464)
+- Fixed a bug where a dataprovider could upload their clks multiple times in a project using the same upload token. (#463)
+- Fixed a bug where workers accepted work after failing to initialize their database connection pool. (#477)
+- Modified ``similarity_score`` output to follow the group format in preparation to extending this output type to more
+  parties. (#464)
 - Tutorials have been improved following an internal review. (#467)
-- Database has been changed in preparation to support blocking. (#470)
-- Benchmarking results can be saved to Object Store/S3 without authentication. E.g. using node permissions on AWS. (#490)
+- Database schema and CLK upload api has been modified to support blocking. (#470)
+- Benchmarking results can now be saved to an object store without authentication. Allowing an AWS user to save to S3
+  using node permissions. (#490)
 - Removed duplicate/redundant tests. (#466)
-- Update dependencies:
+- Updated dependencies:
+
     - We have enabled `dependabot <https://dependabot.com/>`_ on GitHub to keep our Python dependencies up to date.
-    - ``anonlinkclient`` now used for benchmarking (#490)
-    - Chart dependencies ``redis-ha``, ``postgres`` and ``minio`` all updated.
+    - ``anonlinkclient`` now used for benchmarking. (#490)
+    - Chart dependencies ``redis-ha``, ``postgres`` and ``minio`` all updated. (#496, #497)
 
 
-Breaking Change
-~~~~~~~~~~~~~~~
+Breaking Changes
+~~~~~~~~~~~~~~~~
 
-- the ``dataproviders`` table `uploaded` field has been modified from a BOOL to an ENUM type (#463)
 - the ``similarity_score`` output type has been modified, it now returns a JSON array of JSON objects, where such an object
-  looks like `[[party_id_0, row_index_0], [party_id_1, row_index_1], score]`. (#464)
+  looks like ``[[party_id_0, row_index_0], [party_id_1, row_index_1], score]``. (#464)
 - Integration test configuration is now consistent with benchmark config. Instead of setting ``ENTITY_SERVICE_URL`` including
-``/api/v1`` now just set the host address in ``SERVER``.
+  ``/api/v1`` now just set the host address in ``SERVER``. (#495)
+
+
+Database Changes (Internal)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- the ``dataproviders`` table ``uploaded`` field has been modified from a BOOL to an ENUM type (#463)
+- The ``projects`` table has a new ``uses_blocking`` field. (#470)
 
 Version 1.13.0-alpha
 --------------------
