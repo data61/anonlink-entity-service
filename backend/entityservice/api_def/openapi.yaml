@@ -118,7 +118,7 @@ paths:
               example:
                 {
                   "status": "ok",
-                  "number_mappings": 3118,
+                  "project_count": 3118,
                   "rate": 1793757
                 }
         '500':
@@ -291,9 +291,8 @@ paths:
         - CLKs only upload: An array of base64 encoded CLKs (./concepts.html#cryptographic-longterm-keys), one per
           entity.
         - CLKs with blocking information upload: An array of base64 encoded CLKs with corresponding blocking
-          information. One element in this array consists of
-            - the base64 encoded CLK
-            - an array of block IDs the CLK corresponds to.
+          information. One element in this array is an array with the first element being a base64 encoded CLK followed
+          by the block IDs the CLK corresponds to.
 
         When the last party successfully uploads their data any existing project runs are queued
         for execution.
