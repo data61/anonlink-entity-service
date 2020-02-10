@@ -27,7 +27,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.5"
+      tag: "v1.4.6-beta"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -44,7 +44,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.12.0"
+      tag: "v1.13.0-beta"
       # pullPolicy: IfNotPresent
       pullPolicy: Always
 
@@ -67,7 +67,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: data61/anonlink-app
-      tag: "v1.12.0"
+      tag: "v1.13.0-beta"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -138,14 +138,20 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.12.0"
+    tag: "v1.13.0-beta"
     pullPolicy: Always
 
-  ## The number of workers for this deployment
+  ## The initial number of workers for this deployment
+  ## Note the workers.highmemory.replicaCount are in addition
   replicaCount: 1
 
+  ## Enable a horizontal pod autoscaler
+  ## Note: The cluster must have metrics-server installed.
+  ## https://kubernetes.io/docs/tasks/debug-application-cluster/resource-metrics-pipeline/
   autoscaler:
     enabled: false
+    minReplicas: 1
+    maxReplicas: 20
 
   podAnnotations: {}
 
@@ -203,7 +209,7 @@ workers:
       memory: 1Gi
       cpu: 2
 
-  ## At least one "high memory" worker is also required
+  ## At least one "high memory" worker is also required.
   highmemory:
     replicaCount: 1
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
