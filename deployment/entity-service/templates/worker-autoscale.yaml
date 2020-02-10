@@ -1,5 +1,5 @@
 {{- if .Values.workers.autoscaler.enabled }}
-apiVersion: autoscaling/v1
+apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
   labels:
@@ -7,10 +7,16 @@ metadata:
   name: worker-auto-scale
 spec:
   scaleTargetRef:
-    apiVersion: extensions/v1beta1
+    apiVersion: apps/v1
     kind: Deployment
     name: {{ .Release.Name }}-worker
-  minReplicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
+  minReplicas: {{ required "workers.autoscaler.minReplicas must be provided."  .Values.workers.autoscaler.minReplicas }}
   maxReplicas: {{ required "workers.autoscaler.maxReplicas must be provided." .Values.workers.autoscaler.maxReplicas }}
-  targetCPUUtilizationPercentage: 75
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
 {{- end -}}
