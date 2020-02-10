@@ -15,7 +15,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: data61/anonlink-app:v1.12.0
+        image: data61/anonlink-app:v1.13.0-beta
         imagePullPolicy: Always
         env:
           - name: SERVER

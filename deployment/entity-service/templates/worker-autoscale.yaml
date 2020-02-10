@@ -2,6 +2,8 @@
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
   name: worker-auto-scale
 spec:
   scaleTargetRef:
@@ -9,6 +11,6 @@ spec:
     kind: Deployment
     name: {{ .Release.Name }}-worker
   minReplicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
-  maxReplicas: 20
+  maxReplicas: {{ required "workers.autoscaler.maxReplicas must be provided." .Values.workers.autoscaler.maxReplicas }}
   targetCPUUtilizationPercentage: 75
 {{- end -}}
