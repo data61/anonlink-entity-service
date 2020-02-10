@@ -224,8 +224,13 @@ postgresql:
   persistence:
     enabled: false
     size: 8Gi
+
   metrics:
     enabled: true
+    #serviceMonitor:
+      #enabled: true
+      #namespace:
+
   ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
     #limits:
@@ -234,7 +239,11 @@ postgresql:
       #memory: 1Gi
       cpu: 100m
 
+
 global:
+  global:
+    storageClass: "default"
+
   postgresql:
     postgresqlDatabase: postgres
     postgresqlUsername: postgres

@@ -8,6 +8,6 @@ dependencies:
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.minio
   - name: postgresql
-    version: 5.2.1
+    version: 8.3.0
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.postgresql
