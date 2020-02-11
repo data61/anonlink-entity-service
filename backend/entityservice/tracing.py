@@ -7,34 +7,28 @@ from opentracing.propagation import Format
 from opentracing_instrumentation import get_current_span, span_in_context
 
 from entityservice.settings import Config as config
+from entityservice.utils import load_yaml_config
+
+DEFAULT_TRACER_CONFIG = {'sampler': {'type': 'const', 'param': 1}}
+
+
+def get_tracer_config(service_name):
+    if config.TRACING_CONFIG_FILENAME is not None:
+        tracing_config = load_yaml_config(config.TRACING_CONFIG_FILENAME)
+    else:
+        tracing_config = DEFAULT_TRACER_CONFIG
+
+    return jaeger_client.Config(config=tracing_config, service_name=service_name)
 
 
 def initialize_tracer(service_name='api'):
-    jaeger_config = jaeger_client.Config(
-        config={
-            'sampler': {'type': 'const', 'param': 1},
-            # 'local_agent': {
-            #     'reporting_host': config.TRACING_HOST,
-            #     'reporting_port': config.TRACING_PORT,
-            # }
-        },
-        service_name=service_name)
-
+    jaeger_config = get_tracer_config(service_name)
     # Note this call also sets opentracing.tracer
     return jaeger_config.initialize_tracer()
 
 
 def create_tracer(service_name='worker'):
-    jaeger_config = jaeger_client.Config(
-        config={
-            'sampler': {'type': 'const', 'param': 1},
-            # 'local_agent': {
-            #     'reporting_host': config.TRACING_HOST,
-            #     'reporting_port': config.TRACING_PORT,
-            # }
-        },
-        service_name=service_name)
-
+    jaeger_config = get_tracer_config(service_name)
     return jaeger_config.new_tracer()
 
 
