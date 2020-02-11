@@ -70,3 +70,7 @@ data:
   # Not from the setting.py file.
   LOG_CFG: "/var/config/logging_file.yaml"
   {{- end }}
+
+{{- if .Values.anonlink.config }}
+{{ toYaml .Values.anonlink.config | indent 2 }}
+{{- end }}

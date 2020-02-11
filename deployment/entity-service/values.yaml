@@ -3,6 +3,12 @@ rbac:
   ## See issue #88
   create: false
 
+anonlink:
+
+  ## Placed in the deployment's ConfigMap which ends up as environment variables for the API and Workers.
+  config: {}
+
+
 api:
 
   ## Deployment component name
