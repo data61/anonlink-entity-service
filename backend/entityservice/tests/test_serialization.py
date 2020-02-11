@@ -8,11 +8,7 @@ from array import array
 import anonlink
 
 from entityservice.serialization import deserialize_bytes, generate_scores
-from entityservice.tests.util import serialize_bytes
-
-
-def random_bytes(l=1024):
-    return random.getrandbits(l).to_bytes(l // 8, 'big')
+from entityservice.tests.util import serialize_bytes, generate_bytes
 
 
 class SerializationTest(unittest.TestCase):
@@ -27,7 +23,7 @@ class SerializationTest(unittest.TestCase):
         self.assertEqual(banew, ba)
 
     def test_random_bytes(self):
-        rb = random_bytes(2048)
+        rb = generate_bytes(2048//8)
         srb = serialize_bytes(rb)
         dsrb = deserialize_bytes(srb)
         self.assertEqual(dsrb, rb)
