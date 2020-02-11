@@ -16,7 +16,7 @@ info:
     name: 'Confidential Computing, Data61 | CSIRO'
     email: confidential-computing@csiro.au
   description: >-
-    Allows two organisations to carry out private record linkage -
+    Allows multiple organisations to carry out private record linkage -
     without disclosing personally identifiable information.
 
     In general:
@@ -288,7 +288,7 @@ paths:
         `project_id` and a valid `upload_token` in order to contribute data.
 
         The data uploaded must be of one of the following formats.
-        - CLKs only upload: An array of base64 encoded CLKs (./concepts.html#cryptographic-longterm-keys), one per
+        - CLKs only upload: An array of base64 encoded [CLKs](./concepts.html#cryptographic-longterm-keys), one per
           entity.
         - CLKs with blocking information upload: An array of base64 encoded CLKs with corresponding blocking
           information. One element in this array is an array with the first element being a base64 encoded CLK followed
@@ -358,7 +358,7 @@ paths:
       tags:
         - Project
       description: |
-        An experimental api has been added for uploading CLKs as a binary file. This is to allow for
+        An experimental api for uploading CLKs as a binary file. This is to allow for
         faster and more efficient data transfer.
         Called by each of the data providers with their calculated `CLK` vectors.
         The project must have been created, and the caller must have both the
