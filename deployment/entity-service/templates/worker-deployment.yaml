@@ -73,24 +73,17 @@ spec:
             - "fair"
             - "-Q"
             - "celery,compute"
-          {{- if .Values.loggingCfg }}
           volumeMounts:
             - name: config-volume
               mountPath: /var/config
-          {{- end }}
           args:
           {{- range $key, $value := .Values.workers.extraArgs }}
             - --{{ $key }}={{ $value }}
           {{- end }}
-      {{- if .Values.loggingCfg }}
       volumes:
         - name: config-volume
           configMap:
-            name: {{ template "es.fullname" . }}-logging
-            items:
-              - key: loggingCfg
-                path: "logging_file.yaml"
-      {{- end }}
+            name: {{ template "es.fullname" . }}-monitoring-config
       {{- if .Values.api.pullSecret }}
       imagePullSecrets:
       - name: {{ .Values.api.pullSecret }}

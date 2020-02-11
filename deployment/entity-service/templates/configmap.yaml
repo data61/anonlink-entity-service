@@ -66,10 +66,8 @@ data:
   MIN_ENCODING_SIZE: "8"
   MAX_ENCODING_SIZE: "1024"
 
-  {{- if .Values.loggingCfg }}
-  # Not from the setting.py file.
-  LOG_CFG: "/var/config/logging_file.yaml"
-  {{- end }}
+  LOG_CFG: "/var/config/loggingCfg"
+  TRACE_CFG: "/var/config/tracingCfgCfg"
 
 {{- if .Values.anonlink.config }}
 {{ toYaml .Values.anonlink.config | indent 2 }}

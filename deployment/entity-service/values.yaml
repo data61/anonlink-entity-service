@@ -5,8 +5,9 @@ rbac:
 
 anonlink:
 
-  ## Placed in the deployment's ConfigMap which ends up as environment variables for the API and Workers.
+  ## Set arbitrary environment variables for the API and Workers.
   config: {}
+
 
 api:
 
@@ -367,28 +368,38 @@ provision:
   postgresql: true
   redis: true
 
-## Custom logging file used to override the default settings. Will be used by the workers and the flask container.
+
+## Tracing config used by jaeger-client-python
+## https://github.com/jaegertracing/jaeger-client-python/blob/master/jaeger_client/config.py
+tracingConfig:
+  logging: true
+  metrics: true
+  sampler:
+    type: const
+    param: 1
+
+## Custom logging file used to override the default settings. Will be used by the workers and the api container.
 ## Example of logging configuration:
-#loggingCfg: |-
-#  version: 1
-#  disable_existing_loggers: False
-#  formatters:
-#    simple:
-#      format: "%(message)s"
-#    file:
-#      format: "%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s"
-#  filters:
-#    stderr_filter:
-#      (): entityservice.logger_setup.StdErrFilter
-#    stdout_filter:
-#      (): entityservice.logger_setup.StdOutFilter
-#  handlers:
-#    stdout:
-#      class: logging.StreamHandler
-#      level: DEBUG
-#      formatter: simple
-#      filters: [stdout_filter]
-#      stream: ext://sys.stdout
-#  root:
-#    level: INFO
-#    handlers: [stdout]
+loggingCfg: |-
+  version: 1
+  disable_existing_loggers: False
+  formatters:
+    simple:
+      format: "%(message)s"
+    file:
+      format: "%(asctime)-15s %(name)-12s %(levelname)-8s: %(message)s"
+  filters:
+    stderr_filter:
+      (): entityservice.logger_setup.StdErrFilter
+    stdout_filter:
+      (): entityservice.logger_setup.StdOutFilter
+  handlers:
+    stdout:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      filters: [stdout_filter]
+      stream: ext://sys.stdout
+  root:
+    level: INFO
+    handlers: [stdout]

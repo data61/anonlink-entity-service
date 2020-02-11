@@ -16,8 +16,10 @@ The following named loggers are used:
 The following environment variables affect logging:
 
 * `LOG_CFG` - sets the path to a logging configuration file. There are two examples:
+
   - `entityservice/default_logging.yaml`
   - `entityservice/verbose_logging.yaml`
+
 * `DEBUG` - sets the logging level to debug for all application code.
 * `LOGFILE` - directs the log output to this file instead of stdout.
 * `LOG_HTTP_HEADER_FIELDS` - HTTP headers to include in the application logs.
@@ -63,5 +65,4 @@ With `DEBUG` enabled there are a lot of logs from the backend and workers::
 Tracing
 -------
 
-* `TRACING_HOST`
-* `TRACING_PORT`
+`TRACING_CFG` overrides the path to an open tracing configuration file.

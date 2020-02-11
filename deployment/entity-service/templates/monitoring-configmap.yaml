@@ -1,11 +1,12 @@
-{{- if .Values.loggingCfg }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "es.fullname" . }}-logging
+  name: {{ template "es.fullname" . }}-monitoring-config
   labels:
     {{- include "es.release_labels" . | indent 4 }}
 data:
+  tracingCfg:
+{{ .Values.tracingConfig | indent 4 }}
   loggingCfg: |-
 {{ .Values.loggingCfg | indent 4 }}
-{{- end }}
