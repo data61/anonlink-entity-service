@@ -5,22 +5,24 @@ from pathlib import Path
 import structlog
 
 from entityservice.utils import load_yaml_config
+from entityservice.settings import Config as config
 
 
-def setup_logging(
-    default_path='default_logging.yaml',
-    env_key='LOG_CFG'
-):
+def setup_logging(default_path='default_logging.yaml'):
     """
     Setup logging configuration
     """
-    path = os.getenv(env_key, Path(__file__).parent / default_path)
-    config = load_yaml_config(path)
-    logging.config.dictConfig(config)
+    if config.LOG_CONFIG_FILENAME is not None:
+        path = Path(config.LOG_CONFIG_FILENAME)
+    else:
+        path = Path(__file__).parent / default_path
+
+    loggingconfig = load_yaml_config(path)
+    logging.config.dictConfig(loggingconfig)
 
     # Configure Structlog wrapper for client use
     setup_structlog()
-    logging.info("Loaded logging config from file")
+    logging.debug(f"Loaded logging config from file: {path}")
 
 
 def setup_structlog():

@@ -18,6 +18,9 @@ class Config(object):
     CONNEXION_STRICT_VALIDATION = os.getenv("CONNEXION_STRICT_VALIDATION", "true").lower() == "true"
     CONNEXION_RESPONSE_VALIDATION = os.getenv("CONNEXION_RESPONSE_VALIDATION", "true").lower() == "true"
 
+    LOG_CONFIG_FILENAME = os.getenv("LOG_CFG")
+    TRACING_CONFIG_FILENAME = os.getenv("TRACE_CFG")
+
     LOGFILE = os.getenv("LOGFILE")
     LOG_HTTP_HEADER_FIELDS = os.getenv("LOG_HTTP_HEADER_FIELDS")
 
@@ -87,9 +90,6 @@ class Config(object):
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.bin"
-
-    TRACING_HOST = os.getenv("TRACING_HOST", "jaeger")
-    TRACING_PORT = os.getenv("TRACING_PORT", "5775")
 
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = int(os.getenv('MIN_ENCODING_SIZE', '1'))
