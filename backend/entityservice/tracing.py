@@ -9,14 +9,14 @@ from opentracing_instrumentation import get_current_span, span_in_context
 from entityservice.settings import Config as config
 
 
-def initialize_tracer(service_name='anonlink'):
+def initialize_tracer(service_name='api'):
     jaeger_config = jaeger_client.Config(
         config={
             'sampler': {'type': 'const', 'param': 1},
-            'local_agent': {
-                'reporting_host': config.TRACING_HOST,
-                'reporting_port': config.TRACING_PORT,
-            }
+            # 'local_agent': {
+            #     'reporting_host': config.TRACING_HOST,
+            #     'reporting_port': config.TRACING_PORT,
+            # }
         },
         service_name=service_name)
 
