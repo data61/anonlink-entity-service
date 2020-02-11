@@ -30,6 +30,7 @@ from entityservice.utils import fmt_bytes, iterable_to_stream
 
 con_app.add_api(pathlib.Path("openapi.yaml"),
                 base_path='/',
+                options={'swagger_ui': False},
                 strict_validation=config.CONNEXION_STRICT_VALIDATION,
                 validate_responses=config.CONNEXION_RESPONSE_VALIDATION)
 
