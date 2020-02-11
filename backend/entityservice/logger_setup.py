@@ -1,10 +1,10 @@
 import logging.config
 import os
 from pathlib import Path
-import structlog
-import yaml
 
-from entityservice.errors import InvalidConfiguration
+import structlog
+
+from entityservice.utils import load_yaml_config
 
 
 def setup_logging(
@@ -15,14 +15,8 @@ def setup_logging(
     Setup logging configuration
     """
     path = os.getenv(env_key, Path(__file__).parent / default_path)
-    try:
-        with open(path, 'rt') as f:
-            config = yaml.safe_load(f)
-        logging.config.dictConfig(config)
-    except yaml.YAMLError as e:
-        raise InvalidConfiguration("Parsing YAML logging config failed") from e
-    except FileNotFoundError as e:
-        raise InvalidConfiguration(f"Logging config YAML file '{path}' doesn't exist.") from e
+    config = load_yaml_config(path)
+    logging.config.dictConfig(config)
 
     # Configure Structlog wrapper for client use
     setup_structlog()

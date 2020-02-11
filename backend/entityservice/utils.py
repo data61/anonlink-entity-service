@@ -8,13 +8,34 @@ import os
 
 import binascii
 import bitmath
-from flask import request
 from connexion import ProblemException
+from flask import request
 from structlog import get_logger
+import yaml
 
+from entityservice.errors import InvalidConfiguration
 from entityservice.database import DBConn, get_number_parties_uploaded, get_number_parties_ready, get_project_column
 
 logger = get_logger()
+
+
+def load_yaml_config(filename):
+    """
+    Load a yaml file as a Python object.
+
+    :param filename: a Path or String object
+    :raises InvalidConfiguration if the file isn't found or the yaml isn't valid.
+    :return: Python representation of yaml file's contents (usually Dict), or None if empty.
+    """
+    try:
+        with open(filename, 'rt') as f:
+            return yaml.safe_load(f)
+    except UnicodeDecodeError as e:
+        raise InvalidConfiguration("YAML file appears corrupt") from e
+    except yaml.YAMLError as e:
+        raise InvalidConfiguration("Parsing YAML config failed") from e
+    except FileNotFoundError as e:
+        raise InvalidConfiguration(f"Logging config YAML file '{filename}' doesn't exist.") from e
 
 
 def fmt_bytes(num_bytes):

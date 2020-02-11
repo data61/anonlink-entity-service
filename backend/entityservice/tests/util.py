@@ -5,6 +5,7 @@ import math
 import os
 import random
 import time
+import tempfile
 from contextlib import contextmanager
 from enum import IntEnum
 
@@ -12,6 +13,15 @@ from bitarray import bitarray
 import iso8601
 
 from entityservice.tests.config import url
+
+
+@contextmanager
+def temp_file_containing(data):
+    # Code to acquire resource, e.g.:
+    with tempfile.NamedTemporaryFile('wb') as fp:
+        fp.write(data)
+        fp.seek(0)
+        yield fp
 
 
 def serialize_bytes(hash_bytes):
