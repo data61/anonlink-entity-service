@@ -6,6 +6,10 @@ metadata:
     component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
     tier: backend
   name: {{ .Release.Name }}-worker
+  {{- if .Values.workers.deploymentAnnotations }}
+  annotations:
+{{ toYaml .Values.workers.deploymentAnnotations | indent 4 }}
+  {{- end }}
 spec:
   replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:

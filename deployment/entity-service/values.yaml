@@ -8,7 +8,6 @@ anonlink:
   ## Placed in the deployment's ConfigMap which ends up as environment variables for the API and Workers.
   config: {}
 
-
 api:
 
   ## Deployment component name
@@ -27,6 +26,9 @@ api:
   ##
   podAnnotations: {}
     # iam.amazonaws.com/role: linkage
+
+  ## Annotations added to the api Deployment
+  deploymentAnnotations: {}
 
   ## Settings for the nginx proxy
   www:
@@ -160,6 +162,8 @@ workers:
     maxReplicas: 20
 
   podAnnotations: {}
+
+  deploymentAnnotations: {}
 
   #strategy: ""
 
