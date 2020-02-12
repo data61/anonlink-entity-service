@@ -371,7 +371,7 @@ provision:
 
 ## Tracing config used by jaeger-client-python
 ## https://github.com/jaegertracing/jaeger-client-python/blob/master/jaeger_client/config.py
-tracingConfig:
+tracingConfig: |-
   logging: true
   metrics: true
   sampler:
