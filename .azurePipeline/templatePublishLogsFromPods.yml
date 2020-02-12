@@ -24,7 +24,7 @@ steps:
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=backend --tail=-1 --all-containers=true --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=backend --tail=-1 -c celery-worker --prefix=true'
 
 - task: Kubernetes@1
   displayName: 'Anonlink Entity Service NGINX Logs'
