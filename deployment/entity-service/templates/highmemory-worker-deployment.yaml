@@ -6,6 +6,10 @@ metadata:
     component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
     tier: backend
   name: {{ .Release.Name }}-highmemory-worker
+  {{- if .Values.workers.deploymentAnnotations }}
+  annotations:
+{{ toYaml .Values.workers.deploymentAnnotations | indent 4 }}
+  {{- end }}
 spec:
   replicas: {{ required "workers.highmemory.replicaCount must be provided." .Values.workers.highmemory.replicaCount }}
   selector:
