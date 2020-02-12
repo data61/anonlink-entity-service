@@ -20,6 +20,7 @@ celery.conf.broker_transport_options = Config.CELERY_BROKER_TRANSPORT_OPTIONS
 celery.conf.result_backend_transport_options = Config.CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS
 celery.conf.worker_prefetch_multiplier = Config.CELERYD_PREFETCH_MULTIPLIER
 celery.conf.worker_max_tasks_per_child = Config.CELERYD_MAX_TASKS_PER_CHILD
+
 if Config.CELERYD_CONCURRENCY > 0:
     # If set to 0, let celery choose the default, which is the number of available CPUs on the machine.
     celery.conf.worker_concurrency = Config.CELERYD_CONCURRENCY
