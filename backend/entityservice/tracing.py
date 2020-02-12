@@ -17,7 +17,6 @@ def get_tracer_config(service_name):
         tracing_config = load_yaml_config(config.TRACING_CONFIG_FILENAME)
     else:
         tracing_config = DEFAULT_TRACER_CONFIG
-
     return jaeger_client.Config(config=tracing_config, service_name=service_name)
 
 
