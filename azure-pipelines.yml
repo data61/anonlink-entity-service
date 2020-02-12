@@ -205,9 +205,8 @@ stages:
             api.app.image.repository:$(backendImageName)
             api.dbinit.image.repository:$(backendImageName)
             workers.image.repository:$(backendImageName)
-            api.deploymentAnnotations."sidecar.jaegertracing.io/inject":"true"
-
-            workers.deploymentAnnotations."sidecar.jaegertracing.io/inject":"true"
+            api.deploymentAnnotations."sidecar\.jaegertracing\.io\/inject":"true"
+            workers.deploymentAnnotations."sidecar\.jaegertracing\.io\/inject":"true"
 
 
       - task: KubernetesManifest@0
