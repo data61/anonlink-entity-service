@@ -29,7 +29,9 @@ api:
     # iam.amazonaws.com/role: linkage
 
   ## Annotations added to the api Deployment
-  deploymentAnnotations: {}
+  deploymentAnnotations: # {}
+    # This annotation enables jaeger injection for open tracing
+    "sidecar.jaegertracing.io/inject": "true"
 
   ## Settings for the nginx proxy
   www:
@@ -164,7 +166,9 @@ workers:
 
   podAnnotations: {}
 
-  deploymentAnnotations: {}
+  deploymentAnnotations: # {}
+    # This annotation enables jaeger injection for open tracing
+    "sidecar.jaegertracing.io/inject": "true"
 
   #strategy: ""
 
