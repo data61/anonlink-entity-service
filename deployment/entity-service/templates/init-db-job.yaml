@@ -42,6 +42,13 @@ spec:
           - "-m"
           - "flask"
           - "initdb"
+        volumeMounts:
+          - name: config-volume
+            mountPath: /var/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ template "es.fullname" . }}-monitoring-config
       restartPolicy: Never
       {{- if .Values.api.pullSecret }}
       imagePullSecrets:
