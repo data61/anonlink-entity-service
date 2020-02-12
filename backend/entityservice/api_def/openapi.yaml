@@ -1042,7 +1042,7 @@ components:
         - number
 
     CLKUpload:
-      description: Array of this party's Bloom Filters
+      description: Object that contains this party's Bloom Filters
       type: object
       required: [clks]
       properties:
@@ -1054,7 +1054,7 @@ components:
             description: Base64 encoded CLK data
 
     CLKnBlockUpload:
-      description: Array of this party's Bloom Filters including blocking information
+      description: Object that contains this party's Bloom Filters including blocking information
       type: object
       required: [clknblocks]
       properties:
