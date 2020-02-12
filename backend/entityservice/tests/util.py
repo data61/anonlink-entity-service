@@ -17,7 +17,6 @@ from entityservice.tests.config import url
 
 @contextmanager
 def temp_file_containing(data):
-    # Code to acquire resource, e.g.:
     with tempfile.NamedTemporaryFile('wb') as fp:
         fp.write(data)
         fp.seek(0)
@@ -152,10 +151,8 @@ def create_project_no_data(requests,
 
 @contextmanager
 def temporary_blank_project(requests, result_type='groups'):
-    # Code to acquire resource, e.g.:
     project = create_project_no_data(requests, result_type)
     yield project
-    # Release project resource
     delete_project(requests, project)
 
 

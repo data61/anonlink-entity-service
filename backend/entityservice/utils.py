@@ -31,9 +31,9 @@ def load_yaml_config(filename):
         with open(filename, 'rt') as f:
             return yaml.safe_load(f)
     except UnicodeDecodeError as e:
-        raise InvalidConfiguration("YAML file appears corrupt") from e
+        raise InvalidConfiguration(f"YAML file '{filename}' appears corrupt") from e
     except yaml.YAMLError as e:
-        raise InvalidConfiguration("Parsing YAML config failed") from e
+        raise InvalidConfiguration(f"Parsing YAML config from '{filename}' failed") from e
     except FileNotFoundError as e:
         raise InvalidConfiguration(f"Logging config YAML file '{filename}' doesn't exist.") from e
 
