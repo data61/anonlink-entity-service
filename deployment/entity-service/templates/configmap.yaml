@@ -67,7 +67,7 @@ data:
   MAX_ENCODING_SIZE: "1024"
 
   LOG_CFG: "/var/config/loggingCfg"
-  TRACE_CFG: "/var/config/tracingCfgCfg"
+  TRACE_CFG: "/var/config/tracingCfg"
 
 {{- if .Values.anonlink.config }}
 {{ toYaml .Values.anonlink.config | indent 2 }}
