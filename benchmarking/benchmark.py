@@ -134,7 +134,7 @@ def upload_binary_clks(config, sizes, credentials):
         assert len(facs_data) % SIZE_PER_CLK == 0
         try:
             r = requests.post(
-                server + '/api/v1/projects/{}/clks'.format(credentials['project_id']),
+                server + '/api/v1/projects/{}/binaryclks'.format(credentials['project_id']),
                 headers={
                     'Authorization': auth_token,
                     'Content-Type': 'application/octet-stream',

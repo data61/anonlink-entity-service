@@ -184,7 +184,7 @@ redoc = [
     {
         'name': 'Entity Service API',
         'page': 'api',
-        'spec': '_static/swagger.yaml',
+        'spec': '_static/openapi.yaml',
         'embed': True
     }
 ]
