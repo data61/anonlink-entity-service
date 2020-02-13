@@ -38,7 +38,7 @@ con_app.add_api(pathlib.Path("openapi.yaml"),
 # Config could be Config, DevelopmentConfig or ProductionConfig
 app.config.from_object(config)
 
-logger = structlog.get_logger()
+logger = structlog.wrap_logger(app.logger)
 # Tracer setup (currently just trace all requests)
 flask_tracer = FlaskTracer(initialize_tracer, True, app)
 

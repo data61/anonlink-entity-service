@@ -1,7 +1,7 @@
 import logging
 
 from celery import Celery
-from celery.signals import task_prerun, worker_process_init, worker_process_shutdown
+from celery import signals
 import structlog
 
 from entityservice.database.util import init_db_pool, close_db_pool
@@ -31,7 +31,7 @@ setup_structlog()
 logger = structlog.wrap_logger(logging.getLogger('entityservice.tasks'))
 
 
-@worker_process_init.connect()
+@signals.worker_process_init.connect()
 def init_worker(**kwargs):
     db_min_connections = Config.CELERY_DB_MIN_CONNECTIONS
     db_max_connections = Config.CELERY_DB_MAX_CONNECTIONS
@@ -40,16 +40,16 @@ def init_worker(**kwargs):
     logger.debug("Debug logging enabled")
 
 
-@worker_process_shutdown.connect()
+@signals.worker_process_shutdown.connect()
 def shutdown_worker(**kwargs):
     close_db_pool()
     logger.info("Shutting down a worker process")
 
 
-@task_prerun.connect()
+
+@signals.task_prerun.connect()
 def configure_structlog(sender, body=None, **kwargs):
     task = kwargs['task']
     task.logger = logger.new(
-        task_id=kwargs['task_id'],
         task_name=sender.__name__
     )
