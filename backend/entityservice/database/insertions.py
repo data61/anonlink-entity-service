@@ -277,7 +277,6 @@ def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
         RETURNING id, uploaded
         """
     query_response = query_db(db, sql_update, [dp_id])
-    print(query_response)
     length = len(query_response)
     if length < 1:
         return False
