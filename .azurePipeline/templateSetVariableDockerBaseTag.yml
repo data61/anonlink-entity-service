@@ -1,0 +1,14 @@
+# Set the azure variable DOCKER_BASE_TAG to the hash of the base Dockerfile + requirements file,
+# in lower case and with all special characters removed.
+
+steps:
+- script: |
+    cd base
+    cat requirements.txt
+
+    sha256sum requirements.txt Dockerfile | sha256sum | cut -f 1 -d " " | tr [:upper:] [:lower:] | xargs -I@ echo "##vso[task.setvariable variable=DOCKER_BASE_TAG;isOutput=true]@"
+  displayName: 'Set DOCKER_BASE_TAG Variable'
+  name: SetDockerBaseTag
+- script: |
+    echo "Base tag will be: $(SetDockerBaseTag.DOCKER_BASE_TAG)"
+  displayName: 'Echo DOCKER_BASE_TAG'
