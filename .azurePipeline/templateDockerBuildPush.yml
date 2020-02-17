@@ -18,7 +18,7 @@ parameters:
   imageName: ''
   imageTag: ''
   jobName: ''
-  skip: 'false'
+  skip: 'False'
   dockerBuildArgs: ''
   extraJobs: []
   dependsOn: ''
@@ -28,11 +28,12 @@ jobs:
   displayName: ${{ parameters.jobName }}
   pool:
     vmImage: "ubuntu-latest"
-  condition: and(succeeded(), variables['SKIP'])
+  condition: and(succeeded(), eq(variables['SKIP'], 'False'))
   dependsOn: ${{ parameters.dependsOn }}
   variables:
     DOCKER_TAG: ${{ parameters.imageTag }}
-    SKIP: eq('${{ parameters.skip }}', 'false')
+    SKIP: ${{ parameters.skip }}
+    DOCKER_BUILD_ARGS: ${{ parameters.dockerBuildArgs }}
   steps:
     - bash: |
         if [ -z "$DOCKER_TAG" ]; then
@@ -40,8 +41,10 @@ jobs:
         else
           echo "Non empty docker tag $DOCKER_TAG"
         fi
-        echo "Parameters.imageTag = \"${{ parameters.imageTag }}\""
-        echo "Variable DOCKER_TAG = \"$(DOCKER_TAG)\""
+
+        echo "Variable DOCKER_TAG = \"$DOCKER_TAG\""
+        echo "Variable SKIP = \"$SKIP\""
+        echo "Variable DOCKER_BUILD_ARGS = \"$DOCKER_BUILD_ARGS\""
       env:
         DOCKER_TAG: $(DOCKER_TAG)
       displayName: Echo tag parameter and variables
@@ -52,9 +55,9 @@ jobs:
       displayName: 'Dockerhub login'
     - script: |
         if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.dockerBuildArgs }} ${{ parameters.folder }}
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
         else
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }}  ${{ parameters.dockerBuildArgs }} ${{ parameters.folder }}
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
         fi
         docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
       displayName: 'Build and push docker image'

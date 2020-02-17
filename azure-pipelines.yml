@@ -42,7 +42,6 @@ stages:
   dependsOn: []
   jobs:
   - job: HashBaseDependencies
-    timeoutInMinutes: 5
     displayName: Hash Dependencies
     pool:
       vmImage: 'ubuntu-latest'
@@ -53,10 +52,10 @@ stages:
           # has the image?
           echo "Trying to pull $(SetDockerBaseTag.DOCKER_BASE_TAG)"
           if docker pull data61/anonlink-base:$(SetDockerBaseTag.DOCKER_BASE_TAG) ; then
-              echo "Image pulled"
+              echo "Base image pulled. Skipping building the base image."
               echo "##vso[task.setvariable variable=BUILD_BASE;isOutput=true]false"
           else
-              echo "Image wasn't present"
+              echo "Base image with correct tag wasn't present."
               echo "##vso[task.setvariable variable=BUILD_BASE;isOutput=true]true"
           fi
         name: BaseRequired
@@ -68,10 +67,32 @@ stages:
       imageName: data61/anonlink-base
       jobName: 'anonlink_base'
       imageTag: $[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]
-      skip: $[dependencies.HashBaseDependencies.outputs['BaseRequired.BUILD_BASE']]
+      skip: $[eq(dependencies.HashBaseDependencies.outputs['BaseRequired.BUILD_BASE'], 'false')]
 
 - stage: stage_docker_image_build
   displayName: Anonlink Docker build
+  dependsOn: [stage_base_docker_image_build]
+  jobs:
+  # Why do we recompute the base hash? Because we can't pass variables between stages.
+  # https://github.com/microsoft/azure-pipelines-tasks/issues/4743
+  - job: HashBaseDependencies
+    displayName: Hash Dependencies
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - template: .azurePipeline/templateSetVariableDockerBaseTag.yml
+  - template: .azurePipeline/templateDockerBuildPush.yml
+    parameters:
+      folder: './backend'
+      jobName: 'anonlink_app'
+      dependsOn: HashBaseDependencies
+      imageName: data61/anonlink-app
+      # this part is still todo automated
+      dockerBuildArgs: "--build-arg VERSION=84164cd33c77ba15258283426317403a896d49582f636d5ada0943afd6efa3b2"
+      #dockerBuildArgs: "--build-arg VERSION=$[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]"
+
+- stage: stage_docker_nginx_image_build
+  displayName: Nginx Docker build
   dependsOn: []
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml
@@ -80,13 +101,6 @@ stages:
       dockerFilePath: './frontend/Dockerfile'
       imageName: data61/anonlink-nginx
       jobName: 'anonlink_nginx'
-  - template: .azurePipeline/templateDockerBuildPush.yml
-    parameters:
-      folder: './backend'
-      imageName: data61/anonlink-app
-      jobName: 'anonlink_app'
-      ${{ if eq(variables['newBaseImage'], true) }}:
-        dockerBuildArgs: '--build-arg VERSION=TODO'
 
 - stage: stage_benchmark_image_build
   displayName: Build benchmark image
