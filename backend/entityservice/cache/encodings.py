@@ -35,15 +35,14 @@ def get_deserialized_filter(dp_id):
     else:
         logger.debug("Looking up popcounts and filename from database")
         with DBConn() as db:
-            serialized_filters_file = get_filter_metadata(db, dp_id)
-
+            serialized_filters_file, encoding_size = get_filter_metadata(db, dp_id)
         mc = connect_to_object_store()
         logger.debug("Getting filters from object store")
 
         # Note this uses already calculated popcounts unlike
         # serialization.deserialize_filters()
         raw_data_response = mc.get_object(config.MINIO_BUCKET, serialized_filters_file)
-        python_filters = binary_unpack_filters(raw_data_response)
+        python_filters = binary_unpack_filters(raw_data_response.stream(encoding_size))
 
         set_deserialized_filter(dp_id, python_filters)
         return python_filters

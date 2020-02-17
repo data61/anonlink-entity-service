@@ -30,6 +30,6 @@ def check_dataproviders_encoding(project_id, encoding_size):
 
 def handle_invalid_encoding_data(project_id, dp_id):
     with DBConn() as conn:
-        filename = get_filter_metadata(conn, dp_id)
+        filename, _ = get_filter_metadata(conn, dp_id)
         update_encoding_metadata(conn, 'DELETED', dp_id, state='error')
     delete_minio_objects.delay([filename], project_id)
