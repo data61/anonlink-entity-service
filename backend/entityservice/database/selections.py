@@ -46,6 +46,12 @@ def check_project_exists(db, resource_id):
     return query_result['count'] == 1
 
 
+def get_uses_blocking(db, project_id):
+    sql_query = 'select uses_blocking from projects WHERE project_id = %s'
+    query_result = query_db(db, sql_query, [project_id], one=True)
+    return query_result['uses_blocking']
+
+
 def check_run_exists(db, project_id, run_id):
     sql_query = '''
         SELECT count(*)
