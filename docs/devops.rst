@@ -28,6 +28,7 @@ The continuous integration stages are:
 
 - building and pushing the following docker images:
   - the frontend ``data61/anonlink-nginx``
+  - the Python base image ``data61/anonlink-base``
   - the backend ``data61/anonlink-app``
   - the tutorials ``data61/anonlink-docs-tutorials`` (used to tests the tutorial Python Notebooks)
   - the benchmark ``data61/anonlink-benchmark`` (used to run the benchmark)

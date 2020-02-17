@@ -36,6 +36,40 @@ variables. Multiple workers can be used to distribute the work beyond
 one machine - by default all cores will be used for computing similarity
 scores and encrypting the mask vector.
 
+Dependencies
+~~~~~~~~~~~~
+
+Anonlink Entity Service uses Python dependencies found in ``base/requirements.txt``. These can be
+manually installed using ``pip``::
+
+    pip install -r base/requirements.txt
+
+
+Docker is used for packaging the application, we rely on a base image that includes the Python
+dependencies. To update a dependency commit a change to the pinned version in ``base/requirements.txt``.
+Our CI system will bake the base image and tag it with a digest. You could generate the digest yourself
+with bash (example digest shown)::
+
+    $ cd base
+    $ sha256sum requirements.txt Dockerfile | sha256sum | cut -f 1 -d " " | tr [:upper:] [:lower:]
+    3814723844e4b359f0b07e86a57093ad4f88aa434c42ced9c72c611bbcf9819a
+
+Then a microservice can be updated to use this base image. In the application ``Dockerfile`` there will
+be an overridable digest::
+
+    ARG VERSION=4b497c1a0b2a6cc3ea848338a67c3a129050d32d9c532373e3301be898920b55
+    FROM data61/anonlink-base:${VERSION}
+
+
+Either update this digest in the ``Dockerfile``, or when building with ``docker build`` pass in an extra
+argument::
+
+    --build-arg VERSION=3814723844e4b359f0b07e86a57093ad4f88aa434c42ced9c72c611bbcf9819a
+
+
+Ideally the CI system should automatically build the application using the most recent base ``VERSION``,
+however this is currently manual.
+
 Redis
 -----
 
