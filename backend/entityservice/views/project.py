@@ -10,7 +10,7 @@ import entityservice.database as db
 from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
-    clks_uploaded_to_project, fmt_bytes
+    clks_uploaded_to_project, fmt_bytes, iterable_to_stream
 from entityservice.database import DBConn
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort
@@ -151,20 +151,26 @@ def project_binaryclks_post(project_id):
                 # connexion has already read the data before our handler is called!
                 # https://github.com/zalando/connexion/issues/592
                 # stream = get_stream()
-                stream = BytesIO(request.data)
-                expected_bytes = binary_format(size).size * count
+                stream = iterable_to_stream(BytesIO(request.data))
+                binary_formatter = binary_format(size)
+                def entity_id_injector(filter_stream):
+                    for entity_id in range(count):
+                        yield binary_formatter.pack(entity_id, filter_stream.read(size))
+                data_with_ids = b''.join(entity_id_injector(stream))
+
+                expected_bytes = size * count
                 log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
                 if len(request.data) != expected_bytes:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
+                    receipt_token = upload_clk_data_binary(project_id, dp_id, BytesIO(data_with_ids), count, size)
                 except ValueError:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
                 safe_fail_request(400, "Content Type not supported")
-        except Exception:
+        except Exception as e:
             log.info("The dataprovider was not able to upload her clks,"
                      " re-enable the corresponding upload token to be used.")
             with DBConn() as conn:
