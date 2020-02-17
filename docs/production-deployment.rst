@@ -1,13 +1,15 @@
 Production deployment
 =====================
 
-Production deployment assumes a multi node `Kubernetes <https://kubernetes.io/docs/home/>`__
+Production deployment assumes a `Kubernetes <https://kubernetes.io/docs/home/>`__
 cluster.
 
-The entity service has been deployed to kubernetes clusters on Azure, GCE, minikube and
+The entity service has been deployed to kubernetes clusters on Azure, GCE, minikube, and
 AWS. The system has been designed to scale across multiple nodes and handle node
 failure without data loss.
 
+Overview
+--------
 
 .. figure:: _static/deployment.png
    :alt: Entity Service Kubernetes Deployment
@@ -15,8 +17,8 @@ failure without data loss.
 
 At a high level the main custom components are:
 
-- **ES App** - a gunicorn/flask backend web service hosts the REST api
-- **Entity Match Worker** instances - uses celery for task scheduling
+- **REST API Server** - a gunicorn/flask backend web service hosting the REST api.
+- **PPRL Worker** instances - using celery for task scheduling.
 
 The components that are used in support are:
 
@@ -30,10 +32,11 @@ The components that are used in support are:
 The rest of this document goes into how to deploy in a production setting.
 
 
-Provision a Kubernetes cluster
-------------------------------
+Requirements
+------------
 
-Creating a Kubernetes cluster is out of scope for this documentation.
+A Kubernetes Cluster is required - creating and setting up a Kubernetes cluster is out of
+scope for this documentation.
 
 **Hardware requirements**
 
@@ -43,54 +46,49 @@ number of nodes depends on the size of the expected jobs, as well as the
 memory on each node. For testing we recommend starting with at least two nodes, with each
 node having at least 8 GiB of memory and 2 vCPUs.
 
-
 **Software to interact with the cluster**
 
 You will need to install the `kubectl <https://kubernetes.io/docs/tasks/kubectl/install/>`__
-command line tool, and `helm <https://github.com/kubernetes/helm>`__
+command line tool, and `helm <https://helm.sh/>`__.
 
 
-Install Helm
-~~~~~~~~~~~~
+Helm
+~~~~
 
-The entity service system has been packaged using `helm <https://github.com/kubernetes/helm>`__,
-there is a client program that needs to be
-`installed <https://github.com/kubernetes/helm/blob/master/docs/install.md>`__
-
-At the very least you will need to install tiller into the cluster::
-
-    helm init
-
+The Anonlink Entity Service has been packaged using `helm <https://helm.sh/>`__,
+follow the `helm installation documentation <https://helm.sh/docs/intro/install/>`__.
 
 
 Ingress Controller
 ~~~~~~~~~~~~~~~~~~
 
-We assume the cluster has an ingress controller, if this isn't the case first add one. We suggest
-using `Traefik <https://traefik.io/>`__ or
-`NGINX Ingress Controller <https://github.com/kubernetes/ingress-nginx>`__.  Both can be installed
-using helm.
+For external API access the deployment relies on ``Ingress`` resources, for this to work the cluster must
+have an `ingress controller <https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/>`__.
 
 
 Deploy the system
 -----------------
 
-**Helm** can be used to deploy the system to a kubernetes cluster.
+**Helm** can be used to deploy the system to a kubernetes cluster. There are two options, if you would like
+to deploy from the source simply run ``helm dependency update`` command from your
+`deployment/entity-service` directory, otherwise (**recommended approach**) add the Data61 helm chart
+repository::
 
-From the `deployment/entity-service` directory pull the dependencies::
 
-    helm dependency update
+    helm repo add data61 https://data61.github.io/charts
+    helm repo update
+
 
 
 Configuring the deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a new blank yaml file to hold your custom deployment settings ``my-deployment.yaml``.
-Carefully read through the default ``values.yaml`` file and override any values in your deployment
+Carefully read through the chart's default ``values.yaml`` file and override any values in your deployment
 configuration file.
 
 At a minimum consider setting up an ingress by changing ``api.ingress``, change the number of
-workers in ``workers.replicaCount`` (and possibly ``workers.highmemory.replicaCount``), check
+workers in ``workers.replicaCount`` (and ``workers.highmemory.replicaCount``), check
 you're happy with the workers' cpu and memory limits in ``workers.resources``, and finally set
 the credentials:
 
@@ -108,16 +106,15 @@ the number of connection the database can handle, to threads exhaustion blocking
 We are thus recommending some sets of attributes, but note that every deployment is different and may require its
 own tweaking.
 
-First observation: celery is not a good sharer of resources (cf issues <https://github.com/data61/anonlink-entity-service/issues/410>).
-We would thus recommend to specify a limit of number of CPUs each worker can use, and set correspondingly the concurrency of the workers
-to this limit. More help is provided directly in the `values.yaml` file.
+Celery is not always the best at sharing resources, we recommend deployments specify a limit of CPU resources
+each worker can use, and correspondingly set the concurrency of the workers to this limit. More information is
+provided directly in the ``values.yaml`` file.
 
 
 Before Installation
 ~~~~~~~~~~~~~~~~~~~
 
-Before installation, it is best practice to run some checks that helm provides.
-The first one is to execute::
+Before installation, it is best practice to run some checks that helm provides. The first one is to execute::
 
     helm lint -f extraValues.yaml
 
@@ -151,10 +148,10 @@ Then, it advised to use the `--dry-run --debug` options before deploying with `h
 Installation
 ~~~~~~~~~~~~
 
-To install the whole system execute::
+To install the whole system assuming you have a configuration file ``my-deployment.yaml`` in the current
+directory::
 
-    cd deployment
-    helm install entityservice --name="anonlink" --values ``my-deployment.yaml``
+    $ helm upgrade --install anonlink data61/entity-service -f anonlink.yaml
 
 
 This can take several minutes the first time you deploy to a new cluster.
@@ -162,23 +159,43 @@ This can take several minutes the first time you deploy to a new cluster.
 Run integration tests and an end to end test
 --------------------------------------------
 
-Update the server url by editing the ``jobs/integration-test-job.yaml`` file then create a
-new job on the cluster::
+Integration tests can be carried out in the same Kubernetes cluster by creating a integration test ``Job``.
+Create an ``integration-test-job.yaml`` file with the following content::
 
-    kubectl create -f jobs/integration-test-job.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: anonlinkintegrationtest
+      labels:
+        jobgroup: integration-test
+    spec:
+      completions: 1
+      parallelism: 1
+      template:
+        metadata:
+          labels:
+            jobgroup: integration-test
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: entitytester
+            image: data61/anonlink-app:v1.12.0
+            imagePullPolicy: Always
+            env:
+              - name: SERVER
+                value: https://anonlink.easd.data61.xyz
+            command:
+              - "python"
+              - "-m"
+              - "pytest"
+              - "entityservice/tests"
+              - "-x"
+
+Update the ``SERVER`` url then create the new job on the cluster with::
+
+    kubectl create -f integration-test-job.yaml
 
 
-
-To view the celery monitor:
----------------------------
-
-Note the monitor must be enabled at deployment. Find the pod that the celery monitor is
-running on then forward the port. For example::
-
-    $ kubectl get -n default pod --selector=run=celery-monitor -o jsonpath='{.items..metadata.name}'
-    entityservice-monitor-4045544268-s34zl
-
-    $kubectl port-forward entityservice-monitor-4045544268-s34zl 8888:8888
 
 
 Upgrade Deployment with Helm
@@ -191,14 +208,14 @@ to 20::
     helm upgrade anonlink entity-service --namespace=testing --set workers.replicas="20"
 
 
-However, note you may wish to instead keep all configurable values in a yaml file and track
-that in version control.
+However, note you may wish to instead keep all configurable values in a ``yaml`` file and track
+the changes in version control.
 
 Minimal Deployment
 ------------------
 
-To run with minikube for local testing we have provided a ``minimal.yaml`` file that will
-set very small resource limits. Install the minimal system with::
+To run with minikube for local testing we have provided a ``minimal.yaml`` configuration file that will
+set small resource limits. Install the minimal system with::
 
     helm install entity-service --name="mini-es" --values entity-service/minimal-values.yaml
 

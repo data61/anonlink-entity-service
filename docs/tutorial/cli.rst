@@ -39,13 +39,13 @@ Process the personally identifying data into :ref:`cryptographic-longterm-keys`:
 Now to interact with an Entity Service. First check that the service is healthy and responds to
 a status check::
 
-    $ clkutil status --server https://testing.es.data61.xyz
+    $ clkutil status --server https://anonlink.easd.data61.xyz
     {"rate": 53129, "status": "ok", "project_count": 1410}
 
 Then create a new linkage project and set the output type (to ``mapping``)::
 
     $ clkutil create-project \
-        --server https://testing.es.data61.xyz \
+        --server https://anonlink.easd.data61.xyz \
         --type mapping \
         --schema schema.json \
         --output credentials.json
@@ -65,13 +65,13 @@ The contents is two upload tokens and a result token::
 These credentials get substituted in the following commands. Each CLK dataset
 gets uploaded to the Entity Service::
 
-    $ clkutil upload --server https://testing.es.data61.xyz \
+    $ clkutil upload --server https://anonlink.easd.data61.xyz \
                     --apikey 21d4c9249e1c70ac30f9ce03893983c493d7e90574980e55 \
                     --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                     alice-hashed.json
     {"receipt_token": "05ac237462d86bc3e2232ae3db71d9ae1b9e99afe840ee5a", "message": "Updated"}
 
-    $ clkutil upload --server https://testing.es.data61.xyz \
+    $ clkutil upload --server https://anonlink.easd.data61.xyz \
                     --apikey 3ad6ae9028c09fcbc7fbca36d19743294bfaf215f1464905 \
                     --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                     bob-hashed.json
@@ -80,7 +80,7 @@ gets uploaded to the Entity Service::
 Now we can compute mappings using various thresholds. For example to only see relationships where the
 similarity is above ``0.9``::
 
-    $ clkutil create --server https://testing.es.data61.xyz \
+    $ clkutil create --server https://anonlink.easd.data61.xyz \
                      --apikey 230a303b05dfd186be87fa65bf7b0970fb786497834910d1 \
                      --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                      --name "Tutorial mapping run" \
@@ -91,7 +91,7 @@ similarity is above ``0.9``::
 After a small delay the mapping will have been computed and we can use ``clkutil`` to retrieve the
 results::
 
-    $ clkutil results --server https://testing.es.data61.xyz \
+    $ clkutil results --server https://anonlink.easd.data61.xyz \
                     --apikey  230a303b05dfd186be87fa65bf7b0970fb786497834910d1 \
                     --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                     --run 31a6d3c775151a877dcac625b4b91a6659317046ea45ad11

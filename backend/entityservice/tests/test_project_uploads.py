@@ -49,15 +49,7 @@ def test_project_binary_data_uploaded(requests, valid_project_params):
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
 
-    if valid_project_params['result_type'] == 'mapping':
-        assert 'mapping' in result
-
-        # Since we uploaded the same file it should have identified the
-        # same rows as matches
-        for i in range(1, 1000):
-            assert str(i) in result['mapping']
-            assert result['mapping'][str(i)] == str(i)
-    elif valid_project_params['result_type'] == 'groups':
+    if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
         groups = result['groups']
         assert len(groups) == 1000
@@ -101,10 +93,7 @@ def test_project_binary_data_upload_with_different_encoded_size(
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    if valid_project_params['result_type'] == 'mapping':
-        assert 'mapping' in result
-        assert result['mapping']['499'] == '0'
-    elif valid_project_params['result_type'] == 'groups':
+    if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
         groups = result['groups']
         groups_set = {frozenset(map(tuple, group)) for group in groups}
@@ -127,10 +116,7 @@ def test_project_json_data_upload_with_various_encoded_sizes(
 
     run_id = post_run(requests, new_project_data, 0.9)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
-    if result_type == 'mapping':
-        assert 'mapping' in result
-        assert len(result['mapping']) >= 400
-    elif result_type == 'groups':
+    if result_type == 'groups':
         assert 'groups' in result
         # This is a pretty bad bound, but we're not testing the
         # accuracy.
@@ -220,15 +206,15 @@ def test_project_binary_data_invalid_buffer_size(
     pid = new_project_data['project_id']
     file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
 
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], -1, status=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], -1, expected_status_code=400)
 
     # Now try upload with valid hash-count but doesn't match actual size:
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1000000, status=400)
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 3, status=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1000000, expected_status_code=400)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 3, expected_status_code=400)
 
     # Now try the minimum upload size (1 clk)
     file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/single_clk.bin')
-    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1, status=201)
+    upload_binary_data_from_file(requests, file_path, pid, new_project_data['update_tokens'][0], 1, expected_status_code=201)
 
 
 def test_project_single_party_empty_data_upload(
@@ -249,3 +235,62 @@ def test_project_single_party_empty_data_upload(
     )
     assert r.status_code == 400
 
+
+def test_project_upload_using_twice_same_authentication(requests, valid_project_params):
+    """
+    Test that a token cannot be re-used to upload clks.
+    So first, create a project, upload clks with a token (which should work), and then re-upload clks using the same
+    token which should return a 403 error.
+    """
+    expected_number_parties = get_expected_number_parties(valid_project_params)
+    if expected_number_parties < 2:
+        # The test is not made for less than two parties
+        return
+
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    update_tokens = new_project_data['update_tokens']
+
+    assert len(update_tokens) == expected_number_parties
+
+    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
+    token_to_reuse = update_tokens[0]
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000)
+
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000, expected_status_code=403)
+
+
+def test_project_upload_invalid_clks_then_valid_clks_same_authentication(requests, valid_project_params):
+    """
+    Test that a token can be re-used to upload clks after the upload failed.
+    So first, create a project, upload clks with a token (which should NOT work with a 400 error),
+    and then re-upload clks using the same token which should work.
+    """
+    expected_number_parties = get_expected_number_parties(valid_project_params)
+
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    update_tokens = new_project_data['update_tokens']
+
+    assert len(update_tokens) == expected_number_parties
+
+    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
+    token_to_reuse = update_tokens[0]
+    # This should fail as we are not providing the good count.
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 2000, expected_status_code=400)
+
+    upload_binary_data_from_file(
+        requests,
+        small_file_path, new_project_data['project_id'], token_to_reuse, 1000)

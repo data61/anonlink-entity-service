@@ -1,6 +1,5 @@
-
 {
-  "version": 2,
+  "version": 3,
   "clkConfig": {
     "l": 1024,
     "kdf": {
@@ -23,10 +22,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 2,
-        "positional": false,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 15}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 15
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 2,
+          "positional": false
+        }
       }
     },
     {
@@ -36,10 +42,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 2,
-        "positional": false,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 15}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 15
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 2,
+          "positional": false
+        }
       }
     },
     {
@@ -49,10 +62,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 2,
-        "positional": true,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 15}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 15
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 2,
+          "positional": true
+        }
       }
     },
     {
@@ -62,10 +82,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 1,
-        "positional": true,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 15}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 15
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 1,
+          "positional": true
+        }
       }
     },
     {
@@ -75,10 +102,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 2,
-        "positional": false,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 15}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 15
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 2,
+          "positional": false
+        }
       }
     },
     {
@@ -88,10 +122,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 1,
-        "positional": true,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 7}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 7
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 1,
+          "positional": true
+        }
       }
     },
     {
@@ -101,10 +142,17 @@
         "encoding": "utf-8"
       },
       "hashing": {
-        "ngram": 1,
-        "positional": true,
-        "hash": {"type": "doubleHash"},
-        "strategy": {"k": 7}
+        "hash": {
+          "type": "doubleHash"
+        },
+        "strategy": {
+          "bitsPerToken": 7
+        },
+        "comparison": {
+          "type": "ngram",
+          "n": 1,
+          "positional": true
+        }
       }
     }
   ]

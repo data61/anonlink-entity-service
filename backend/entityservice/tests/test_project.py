@@ -20,19 +20,28 @@ def _check_new_project_response_fields(new_project_data,
 
 
 def test_simple_create_project(requests, valid_project_params):
-    project_name = 'a test project'
-    project_description = 'created by unittest'
+    for uses_blocking in (True, False):
+        name = 'a test project'
+        description = 'created by unittest'
 
-    project_response = requests.post(url + '/projects', json={
-        'schema': {},
-        'name': project_name,
-        'notes': project_description,
-        **valid_project_params
-    })
+        project_response = requests.post(url + '/projects', json={
+            'schema': {},
+            'name': name,
+            'notes': description,
+            'uses_blocking': uses_blocking,
+            **valid_project_params
+        })
 
-    assert project_response.status_code == 201
-    new_project_data = project_response.json()
-    _check_new_project_response_fields(new_project_data, valid_project_params)
+        assert project_response.status_code == 201
+        new_project_data = project_response.json()
+        _check_new_project_response_fields(new_project_data, valid_project_params)
+        project_description = requests.get(
+            url + '/projects/{}'.format(new_project_data['project_id']),
+            headers={'Authorization': new_project_data['result_token']}
+        ).json()
+        assert project_description['name'] == name
+        assert project_description['notes'] == description
+        assert project_description['uses_blocking'] is uses_blocking
 
 
 def test_create_then_delete_no_auth(requests, valid_project_params):

@@ -1,23 +1,17 @@
-from entityservice.tests.util import create_project_no_data, post_run, get_run_result, wait_approx_run_time
-
-
-def test_run_mapping_results(requests, mapping_project):
-    run_id = post_run(requests, mapping_project, 0.95)
-    wait_approx_run_time(mapping_project['size'])
-
-    result = get_run_result(requests, mapping_project, run_id, timeout=120)
-    assert 'mapping' in result
-    assert isinstance(result['mapping'], dict)
+from entityservice.tests.util import create_project_no_data, post_run, get_run_result
 
 
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):
     run_id = post_run(requests, similarity_scores_project, threshold)
     result = get_run_result(requests, similarity_scores_project, run_id, timeout=120)
     assert 'similarity_scores' in result
-    for index1, index2, score in result['similarity_scores']:
+    for (party_id_1, rec_id_1), (party_id_2, rec_id_2), score in result['similarity_scores']:
         assert 0.0 <= score >= 1.0
-        assert 0 <= index1
-        assert 0 <= index2
+        assert 0 <= party_id_1
+        assert 0 <= party_id_2
+        assert party_id_1 != party_id_2
+        assert 0 <= rec_id_1
+        assert 0 <= rec_id_2
 
 
 def test_run_permutations_results(requests, permutations_project, threshold):

@@ -106,14 +106,14 @@ relationships.
 The ``result_token`` (generated when creating the mapping) is required. The ``result_type`` should
 be set to ``"similarity_scores"``.
 
-Results are a simple JSON array of arrays::
+Results are a JSON array of JSON arrays of three elements::
 
    [
-       [index_a, index_b, score],
+       [[party_id_0, row_index_0], [party_id_1, row_index_1], score],
        ...
    ]
 
-Where the index values will be the 0 based row index from the uploaded CLKs, and
+Where the index values will be the 0 based dataset index and row index from the uploaded CLKs, and
 the score will be a Number between the provided threshold and ``1.0``.
 
 A score of ``1.0`` means the CLKs were identical. Threshold values are usually between
@@ -127,22 +127,6 @@ A score of ``1.0`` means the CLKs were identical. Threshold values are usually b
 
         Comparing two data sets each containing 1 million records with a threshold
         of ``0.0`` will return 1 trillion results (``1e+12``).
-
-Direct Mapping Table (Deprecated for Groups Result)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The direct mapping takes the similarity scores and simply assigns the highest scores as links.
-
-The links are exposed as a lookup table using indices from the two organizations::
-
-    {
-        index_a: index_b,
-        ...
-    }
-
-
-The ``result_token`` (generated when creating the mapping) is required to retrieve the results. The
-``result_type`` should be set to ``"mapping"``.
 
 Groups Result
 ~~~~~~~~~~~~~

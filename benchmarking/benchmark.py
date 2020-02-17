@@ -24,7 +24,7 @@ import requests
 import time
 import os
 
-from clkhash import rest_client
+from anonlinkclient.rest_client import RestClient
 from pprint import pprint
 from traceback import format_exc
 
@@ -40,6 +40,8 @@ SIZE_PER_CLK = 128  # As per serialization.py.
 
 logger = logging
 logger.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+
+rest_client = RestClient(os.getenv('SERVER'))
 
 
 def load_experiments(filepath):
@@ -66,7 +68,7 @@ def read_config():
     DEFAULT_DATA_FOLDER = '/tmp/data'
     DEFAULT_RESULTS_PATH = 'results.json'
 
-    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-result'
+    DEFAULT_OBJECT_STORE_BUCKET = 'anonlink-benchmark-results'
 
     try:
         server = os.getenv('SERVER')
@@ -85,11 +87,11 @@ def read_config():
             'timeout': timeout,
             'schema_path': schema_path,
             'data_path': data_path,
-            'data_base_url': "https://s3-ap-southeast-2.amazonaws.com/n1-data/febrl/",
+            'data_base_url': "https://public-linkage-data.s3-ap-southeast-2.amazonaws.com/febrl/",
             'results_path': results_path
         }
 
-        if 'OBJECT_STORE_ACCESS_KEY' in os.environ:
+        if 'OBJECT_STORE_BUCKET' in os.environ:
             object_store_server = os.getenv('OBJECT_STORE_SERVER')
             object_store_access_key = os.getenv('OBJECT_STORE_ACCESS_KEY')
             object_store_secret_key = os.getenv('OBJECT_STORE_SECRET_KEY')
@@ -232,11 +234,11 @@ def compose_result(status, tt, experiment, sizes, threshold):
     return result
 
 
-def delete_resources(config, credentials, run):
+def delete_resources(credentials, run):
     try:
         if run is not None and 'run_id' in run:
-            rest_client.run_delete(config['server'], credentials['project_id'], run['run_id'], credentials['result_token'])
-        rest_client.project_delete(config['server'], credentials['project_id'], credentials['result_token'])
+            rest_client.run_delete(credentials['project_id'], run['run_id'], credentials['result_token'])
+        rest_client.project_delete(credentials['project_id'], credentials['result_token'])
     except Exception as e:
         logger.warning('Error while deleting resources... {}'.format(e))
 
@@ -299,8 +301,7 @@ def run_experiments(config):
     """
         Run all the experiments specified in the configuration.
     """
-    server = config['server']
-    rest_client.server_get_status(server)
+    rest_client.server_get_status()
 
     results = {'experiments': []}
     for experiment in config['experiments']:
@@ -314,39 +315,39 @@ def run_experiments(config):
             logger.info('running experiment: {}'.format(current_experiment))
             if repetition != 1:
                 logger.info('\trepetition {} out of {}'.format(rep + 1, repetition))
-            result = run_single_experiment(server, config, threshold, sizes, current_experiment)
+            result = run_single_experiment(config, threshold, sizes, current_experiment)
             results['experiments'].append(result)
 
     return results
 
 
-def run_single_experiment(server, config, threshold, sizes, experiment):
+def run_single_experiment(config, threshold, sizes, experiment):
     result = {}
     credentials = {}
     run = {}
     logger.info("Starting time: {}".format(time.asctime()))
     nb_parties = len(sizes)
     try:
-        credentials = rest_client.project_create(server, config['schema'], 'groups',
+        credentials = rest_client.project_create(config['schema'], 'groups',
                                                  "benchy_{}".format(experiment), parties=nb_parties)
         # upload clks
         upload_binary_clks(config, sizes, credentials)
         # create run
         project_id = credentials['project_id']
         result['project_id'] = project_id
-        run = rest_client.run_create(server, project_id, credentials['result_token'],
+        run = rest_client.run_create(project_id, credentials['result_token'],
                                      threshold,
                                      "{}_{}".format(experiment, threshold))
         # wait for result
         run_id = run['run_id']
         result['run_id'] = run_id
         logger.info(f'waiting for run {run_id} from the project {project_id} to finish')
-        status = rest_client.wait_for_run(server, project_id, run_id,
-                                          credentials['result_token'], timeout=config['timeout'])
+        status = rest_client.wait_for_run(project_id, run_id,
+                                          credentials['result_token'], timeout=config['timeout'], update_period=5)
         if status['state'] != 'completed':
             raise RuntimeError('run did not finish!\n{}'.format(status))
         logger.info('experiment successful. Evaluating results now...')
-        groups = rest_client.run_get_result_text(server, project_id, run_id, credentials['result_token'])
+        groups = rest_client.run_get_result_text(project_id, run_id, credentials['result_token'])
         groups = json.loads(groups)['groups']
         truth_groups = load_truth(config, sizes)
         tt = score_accuracy(groups, truth_groups, nb_parties)
@@ -357,7 +358,7 @@ def run_single_experiment(server, config, threshold, sizes, experiment):
         result.update({'name': experiment, 'status': 'ERROR', 'description': e_trace})
     finally:
         logger.info('cleaning up...')
-        delete_resources(config, credentials, run)
+        delete_resources(credentials, run)
 
     logger.info("Ending time: {}".format(time.asctime()))
     return result
@@ -379,11 +380,12 @@ def push_to_object_store(config):
     )
     result_file_name = "benchmark_results-{}.json".format(time.strftime("%Y%m%d-%H%M%S"))
     client.upload_file(experiment_file, object_store_bucket, result_file_name)
+    logger.info('Results saved in file: {}'.format(result_file_name))
 
 
 def main():
     config = read_config()
-    server_status = rest_client.server_get_status(config['server'])
+    server_status = rest_client.server_get_status()
     version = requests.get(config['server'] + "/api/v1/version").json()
     logger.info(server_status)
     download_data(config)

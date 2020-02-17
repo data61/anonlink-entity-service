@@ -90,7 +90,7 @@ def get_authorization_token_type_or_abort(project_id, token):
     # that might mean the caller is not authorized.
     with DBConn() as conn:
         result_type = get_project_column(conn, project_id, 'result_type')
-    if result_type in {'mapping', 'similarity_scores'} and token_type == 'receipt_token':
+    if result_type in {'groups', 'similarity_scores'} and token_type == 'receipt_token':
         logger.info("Caller provided receipt token to get results")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
     return token_type

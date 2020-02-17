@@ -27,7 +27,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.5"
+      tag: "v1.4.6-beta"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -44,7 +44,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.12.0"
+      tag: "v1.13.0-beta"
       # pullPolicy: IfNotPresent
       pullPolicy: Always
 
@@ -67,7 +67,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: data61/anonlink-app
-      tag: "v1.12.0"
+      tag: "v1.13.0-beta"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -138,14 +138,20 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.12.0"
+    tag: "v1.13.0-beta"
     pullPolicy: Always
 
-  ## The number of workers for this deployment
+  ## The initial number of workers for this deployment
+  ## Note the workers.highmemory.replicaCount are in addition
   replicaCount: 1
 
+  ## Enable a horizontal pod autoscaler
+  ## Note: The cluster must have metrics-server installed.
+  ## https://kubernetes.io/docs/tasks/debug-application-cluster/resource-metrics-pipeline/
   autoscaler:
     enabled: false
+    minReplicas: 1
+    maxReplicas: 20
 
   podAnnotations: {}
 
@@ -176,7 +182,8 @@ workers:
   ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,
   ## except for the requested resources and replicaCount which can differ.
   celery:
-    ## Number of fork worker celery node will have. It is recommended to use the same concurrency as workers.resources.limits.cpu
+    ## Number of fork worker celery node will have. It is recommended to use the same concurrency
+    ## as workers.resources.limits.cpu
     CONCURRENCY: "2"
     ## How many messages to prefetch at a time multiplied by the number of concurrent processes. Set to 1 because
     ## our tasks are usually quite "long".
@@ -202,7 +209,7 @@ workers:
       memory: 1Gi
       cpu: 2
 
-  ## At least one "high memory" worker is also required
+  ## At least one "high memory" worker is also required.
   highmemory:
     replicaCount: 1
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -223,8 +230,13 @@ postgresql:
   persistence:
     enabled: false
     size: 8Gi
+
   metrics:
     enabled: true
+    #serviceMonitor:
+      #enabled: true
+      #namespace:
+
   ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
     #limits:
@@ -233,15 +245,19 @@ postgresql:
       #memory: 1Gi
       cpu: 100m
 
+
 global:
+  global:
+    storageClass: "default"
+
   postgresql:
     postgresqlDatabase: postgres
     postgresqlUsername: postgres
     postgresqlPassword: "examplePostgresPassword"
 
 
-## In this section, we are not installing any redis pods. The main goal is to get configuration values for the
-## other services.
+## In this section, we are not installing Redis. The main goal is to define configuration values for
+## other services that need to access Redis.
 redis:
   ## Note the `server` options are ignored if provisioning redis
   ## using this chart.
@@ -289,7 +305,7 @@ minio:
   ## Configure the object storage
   ## https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
-  ## Access credentials for the object store
+  ## Default access credentials for the object store
   accessKey: "exampleMinioAccessKey"
   secretKey: "exampleMinioSecretKet"
 
@@ -297,10 +313,11 @@ minio:
   ## if provisioning minio during deployment.
   server: "s3.amazonaws.com"
 
-  bucket: "example-bucket"
+  defaultBucket:
+    enabled: true
+    name: "anonlink"
 
   ## Settings for deploying standalone object store
-  ## https://github.com/kubernetes/charts/tree/master/stable/minio#configuration
   ## Can distribute the object store across multiple nodes.
   mode: "standalone"
   service.type: "ClusterIP"
@@ -308,13 +325,28 @@ minio:
     enabled: false
     size: 50Gi
     storageClass: "default"
+
+  metrics:
+    serviceMonitor:
+      enabled: false
+      #additionalLabels: {}
+      #namespace: nil
+
+  # If you'd like to expose the MinIO object store
+  ingress:
+    enabled: false
+    #labels: {}
+    #annotations: {}
+    #hosts: []
+    #tls: []
+
   nameOverride: "minio"
   
   ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
   resources:
     requests:
       memory: 256Mi
-      cpu: 250m
+      cpu: 100m
     limits:
       memory: 5Gi
 

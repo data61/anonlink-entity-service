@@ -10,7 +10,7 @@ spec:
   replicas: {{ required "workers.highmemory.replicaCount must be provided." .Values.workers.highmemory.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.fullname" . }}
+      app: {{ template "es.appname" . }}
       component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
       tier: backend
   {{- if .Values.workers.strategy }}

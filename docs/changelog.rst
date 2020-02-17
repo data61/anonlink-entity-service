@@ -8,6 +8,54 @@ Next Version
 ------------
 
 
+Version 1.13.0-beta
+-------------------
+
+- Fixed a bug where a dataprovider could upload their clks multiple times in a project using the same upload token. (#463)
+- Fixed a bug where workers accepted work after failing to initialize their database connection pool. (#477)
+- Modified ``similarity_score`` output to follow the group format in preparation to extending this output type to more
+  parties. (#464)
+- Tutorials have been improved following an internal review. (#467)
+- Database schema and CLK upload api has been modified to support blocking. (#470)
+- Benchmarking results can now be saved to an object store without authentication. Allowing an AWS user to save to S3
+  using node permissions. (#490)
+- Removed duplicate/redundant tests. (#466)
+- Updated dependencies:
+
+    - We have enabled `dependabot <https://dependabot.com/>`_ on GitHub to keep our Python dependencies up to date.
+    - ``anonlinkclient`` now used for benchmarking. (#490)
+    - Chart dependencies ``redis-ha``, ``postgres`` and ``minio`` all updated. (#496, #497)
+
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+- the ``similarity_score`` output type has been modified, it now returns a JSON array of JSON objects, where such an object
+  looks like ``[[party_id_0, row_index_0], [party_id_1, row_index_1], score]``. (#464)
+- Integration test configuration is now consistent with benchmark config. Instead of setting ``ENTITY_SERVICE_URL`` including
+  ``/api/v1`` now just set the host address in ``SERVER``. (#495)
+
+
+Database Changes (Internal)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- the ``dataproviders`` table ``uploaded`` field has been modified from a BOOL to an ENUM type (#463)
+- The ``projects`` table has a new ``uses_blocking`` field. (#470)
+
+Version 1.13.0-alpha
+--------------------
+
+- fixed bug where invalid state changes could occur when starting a run (#459)
+- ``matching`` output type has been removed as redundant with the ``groups`` output with 2 parties. (#458)
+
+- Update dependencies:
+
+    - requests from 2.21.0 to 2.22.0 (#459)
+    
+Breaking Change
+~~~~~~~~~~~~~~~
+
+- ``matching`` output type is not available anymore. (#458)
 
 
 Version 1.12.0
@@ -16,10 +64,12 @@ Version 1.12.0
 - Logging configurable in the deployed entity service by using the key ``loggingCfg``. (#448)
 - Several old settings have been removed from the default values.yaml and docker
   files which have been replaced by ``CHUNK_SIZE_AIM`` (#414):
-  - ``SMALL_COMPARISON_CHUNK_SIZE``
-  - ``LARGE_COMPARISON_CHUNK_SIZE``
-  - ``SMALL_JOB_SIZE``
-  - ``LARGE_JOB_SIZE``
+
+   - ``SMALL_COMPARISON_CHUNK_SIZE``
+   - ``LARGE_COMPARISON_CHUNK_SIZE``
+   - ``SMALL_JOB_SIZE``
+   - ``LARGE_JOB_SIZE``
+
 - Remove ``ENTITY_MATCH_THRESHOLD`` environment variable (#444)
 - Celery configuration updates to solve threads and memory leaks in deployment. (#427)
 - Update docker-compose files to use these new preferred configurations.
@@ -31,22 +81,30 @@ Version 1.12.0
 - Added some missing documentation about the output type `groups` (#449)
 - Sentinel name is configurable. (#436)
 - Improvement on the Kubernetes deployment test stage on Azure DevOps:
-  - Re-order cleaning steps to first purge the deployment and then deleting the remaining. (#426)
-  - Run integration tests in parallel, reducing pipeline stage `Kubernetes deployment tests` from 30 minutes to 15 minutes. (#438)
-  - Tests running on a deployed entity-service on k8s creates an artifact containing all the logs of all the containers, useful for debugging. (#445)
-  - Test container not restarted on test failure. (#434)
+
+   - Re-order cleaning steps to first purge the deployment and then deleting the remaining. (#426)
+   - Run integration tests in parallel, reducing pipeline stage `Kubernetes deployment tests` from 30 minutes to 15 minutes. (#438)
+   - Tests running on a deployed entity-service on k8s creates an artifact containing all the logs of all the containers, useful for debugging. (#445)
+   - Test container not restarted on test failure. (#434)
+
 - Benchmark improvements:
-  - Benchmark output has been modified to handle multi-party linkage.
-  - Benchmark to handle more than 2 parties, being able to repeat experiments. 
-    and pushing the results to minio object store. (#406, #424 and #425)
-  - Azure DevOps benchmark stage runs a 3 parties linkage. (#433)
+
+   - Benchmark output has been modified to handle multi-party linkage.
+   - Benchmark to handle more than 2 parties, being able to repeat experiments.
+     and pushing the results to minio object store. (#406, #424 and #425)
+   - Azure DevOps benchmark stage runs a 3 parties linkage. (#433)
+
 - Improvements on Redis cache:
-  - Refactor the cache. (#430)
-  - Run state kept in cache (instead of fully relying on database) (#431 and #432)
+
+   - Refactor the cache. (#430)
+   - Run state kept in cache (instead of fully relying on database) (#431 and #432)
+
 - Update dependencies:
-  - anonlink to v0.12.5. (#423)
-  - redis to from 3.2.0 to 3.2.1 (#415)
-  - alpine from 3.9 to 3.10.1 (#404)
+
+   - anonlink to v0.12.5. (#423)
+   - redis from 3.2.0 to 3.2.1 (#415)
+   - alpine from 3.9 to 3.10.1 (#404)
+
 - Add some release documentation. (#455)
 
 Version 1.11.2

@@ -15,11 +15,11 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app
+        image: data61/anonlink-app:v1.13.0-beta
         imagePullPolicy: Always
         env:
-          - name: ENTITY_SERVICE_URL
-            value: https://beta.anonlink.data61.xyz/api/v1
+          - name: SERVER
+            value: https://anonlink.easd.data61.xyz
           - name: LOGGING_LEVEL
             value: "INFO"
         command:

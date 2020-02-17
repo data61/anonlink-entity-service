@@ -25,6 +25,9 @@ variables:
   tutorialImageName: data61/anonlink-docs-tutorials
   benchmarkingImageName: data61/anonlink-benchmark
 
+  # The Kubernetes Service Connection to use - must be configured in Azure DevOps.
+  CLUSTER: 'k8s'
+
 # This pipeline should be triggered by every push to any branches, but should not be used
 # for external PRs.
 pr: none
@@ -82,9 +85,9 @@ stages:
       resultFile: results.json
     displayName: Benchmark
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-latest'
     steps:
-    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - template: .azurePipeline/templateSetVariableDockerTag.yml
     - script: |
         ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type benchmark
       displayName: 'Start docker compose benchmark'
@@ -107,9 +110,9 @@ stages:
       resultFile: tutorialTestResults.xml
     displayName: Tutorials Tests
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-latest'
     steps:
-    - template: .azurePipeline/templateDockerTagFromBranch.yml
+    - template: .azurePipeline/templateSetVariableDockerTag.yml
     - script: |
         ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type tutorials
       displayName: 'Test notebook tutorials'
@@ -128,167 +131,184 @@ stages:
   - job: job_k8s_deployment
     displayName: Kubernetes deployment and test
     timeoutInMinutes: 40
-    # All the deployments for tests are done in the namespace `test-azure`, simplying
-    # debugging or cleaning if something wrong happens.
-    variables:
-      NAMESPACE: test-azure
-    pool:
-      vmImage: 'ubuntu-16.04'
-    steps:
-    # Download Secure File
-    # Download a secure file to a temporary location on the build or release agent
-    - task: DownloadSecureFile@1
-      inputs:
-        secureFile: awsClusterConfig
-    # Prepare all the variables required during the scripts.
-    - template: .azurePipeline/templateDockerTagFromBranch.yml
-    # We are selecting a deployment name to be unique, not to have collision when pushing multiple times on the same branch
-    # So we are using the git commit hash. BUT, a k8s deployment MUST start with a letter, so added `es` to start its name, 
-    # then it needs to be short enough not to fail other tags built from it. In fact, most of the created objects from the templates
-    # will use the deployment name as a prefix for their tags, adding extra suffixes. If the deployment name is too long, 
-    # the tags may be longer than 63 characters which can fail the deployment with some warnings hard to see.
-    - script: |
-        echo es$(Build.SourceVersion)| tr [:upper:] [:lower:] | tr -cd [a-z0-9] | head -c 10 | xargs -I@ echo "##vso[task.setvariable variable=DEPLOYMENT]@"
-      displayName: 'Set variables part 1'
-    # The task setting variables is split in two, because we cannot re-use directly a set variable in the same task
-    # (in this case the value of $(DEPLOYMENT)).
-    - script: |
-        echo "##vso[task.setvariable variable=KUBECONFIGFILE]$(DownloadSecureFile.secureFilePath)"
-        echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
-        echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
-        echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
-      displayName: 'Set variables part 2'
-    # The file `.azurePipeline/k8s_test_pvc.yaml.tmpl` is a template for the creation of persistent volume via kubectl
-    - script: |
-        echo "Create Persistent Volume Claim"
-        cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        kubectl apply --wait=true -n=$(NAMESPACE) -f -
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Create persistent volume claim for integration test results.'
-    # Prepare helm
-    - script: |
-        echo "Initialize Helm"
-        cd deployment/entity-service
-        helm version
-        helm init --client-only
-        helm dependency update
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Initialize Helm'
-    - script: |
-        echo "Lint"
-        cd deployment/entity-service
-        
-        helm lint --debug --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        --set api.app.debug=true \
-        --set global.postgresql.postgresqlPassword=notaproductionpassword \
-        --set api.ingress.enabled=false \
-        --set api.www.image.tag=$(DOCKER_TAG) \
-        --set api.app.image.tag=$(DOCKER_TAG) \
-        --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG) \
-        --set workers.replicaCount=4
 
-        echo "Dry run"
-        helm upgrade --install --debug --dry-run --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        --set api.app.debug=true \
-        --set global.postgresql.postgresqlPassword=notaproductionpassword \
-        --set api.ingress.enabled=false \
-        --set api.www.image.tag=$(DOCKER_TAG) \
-        --set api.app.image.tag=$(DOCKER_TAG) \
-        --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG) \
-        --set workers.replicaCount=4
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Lint and dry-run'
-    # Starting the whole entity-service
-    # Note that helm need to be initialised first.
-    - script: |
-        echo "Start all the entity service pods"
-        cd deployment/entity-service
-        helm upgrade --install --wait --namespace $(NAMESPACE) $(DEPLOYMENT) . \
-        --set api.app.debug=true \
-        --set global.postgresql.postgresqlPassword=notaproductionpassword \
-        --set api.ingress.enabled=false \
-        --set api.www.image.tag=$(DOCKER_TAG) \
-        --set api.app.image.tag=$(DOCKER_TAG) \
-        --set api.dbinit.image.tag=$(DOCKER_TAG) \
-        --set workers.image.tag=$(DOCKER_TAG) \
-        --set workers.replicaCount=4
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Kubernetes deployment'
-    # Task to get the IP of the service, which is require to run the test.
-    # Note that the port 80 is added at the end. This is in fact required for the command `dockerize -wait` to wait for a service before starting one.
-    - script: |
-        kubectl get services -n=$(NAMESPACE) -lapp=$(DEPLOYMENT)-entity-service -o jsonpath="{.items[0].spec.clusterIP}" | xargs -I@ echo "##vso[task.setvariable variable=SERVICE_IP]@:80"
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Set a variable for the service IP'
-    # The file `.azurePipeline/k8s_test_job.yaml.tmpl` is a template for the creation of the test job.
-    # The test job stops when all the tests have been run, creating a test result file in the PVC.
-    - script: |
-        echo "Start the test job"
-        cat .azurePipeline/k8s_test_job.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
-        sed 's|\$SERVICE_IP'"|$(SERVICE_IP)|g" | \
-        kubectl apply --wait=true -n=$(NAMESPACE) -f -
-        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl wait -n=$(NAMESPACE) --timeout=300s --for=condition=Ready pods/@
-        kubectl get pods -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT) -o jsonpath="{.items[0].metadata.name}" | xargs -I@ kubectl logs -n=$(NAMESPACE) -f @
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Run integration tests'
-    # That is still something fun with kubernetes, we cannot copy a file from a stopped container in a pod (while this is possible with docker), which is
-    # why we are creating a persistent volume, running the test job using the volume, and finally starting a container to be up with the mounted
-    # volume and use `kubectl cp` on it while it still runs.
-    # This is tracked in https://github.com/kubernetes/kubectl/issues/454 but has been in April 2018, its priority raised in June 2019.
-    - script: |
-        echo "Get the test results"
-        cat .azurePipeline/k8s_get_results.yaml.tmpl | \
-        sed 's|\$PVC'"|$(PVC)|g" | \
-        sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
-        sed 's|\$POD_NAME'"|$(POD_NAME)|g" | \
-        kubectl apply -n=$(NAMESPACE) -f -
-        kubectl wait -n=$(NAMESPACE) --timeout=120s --for=condition=Ready pods/$(POD_NAME)
-        echo "Copy the test results."
-        kubectl cp $(NAMESPACE)/$(POD_NAME):/mnt/results.xml k8s-results.xml
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Copy the results from the test job pod.'
-    # Finally, we can publish the test results.
-    - task: PublishTestResults@2
-      condition: succeeded()
-      inputs:
-        testResultsFormat: 'JUnit'
-        testResultsFiles: 'k8s-results.xml'
-        testRunTitle: 'Publish kubernetes test results'
-        failTaskOnFailedTests: true
-    # Publish all the pods logs if some tests failed.
-    - template: .azurePipeline/templatePublishLogsFromPods.yml
-      parameters:
-        logsFolderPath: $(Build.ArtifactStagingDirectory)
-        releaseName: $(DEPLOYMENT)
-        kubeConfigFile: $(KUBECONFIGFILE)
-        JobAttempt: $(System.JobAttempt)
-    # And do a lot of cleaning.
-    # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
-    - script: |
-        echo "Delete the deployment: '$(DEPLOYMENT)'"
-        helm delete --purge $(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Purge the deployment'
-    - script: |
-        echo "Delete all the test resources"
-        kubectl delete pods,jobs,pvc -n=$(NAMESPACE) -l deployment=$(DEPLOYMENT)
-      condition: always()
-      env:
-        KUBECONFIG: $(KUBECONFIGFILE)
-      displayName: 'Delete the test resources'
+    variables:
+      # All the deployments for tests are done in the namespace `test-azure`, simplifying
+      # debugging or cleaning if something wrong happens.
+      NAMESPACE: test-azure
+
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      # Prepare the variables required during the scripts.
+      - template: .azurePipeline/templateSetVariableDockerTag.yml
+      - template: .azurePipeline/templateSetVariableReleaseName.yml
+      - script: |
+          echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
+          echo "##vso[task.setvariable variable=SERVICE]$(DEPLOYMENT)-entity-service-server"
+          echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
+          echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
+        displayName: 'Set variables for service, test result volume and pod'
+      - task: Kubernetes@1
+        displayName: 'Create a new namespace'
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: apply
+          useConfigurationFile: true
+          inline: '{ "kind": "Namespace", "apiVersion": "v1", "metadata": { "name": "$(NAMESPACE)" }}'
+
+      # The file `.azurePipeline/k8s_test_pvc.yaml.tmpl` is a template for the creation of persistent volume via kubectl
+      - script: |
+          cat .azurePipeline/k8s_test_pvc.yaml.tmpl | \
+          sed 's|\$PVC'"|$(PVC)|g" | \
+          sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" > $(Build.ArtifactStagingDirectory)/k8s_test_pvc.yaml
+        displayName: 'Create test result volume claim from template'
+      - task: KubernetesManifest@0
+        displayName: 'Create test result volume claim'
+        inputs:
+          action: 'deploy'
+          kubernetesServiceConnection: '$(CLUSTER)'
+          manifests: '$(Build.ArtifactStagingDirectory)/k8s_test_pvc.yaml'
+          namespace: $(NAMESPACE)
+
+      - task: HelmDeploy@0
+        displayName: Helm init
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceConnection: $(CLUSTER)
+          command: init
+          arguments: --client-only
+
+      - task: HelmDeploy@0
+        displayName: Helm package
+        inputs:
+          command: package
+          chartPath: 'deployment/entity-service'
+          destination: $(Build.ArtifactStagingDirectory)
+          updatedependency: true
+
+      - task: KubernetesManifest@0
+        name: bake
+        displayName: Bake K8s manifests from Helm chart
+        inputs:
+          action: 'bake'
+          helmChart: 'deployment/entity-service'
+          namespace: $(NAMESPACE)
+          releaseName: $(DEPLOYMENT)
+          overrides: |
+            api.app.debug:true
+            global.postgresql.postgresqlPassword:notaproductionpassword
+            api.ingress.enabled:false
+            workers.replicaCount:4
+            api.www.image.repository:$(frontendImageName)
+            api.app.image.repository:$(backendImageName)
+            api.dbinit.image.repository:$(backendImageName)
+            workers.image.repository:$(backendImageName)
+
+      - task: KubernetesManifest@0
+        displayName: Deploy K8s manifest
+        inputs:
+          action: 'deploy'
+          kubernetesServiceConnection: '$(CLUSTER)'
+          manifests: '$(bake.manifestsBundle)'
+          namespace: $(NAMESPACE)
+          containers: |
+            data61/anonlink-nginx:$(DOCKER_TAG)
+            data61/anonlink-app:$(DOCKER_TAG)
+            #data61/anonlink-worker:$(DOCKER_TAG)
+
+      # The file `.azurePipeline/k8s_test_job.yaml.tmpl` is a template for the creation of the test job.
+      # The test job stops when all the tests have been run, creating a test result file in the PVC.
+      - script: |
+          cat .azurePipeline/k8s_test_job.yaml.tmpl | \
+          sed 's|\$PVC'"|$(PVC)|g" | \
+          sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+          sed 's|\$IMAGE_NAME_WITH_TAG'"|$(IMAGE_NAME_WITH_TAG)|g" | \
+          sed 's|\$SERVICE'"|$(SERVICE)|g" > $(Build.ArtifactStagingDirectory)/k8s_test_job.yaml
+        displayName: 'Prepare integration test job from template'
+
+      - task: KubernetesManifest@0
+        displayName: 'Deploy Integration Test Job'
+        inputs:
+          action: 'deploy'
+          kubernetesServiceConnection: '$(CLUSTER)'
+          manifests: '$(Build.ArtifactStagingDirectory)/k8s_test_job.yaml'
+          namespace: $(NAMESPACE)
+
+      - task: Kubernetes@1
+        displayName: 'Wait for integration test pod'
+        name: waitpods
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'wait'
+          arguments: '--namespace $(NAMESPACE) -ldeployment=$(DEPLOYMENT) --timeout=30s --for=condition=Ready pods'
+
+      - task: Kubernetes@1
+        displayName: 'Integration test logs'
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'logs'
+          arguments: '--namespace $(NAMESPACE) -ljobgroup=anonlink-integration-test -ldeployment=$(DEPLOYMENT) -f'
+
+      - script: |
+          echo "Get the test results"
+          cat .azurePipeline/k8s_get_results.yaml.tmpl | \
+          sed 's|\$PVC'"|$(PVC)|g" | \
+          sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" | \
+          sed 's|\$POD_NAME'"|$(POD_NAME)|g" > $(Build.ArtifactStagingDirectory)/k8s_get_results.yaml
+        displayName: 'Prepare get results pod from template'
+
+      - task: KubernetesManifest@0
+        displayName: 'Deploy Result fetching Pod'
+        inputs:
+          action: 'deploy'
+          kubernetesServiceConnection: '$(CLUSTER)'
+          manifests: '$(Build.ArtifactStagingDirectory)/k8s_get_results.yaml'
+          namespace: $(NAMESPACE)
+
+      - task: Kubernetes@1
+        displayName: 'Copy integration test results'
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'cp'
+          arguments: '$(NAMESPACE)/$(POD_NAME):/mnt/results.xml k8s-results.xml'
+
+      # Publish the test results.
+      - task: PublishTestResults@2
+        condition: succeeded()
+        inputs:
+          testResultsFormat: 'JUnit'
+          testResultsFiles: 'k8s-results.xml'
+          testRunTitle: 'Kubernetes Integration test results'
+          failTaskOnFailedTests: true
+
+      # Publish all the pods logs if some tests failed.
+      - template: .azurePipeline/templatePublishLogsFromPods.yml
+        parameters:
+          logsFolderPath: $(Build.ArtifactStagingDirectory)
+          releaseName: $(DEPLOYMENT)
+          namespace: $(NAMESPACE)
+          kubernetesServiceEndpoint: $(CLUSTER)
+          JobAttempt: $(System.JobAttempt)
+
+      # Cleanup
+      - task: KubernetesManifest@0
+        condition: always()
+        inputs:
+          action: 'delete'
+          kubernetesServiceConnection: $(CLUSTER)
+          arguments: '-f $(bake.manifestsBundle)'
+          namespace: $(NAMESPACE)
+
+      # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
+      - task: KubernetesManifest@0
+        condition: always()
+        inputs:
+          action: 'delete'
+          kubernetesServiceConnection: $(CLUSTER)
+          arguments: 'pods,jobs,pvc,pv -l deployment=$(DEPLOYMENT)'
+          namespace: $(NAMESPACE)

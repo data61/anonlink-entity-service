@@ -1,21 +1,21 @@
 import psycopg2
 import psycopg2.extras
 
-from entityservice.database.util import execute_returning_id, logger
+from entityservice.database.util import execute_returning_id, logger, query_db
 from entityservice.errors import RunDeleted
 
 
-def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes):
+def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes, uses_blocking):
     sql_query = """
         INSERT INTO projects
-        (project_id, name, access_token, schema, notes, parties, result_type)
+        (project_id, name, access_token, schema, notes, parties, result_type, uses_blocking)
         VALUES
-        (%s, %s, %s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING project_id;
         """
     return execute_returning_id(cur, sql_query,
                                 [project_id, name, access_token, psycopg2.extras.Json(schema), notes, num_parties,
-                                 result_type])
+                                 result_type, uses_blocking])
 
 
 def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
@@ -34,9 +34,9 @@ def insert_new_run(db, run_id, project_id, threshold, name, type, notes=''):
 def insert_dataprovider(cur, auth_token, project_id):
     sql_query = """
         INSERT INTO dataproviders
-        (project, token)
+        (project, token, uploaded)
         VALUES
-        (%s, %s)
+        (%s, %s, 'not_started')
         RETURNING id
         """
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
@@ -54,10 +54,8 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, count):
     with db.cursor() as cur:
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, 'pending'])
 
-    set_dataprovider_upload_state(db, dp_id, True)
 
-
-def set_dataprovider_upload_state(db, dp_id, state=True):
+def set_dataprovider_upload_state(db, dp_id, state='error'):
     logger.debug("Setting dataprovider {} upload state to {}".format(dp_id, state))
     sql_update = """
         UPDATE dataproviders
@@ -215,17 +213,6 @@ def update_run_mark_failure(conn, run_id):
         cur.execute(sql_query, [run_id])
 
 
-def update_run_mark_queued(db, run_id):
-    with db.cursor() as cur:
-        sql_query = """
-            UPDATE runs SET
-              state = 'queued'
-            WHERE
-              run_id = %s
-            """
-        cur.execute(sql_query, [run_id])
-
-
 def mark_project_deleted(db, project_id):
     with db.cursor() as cur:
         sql_query = """
@@ -263,7 +250,7 @@ def get_created_runs_and_queue(db, project_id):
             UPDATE runs SET
               state = 'queued'
             WHERE
-              state IN ('created', 'queued') AND project = %s
+              state = 'created' AND project = %s
             RETURNING
               run_id;
         """
@@ -272,3 +259,30 @@ def get_created_runs_and_queue(db, project_id):
     if res is None:
         res = []
     return res
+
+
+def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
+    """
+    This method returns true if the dataprovider is allowed to upload her clks.
+    A dataprovider is not allowed to upload clks if she has already uploaded them, or if the upload is in progress.
+    This method will lock the resource by setting the upload state to `in_progress` and returning `true`.
+    Note that the upload state can be `error`, in which case we are allowing the dataprovider to re-try uploading
+    her clks not to block a project if a failure occurred.
+    """
+    logger.debug("Setting dataprovider {} upload state to `in_progress``".format(dp_id))
+    sql_update = """
+        UPDATE dataproviders
+        SET uploaded = 'in_progress'
+        WHERE id = %s and uploaded != 'done' and uploaded != 'in_progress'
+        RETURNING id, uploaded
+        """
+    query_response = query_db(db, sql_update, [dp_id])
+    print(query_response)
+    length = len(query_response)
+    if length < 1:
+        return False
+    elif length > 1:
+        logger.error("{} rows in the table `dataproviders` are associated to the same dataprovider id {}, while each"
+                     " dataprovider id should be unique.".format(length, dp_id))
+        raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times her clks.")
+    return True

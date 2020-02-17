@@ -126,7 +126,7 @@ def get_project_description(requests, new_project_data):
 
 
 def create_project_no_data(requests,
-                           result_type='mapping', number_parties=None):
+                           result_type='groups', number_parties=None):
     number_parties_param = (
         {} if number_parties is None else {'number_parties': number_parties})
     new_project_response = requests.post(url + '/projects',
@@ -141,7 +141,7 @@ def create_project_no_data(requests,
 
 
 @contextmanager
-def temporary_blank_project(requests, result_type='mapping'):
+def temporary_blank_project(requests, result_type='groups'):
     # Code to acquire resource, e.g.:
     project = create_project_no_data(requests, result_type)
     yield project
@@ -152,7 +152,7 @@ def temporary_blank_project(requests, result_type='mapping'):
 def create_project_upload_fake_data(
         requests,
         sizes, overlap=0.75,
-        result_type='mapping', encoding_size=128):
+        result_type='groups', encoding_size=128):
     data = generate_overlapping_clk_data(
         sizes, overlap=overlap, encoding_size=encoding_size)
     new_project_data, json_responses = create_project_upload_data(
@@ -162,7 +162,7 @@ def create_project_upload_fake_data(
 
 
 def create_project_upload_data(
-        requests, data, result_type='mapping', binary=False, hash_size=None):
+        requests, data, result_type='groups', binary=False, hash_size=None):
     if binary and hash_size is None:
         raise ValueError('binary mode must specify a hash_size')
 
@@ -233,16 +233,23 @@ def wait_for_run(requests, project, run_id, ok_statuses, result_token=None, time
     """
     Poll project/run_id until its status is one of the ok_statuses. Raise a
     TimeoutError if we've waited more than timeout seconds.
+    It also checks that the status are progressing normally, using the checks implemented in
+    `has_progressed_validly`.
     """
     start_time = time.time()
+    old_status = None
     while True:
         status = get_run_status(requests, project, run_id, result_token)
+        if old_status:
+            if not has_progressed_validly(old_status, status):
+                raise Exception("The run has not progressed as expected. The old status "
+                                "update was '{}' while the new one is '{}'.".format(old_status, status))
         if status['state'] in ok_statuses or status['state'] == 'error':
             break
         if time.time() - start_time > timeout:
             raise TimeoutError('waited for {}s'.format(timeout))
         time.sleep(0.5)
-
+        old_status = status
     return status
 
 
@@ -256,40 +263,6 @@ def wait_while_queued(requests, project, run_id, result_token=None, timeout=10):
     return wait_for_run(requests, project, run_id, not_queued_statuses, result_token, timeout)
 
 
-def wait_approx_run_time(size, assumed_rate=1_000_000):
-    """Calculate how long the similarity comparison stage of a project should take
-    using a particular comparison rate. 1 M/s is quite conservative in order to work
-    on slower CI systems.
-    """
-    number_comparisons = sum(
-        size0 * size1 for size0, size1 in itertools.combinations(size, 2))
-    time.sleep(5)
-    time.sleep(number_comparisons / assumed_rate)
-
-
-def ensure_run_progressing(requests, project, size):
-
-    run_id = post_run(requests, project, 0.9)
-    status = get_run_status(requests, project, run_id)
-
-    is_run_status(status)
-
-    if status['state'] not in {'completed', 'error'}:
-
-        original_status = status
-
-        dt = iso8601.parse_date(status['time_added'])
-        assert datetime.datetime.now(tz=datetime.timezone.utc) - dt < datetime.timedelta(seconds=5)
-
-        # Wait and see if the progress changes
-        wait_approx_run_time(size)
-        status = get_run_status(requests, project, run_id)
-
-        failure_msg = "Invalid progress for run {}. Status A:\n{}\nStatus B:\n{}\n".format(run_id, original_status,
-                                                                                           status)
-        assert has_not_progressed_invalidly(original_status, status), failure_msg
-
-
 def post_run(requests, project, threshold):
     project_id = project['project_id']
     result_token = project['result_token']
@@ -299,10 +272,13 @@ def post_run(requests, project, threshold):
         headers={'Authorization': result_token},
         json={'threshold': threshold})
     assert req.status_code == 201
-    return req.json()['run_id']
+    run_id = req.json()['run_id']
+    # Each time we post a new run, we also check that the run endpoint works well.
+    get_run(requests, project, run_id, expected_threshold=threshold)
+    return run_id
 
 
-def get_runs(requests, project, result_token = None, expected_status = 200):
+def get_runs(requests, project, result_token=None, expected_status=200):
     project_id = project['project_id']
     result_token = project['result_token'] if result_token is None else result_token
 
@@ -313,20 +289,31 @@ def get_runs(requests, project, result_token = None, expected_status = 200):
     return req.json()
 
 
-def get_run(requests, project, run_id, expected_status = 200):
+def get_run(requests, project, run_id, expected_status=200, expected_threshold=None):
     project_id = project['project_id']
     result_token = project['result_token']
 
     req = requests.get(
         url + '/projects/{}/runs/{}'.format(project_id, run_id),
         headers={'Authorization': result_token})
+
     assert req.status_code == expected_status
-    return req.json()
+    run = req.json()
+    if expected_status == 200:
+        # only check these assertions if all went well.
+        assert 'run_id' in run
+        assert run['run_id'] == run_id
+        assert 'notes' in run
+        assert 'threshold' in run
+        if expected_threshold:
+            assert expected_threshold == run['threshold']
+    return run
 
 
 def get_run_result(requests, project, run_id, result_token=None, expected_status=200, wait=True, timeout=60):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
+        # wait_for_run_completion also checks that the progress is in order.
         final_status = wait_for_run_completion(requests, project, run_id, result_token, timeout)
         state = final_status['state']
         assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
@@ -363,7 +350,7 @@ class State(IntEnum):
             return State.completed
 
 
-def has_not_progressed_invalidly(status_old, status_new):
+def has_progressed_validly(status_old, status_new):
     """
     If there happened to be progress between the two statuses we check if it was valid.
     Thus, we return False if there was invalid progress, and True otherwise. (even if there was no progress)
@@ -435,9 +422,9 @@ def upload_binary_data(requests, data, project_id, token, count, size=128, expec
     return upload_response
 
 
-def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, status=201):
+def upload_binary_data_from_file(requests, file_path, project_id, token, count, size=128, expected_status_code=201):
     with open(file_path, 'rb') as f:
-        return upload_binary_data(requests, f, project_id, token, count, size, status)
+        return upload_binary_data(requests, f, project_id, token, count, size, expected_status_code)
 
 
 def get_expected_number_parties(project_params):

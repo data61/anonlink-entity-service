@@ -7,10 +7,10 @@ CASCADE;
 DROP TYPE IF EXISTS MAPPINGRESULT;
 
 CREATE TYPE MAPPINGRESULT AS ENUM (
-  'mapping',
+  'groups',
   'permutations',
-  'similarity_scores',
-  'groups'
+  'similarity_scores'
+
 );
 
 -- The table of entity matching jobs
@@ -41,7 +41,9 @@ CREATE TABLE projects (
 
   result_type         MAPPINGRESULT NOT NULL,
 
-  marked_for_deletion boolean   DEFAULT FALSE
+  marked_for_deletion boolean   DEFAULT FALSE,
+
+  uses_blocking       boolean   DEFAULT FALSE
 );
 
 CREATE TYPE RUNSTATE AS ENUM (
@@ -85,6 +87,13 @@ RETURNS bool AS $$
   SELECT $1.state = 'completed'
 $$ STABLE LANGUAGE SQL;
 
+-- Describe the state of the upload of the clks to the entity-service.
+CREATE TYPE UPLOADEDSTATE AS ENUM (
+  'not_started', -- default state, a dataprovider has not tried yet to upload her clks
+  'in_progress', -- the upload is in progress, so no-one else should be able to upload at the same time
+  'done', -- the clks have been uploaded, it should stay this way
+  'error' -- the dataprovider has tried to upload the clks but an error occurred, having this state allows a dataprovider to try again.
+);
 
 CREATE TABLE dataproviders (
   id       SERIAL PRIMARY KEY,
@@ -93,7 +102,7 @@ CREATE TABLE dataproviders (
   token    CHAR(48) NOT NULL UNIQUE,
 
   -- Set after the bloom filter data has been added
-  uploaded BOOL     NOT NULL DEFAULT FALSE,
+  uploaded UPLOADEDSTATE     NOT NULL,
 
   project  CHAR(48) REFERENCES projects (project_id) on DELETE CASCADE
 );
@@ -101,10 +110,11 @@ CREATE TABLE dataproviders (
 CREATE INDEX ON dataproviders (project);
 CREATE INDEX ON dataproviders (uploaded);
 
-CREATE TYPE UPLOADSTATE AS ENUM (
-  'pending',
-  'ready',
-  'error'
+-- It describes the state of the processing of the uploaded clks.
+CREATE TYPE PROCESSEDSTATE AS ENUM (
+  'pending', -- waiting for some processing to be done
+  'ready', -- processing done
+  'error' -- an error occurred during the processing
 );
 
 -- The encoded PII data for each dataprovider
@@ -121,7 +131,7 @@ CREATE TABLE bloomingdata (
   -- Store the raw CLK data in a file
   file  CHAR(64)    NOT NULL,
 
-  state UPLOADSTATE NOT NULL,
+  state PROCESSEDSTATE NOT NULL,
 
   -- Size in bytes of the uploaded encoding
   encoding_size  INT    NULL,
