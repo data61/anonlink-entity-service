@@ -41,15 +41,38 @@ stages:
   displayName: Base Docker build
   dependsOn: []
   jobs:
+  - job: HashBaseDependencies
+    timeoutInMinutes: 5
+    displayName: Hash Dependencies
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - template: .azurePipeline/templateSetVariableDockerBaseTag.yml
+      - script: |
+          # Determine if we need to build the base by checking if docker hub already
+          # has the image?
+          echo "Trying to pull $(SetDockerBaseTag.DOCKER_BASE_TAG)"
+          if docker pull data61/anonlink-base:$(SetDockerBaseTag.DOCKER_BASE_TAG) ; then
+              echo "Image pulled"
+              echo "##vso[task.setvariable variable=BUILD_BASE;isOutput=true]false"
+          else
+              echo "Image wasn't present"
+              echo "##vso[task.setvariable variable=BUILD_BASE;isOutput=true]true"
+          fi
+        name: BaseRequired
+
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
       folder: './base'
+      dependsOn: HashBaseDependencies
       imageName: data61/anonlink-base
       jobName: 'anonlink_base'
-      imageTag: 'briantest'
+      imageTag: $[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]
+      skip: $[dependencies.HashBaseDependencies.outputs['BaseRequired.BUILD_BASE']]
+
 - stage: stage_docker_image_build
-  displayName: Docker build
-  dependsOn: [stage_base_docker_image_build]
+  displayName: Anonlink Docker build
+  dependsOn: []
   jobs:
   - template: .azurePipeline/templateDockerBuildPush.yml
     parameters:
@@ -62,6 +85,8 @@ stages:
       folder: './backend'
       imageName: data61/anonlink-app
       jobName: 'anonlink_app'
+      ${{ if eq(variables['newBaseImage'], true) }}:
+        dockerBuildArgs: '--build-arg VERSION=TODO'
 
 - stage: stage_benchmark_image_build
   displayName: Build benchmark image

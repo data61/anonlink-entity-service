@@ -1,48 +1,60 @@
 # Template to login into Dockerhub, build a docker image and push it.
 
 # Parameters:
-# `dockerFilePath` is optional. If provided, will add the
-# parameter -f ${{ parameters.dockerFile }} to the docker build command.
-# jobName should only include alphanumeric values and '_'.
-# extraJobs can contain a list of jobs to do in the same stage which are dependent on the built and pushed docker image.
-# imageTag is optional - if not provided templateSetVariableDockerTag will be used.
+#
+# - `dockerFilePath` is optional. If provided, will add the parameter: `-f ${{ parameters.dockerFile }}`
+#   to the docker build command.
+# - `folder` folder in which to build the Dockerfile
+# - `imageName` is the built docker image name (not the tag)
+# - `imageTag` is optional - if not provided the templateSetVariableDockerTag will be used to determine the tag.
+# - `jobName` - should only include alphanumeric values and '_'.
+# - `skip` - don't bother building if set to anything other than 'false'
+# - `dockerBuildArgs` - extra arguments passed to docker build.
+# - `extraJobs` can contain a list of jobs to do in the same stage which are dependent on the built and pushed docker image.
+
 parameters:
   dockerFilePath: ''
   folder: ''
   imageName: ''
   imageTag: ''
   jobName: ''
+  skip: 'false'
+  dockerBuildArgs: ''
   extraJobs: []
+  dependsOn: ''
 
 jobs:
 - job: ${{ parameters.jobName }}
   displayName: ${{ parameters.jobName }}
   pool:
     vmImage: "ubuntu-latest"
+  condition: and(succeeded(), variables['SKIP'])
+  dependsOn: ${{ parameters.dependsOn }}
+  variables:
+    DOCKER_TAG: ${{ parameters.imageTag }}
+    SKIP: eq('${{ parameters.skip }}', 'false')
   steps:
     - bash: |
         if [ -z "$DOCKER_TAG" ]; then
-          echo "Generating default docker tag"
+          echo "Empty docker tag"
         else
-          echo "Using \"${{ parameters.imageTag }}\" as docker tag."
-          echo "##vso[task.setvariable variable=DOCKER_TAG]${{ parameters.imageTag }}"
+          echo "Non empty docker tag $DOCKER_TAG"
         fi
+        echo "Parameters.imageTag = \"${{ parameters.imageTag }}\""
+        echo "Variable DOCKER_TAG = \"$(DOCKER_TAG)\""
       env:
-        DOCKER_TAG: ${{ parameters.imageTag }}
-      displayName: Check for tag parameter
+        DOCKER_TAG: $(DOCKER_TAG)
+      displayName: Echo tag parameter and variables
     - ${{ if eq(parameters.imageTag, '') }}:
       - template: templateSetVariableDockerTag.yml   # Set DOCKER_TAG if it wasn't provided in parameters as imageTag
-    - bash: |
-        echo "Using \"$(DOCKER_TAG)\" as docker tag."
-      displayName: Echo docker tag
     - script: |
         docker login -u $(dockerHubId) -p $(dockerHubPassword)
       displayName: 'Dockerhub login'
     - script: |
         if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.folder }}
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) ${{ parameters.dockerBuildArgs }} ${{ parameters.folder }}
         else
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} ${{ parameters.folder }}
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }}  ${{ parameters.dockerBuildArgs }} ${{ parameters.folder }}
         fi
         docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
       displayName: 'Build and push docker image'

@@ -1,4 +1,5 @@
-FROM data61/anonlink-base:featureseparatebaseimage
+ARG VERSION=4b497c1a0b2a6cc3ea848338a67c3a129050d32d9c532373e3301be898920b55
+FROM data61/anonlink-base:${VERSION}
 
 WORKDIR /var/www
 ADD . /var/www
