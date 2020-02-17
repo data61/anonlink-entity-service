@@ -6,6 +6,7 @@ Development
 
    changelog
    devops
+   debugging
    future
    releasing
 
