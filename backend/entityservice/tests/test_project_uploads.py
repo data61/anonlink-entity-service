@@ -2,13 +2,12 @@ import time
 import os
 import pytest
 
-from entityservice.serialization import binary_pack_filters
 from entityservice.tests.config import url
 from entityservice.tests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
     get_expected_number_parties, get_run_result, post_run,
-    upload_binary_data, upload_binary_data_from_file)
+    upload_binary_data, upload_binary_data_from_file, binary_pack_for_upload)
 
 
 def test_project_single_party_data_uploaded(requests, valid_project_params):
@@ -73,13 +72,13 @@ def test_project_binary_data_upload_with_different_encoded_size(
                                      **valid_project_params
                                  }).json()
 
-    common = next(binary_pack_filters(generate_clks(1, encoding_size),
+    common = next(binary_pack_for_upload(generate_clks(1, encoding_size),
                                       encoding_size))
 
     data = []
     for i in range(expected_number_parties):
         generated_clks = generate_clks(499, encoding_size)
-        packed_clks = binary_pack_filters(generated_clks, encoding_size)
+        packed_clks = binary_pack_for_upload(generated_clks, encoding_size)
         packed_joined = b''.join(packed_clks)
         packed_with_common = (
             packed_joined + common if i == 0 else common + packed_joined)
