@@ -15,7 +15,7 @@ from entityservice.utils import safe_fail_request, get_json, generate_code, get_
     clks_uploaded_to_project, fmt_bytes
 from entityservice.database import DBConn
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
-    abort_if_invalid_results_token, get_authorization_token_type_or_abort
+    abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
 from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
@@ -360,32 +360,11 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
 
     Note this implementation is non-streaming.
     """
-    # check if the following combinations are true
-    # - uses_blocking is False AND 'clks' element in upload JSON
-    # - uses_blocking if True AND 'clknblocks' element in upload JSON
-    # otherwise, return safe_fail_request
-    hold_condition1 = not uses_blocking and 'clks' in clk_json
-    hold_condition2 = uses_blocking and 'clknblocks' in clk_json
-
-    if not (hold_condition1 or hold_condition2):
-        # fail condition1 - uses_blocking is True but uploaded element is "clks"
-        if uses_blocking and 'clks' in clk_json:
-            safe_fail_request(400, message='Uploaded element is "clks" while expecting "clknblocks"')
-        # fail condition2 - uses_blocking is False but uploaded element is "clknblocks"
-        if not uses_blocking and 'clknblocks' in clk_json:
-            safe_fail_request(400, message='Uploaded element is "clknblocks" while expecting "clks"')
-        # fail condition3 - "clks" exist in JSON but there is no data
-        if 'clks' in clk_json and len(clk_json['clks']) < 1:
-            safe_fail_request(400, message='Missing CLKs information')
-        # fail condition4 - "clknblocks" exist in JSON but there is no data
-        if 'clknblocks' in clk_json and len(clk_json['clknblocks']) < 1:
-            safe_fail_request(400, message='Missing CLK and Blocks information')
-        # fail condition5 - unknown element in JSON
-        if 'clks' not in clk_json and 'clknblocks' not in clk_json:
-            safe_fail_request(400, message='Unknown upload element - expect "clks" or "clknblocks"')
+    abort_if_inconsistent_upload(uses_blocking, clk_json)
 
     # now we need to know element name - clks or clknblocks
-    element = 'clks' if hold_condition1 else 'clknblocks'
+    is_valid_clks = not uses_blocking and 'clks' in clk_json
+    element = 'clks' if is_valid_clks else 'clknblocks'
 
     receipt_token = generate_code()
 
@@ -411,7 +390,8 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
         mc.fput_object(
             Config.MINIO_BUCKET,
             filename,
-            tmp_filename
+            tmp_filename,
+            content_type='application/json'
         )
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
