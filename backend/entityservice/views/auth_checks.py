@@ -59,6 +59,31 @@ def abort_if_invalid_results_token(resource_id, results_token):
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
+def abort_if_inconsistent_upload(uses_blocking, clk_json):
+    # check if the following combinations are true
+    # - uses_blocking is False AND 'clks' element in upload JSON
+    # - uses_blocking if True AND 'clknblocks' element in upload JSON
+    # otherwise, return safe_fail_request
+    is_valid_clks = not uses_blocking and 'clks' in clk_json
+    is_valid_clknblocks = uses_blocking and 'clknblocks' in clk_json
+    if not (is_valid_clks or is_valid_clknblocks):
+        # fail condition1 - uses_blocking is True but uploaded element is "clks"
+        if uses_blocking and 'clks' in clk_json:
+            safe_fail_request(400, message='Uploaded element is "clks" while expecting "clknblocks"')
+        # fail condition2 - uses_blocking is False but uploaded element is "clknblocks"
+        if not uses_blocking and 'clknblocks' in clk_json:
+            safe_fail_request(400, message='Uploaded element is "clknblocks" while expecting "clks"')
+        # fail condition3 - "clks" exist in JSON but there is no data
+        if 'clks' in clk_json and len(clk_json['clks']) < 1:
+            safe_fail_request(400, message='Missing CLKs information')
+        # fail condition4 - "clknblocks" exist in JSON but there is no data
+        if 'clknblocks' in clk_json and len(clk_json['clknblocks']) < 1:
+            safe_fail_request(400, message='Missing CLK and Blocks information')
+        # fail condition5 - unknown element in JSON
+        if 'clks' not in clk_json and 'clknblocks' not in clk_json:
+            safe_fail_request(400, message='Unknown upload element - expect "clks" or "clknblocks"')
+
+
 def dataprovider_id_if_authorize(resource_id, receipt_token):
     logger.debug("checking authorization token to fetch mask data")
     if not is_receipt_token_valid(resource_id, receipt_token):
