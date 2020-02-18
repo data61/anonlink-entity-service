@@ -41,7 +41,6 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     uploaded_encoding_size = len(first_hash_bytes)
 
     def filter_generator():
-        log.debug("Deserializing json filters")
         i = 0
         yield i, first_hash_bytes
         for i, line in enumerate(text_stream, start=1):
