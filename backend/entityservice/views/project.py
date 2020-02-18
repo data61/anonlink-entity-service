@@ -151,13 +151,14 @@ def project_binaryclks_post(project_id):
                 # connexion has already read the data before our handler is called!
                 # https://github.com/zalando/connexion/issues/592
                 # stream = get_stream()
-                stream = iterable_to_stream(BytesIO(request.data))
+                stream = BytesIO(request.data)
                 binary_formatter = binary_format(size)
+
                 def entity_id_injector(filter_stream):
                     for entity_id in range(count):
                         yield binary_formatter.pack(entity_id, filter_stream.read(size))
-                data_with_ids = b''.join(entity_id_injector(stream))
 
+                data_with_ids = b''.join(entity_id_injector(stream))
                 expected_bytes = size * count
                 log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
                 if len(request.data) != expected_bytes:
@@ -170,7 +171,7 @@ def project_binaryclks_post(project_id):
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
                 safe_fail_request(400, "Content Type not supported")
-        except Exception as e:
+        except Exception:
             log.info("The dataprovider was not able to upload her clks,"
                      " re-enable the corresponding upload token to be used.")
             with DBConn() as conn:
@@ -179,6 +180,7 @@ def project_binaryclks_post(project_id):
     with DBConn() as conn:
         db.set_dataprovider_upload_state(conn, dp_id, state='done')
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
+
 
 def project_clks_post(project_id):
     """
