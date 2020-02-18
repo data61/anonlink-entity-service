@@ -45,6 +45,10 @@ def binary_format(encoding_size):
     - "<encoding size>s" Store the n (e.g. 128) raw bytes of the bitarray
 
     https://docs.python.org/3/library/struct.html
+
+    :param encoding_size: the encoding size of one filter in number of bytes, excluding the entity ID info
+    :return:
+        A Struct object which can read and write the binary format.
     """
     bit_packing_fmt = f"!I{encoding_size}s"
     bit_packing_struct = struct.Struct(bit_packing_fmt)
@@ -58,7 +62,7 @@ def binary_pack_filters(filters, encoding_size):
         An iterable of tuples, with
             - first element is the entity ID as an unsigned int
             - second element is 'encoding_size' number of bytes as produced by deserialize_bytes.
-
+    :param encoding_size: the encoding size of one filter in number of bytes, excluding the entity ID info
     :return:
         An iterable of bytes.
     """
@@ -79,7 +83,7 @@ def binary_unpack_filters(data_iterable, max_bytes=None, encoding_size=None):
 
     :param data_iterable: an iterable of binary packed filters.
     :param max_bytes: if present, only read up to 'max_bytes' bytes.
-    :param encoding_size: the encoding size of one filter, excluding the entity ID info
+    :param encoding_size: the encoding size of one filter in number of bytes, excluding the entity ID info
     :return: list of filters with their corresponding entity IDs as a list of tuples.
     """
     assert encoding_size is not None
