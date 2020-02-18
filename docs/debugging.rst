@@ -69,7 +69,7 @@ in-front of the backend api we manually start nginx.
 Create a Run Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Create a new Python run configuration far the API. It should default to using the
+Create a new Python run configuration for the API. It should default to using the
 docker-compose Python interpreter, add the script path to
 ``entityservice._init_.py``.
 
@@ -79,6 +79,15 @@ docker-compose Python interpreter, add the script path to
    :align: center
 
    A Python run configuration for running the API service.
+
+
+.. figure:: _static/debugging/8.png
+   :alt: Run Configuration for Celery Worker
+   :width: 600 px
+   :align: center
+
+   A Python run configuration for running the worker service. Remember to add environment variables from the docker-compose
+   file to ensure the worker can connect to the database, object store and redis.
 
 
 Debug
