@@ -1,6 +1,7 @@
 from entityservice.async_worker import celery, logger
 from entityservice.database import DBConn, get_created_runs_and_queue, get_uploaded_encoding_sizes, \
-    get_project_schema_encoding_size, get_project_encoding_size, set_project_encoding_size
+    get_project_schema_encoding_size, get_project_encoding_size, set_project_encoding_size, \
+    update_project_mark_all_runs_failed
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.settings import Config as config
 from entityservice.tasks.base_task import TracedTask
@@ -25,7 +26,8 @@ def check_for_executable_runs(project_id, parent_span=None):
             check_and_set_project_encoding_size(project_id, conn)
         except ValueError as e:
             log.warning(e.args[0])
-            # todo make sure this can be exposed to user
+            # make sure this error can be exposed to user by marking the run/s as failed
+            update_project_mark_all_runs_failed(conn, project_id)
             return
         new_runs = get_created_runs_and_queue(conn, project_id)
 
