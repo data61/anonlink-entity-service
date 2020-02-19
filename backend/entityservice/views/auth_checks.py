@@ -60,10 +60,16 @@ def abort_if_invalid_results_token(resource_id, results_token):
 
 
 def abort_if_inconsistent_upload(uses_blocking, clk_json):
-    # check if the following combinations are true
-    # - uses_blocking is False AND 'clks' element in upload JSON
-    # - uses_blocking if True AND 'clknblocks' element in upload JSON
-    # otherwise, return safe_fail_request
+    """
+    check if the following combinations are true
+      - uses_blocking is False AND 'clks' element in upload JSON
+      - uses_blocking if True AND 'clknblocks' element in upload JSON
+    otherwise, return safe_fail_request
+
+    :param uses_blocking: Boolean that indicates if the project uses blocking
+    :param clk_json: a json dict
+    :return: safe_fail_request if conditions are not met
+    """
     is_valid_clks = not uses_blocking and 'clks' in clk_json
     is_valid_clknblocks = uses_blocking and 'clknblocks' in clk_json
     if not (is_valid_clks or is_valid_clknblocks):
