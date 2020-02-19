@@ -72,4 +72,5 @@ def check_and_set_project_encoding_size(project_id, conn):
             handle_invalid_encoding_data(project_id, dp_id)
         raise ValueError("Encoding size out of configured bounds")
 
-
+    if encoding_size % 8:
+        raise ValueError("Encoding size must be multiple of 8 bytes (64 bits)")
