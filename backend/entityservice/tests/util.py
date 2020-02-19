@@ -4,6 +4,7 @@ import itertools
 import math
 import os
 import random
+import struct
 import time
 import tempfile
 from contextlib import contextmanager
@@ -52,6 +53,10 @@ def generate_clks(count, size):
         hash_bytes = generate_bytes(size)
         res.append(hash_bytes)
     return res
+
+
+def generate_clks_with_id(count, size):
+    return zip(range(count), generate_clks(count, size))
 
 
 def generate_json_serialized_clks(count, size=128):
@@ -436,3 +441,15 @@ def upload_binary_data_from_file(requests, file_path, project_id, token, count, 
 
 def get_expected_number_parties(project_params):
     return project_params.get('number_parties', 2)
+
+
+def binary_upload_format(encoding_size):
+    bit_packing_fmt = f"!{encoding_size}s"
+    bit_packing_struct = struct.Struct(bit_packing_fmt)
+    return bit_packing_struct
+
+
+def binary_pack_for_upload(filters, encoding_size):
+    bit_packing_struct = binary_upload_format(encoding_size)
+    for hash_bytes in filters:
+        yield bit_packing_struct.pack(hash_bytes)

@@ -61,9 +61,8 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         current_span.log_kv({"event": 'get-dataset-sizes'})
 
         filters_object_filenames = tuple(
-            get_filter_metadata(conn, dp_id) for dp_id in dp_ids)
+            get_filter_metadata(conn, dp_id)[0] for dp_id in dp_ids)
         current_span.log_kv({"event": 'get-metadata'})
-
         log.debug("Chunking computation task")
 
     chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
@@ -125,10 +124,13 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     t0 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
     chunk_dp1, chunk_dp1_size = get_chunk_from_object_store(chunk_info_dp1, encoding_size)
-
+    #TODO: use the entity ids!
+    entity_ids_dp1, chunk_dp1 = zip(*chunk_dp1)
     t1 = time.time()
     log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
     chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2, encoding_size)
+    # TODO: use the entity ids!
+    entity_ids_dp2, chunk_dp2 = zip(*chunk_dp2)
     t2 = time.time()
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")

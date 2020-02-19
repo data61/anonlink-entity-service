@@ -260,32 +260,33 @@ def get_dataprovider_id(db, update_token):
     return query_db(db, sql_query, [update_token], one=True)['id']
 
 
-def get_bloomingdata_column(db, dp_id, column):
-    assert column in {'ts', 'token', 'file', 'state', 'count'}
+def get_bloomingdata_columns(db, dp_id, columns):
+    for column in columns:
+        assert column in {'ts', 'token', 'file', 'state', 'count', 'encoding_size'}
     sql_query = """
         SELECT {} 
         FROM bloomingdata
         WHERE dp = %s
-        """.format(column)
+        """.format(', '.join(columns))
     result = query_db(db, sql_query, [dp_id], one=True)
     if result is None:
         raise DataProviderDeleted(dp_id)
-    else:
-        return result[column]
+    return [result[column] for column in columns]
 
 
 def get_filter_metadata(db, dp_id):
     """
-    :return: The filename of the raw clks.
+    :return: The filename and the encoding size of the raw clks.
     """
-    return get_bloomingdata_column(db, dp_id, 'file').strip()
+    filename, encoding_size = get_bloomingdata_columns(db, dp_id, ['file', 'encoding_size'])
+    return filename.strip(), encoding_size
 
 
 def get_number_of_hashes(db, dp_id):
     """
     :return: The count of the uploaded encodings.
     """
-    return get_bloomingdata_column(db, dp_id, 'count')
+    return get_bloomingdata_columns(db, dp_id, ['count'])[0]
 
 
 def get_project_schema_encoding_size(db, project_id):

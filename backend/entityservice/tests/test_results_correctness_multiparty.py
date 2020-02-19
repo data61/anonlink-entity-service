@@ -3,9 +3,8 @@ import pickle
 
 import anonlink
 
-from entityservice.serialization import binary_pack_filters
 from entityservice.tests.util import (
-    create_project_upload_data, delete_project, get_run_result, post_run)
+    create_project_upload_data, delete_project, get_run_result, post_run, binary_pack_for_upload)
 
 DATA_FILENAME = 'test-multiparty-results-correctness-data.pkl'
 DATA_PATH = pathlib.Path(__file__).parent / 'testdata' / DATA_FILENAME
@@ -29,7 +28,7 @@ def test_groups_correctness(requests):
     filter_size = len(filters[0][0])
     assert all(len(filter_) == filter_size
                for dataset in filters for filter_ in dataset)
-    packed_filters = [b''.join(binary_pack_filters(f, filter_size))
+    packed_filters = [b''.join(binary_pack_for_upload(f, filter_size))
                       for f in filters]
     project_data, _ = create_project_upload_data(
         requests, packed_filters, result_type='groups',

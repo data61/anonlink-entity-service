@@ -41,14 +41,13 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     uploaded_encoding_size = len(first_hash_bytes)
 
     def filter_generator():
-        log.debug("Deserializing json filters")
         i = 0
-        yield first_hash_bytes
+        yield i, first_hash_bytes
         for i, line in enumerate(text_stream, start=1):
             hash_bytes = deserialize_bytes(line)
             if len(hash_bytes) != uploaded_encoding_size:
                 raise ValueError("Encodings were not all the same size")
-            yield hash_bytes
+            yield i, hash_bytes
 
         log.info(f"Processed {i + 1} hashes")
 
