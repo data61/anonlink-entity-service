@@ -36,6 +36,8 @@ variables. Multiple workers can be used to distribute the work beyond
 one machine - by default all cores will be used for computing similarity
 scores and encrypting the mask vector.
 
+.. _dev-dependencies:
+
 Dependencies
 ~~~~~~~~~~~~
 
@@ -67,8 +69,6 @@ argument::
     --build-arg VERSION=3814723844e4b359f0b07e86a57093ad4f88aa434c42ced9c72c611bbcf9819a
 
 
-Ideally the CI system should automatically build the application using the most recent base ``VERSION``,
-however this is currently manual.
 
 Redis
 -----
