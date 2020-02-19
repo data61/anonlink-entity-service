@@ -13,7 +13,7 @@ from entityservice.tasks import handle_raw_upload, check_for_executable_runs, re
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
     clks_uploaded_to_project, fmt_bytes, iterable_to_stream
-from entityservice.database import DBConn
+from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
 from entityservice import models
@@ -208,6 +208,8 @@ def project_clks_post(project_id):
         dp_id = db.get_dataprovider_id(conn, token)
         project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
         upload_state_updated = db.is_dataprovider_allowed_to_upload_and_lock(conn, dp_id)
+        # get flag use_blocking from table projects
+        uses_blocking = get_project_column(conn, project_id, 'uses_blocking')
 
     if not upload_state_updated:
         return safe_fail_request(403, "This token has already been used to upload clks.")
@@ -226,11 +228,6 @@ def project_clks_post(project_id):
                 #       However, as connexion is very, very strict about input validation when it comes to json, it will always
                 #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
                 #       json into memory. -> issue #184
-
-                # get flag use_blocking from table projects
-                with DBConn() as conn:
-                    uses_blocking = db.get_uses_blocking(conn, project_id)
-
                 receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span, uses_blocking)
                 # Schedule a task to deserialize the hashes, and carry
                 # out a pop count.
@@ -386,11 +383,10 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
     logger.info(f"Received {count} encodings.")
 
     # write clk_json into a temp file
-    _, tmp_filename = tempfile.mkstemp()
+    tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
 
-    logger.info('Writing uploaded {} JSON to {}'.format(element.upper(), tmp_filename))
-    with open(tmp_filename, 'w') as f:
-        json.dump(clk_json, f)
+    logger.info('Writing uploaded {} JSON to {}'.format(element.upper(), tmp.name))
+    json.dump(clk_json, tmp)
 
     with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
         span.set_tag('filename', filename)
@@ -398,7 +394,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
         mc.fput_object(
             Config.MINIO_BUCKET,
             filename,
-            tmp_filename,
+            tmp.name,
             content_type='application/json'
         )
 
