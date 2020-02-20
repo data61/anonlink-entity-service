@@ -393,7 +393,7 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
 
     # write clk_json into a temp file
-    tmp = tempfile.NamedTemporaryFile(mode='w+t', delete=False)
+    tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
     json.dump(clk_json, tmp)
     tmp.flush()
     with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
