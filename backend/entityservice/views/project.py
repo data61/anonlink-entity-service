@@ -393,7 +393,7 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     else:
         block_count = 1
         logger.info("Rewriting provided json into clknsblocks format")
-        clk_json = {'clksnsblocks': [[encoding, 1] for encoding in clk_json['clks']]}
+        clk_json = {'clksnblocks': [[encoding, '1'] for encoding in clk_json['clks']]}
 
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
 

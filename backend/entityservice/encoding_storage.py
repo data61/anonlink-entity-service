@@ -1,13 +1,11 @@
-
-
 import ijson
-from pathlib import Path
-from entityservice.serialization import binary_pack_filters, deserialize_bytes, binary_format
+from entityservice.serialization import deserialize_bytes, binary_format
 
 
-def convert_encodings_from_json_to_binary(f, encoding_size=128):
+def convert_encodings_from_json_to_binary(f):
     """
-    The provided file will be in a JSON array with the following structure:
+    The provided file will be contain encodings and blocking information with
+    the following structure:
 
     {
         "clksnblocks": [
@@ -17,37 +15,37 @@ def convert_encodings_from_json_to_binary(f, encoding_size=128):
         ]
     }
 
-    The output data will be a binary file of just the encodings for each block.
+    .. Note::
+        Entities belonging to no blocks get ignored.
 
-    Initially we do everything in memory.
 
     TODO:
-        Eventually we might want to instead stream through the input twice, first counting the
-        number of encodings in each block, and on the second pass streaming the encodings directly
-        into their pre-allocated per-block output files.
+        Currently we do everything in memory.
+        Eventually we might want to instead stream through the input (perhaps twice).
 
-    :param f: File like object containing `clksnblocks` json.
-    :param encoding_size: the size of one encoding in bytes, excluding entity ID info
-    :return: a dict mapping blocks to lists of bytes (each encoding in our internal encoding file format)
+    :param f: File-like object containing `clksnblocks` json.
+    :return: a tuple comprising:
+        - dict mapping blocks to lists of bytes (each encoding in our internal encoding file format)
+        - the size of the first encoding in bytes (excluding entity ID info)
     """
     # Each block index contains a set of base64 encodings.
     encodings_by_block = {}
 
-    bit_packing_struct = binary_format(encoding_size)
+    # Default which is ignored but makes IDE/typechecker happier
+    bit_packing_struct = binary_format(128)
+    encoding_size = None
 
     encodings_and_block_iter = ijson.items(f, 'clksnblocks.item')
     # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
     for i, obj in enumerate(encodings_and_block_iter):
         b64_encoding, *blocks = obj
         deserialized_encoding_data = deserialize_bytes(b64_encoding)
+        if i == 0:
+            encoding_size = len(deserialized_encoding_data)
+            bit_packing_struct = binary_format(encoding_size)
         encoding = bit_packing_struct.pack(i, deserialized_encoding_data)
         for block in blocks:
             encodings_by_block.setdefault(block, []).append(encoding)
 
-    return encodings_by_block
+    return encodings_by_block, encoding_size
 
-
-if __name__ == '__main__':
-    filename = Path(__file__).parent / 'test_encoding.json'
-    with open(filename) as f:
-        print(convert_encodings_from_json_to_binary(f))
