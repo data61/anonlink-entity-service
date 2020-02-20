@@ -135,12 +135,16 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     span.log_kv({'event': 'chunks are fetched and deserialized'})
     log.debug("Calculating filter similarity")
     span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
-    chunk_results = anonlink.concurrency.process_chunk(
-        chunk_info,
-        (chunk_dp1, chunk_dp2),
-        anonlink.similarities.dice_coefficient_accelerated,
-        threshold,
-        k=min(chunk_dp1_size, chunk_dp2_size))
+    try:
+        chunk_results = anonlink.concurrency.process_chunk(
+            chunk_info,
+            (chunk_dp1, chunk_dp2),
+            anonlink.similarities.dice_coefficient_accelerated,
+            threshold,
+            k=min(chunk_dp1_size, chunk_dp2_size))
+    except NotImplementedError as e:
+        log.warning("Encodings couldn't be compared using anonlink.")
+        return
     t3 = time.time()
     span.log_kv({'event': 'similarities calculated'})
 

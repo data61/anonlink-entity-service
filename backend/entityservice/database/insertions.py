@@ -213,6 +213,18 @@ def update_run_mark_failure(conn, run_id):
         cur.execute(sql_query, [run_id])
 
 
+def update_project_mark_all_runs_failed(conn, project_id):
+    with conn.cursor() as cur:
+        sql_query = """
+            UPDATE runs SET
+              state = 'error',
+              time_completed = now()
+            WHERE
+              project = %s
+            """
+        cur.execute(sql_query, [project_id])
+
+
 def mark_project_deleted(db, project_id):
     with db.cursor() as cur:
         sql_query = """
