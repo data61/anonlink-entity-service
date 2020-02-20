@@ -36,7 +36,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     data = json.loads(raw_data.data.decode('utf-8'))
     if 'clks' not in data:
         raise ValueError('can only handle CLKs at the moment.')
-    binary_data = b''.join(''.join(clk.split('\n')).encode() + b'\n' for clk in data['clks'])
+    binary_data = b'\n'.join(''.join(clk.split('\n')).encode() for clk in data['clks']) + b'\n'
     buffer = io.BytesIO(binary_data)
     #### END GLUE
 
