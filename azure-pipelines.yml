@@ -88,7 +88,7 @@ stages:
       dependsOn: HashBaseDependencies
       imageName: data61/anonlink-app
       # this part is still todo automated
-      dockerBuildArgs: "--build-arg VERSION=02a973ce02c96d24376c5770c0426ccb0958a0d59136a4f2fc11c8666c43062a"
+      dockerBuildArgs: "--build-arg VERSION=ed0be6ee130ec505b2a65af26ba570e1033ffb7e0cc6b27b6a8520df94f65d20"
       #dockerBuildArgs: "--build-arg VERSION=$[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]"
 
 - stage: stage_docker_nginx_image_build

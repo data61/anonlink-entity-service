@@ -54,12 +54,16 @@ jobs:
         docker login -u $(dockerHubId) -p $(dockerHubPassword)
       displayName: 'Dockerhub login'
     - script: |
-        if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
+        if [[ "$SKIP" == "False" ]]; then
+            if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
+              docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
+            else
+              docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
+            fi
+            docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
         else
-          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
+            echo "Skipping build"
         fi
-        docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
       displayName: 'Build and push docker image'
 
 # Updated from the documentation https://docs.microsoft.com/en-us/azure/devops/pipelines/process/templates?view=azure-devops
