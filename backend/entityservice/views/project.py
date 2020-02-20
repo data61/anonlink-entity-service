@@ -376,10 +376,21 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     logger.info("Storing user {} supplied {} from json".format(dp_id, element))
 
     with opentracing.tracer.start_span('splitting-json-clks', child_of=parent_span) as span:
-        count = len(clk_json[element])
-        span.set_tag(element, count)
+        encoding_count = len(clk_json[element])
+        span.set_tag(element, encoding_count)
+        logger.debug(f"Received {encoding_count} {element}")
 
-    logger.info(f"Received {count} encodings.")
+    if element == 'clksnblocks':
+        # Note the format of encoding + blocks.
+        # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
+        blocks = set()
+        for _, *elements_blocks in clk_json[element]:
+             blocks.update(elements_blocks)
+        block_count = len(blocks)
+    else:
+        block_count = 1
+
+    logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
 
     # write clk_json into a temp file
     tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -398,6 +409,6 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
-            db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
+            db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count)
 
     return receipt_token, filename
