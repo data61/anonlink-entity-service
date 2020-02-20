@@ -220,7 +220,7 @@ def project_clks_post(project_id):
                 #       However, as connexion is very, very strict about input validation when it comes to json, it will always
                 #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
                 #       json into memory. -> issue #184
-                receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), span, uses_blocking)
+                receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), uses_blocking, parent_span=span)
                 # Schedule a task to deserialize the hashes, and carry
                 # out a pop count.
                 handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
@@ -350,10 +350,9 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     return receipt_token
 
 
-def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
+def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     """
-    Convert user provided encodings from json array of base64 data into
-    a newline separated file of base64 data.
+    Take user provided encodings as json dict and save them, as-is, to the object store.
 
     Note this implementation is non-streaming.
     """
@@ -376,8 +375,6 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
 
     # write clk_json into a temp file
     tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
-
-    logger.info('Writing uploaded {} JSON to {}'.format(element.upper(), tmp.name))
     json.dump(clk_json, tmp)
 
     with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
@@ -389,6 +386,7 @@ def upload_json_clk_data(dp_id, clk_json, parent_span, uses_blocking):
             tmp.name,
             content_type='application/json'
         )
+    logger.info('Saved uploaded {} JSON to file {} in object store.'.format(element.upper(), filename))
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
