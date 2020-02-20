@@ -1,9 +1,11 @@
 import io
 import json
 
-from entityservice.cache import encodings as encoding_cache
+import opentracing
 
+from entityservice.cache import encodings as encoding_cache
 from entityservice.database import *
+from entityservice.encoding_storage import convert_encodings_from_json_to_binary
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
@@ -17,7 +19,10 @@ from entityservice.utils import iterable_to_stream, fmt_bytes, clks_uploaded_to_
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
-    # User has uploaded base64 encodings as JSON
+    """
+    User has uploaded base64 encodings as JSON, this task needs to copy the data into
+    our internal binary format.
+    """
     log = logger.bind(pid=project_id, dp_id=dp_id)
     log.info("Handling user provided base64 encodings")
 
@@ -30,17 +35,22 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     log.info(f"Expecting to handle {expected_count} encodings")
     mc = connect_to_object_store()
 
-    #### GLUE CODE
+    #### GLUE CODE - TODO replace me
     raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
+
+    blocked_binary_data = convert_encodings_from_json_to_binary(raw_data)
+    log.info(f"Converted block info (but ignoring). Number of blocks: {len(blocked_binary_data)}")
+
     data = json.loads(raw_data.data.decode('utf-8'))
     if 'clks' not in data:
         raise ValueError('can only handle CLKs at the moment.')
-    binary_data = b'\n'.join(''.join(clk.split('\n')).encode() for clk in data['clks']) + b'\n'
+    binary_data = b'\n'.join(''.join(clk[0].split('\n')).encode() for clk in data['clksnblocks']) + b'\n'
     buffer = io.BytesIO(binary_data)
     #### END GLUE
 
-    # Set up streaming processing pipeline
+    # Ideally we do this in a streaming processing pipeline
+
     buffered_stream = iterable_to_stream(buffer)
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
@@ -86,13 +96,14 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     else:
         log.info("Not caching clk data as it is too large")
 
-    packed_filters = binary_pack_filters(python_filters, uploaded_encoding_size)
-    packed_filter_stream = iterable_to_stream(packed_filters)
+    with opentracing.tracer.start_span('process-encodings-in-quarantine', child_of=parent_span) as span:
+        packed_filters = binary_pack_filters(python_filters, uploaded_encoding_size)
+        packed_filter_stream = iterable_to_stream(packed_filters)
 
-    # Upload to object store
-    log.info(f"Uploading {expected_count} encodings of size {uploaded_encoding_size} " +
-             f"to object store. Total Size: {fmt_bytes(num_bytes)}")
-    mc.put_object(Config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
+        # Upload to object store
+        log.info(f"Uploading {expected_count} encodings of size {uploaded_encoding_size} " +
+                 f"to object store. Total Size: {fmt_bytes(num_bytes)}")
+        mc.put_object(Config.MINIO_BUCKET, filename, data=packed_filter_stream, length=num_bytes)
 
     with DBConn() as conn:
         update_encoding_metadata(conn, filename, dp_id, 'ready')
