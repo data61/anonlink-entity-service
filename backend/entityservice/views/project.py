@@ -370,6 +370,9 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     is_valid_clks = not uses_blocking and 'clks' in clk_json
     element = 'clks' if is_valid_clks else 'clknblocks'
 
+    if len(clk_json[element] < 1):
+        safe_fail_request(400, message="Missing CLKs information")
+
     receipt_token = generate_code()
 
     filename = Config.RAW_FILENAME_FMT.format(receipt_token)
