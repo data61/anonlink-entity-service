@@ -47,6 +47,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     elif block_count > 1:
         raise NotImplementedError('Currently handle single block encodings - check back soon')
 
+    #for block_id in blocked_binary_data:
     block_id = list(blocked_binary_data.keys())[0]
     actual_count = len(blocked_binary_data[block_id])
     log.info(f"{block_id=}, number of encodings: {actual_count}")

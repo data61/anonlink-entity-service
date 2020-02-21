@@ -117,7 +117,7 @@ CREATE TYPE PROCESSEDSTATE AS ENUM (
   'error' -- an error occurred during the processing
 );
 
--- The encoded PII data for each dataprovider
+-- The PII data for each dataprovider
 CREATE TABLE bloomingdata (
   id    SERIAL PRIMARY KEY,
 
@@ -128,15 +128,34 @@ CREATE TABLE bloomingdata (
   -- The receipt token for this data
   token CHAR(48)    NOT NULL UNIQUE,
 
-  -- Store the raw CLK data in a file
+  -- Filename for the raw unprocessed uploaded data
   file  CHAR(64)    NOT NULL,
 
   state PROCESSEDSTATE NOT NULL,
 
-  -- Size in bytes of the uploaded encoding
+  -- Size in bytes of the uploaded encodings
   encoding_size  INT    NULL,
 
-  -- Number of uploaded entries
+  -- Number of uploaded encodings
+  count  INT         NOT NULL,
+
+  -- Number of blocks uploaded
+  block_count INT   NOT NULL DEFAULT 1
+);
+
+-- File information for blocks of dataprovider's encodings
+CREATE TABLE encodingblocks (
+  id    SERIAL PRIMARY KEY,
+  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
+
+  -- Filename for the block of encodings
+  file  CHAR(64)    NOT NULL,
+
+  --state PROCESSEDSTATE NOT NULL,
+  -- Size in bytes of the uploaded encodings
+  --encoding_size  INT    NULL,
+
+  -- Number of encodings in this block
   count  INT         NOT NULL
 );
 
