@@ -2,6 +2,18 @@ import ijson
 from entityservice.serialization import deserialize_bytes, binary_format
 
 
+def stream_json_clksnblocks(f):
+    """
+
+    :param f: JSON file containing clksnblocks data.
+    :return: Generator of (entity_id, base64 encoding, list of blocks)
+    """
+    # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
+    for i, obj in enumerate(ijson.items(f, 'clksnblocks.item')):
+        b64_encoding, *blocks = obj
+        yield i, deserialize_bytes(b64_encoding), blocks
+
+
 def convert_encodings_from_json_to_binary(f):
     """
     The provided file will be contain encodings and blocking information with
@@ -35,17 +47,13 @@ def convert_encodings_from_json_to_binary(f):
     bit_packing_struct = binary_format(128)
     encoding_size = None
 
-    encodings_and_block_iter = ijson.items(f, 'clksnblocks.item')
-    # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
-    for i, obj in enumerate(encodings_and_block_iter):
-        b64_encoding, *blocks = obj
-        deserialized_encoding_data = deserialize_bytes(b64_encoding)
-        if i == 0:
-            encoding_size = len(deserialized_encoding_data)
+    for i, encoding_data, blocks in stream_json_clksnblocks(f):
+        if encoding_size is None:
+            encoding_size = len(encoding_data)
             bit_packing_struct = binary_format(encoding_size)
-        encoding = bit_packing_struct.pack(i, deserialized_encoding_data)
+        binary_packed_encoding = bit_packing_struct.pack(i, encoding_data)
         for block in blocks:
-            encodings_by_block.setdefault(block, []).append(encoding)
+            encodings_by_block.setdefault(block, []).append(binary_packed_encoding)
 
     return encodings_by_block, encoding_size
 
