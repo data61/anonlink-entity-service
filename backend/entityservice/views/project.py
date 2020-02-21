@@ -364,7 +364,10 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
 
     Note this implementation is non-streaming.
     """
-    abort_if_inconsistent_upload(uses_blocking, clk_json)
+    try:
+        abort_if_inconsistent_upload(uses_blocking, clk_json)
+    except ValueError as e:
+        safe_fail_request(403, e)
 
     # now we need to know element name - clks or clknblocks
     is_valid_clks = not uses_blocking and 'clks' in clk_json
@@ -396,7 +399,7 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
 
     # write clk_json into a temp file
-    tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
+    tmp = tempfile.NamedTemporaryFile(mode='w')
     json.dump(clk_json, tmp)
     tmp.flush()
     with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
