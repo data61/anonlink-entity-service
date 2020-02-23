@@ -1,7 +1,8 @@
 DROP TABLE
 IF EXISTS
 projects, runs, dataproviders, bloomingdata, run_results,
-similarity_scores, permutations, permutation_masks, metrics
+similarity_scores, permutations, permutation_masks, metrics,
+
 CASCADE;
 
 DROP TYPE IF EXISTS MAPPINGRESULT;
@@ -147,18 +148,18 @@ CREATE TABLE bloomingdata (
 CREATE TABLE encodingblocks (
   id    SERIAL PRIMARY KEY,
   dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
+  block_id  CHAR(64)    NOT NULL,
 
   -- Filename for the block of encodings
   file  CHAR(64)    NOT NULL,
 
-  --state PROCESSEDSTATE NOT NULL,
-  -- Size in bytes of the uploaded encodings
-  --encoding_size  INT    NULL,
+  state PROCESSEDSTATE NOT NULL,
 
   -- Number of encodings in this block
   count  INT         NOT NULL
 );
 
+CREATE INDEX block_index ON encodingblocks USING hash (block_id);
 
 CREATE TABLE run_results (
   -- Just the table index
