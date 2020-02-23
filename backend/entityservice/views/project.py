@@ -326,7 +326,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     filename = Config.BIN_FILENAME_FMT.format(receipt_token)
     # Set the state to 'pending' in the bloomingdata table
     with DBConn() as conn:
-        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, count)
+        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
     logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
 
@@ -383,19 +383,22 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
         span.set_tag(element, encoding_count)
         logger.debug(f"Received {encoding_count} {element}")
 
-    if element == 'clksnblocks':
-        # Note the format of encoding + blocks.
-        # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
-        blocks = set()
-        for _, *elements_blocks in clk_json[element]:
-             blocks.update(elements_blocks)
-        block_count = len(blocks)
-    else:
-        block_count = 1
+    if element == 'clks':
         logger.info("Rewriting provided json into clknsblocks format")
         clk_json = {'clksnblocks': [[encoding, '1'] for encoding in clk_json['clks']]}
+        element = 'clksnblocks'
+
+    logger.info("Counting block sizes and number of blocks")
+    # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
+    block_sizes = {}
+    for _, *elements_blocks in clk_json[element]:
+        for el_block in elements_blocks:
+            block_sizes[el_block] = block_sizes.setdefault(el_block, 0) + 1
+    block_count = len(block_sizes)
 
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
+    for block in block_sizes:
+        logger.info(f"Block {block} has {block_sizes[block]} elements")
 
     # write clk_json into a temp file
     tmp = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -414,6 +417,14 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
-            db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count)
+            db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count, block_count)
+            # A dict mapping block id to a tuple (filename, number of encodings)
+            blocking_metadata = {block_id: (_make_filename(dp_id, block_id), block_sizes[block_id]) for
+                                 block_id in block_sizes}
+            db.insert_blocking_metadata(conn, dp_id, blocking_metadata)
 
     return receipt_token, filename
+
+
+def _make_filename(dp_id, block_id):
+    return Config.BLOCKING_DATA_FILENAME_FMT.format("dp{}-block{}".format(dp_id, block_id))

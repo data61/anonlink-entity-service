@@ -90,6 +90,7 @@ class Config(object):
     RAW_FILENAME_FMT = "quarantine/{}.txt"
     BIN_FILENAME_FMT = "raw-clks/{}.bin"
     SIMILARITY_SCORES_FILENAME_FMT = "similarity-scores/{}.bin"
+    BLOCKING_DATA_FILENAME_FMT = "blocked-encodings/{}.bin"
 
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = int(os.getenv('MIN_ENCODING_SIZE', '1'))

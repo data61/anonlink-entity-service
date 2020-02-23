@@ -187,6 +187,7 @@ def get_run_result(db, resource_id):
 
 
 def get_project_dataset_sizes(db, project_id):
+    """Returns the number of encodings in a dataset."""
     sql_query = """
         SELECT bloomingdata.count
         FROM dataproviders, bloomingdata
