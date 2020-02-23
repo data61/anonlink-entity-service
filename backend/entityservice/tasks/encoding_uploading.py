@@ -1,4 +1,5 @@
 import io
+import json
 
 from entityservice.cache import encodings as encoding_cache
 
@@ -29,12 +30,18 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     log.info(f"Expecting to handle {expected_count} encodings")
     mc = connect_to_object_store()
 
-    # Input file is line separated base64 record encodings.
+    #### GLUE CODE
     raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
-    raw_data_response = mc.get_object(Config.MINIO_BUCKET, raw_file)
+    raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
+    data = json.loads(raw_data.data.decode('utf-8'))
+    if 'clks' not in data:
+        raise ValueError('can only handle CLKs at the moment.')
+    binary_data = b'\n'.join(''.join(clk.split('\n')).encode() for clk in data['clks']) + b'\n'
+    buffer = io.BytesIO(binary_data)
+    #### END GLUE
 
     # Set up streaming processing pipeline
-    buffered_stream = iterable_to_stream(raw_data_response.stream())
+    buffered_stream = iterable_to_stream(buffer)
     text_stream = io.TextIOWrapper(buffered_stream, newline='\n')
 
     first_hash_bytes = deserialize_bytes(next(text_stream))
