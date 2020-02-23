@@ -42,17 +42,39 @@ def insert_dataprovider(cur, auth_token, project_id):
     return execute_returning_id(cur, sql_query, [project_id, auth_token])
 
 
-def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, count):
+def insert_blocking_metadata(db, dp_id, blocks):
+    """
+
+    :param db:
+    :param dp_id:
+    :param blocks: A dict mapping block id to a tuple (filename, number of encodings) per block.
+    :return:
+    """
+    logger.info("Adding blocking metadata to database")
+    sql_insertion_query = """
+        INSERT INTO encodingblocks
+        (dp, block_id, file, state, count)
+        VALUES %s
+        """
+
+    logger.info("Preparing SQL for bulk insert of blocks")
+    values = [(dp_id, block_id, blocks[block_id][0], 'pending', blocks[block_id][1]) for block_id in blocks]
+    logger.info(values)
+    with db.cursor() as cur:
+        psycopg2.extras.execute_values(cur, sql_insertion_query, values)
+
+
+def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_count, block_count):
     logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
         INSERT INTO bloomingdata
-        (dp, token, file, count, state)
+        (dp, token, file, count, block_count, state)
         VALUES
-        (%s, %s, %s, %s, %s)
+        (%s, %s, %s, %s, %s, %s)
         """
 
     with db.cursor() as cur:
-        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, count, 'pending'])
+        cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
 
 
 def set_dataprovider_upload_state(db, dp_id, state='error'):
