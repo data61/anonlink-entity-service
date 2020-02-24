@@ -1,6 +1,6 @@
 DROP TABLE
 IF EXISTS
-projects, runs, dataproviders, bloomingdata, run_results,
+projects, runs, dataproviders, uploads, run_results,
 similarity_scores, permutations, permutation_masks, metrics,
 
 CASCADE;
@@ -119,7 +119,7 @@ CREATE TYPE PROCESSEDSTATE AS ENUM (
 );
 
 -- The PII data for each dataprovider
-CREATE TABLE bloomingdata (
+CREATE TABLE uploads (
   id    SERIAL PRIMARY KEY,
 
   ts    TIMESTAMP DEFAULT current_timestamp,
@@ -144,22 +144,49 @@ CREATE TABLE bloomingdata (
   block_count INT   NOT NULL DEFAULT 1
 );
 
--- File information for blocks of dataprovider's encodings
-CREATE TABLE encodingblocks (
-  id    SERIAL PRIMARY KEY,
-  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
-  block_id  CHAR(64)    NOT NULL,
 
-  -- Filename for the block of encodings
-  file  CHAR(64)    NOT NULL,
+CREATE TABLE blocks
+(
+    id    SERIAL PRIMARY KEY,
 
-  state PROCESSEDSTATE NOT NULL,
+    dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
-  -- Number of encodings in this block
-  count  INT         NOT NULL
+    -- User supplied block name
+    block_name CHAR(64)       NOT NULL,
+
+    -- Number of encodings in block
+    count    INT            NOT NULL,
+
+    -- State of the block
+    state    PROCESSEDSTATE NOT NULL
+
 );
 
-CREATE INDEX block_index ON encodingblocks USING hash (block_id);
+CREATE INDEX ON blocks (dp, block_name);
+
+
+CREATE TABLE encodings (
+  id    SERIAL PRIMARY KEY,
+
+  -- user supplied encoding id
+  encoding_id INT       NOT NULL,
+  encoding  bytea       NOT NULL
+
+);
+
+-- Table mapping blocks to encodings
+CREATE TABLE encodingblocks (
+  --id    SERIAL PRIMARY KEY,
+  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
+
+  encoding_id INT REFERENCES encodings (id),
+  block_id INT REFERENCES blocks (id)
+);
+
+-- TODO consider best index/s
+CREATE INDEX block_index ON encodingblocks (block_id);
+
+
 
 CREATE TABLE run_results (
   -- Just the table index

@@ -4,18 +4,6 @@ from entityservice.serialization import deserialize_bytes, binary_format
 
 def stream_json_clksnblocks(f):
     """
-
-    :param f: JSON file containing clksnblocks data.
-    :return: Generator of (entity_id, base64 encoding, list of blocks)
-    """
-    # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
-    for i, obj in enumerate(ijson.items(f, 'clksnblocks.item')):
-        b64_encoding, *blocks = obj
-        yield i, deserialize_bytes(b64_encoding), blocks
-
-
-def convert_encodings_from_json_to_binary(f):
-    """
     The provided file will be contain encodings and blocking information with
     the following structure:
 
@@ -27,13 +15,36 @@ def convert_encodings_from_json_to_binary(f):
         ]
     }
 
-    .. Note::
-        Entities belonging to no blocks get ignored.
+    :param f: JSON file containing clksnblocks data.
+    :return: Generator of (entity_id, base64 encoding, list of blocks)
+    """
+    # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
+    for i, obj in enumerate(ijson.items(f, 'clksnblocks.item')):
+        b64_encoding, *blocks = obj
+        yield i, deserialize_bytes(b64_encoding), blocks
 
 
-    TODO:
-        Currently we do everything in memory.
-        Eventually we might want to instead stream through the input (perhaps twice).
+def convert_encodings_from_base64_to_binary(encodings):
+    """
+    :param encodings: Iterable object containing tuples of  (entity_id, base64 encoding, list of blocks)
+    :return: a tuple comprising:
+         (entity_id, binary encoding, list of blocks)
+    """
+    # Default which is ignored but makes IDE/typechecker happier
+    bit_packing_struct = binary_format(128)
+    encoding_size = None
+
+    for i, encoding_data, blocks in encodings:
+        if encoding_size is None:
+            encoding_size = len(encoding_data)
+            bit_packing_struct = binary_format(encoding_size)
+        binary_packed_encoding = bit_packing_struct.pack(i, encoding_data)
+        yield i, binary_packed_encoding, blocks
+
+
+def convert_encodings_from_json_to_binary(f):
+    """
+    Temp helper function
 
     :param f: File-like object containing `clksnblocks` json.
     :return: a tuple comprising:

@@ -324,7 +324,7 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
     """
     receipt_token = generate_code()
     filename = Config.BIN_FILENAME_FMT.format(receipt_token)
-    # Set the state to 'pending' in the bloomingdata table
+    # Set the state to 'pending' in the uploads table
     with DBConn() as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
@@ -418,13 +418,8 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
             db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count, block_count)
-            # A dict mapping block id to a tuple (filename, number of encodings)
-            blocking_metadata = {block_id: (_make_filename(dp_id, block_id), block_sizes[block_id]) for
-                                 block_id in block_sizes}
-            db.insert_blocking_metadata(conn, dp_id, blocking_metadata)
+            db.insert_blocking_metadata(conn, dp_id, block_sizes)
 
     return receipt_token, filename
 
 
-def _make_filename(dp_id, block_id):
-    return Config.BLOCKING_DATA_FILENAME_FMT.format("dp{}-block{}".format(dp_id, block_id))

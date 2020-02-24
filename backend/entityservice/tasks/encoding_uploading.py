@@ -3,7 +3,8 @@ import io
 import opentracing
 
 from entityservice.database import *
-from entityservice.encoding_storage import convert_encodings_from_json_to_binary
+from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
+    convert_encodings_from_json_to_binary
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
@@ -28,18 +29,32 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         if not check_project_exists(db, project_id):
             log.info("Project deleted, stopping immediately")
             return
-        expected_count = get_number_of_hashes(db, dp_id)
+        # Get number of blocks + total number of encodings from database
+        expected_count, block_count = get_encoding_metadata(db, dp_id)
 
-    log.info(f"Expecting to handle {expected_count} encodings")
+    log.info(f"Expecting to handle {expected_count} encodings in {block_count} blocks")
     mc = connect_to_object_store()
     raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
 
+    with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
+        # stream encodings with block ids from uploaded file
+        # convert each encoding to our internal binary format
+        # output into database for each block (temp or direct to minio?)
+        pipeline = convert_encodings_from_base64_to_binary(stream_json_clksnblocks(raw_data))
+        with DBConn() as db:
+            for entity_id, encoding_data, blocks in pipeline:
+                # write this encoding to files or database
+                insert_encoding_into_blocks(db, dp_id, blocks, entity_id, encoding_data)
+
+
+    #### GLUE CODE - TODO remove me once moved away from storing encodings in files
+    # Note we open the stream a second time
+    raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
     blocked_binary_data, encoding_size = convert_encodings_from_json_to_binary(raw_data)
-    block_count = len(blocked_binary_data)
+    assert block_count == len(blocked_binary_data)
     log.info(f"Converted uploaded encodings of size {encoding_size} bytes into internal binary format. Number of blocks: {block_count}")
 
-    #### GLUE CODE - TODO replace me
     if block_count == 0:
         log.warning("No uploaded encoding blocks, stopping processing.")
         # TODO mark run as failure?

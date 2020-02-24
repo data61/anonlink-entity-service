@@ -1,3 +1,5 @@
+from typing import List
+
 import psycopg2
 import psycopg2.extras
 
@@ -47,19 +49,19 @@ def insert_blocking_metadata(db, dp_id, blocks):
 
     :param db:
     :param dp_id:
-    :param blocks: A dict mapping block id to a tuple (filename, number of encodings) per block.
+    :param blocks: A dict mapping block id to the number of encodings per block.
     :return:
     """
     logger.info("Adding blocking metadata to database")
     sql_insertion_query = """
-        INSERT INTO encodingblocks
-        (dp, block_id, file, state, count)
+        INSERT INTO blocks
+        (dp, block_name, count, state)
         VALUES %s
         """
 
     logger.info("Preparing SQL for bulk insert of blocks")
-    values = [(dp_id, block_id, blocks[block_id][0], 'pending', blocks[block_id][1]) for block_id in blocks]
-    logger.info(values)
+    values = [(dp_id, block_id, blocks[block_id], 'pending') for block_id in blocks]
+
     with db.cursor() as cur:
         psycopg2.extras.execute_values(cur, sql_insertion_query, values)
 
@@ -67,7 +69,7 @@ def insert_blocking_metadata(db, dp_id, blocks):
 def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_count, block_count):
     logger.info("Adding metadata on encoded entities to database")
     sql_insertion_query = """
-        INSERT INTO bloomingdata
+        INSERT INTO uploads
         (dp, token, file, count, block_count, state)
         VALUES
         (%s, %s, %s, %s, %s, %s)
@@ -75,6 +77,30 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
 
     with db.cursor() as cur:
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
+
+
+def insert_encoding_into_blocks(db, dp_id:int, block_ids:List[str], encoding_id:int, encoding:bytes):
+    # need to insert the (one) encoding
+    # the `blocks` already exist in the database
+    # Need to insert a mapping in the encodingblocks table for each block_id
+    encoding_insertion_query = """
+        INSERT INTO encodings
+            (encoding_id, encoding)
+        VALUES (%s, %s)
+        RETURNING id
+        """
+
+    mapping_insertion_query = """
+        INSERT INTO encodingblocks
+            (dp, encoding_id, block_id)
+        SELECT %s, %s, blocks.id FROM blocks
+        where blocks.dp = %s AND blocks.block_name = %s
+        """
+
+    with db.cursor() as cur:
+        encoding_id = execute_returning_id(cur, encoding_insertion_query, [encoding_id, encoding])
+        for block_id in block_ids:
+            cur.execute(mapping_insertion_query, [dp_id, encoding_id, dp_id, block_id])
 
 
 def set_dataprovider_upload_state(db, dp_id, state='error'):
@@ -152,7 +178,7 @@ def insert_permutation_mask(conn, project_id, run_id, mask_list):
 
 def update_encoding_metadata(db, clks_filename, dp_id, state):
     sql_query = """
-        UPDATE bloomingdata
+        UPDATE uploads
         SET
           state = %s,
           file = %s
@@ -171,7 +197,7 @@ def update_encoding_metadata(db, clks_filename, dp_id, state):
 
 def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
     sql_query = """
-        UPDATE bloomingdata
+        UPDATE uploads
         SET
           encoding_size = %s
         WHERE
