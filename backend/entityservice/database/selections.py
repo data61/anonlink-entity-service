@@ -11,11 +11,11 @@ def select_dataprovider_id(db, project_id, receipt_token):
     Returns None if token is incorrect.
     """
     sql_query = """
-        SELECT dp from dataproviders, bloomingdata
+        SELECT dp from dataproviders, uploads
         WHERE
-          bloomingdata.dp = dataproviders.id AND
+          uploads.dp = dataproviders.id AND
           dataproviders.project = %s AND
-          bloomingdata.token = %s
+          uploads.token = %s
         """
     query_result = query_db(db, sql_query, [project_id, receipt_token], one=True)
     logger.debug("Looking up data provider with auth. {}".format(query_result))
@@ -61,10 +61,10 @@ def check_run_exists(db, project_id, run_id):
 def get_number_parties_uploaded(db, project_id):
     sql_query = """
         SELECT COUNT(*)
-        FROM dataproviders, bloomingdata
+        FROM dataproviders, uploads
         WHERE
           dataproviders.project = %s AND
-          bloomingdata.dp = dataproviders.id AND
+          uploads.dp = dataproviders.id AND
           dataproviders.uploaded = 'done'
         """
     query_result = query_db(db, sql_query, [project_id], one=True)
@@ -77,11 +77,11 @@ def get_encoding_error_count(db, project_id):
     """
     sql_query = """
         SELECT count(*)
-        FROM dataproviders, bloomingdata
+        FROM dataproviders, uploads
         WHERE
           dataproviders.project = %s AND
-          bloomingdata.dp = dataproviders.id AND
-          bloomingdata.state = 'error'
+          uploads.dp = dataproviders.id AND
+          uploads.state = 'error'
         """
     return query_db(db, sql_query, [project_id], one=True)['count']
 
@@ -89,12 +89,12 @@ def get_encoding_error_count(db, project_id):
 def get_number_parties_ready(db, resource_id):
     sql_query = """
         SELECT COUNT(*)
-        FROM dataproviders, bloomingdata
+        FROM dataproviders, uploads
         WHERE
           dataproviders.project = %s AND
-          bloomingdata.dp = dataproviders.id AND
+          uploads.dp = dataproviders.id AND
           dataproviders.uploaded = 'done' AND
-          bloomingdata.state = 'ready'
+          uploads.state = 'ready'
         """
     query_result = query_db(db, sql_query, [resource_id], one=True)
     return query_result['count']
@@ -187,11 +187,12 @@ def get_run_result(db, resource_id):
 
 
 def get_project_dataset_sizes(db, project_id):
+    """Returns the number of encodings in a dataset."""
     sql_query = """
-        SELECT bloomingdata.count
-        FROM dataproviders, bloomingdata
+        SELECT uploads.count
+        FROM dataproviders, uploads
         WHERE
-          bloomingdata.dp=dataproviders.id AND
+          uploads.dp=dataproviders.id AND
           dataproviders.project=%s
         ORDER BY dataproviders.id
         """
@@ -203,9 +204,9 @@ def get_project_dataset_sizes(db, project_id):
 def get_uploaded_encoding_sizes(db, project_id):
     sql_query = """
         SELECT dp, encoding_size
-        FROM dataproviders, bloomingdata
+        FROM dataproviders, uploads
         WHERE
-          bloomingdata.dp=dataproviders.id AND
+          uploads.dp=dataproviders.id AND
           dataproviders.project=%s
         ORDER BY dataproviders.id
         """
@@ -215,10 +216,10 @@ def get_uploaded_encoding_sizes(db, project_id):
 
 def get_smaller_dataset_size_for_project(db, project_id):
     sql_query = """
-        SELECT MIN(bloomingdata.count) as smaller
-        FROM dataproviders, bloomingdata
+        SELECT MIN(uploads.count) as smaller
+        FROM dataproviders, uploads
         WHERE
-          bloomingdata.dp=dataproviders.id AND
+          uploads.dp=dataproviders.id AND
           dataproviders.project=%s
         """
     query_result = query_db(db, sql_query, [project_id], one=True)
@@ -231,10 +232,10 @@ def get_total_comparisons_for_project(db, project_id):
     """
     expected_datasets = get_project_column(db, project_id, 'parties')
     sql_query = """
-        SELECT bloomingdata.count as rows
-        from dataproviders, bloomingdata
+        SELECT uploads.count as rows
+        from dataproviders, uploads
         where
-          bloomingdata.dp=dataproviders.id AND
+          uploads.dp=dataproviders.id AND
           dataproviders.project=%s
         """
     query_results = query_db(db, sql_query, [project_id])
@@ -260,15 +261,30 @@ def get_dataprovider_id(db, update_token):
     return query_db(db, sql_query, [update_token], one=True)['id']
 
 
-def get_bloomingdata_columns(db, dp_id, columns):
+def get_uploads_columns(db, dp_id, columns):
     for column in columns:
-        assert column in {'ts', 'token', 'file', 'state', 'count', 'encoding_size'}
+        assert column in {'ts', 'token', 'file', 'state', 'block_count', 'count', 'encoding_size'}
     sql_query = """
         SELECT {} 
-        FROM bloomingdata
+        FROM uploads
         WHERE dp = %s
         """.format(', '.join(columns))
     result = query_db(db, sql_query, [dp_id], one=True)
+    if result is None:
+        raise DataProviderDeleted(dp_id)
+    return [result[column] for column in columns]
+
+
+def get_encodingblocks_columns(db, dp_id, columns, block_id=None):
+    for column in columns:
+        assert column in {'block_id', 'state', 'count'}
+    sql_query = """
+        SELECT {} 
+        FROM encodingblocks
+        WHERE dp = %s
+        {}
+        """.format(', '.join(columns), "block_id = %s" if block_id else "")
+    result = query_db(db, sql_query, [dp_id])
     if result is None:
         raise DataProviderDeleted(dp_id)
     return [result[column] for column in columns]
@@ -278,15 +294,15 @@ def get_filter_metadata(db, dp_id):
     """
     :return: The filename and the encoding size of the raw clks.
     """
-    filename, encoding_size = get_bloomingdata_columns(db, dp_id, ['file', 'encoding_size'])
+    filename, encoding_size = get_uploads_columns(db, dp_id, ['file', 'encoding_size'])
     return filename.strip(), encoding_size
 
 
-def get_number_of_hashes(db, dp_id):
+def get_encoding_metadata(db, dp_id):
     """
-    :return: The count of the uploaded encodings.
+    :return: The number of encodings and number of blocks of the uploaded data.
     """
-    return get_bloomingdata_columns(db, dp_id, ['count'])[0]
+    return get_uploads_columns(db, dp_id, ['count', 'block_count'])
 
 
 def get_project_schema_encoding_size(db, project_id):
@@ -370,7 +386,7 @@ def get_all_objects_for_project(db, project_id):
 
     for dp in dps:
         clk_file_ref = query_db(db, """
-            SELECT file FROM bloomingdata
+            SELECT file FROM uploads
             WHERE dp = %s
             """, [dp['id']], one=True)
 
