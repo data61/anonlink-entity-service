@@ -148,8 +148,6 @@ CREATE TABLE uploads (
 
 CREATE TABLE blocks
 (
-    id    SERIAL PRIMARY KEY,
-
     dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
     -- User supplied block name
@@ -159,32 +157,38 @@ CREATE TABLE blocks
     count    INT            NOT NULL,
 
     -- State of the block
-    state    PROCESSEDSTATE NOT NULL
+    state    PROCESSEDSTATE NOT NULL,
 
+    PRIMARY KEY (dp, block_name)
 );
 
 CREATE INDEX ON blocks (dp, block_name);
 
 CREATE TABLE encodings (
-  id    SERIAL PRIMARY KEY,
+  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
   -- user supplied encoding id
   encoding_id INT       NOT NULL,
-  encoding  bytea       NOT NULL
 
+  encoding  bytea       NOT NULL,
+
+  PRIMARY KEY (dp, encoding_id)
 );
+
 
 -- Table mapping blocks to encodings
 CREATE TABLE encodingblocks (
-  --id    SERIAL PRIMARY KEY,
   dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
-  encoding_id INT REFERENCES encodings (id),
-  block_id INT REFERENCES blocks (id)
+  encoding_id INT,
+
+  block_id CHAR(64),
+
+  FOREIGN KEY (dp, encoding_id) REFERENCES encodings (dp, encoding_id),
+  FOREIGN KEY (dp, block_id) REFERENCES blocks (dp, block_name)
 );
 
--- TODO consider best index/s
-CREATE INDEX block_index ON encodingblocks (block_id);
+
 
 
 CREATE TABLE run_results (

@@ -59,7 +59,7 @@ services:
     depends_on:
       - redis
       - db
-    entrypoint: celery -A entityservice.async_worker worker --loglevel=info -O fair -Q celery,compute,highmemory
+    command: celery -A entityservice.async_worker worker --loglevel=info -O fair -Q celery,compute,highmemory
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - DEBUG=true
