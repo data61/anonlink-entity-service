@@ -4,7 +4,7 @@ import opentracing
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
-    convert_encodings_from_json_to_binary
+    convert_encodings_from_json_to_binary, store_encodings_in_db
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
@@ -43,9 +43,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         # output into database for each block (temp or direct to minio?)
         pipeline = convert_encodings_from_base64_to_binary(stream_json_clksnblocks(raw_data))
         with DBConn() as db:
-            for entity_id, encoding_data, blocks in pipeline:
-                # write this encoding to files or database
-                insert_encoding_into_blocks(db, dp_id, blocks, entity_id, encoding_data)
+            store_encodings_in_db(db, dp_id, pipeline)
 
 
     #### GLUE CODE - TODO remove me once moved away from storing encodings in files

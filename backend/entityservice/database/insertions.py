@@ -79,28 +79,30 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
 
 
-def insert_encoding_into_blocks(db, dp_id:int, block_ids:List[str], encoding_id:int, encoding:bytes):
-    # need to insert the (one) encoding
-    # the `blocks` already exist in the database
-    # Need to insert a mapping in the encodingblocks table for each block_id
-    encoding_insertion_query = """
-        INSERT INTO encodings
-            (encoding_id, encoding)
-        VALUES (%s, %s)
-        RETURNING id
-        """
+def insert_encodings_into_blocks(db, dp_id: int, block_ids:List[List[str]], encoding_ids:List[int],
+                                 encodings:List[bytes], page_size=4096):
+    """
+    The plan here is to copy encoding data in bulk into the database.
+    Probably using COPY TO
 
-    mapping_insertion_query = """
-        INSERT INTO encodingblocks
-            (dp, encoding_id, block_id)
-        SELECT %s, %s, blocks.id FROM blocks
-        where blocks.dp = %s AND blocks.block_name = %s
-        """
+    See https://hakibenita.com/fast-load-data-python-postgresql#copy-data-from-a-string-iterator-with-buffer-size
+
+    """
+    encodings_insertion_query = "INSERT INTO encodings (dp, encoding_id, encoding) VALUES %s"
+    blocks_insertion_query = "INSERT INTO encodingblocks (dp, encoding_id, block_id) VALUES %s"
+    encoding_data = ((dp_id, eid, encoding) for eid, encoding in zip(encoding_ids, encodings))
+
+    def block_data_generator(encoding_ids, block_ids):
+        for eid, block_ids in zip(encoding_ids, block_ids):
+            for block_id in block_ids:
+                yield (dp_id, eid, block_id)
 
     with db.cursor() as cur:
-        encoding_id = execute_returning_id(cur, encoding_insertion_query, [encoding_id, encoding])
-        for block_id in block_ids:
-            cur.execute(mapping_insertion_query, [dp_id, encoding_id, dp_id, block_id])
+        psycopg2.extras.execute_values(cur, encodings_insertion_query, encoding_data, page_size=page_size)
+        psycopg2.extras.execute_values(cur,
+                                       blocks_insertion_query,
+                                       block_data_generator(encoding_ids, block_ids),
+                                       page_size=page_size)
 
 
 def set_dataprovider_upload_state(db, dp_id, state='error'):
