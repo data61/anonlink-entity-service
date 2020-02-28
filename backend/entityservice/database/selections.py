@@ -275,19 +275,27 @@ def get_uploads_columns(db, dp_id, columns):
     return [result[column] for column in columns]
 
 
-def get_encodingblocks_columns(db, dp_id, columns, block_id=None):
-    for column in columns:
-        assert column in {'block_id', 'state', 'count'}
+def get_encodingblock_ids(db, dp_id, block_name=None):
+    """Yield all encoding ids in either a single block, or all blocks for a given data provider."""
     sql_query = """
-        SELECT {} 
+        SELECT encoding_id 
         FROM encodingblocks
         WHERE dp = %s
         {}
-        """.format(', '.join(columns), "block_id = %s" if block_id else "")
-    result = query_db(db, sql_query, [dp_id])
-    if result is None:
-        raise DataProviderDeleted(dp_id)
-    return [result[column] for column in columns]
+        """.format("AND block_id = %s" if block_name else "")
+    # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
+    # records from being downloaded at once.
+    cur = db.cursor(f'encodingfetcher-{dp_id}')
+
+    args = (dp_id, block_name) if block_name else (dp_id,)
+
+    cur.execute(sql_query, args)
+    while True:
+        rows = cur.fetchmany(10_000)
+        if not rows:
+            break
+        for row in rows:
+            yield row[0]
 
 
 def get_filter_metadata(db, dp_id):
