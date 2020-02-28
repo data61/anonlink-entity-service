@@ -3,7 +3,7 @@
 SCRIPT_NAME=$(basename "$0")
 TAG="latest"
 RESULT_FILE="testResults.xml"
-TYPE="test"
+TYPE="integrationtests"
 NO_ANSI=FALSE
 
 help() {
@@ -17,7 +17,7 @@ The result is an xml file for the type 'tests' and 'tutorials', and a JSON file 
   -p                       Project name (used by docker-compose with '-p'). REQUIRED.
   -o                       Output file where to store the results. [$RESULT_FILE]
   -t                       Docker tag used for the different images. the same tag is used for all of them. [$TAG]
-  --type                   Type of tests to run. Either 'tests', 'benchmark' or 'tutorials'. [$TYPE]
+  --type                   Type of tests to run. Either 'integrationtests', 'benchmark' or 'tutorials'. [$TYPE]
   --no-ansi                Do not print ANSI control characters. Preferable when running on the CI.
   
   -h | --help              Print this message
@@ -53,7 +53,7 @@ echoerr () {
 
 process_args "$@"
 [[ -z $PROJECT_NAME ]] && echoerr "ERROR: Missing project name. Use option '-p'" && exit 1
-[[ $TYPE != "tests" && $TYPE != "benchmark" && $TYPE != "tutorials" ]] && echoerr "ERROR: Unrecognized type '$TYPE'. Should be equal to 'tests', 'benchmark' or 'tutorials'" && exit 1
+[[ $TYPE != "integrationtests" && $TYPE != "benchmark" && $TYPE != "tutorials" ]] && echoerr "ERROR: Unrecognized type '$TYPE'. Should be equal to 'integrationtests', 'benchmark' or 'tutorials'" && exit 1
 export TAG=$TAG
 
 commandPrefix="docker-compose -f tools/docker-compose.yml -f tools/ci.yml --project-directory . "
@@ -64,7 +64,7 @@ fi
 echo "Initialise the database"
 $commandPrefix -p $PROJECT_NAME up db_init > /dev/null 2>&1
 
-if [[ $TYPE == "tests" ]]; then
+if [[ $TYPE == "integrationtests" ]]; then
   CREATED_RESULT_FILE="/var/www/testResults.xml"
 elif [[ $TYPE == "benchmark" ]]; then
   CREATED_RESULT_FILE="/app/results.json"

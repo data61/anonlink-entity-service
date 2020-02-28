@@ -120,6 +120,31 @@ stages:
       imageName: data61/anonlink-docs-tutorials
       jobName: 'anonlink_docs_tutorials'
 
+- stage: stage_integration_tests
+  displayName: Integration Tests
+  dependsOn:
+  - stage_docker_image_build
+  jobs:
+  - job: Integration
+    timeoutInMinutes: 15
+    variables:
+      resultFile: testResults.xml
+    displayName: Integration Tests
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - template: .azurePipeline/templateSetVariableDockerTag.yml
+    - script: |
+        ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type integrationtests
+      displayName: 'Start docker compose benchmark'
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '$(resultFile)'
+        testRunTitle: 'Publish integration test results'
+        failTaskOnFailedTests: true
+
 - stage: stage_benchmark
   displayName: Benchmark
   dependsOn:
