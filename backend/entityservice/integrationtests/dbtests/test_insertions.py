@@ -4,13 +4,13 @@ import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_new_project, \
-    insert_encodings_into_blocks, insert_blocking_metadata
+    insert_encodings_into_blocks, insert_blocking_metadata, get_project, get_encodingblock_ids
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
 from entityservice.settings import Config as config
 
 
-class TestClkInsertions:
+class TestInsertions:
 
     def _get_conn_and_cursor(self):
         db = config.DATABASE
@@ -45,11 +45,18 @@ class TestClkInsertions:
         return project_id, project_auth_token
 
     def test_insert_project(self):
-        self._create_project()
+        project_id, project_auth_token = self._create_project()
+        assert len(project_auth_token) == 48
+        # check we can fetch the inserted project back from the database
+        conn, cur = self._get_conn_and_cursor()
+        project = get_project(conn, project_id)
+        assert 'time_added' in project
+        assert not project['marked_for_deletion']
+        assert not project['uses_blocking']
 
     def test_insert_project_and_dp(self):
         project_id, project_auth_token, dp_id, dp_auth_token = self._create_project_and_dp()
-        assert len(project_id) == 48
+        assert len(dp_auth_token) == 48
 
     def test_insert_dp_no_project_fails(self):
         conn, cur = self._get_conn_and_cursor()
@@ -63,7 +70,7 @@ class TestClkInsertions:
         project_id, project_auth_token, dp_id, dp_auth_token = self._create_project_and_dp()
         conn, cur = self._get_conn_and_cursor()
 
-        num_entities = 10000
+        num_entities = 10_000
         start_time = time.perf_counter()
 
         blocks = [['1'] for _ in range(num_entities)]
@@ -78,3 +85,9 @@ class TestClkInsertions:
         end_time = time.perf_counter()
         elapsed_time = end_time - start_time
         assert elapsed_time < 1
+
+        stored_encodings = list(get_encodingblock_ids(conn, dp_id, '1'))
+        assert len(stored_encodings) == num_entities
+        fetch_time = time.perf_counter() - end_time
+        # retrieval should be faster than insertion
+        assert fetch_time < elapsed_time
