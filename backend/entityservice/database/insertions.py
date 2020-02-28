@@ -46,11 +46,9 @@ def insert_dataprovider(cur, auth_token, project_id):
 
 def insert_blocking_metadata(db, dp_id, blocks):
     """
+    Insert a new entry into the blocks table.
 
-    :param db:
-    :param dp_id:
     :param blocks: A dict mapping block id to the number of encodings per block.
-    :return:
     """
     logger.info("Adding blocking metadata to database")
     sql_insertion_query = """
@@ -79,14 +77,12 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
 
 
-def insert_encodings_into_blocks(db, dp_id: int, block_ids:List[List[str]], encoding_ids:List[int],
-                                 encodings:List[bytes], page_size=4096):
+def insert_encodings_into_blocks(db, dp_id: int, block_ids: List[List[str]], encoding_ids: List[int],
+                                 encodings: List[bytes], page_size=4096):
     """
-    The plan here is to copy encoding data in bulk into the database.
-    Probably using COPY TO
+    Bulk load blocking and encoding data into the database.
 
     See https://hakibenita.com/fast-load-data-python-postgresql#copy-data-from-a-string-iterator-with-buffer-size
-
     """
     encodings_insertion_query = "INSERT INTO encodings (dp, encoding_id, encoding) VALUES %s"
     blocks_insertion_query = "INSERT INTO encodingblocks (dp, encoding_id, block_id) VALUES %s"
