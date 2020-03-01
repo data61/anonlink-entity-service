@@ -35,19 +35,6 @@ jobs:
     SKIP: ${{ parameters.skip }}
     DOCKER_BUILD_VERSION: ${{ parameters.dockerBuildVersion }}
   steps:
-    - bash: |
-        if [ -z "$DOCKER_TAG" ]; then
-          echo "Empty docker tag"
-        else
-          echo "Non empty docker tag $DOCKER_TAG"
-        fi
-
-        echo "Variable DOCKER_TAG = \"$DOCKER_TAG\""
-        echo "Variable SKIP = \"$SKIP\""
-        echo "Variable DOCKER_BUILD_VERSION = \"$DOCKER_BUILD_VERSION\""
-      env:
-        DOCKER_TAG: $(DOCKER_TAG)
-      displayName: Echo tag parameter and variables
     - ${{ if eq(parameters.imageTag, '') }}:
       - template: templateSetVariableDockerTag.yml   # Set DOCKER_TAG if it wasn't provided in parameters as imageTag
     - script: |
@@ -59,14 +46,12 @@ jobs:
         else
           DOCKER_BUILD_ARGS="--build-arg VERSION=$DOCKER_BUILD_VERSION"
         fi
-        echo "Variable DOCKER_BUILD_ARGS = \"$DOCKER_BUILD_ARGS\""
 
         if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
           DOCKER_PATH=""
         else
           DOCKER_PATH="-f ${{ parameters.dockerFilePath }}"
         fi
-        echo "Variable DOCKER_PATH = \"$DOCKER_PATH\""
 
         if [[ "$SKIP" == "False" ]]; then
           docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $DOCKER_PATH $DOCKER_BUILD_ARGS ${{ parameters.folder }}

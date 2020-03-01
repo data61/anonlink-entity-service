@@ -47,10 +47,11 @@ manually installed using ``pip``::
     pip install -r base/requirements.txt
 
 
-Docker is used for packaging the application, we rely on a base image that includes the Python
-dependencies. To update a dependency commit a change to the pinned version in ``base/requirements.txt``.
-Our CI system will bake the base image and tag it with a digest. You could generate the digest yourself
-with bash (example digest shown)::
+Docker is used for packaging the application, we rely on a base image that includes the operating system
+level and Python level dependencies. To update a dependency change the pinned version in ``base/requirements.txt``
+or ``base/Dockerfile``. Our CI system will bake the base image and tag it with a digest.
+
+If you were so inclined you could generate the digest yourself with bash (example digest shown)::
 
     $ cd base
     $ sha256sum requirements.txt Dockerfile | sha256sum | cut -f 1 -d " " | tr [:upper:] [:lower:]
@@ -69,6 +70,7 @@ argument::
     --build-arg VERSION=3814723844e4b359f0b07e86a57093ad4f88aa434c42ced9c72c611bbcf9819a
 
 
+Note the CI system automatically uses the current base image when building the application images.
 
 Redis
 -----

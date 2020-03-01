@@ -50,7 +50,8 @@ It also requires a service connection to a ``k8s`` cluster to be configured.
 Base Image
 ~~~~~~~~~~
 
-The CI system builds and pushes the base image, before building downstream images. Ideally the CI
-system should automatically build the application using the most recent base ``VERSION``,
-however this is currently manual. In the ``azure-pipelines.yml`` file we pass the desired base
-version. See :ref:`dev-dependencies`.
+The CI system builds and pushes the base image, before building downstream images. The CI
+system builds the application images using the current base ``VERSION``. If a base image with the given
+digest is already present on Docker Hub the base image won't be rebuilt.
+
+For additional details see :ref:`dev-dependencies`.

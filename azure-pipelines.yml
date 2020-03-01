@@ -89,7 +89,6 @@ stages:
       imageName: data61/anonlink-app
       dockerBuildVersion: "$[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]"
 
-
 - stage: stage_docker_nginx_image_build
   displayName: Nginx Docker build
   dependsOn: []
