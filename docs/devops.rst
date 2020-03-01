@@ -34,8 +34,9 @@ The continuous integration stages are:
   - the benchmark ``data61/anonlink-benchmark`` (used to run the benchmark)
 - runs the benchmark using ``docker-compose`` and publishes the results as an artifact in Azure
 - runs the tutorial tests using ``docker-compose`` and publishes the results in Azure
-- runs the integration tests by deploying the whole service on ``Kubernetes``, running the integration
-  tests and publishing the results in Azure. The pod logs are also available in Azure DevOps.
+- runs the end to end tests by deploying the whole service on ``Kubernetes``, running the
+  tests found in ``backend/entityservice/tests`` and publishing the results in Azure. The pod logs
+  are also available in Azure DevOps.
 
 The build pipeline is triggered for every push on every branch. It is not triggered by Pull
 Requests to avoid duplicate testing and building potentially untrusted external code.
