@@ -87,8 +87,6 @@ stages:
       jobName: 'anonlink_app'
       dependsOn: HashBaseDependencies
       imageName: data61/anonlink-app
-      # this part is still todo automated
-      #dockerBuildVersion: "9e015cb563319b280895f786a9f3647c5e5e43a81966e85d0a8c0a2424f94fde"
       dockerBuildVersion: "$[dependencies.HashBaseDependencies.outputs['SetDockerBaseTag.DOCKER_BASE_TAG']]"
 
 

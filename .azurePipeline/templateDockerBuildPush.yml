@@ -54,11 +54,10 @@ jobs:
         docker login -u $(dockerHubId) -p $(dockerHubPassword)
       displayName: 'Dockerhub login'
     - script: |
-
-        if [[ -z "${{ parameters.dockerBuildVersion }}" ]]; then
+        if [[ -z "$DOCKER_BUILD_VERSION" ]]; then
           DOCKER_BUILD_ARGS=""
         else
-          DOCKER_BUILD_ARGS="--build-arg VERSION=${{ parameters.dockerBuildVersion }}"
+          DOCKER_BUILD_ARGS="--build-arg VERSION=$DOCKER_BUILD_VERSION"
         fi
         echo "Variable DOCKER_BUILD_ARGS = \"$DOCKER_BUILD_ARGS\""
 
