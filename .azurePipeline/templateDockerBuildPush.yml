@@ -9,7 +9,7 @@
 # - `imageTag` is optional - if not provided the templateSetVariableDockerTag will be used to determine the tag.
 # - `jobName` - should only include alphanumeric values and '_'.
 # - `skip` - don't bother building if set to anything other than 'false'
-# - `dockerBuildArgs` - extra arguments passed to docker build.
+# - `dockerBuildVersion` - VERSION argument passed to docker build.
 # - `extraJobs` can contain a list of jobs to do in the same stage which are dependent on the built and pushed docker image.
 
 parameters:
@@ -19,7 +19,7 @@ parameters:
   imageTag: ''
   jobName: ''
   skip: 'False'
-  dockerBuildArgs: ''
+  dockerBuildVersion: ''
   extraJobs: []
   dependsOn: ''
 
@@ -33,36 +33,31 @@ jobs:
   variables:
     DOCKER_TAG: ${{ parameters.imageTag }}
     SKIP: ${{ parameters.skip }}
-    DOCKER_BUILD_ARGS: ${{ parameters.dockerBuildArgs }}
+    DOCKER_BUILD_VERSION: ${{ parameters.dockerBuildVersion }}
   steps:
-    - bash: |
-        if [ -z "$DOCKER_TAG" ]; then
-          echo "Empty docker tag"
-        else
-          echo "Non empty docker tag $DOCKER_TAG"
-        fi
-
-        echo "Variable DOCKER_TAG = \"$DOCKER_TAG\""
-        echo "Variable SKIP = \"$SKIP\""
-        echo "Variable DOCKER_BUILD_ARGS = \"$DOCKER_BUILD_ARGS\""
-      env:
-        DOCKER_TAG: $(DOCKER_TAG)
-      displayName: Echo tag parameter and variables
     - ${{ if eq(parameters.imageTag, '') }}:
       - template: templateSetVariableDockerTag.yml   # Set DOCKER_TAG if it wasn't provided in parameters as imageTag
     - script: |
         docker login -u $(dockerHubId) -p $(dockerHubPassword)
       displayName: 'Dockerhub login'
     - script: |
-        if [[ "$SKIP" == "False" ]]; then
-            if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
-              docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
-            else
-              docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) -f ${{ parameters.dockerFilePath }} $(DOCKER_BUILD_ARGS) ${{ parameters.folder }}
-            fi
-            docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+        if [[ -z "$DOCKER_BUILD_VERSION" ]]; then
+          DOCKER_BUILD_ARGS=""
         else
-            echo "Skipping build"
+          DOCKER_BUILD_ARGS="--build-arg VERSION=$DOCKER_BUILD_VERSION"
+        fi
+
+        if [[ -z "${{ parameters.dockerFilePath }}" ]]; then
+          DOCKER_PATH=""
+        else
+          DOCKER_PATH="-f ${{ parameters.dockerFilePath }}"
+        fi
+
+        if [[ "$SKIP" == "False" ]]; then
+          docker build -t ${{ parameters.imageName }}:$(DOCKER_TAG) $DOCKER_PATH $DOCKER_BUILD_ARGS ${{ parameters.folder }}
+          docker push ${{ parameters.imageName }}:$(DOCKER_TAG)
+        else
+          echo "Skipping build"
         fi
       displayName: 'Build and push docker image'
 
