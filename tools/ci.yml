@@ -20,7 +20,7 @@ services:
       - SERVER=http://nginx:8851
       - INITIAL_DELAY=20
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
+    command: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
     depends_on:
       - db
       - backend

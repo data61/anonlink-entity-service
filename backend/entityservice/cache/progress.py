@@ -1,13 +1,15 @@
 import structlog
 
-from entityservice.settings import Config as config
+from entityservice.settings import Config as globalconfig
 from entityservice.cache.connection import connect_to_redis
 from entityservice.cache.helpers import _get_run_hash_key
 
 logger = structlog.get_logger()
 
 
-def save_current_progress(comparisons, run_id):
+def save_current_progress(comparisons, run_id, config=None):
+    if config is None:
+        config = globalconfig
     logger.debug(f"Updating progress. Compared {comparisons} CLKS", run_id=run_id)
     r = connect_to_redis()
     key = _get_run_hash_key(run_id)
