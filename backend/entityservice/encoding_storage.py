@@ -47,7 +47,6 @@ def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, 
         yield i, binary_packed_encoding, blocks
 
 
-
 def _grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
@@ -73,22 +72,27 @@ def _transpose(group):
     return a, b, c
 
 
-def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, List[str]]]):
+def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, List[str]]], encoding_size: int=128):
     """
     Group encodings + blocks into database transactions and execute.
-
-    Assuming default encoding size of 128 B, n encodings each with their own
-    4 B encoding id, and assuming `k` multiple unique blocks of 64 B will be a transaction
-    of approximately k*64 + 132 * n. For k = 10 and n = 100_000 this gives a transaction
-    size under 100MiB.
     """
 
-    for group in _grouper(encodings, n=100_000):
+    for group in _grouper(encodings, n=_estimate_group_size(encoding_size)):
         encoding_ids, encodings, blocks = _transpose(group)
         assert len(blocks) == len(encodings)
         assert len(encoding_ids) == len(encodings)
         insert_encodings_into_blocks(conn, dp_id, block_ids=blocks, encoding_ids=encoding_ids, encodings=encodings)
 
+
+def _estimate_group_size(encoding_size):
+    """
+    Given an encoding size (e.g. 128 B), estimate the number of encodings that will likely
+    be under 100MiB in data including blocks. Note this is hopefully very conservative
+    in estimating the average number of blocks each record is in.
+    """
+    network_transaction_size = 104857600  # 100MiB
+    blocks_per_record_estimate = 50
+    return network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4))
 
 
 def convert_encodings_from_json_to_binary(f):

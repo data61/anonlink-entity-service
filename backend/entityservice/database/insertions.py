@@ -78,11 +78,15 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
 
 
 def insert_encodings_into_blocks(db, dp_id: int, block_ids: List[List[str]], encoding_ids: List[int],
-                                 encodings: List[bytes], page_size=4096):
+                                 encodings: List[bytes], page_size: int = 4096):
     """
     Bulk load blocking and encoding data into the database.
-
     See https://hakibenita.com/fast-load-data-python-postgresql#copy-data-from-a-string-iterator-with-buffer-size
+
+    :param page_size:
+        Maximum number of rows to fetch in a given sql statement/network transfer. A larger page size
+        will require more local memory, but could be faster due to less network transfers.
+
     """
     encodings_insertion_query = "INSERT INTO encodings (dp, encoding_id, encoding) VALUES %s"
     blocks_insertion_query = "INSERT INTO encodingblocks (dp, encoding_id, block_id) VALUES %s"

@@ -31,8 +31,9 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
             return
         # Get number of blocks + total number of encodings from database
         expected_count, block_count = get_encoding_metadata(db, dp_id)
+        encoding_size = get_project_encoding_size(db, project_id)
 
-    log.info(f"Expecting to handle {expected_count} encodings in {block_count} blocks")
+    log.info(f"Expecting to handle {expected_count} encodings of size {encoding_size} in {block_count} blocks")
     mc = connect_to_object_store()
     raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
@@ -43,7 +44,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         # output into database for each block (temp or direct to minio?)
         pipeline = convert_encodings_from_base64_to_binary(stream_json_clksnblocks(raw_data))
         with DBConn() as db:
-            store_encodings_in_db(db, dp_id, pipeline)
+            store_encodings_in_db(db, dp_id, pipeline, encoding_size)
 
 
     #### GLUE CODE - TODO remove me once moved away from storing encodings in files
