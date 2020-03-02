@@ -1,3 +1,4 @@
+import math
 from itertools import zip_longest
 from typing import Iterator, List, Tuple
 
@@ -35,17 +36,19 @@ def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, 
     :return: a tuple comprising:
          (entity_id, binary encoding, list of blocks)
     """
-    # Default which is ignored but makes IDE/typechecker happier
-    bit_packing_struct = binary_format(128)
-    encoding_size = None
+    # Peek at the first element to extract the encoding size
+    i, encoding_data, blocks = next(encodings)
+    encoding_size = len(encoding_data)
+    bit_packing_struct = binary_format(encoding_size)
 
-    for i, encoding_data, blocks in encodings:
-        if encoding_size is None:
-            encoding_size = len(encoding_data)
-            bit_packing_struct = binary_format(encoding_size)
-        binary_packed_encoding = bit_packing_struct.pack(i, encoding_data)
-        yield i, binary_packed_encoding, blocks
+    def generator(first_i, first_encoding_data, first_blocks):
+        binary_packed_encoding = bit_packing_struct.pack(first_i, first_encoding_data)
+        yield first_i, binary_packed_encoding, first_blocks
+        for i, encoding_data, blocks in encodings:
+            binary_packed_encoding = bit_packing_struct.pack(i, encoding_data)
+            yield i, binary_packed_encoding, blocks
 
+    return encoding_size, generator(i, encoding_data, blocks)
 
 def _grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -92,7 +95,7 @@ def _estimate_group_size(encoding_size):
     """
     network_transaction_size = 104857600  # 100MiB
     blocks_per_record_estimate = 50
-    return network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4))
+    return math.ceil(network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4)))
 
 
 def convert_encodings_from_json_to_binary(f):
