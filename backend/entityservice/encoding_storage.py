@@ -4,8 +4,8 @@ from typing import Iterator, List, Tuple
 
 import ijson
 
-from entityservice.database import insert_encodings_into_blocks
-from entityservice.serialization import deserialize_bytes, binary_format
+from entityservice.database import insert_encodings_into_blocks, get_encodings_by_id_range, get_dataprovider_ids
+from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
 
 
 def stream_json_clksnblocks(f):
@@ -96,6 +96,15 @@ def _estimate_group_size(encoding_size):
     network_transaction_size = 104857600  # 100MiB
     blocks_per_record_estimate = 50
     return math.ceil(network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4)))
+
+
+def get_encoding_chunk(conn, chunk_info, encoding_size=128):
+    chunk_range_start, chunk_range_stop = chunk_info['range']
+    dataprovider_id = chunk_info['dataproviderId']
+
+    encoding_data_stream = get_encodings_by_id_range(conn, dataprovider_id, chunk_range_start, chunk_range_stop)
+    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    return chunk_data, len(chunk_data)
 
 
 def convert_encodings_from_json_to_binary(f):

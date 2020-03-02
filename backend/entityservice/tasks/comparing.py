@@ -5,6 +5,7 @@ import time
 
 import anonlink
 import minio
+import opentracing
 import psycopg2
 from celery import chord
 
@@ -12,6 +13,7 @@ from celery import chord
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
 from entityservice.cache.progress import save_current_progress
+from entityservice.encoding_storage import get_encoding_chunk
 from entityservice.errors import RunDeleted
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
@@ -29,7 +31,7 @@ from entityservice.tasks.assert_valid_run import assert_valid_run
 from entityservice.utils import generate_code, iterable_to_stream
 
 
-@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id', 'threshold'))
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
 def create_comparison_jobs(project_id, run_id, parent_span=None):
     log = logger.bind(pid=project_id, run_id=run_id)
     with DBConn() as conn:
@@ -60,21 +62,17 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
                  f"{' x '.join(map(str, dataset_sizes))} entities")
         current_span.log_kv({"event": 'get-dataset-sizes'})
 
-        filters_object_filenames = tuple(
-            get_filter_metadata(conn, dp_id)[0] for dp_id in dp_ids)
-        current_span.log_kv({"event": 'get-metadata'})
-        log.debug("Chunking computation task")
+    log.debug("Chunking computation task")
 
     chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
         Config.CHUNK_SIZE_AIM,
         dataset_sizes=dataset_sizes))
 
-    # Save filenames with chunk information.
+    # Add the db ids to the chunk information.
     for chunk_info in chunk_infos:
         for chunk_dp_info in chunk_info:
             chunk_dp_index = chunk_dp_info['datasetIndex']
-            chunk_dp_store_filename = filters_object_filenames[chunk_dp_index]
-            chunk_dp_info['storeFilename'] = chunk_dp_store_filename
+            chunk_dp_info['dataproviderId'] = dp_ids[chunk_dp_index]
 
     log.info(f"Chunking into {len(chunk_infos)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
@@ -103,15 +101,14 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
-    :param chunk_info:
-        Chunk info returned by ``anonlink.concurrency.split_to_chunks``.
-        Additionally, "storeFilename" is added to each dataset chunk.
+    :param dict chunk_info:
+        A chunk returned by ``anonlink.concurrency.split_to_chunks``.
     :param project_id:
     :param run_id:
     :param threshold:
     :param encoding_size: The size in bytes of each encoded entry
     :param parent_span: A serialized opentracing span context.
-    @returns A 2-tuple: (num_results, results_filename_in_object_store)
+    :returns A 3-tuple: (num_results, result size in bytes, results_filename_in_object_store, )
     """
     log = logger.bind(pid=project_id, run_id=run_id)
     log.debug("Computing similarity for a chunk of filters")
@@ -121,72 +118,68 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
 
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
-    t0 = time.time()
-    log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
-    chunk_dp1, chunk_dp1_size = get_chunk_from_object_store(chunk_info_dp1, encoding_size)
-    #TODO: use the entity ids!
-    entity_ids_dp1, chunk_dp1 = zip(*chunk_dp1)
-    t1 = time.time()
-    log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
-    chunk_dp2, chunk_dp2_size = get_chunk_from_object_store(chunk_info_dp2, encoding_size)
-    # TODO: use the entity ids!
-    entity_ids_dp2, chunk_dp2 = zip(*chunk_dp2)
-    t2 = time.time()
-    span.log_kv({'event': 'chunks are fetched and deserialized'})
-    log.debug("Calculating filter similarity")
+    with DBConn() as conn:
+        with opentracing.tracer.start_span('fetching-encodings', child_of=span) as fetch_span:
+            with opentracing.tracer.start_span('chunk-1', child_of=fetch_span):
+                log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+                chunk_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
+                #TODO: use the entity ids!
+                entity_ids_dp1, chunk_dp1 = zip(*chunk_dp1)
+            with opentracing.tracer.start_span('chunk-2', child_of=fetch_span):
+                log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
+                chunk_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
+                # TODO: use the entity ids!
+                entity_ids_dp2, chunk_dp2 = zip(*chunk_dp2)
+
+    log.debug('Both chunks are fetched and deserialized')
     span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
-    try:
-        chunk_results = anonlink.concurrency.process_chunk(
-            chunk_info,
-            (chunk_dp1, chunk_dp2),
-            anonlink.similarities.dice_coefficient_accelerated,
-            threshold,
-            k=min(chunk_dp1_size, chunk_dp2_size))
-    except NotImplementedError as e:
-        log.warning("Encodings couldn't be compared using anonlink.")
-        return
-    t3 = time.time()
-    span.log_kv({'event': 'similarities calculated'})
 
-    # Update the number of comparisons completed
-    comparisons_computed = chunk_dp1_size * chunk_dp2_size
-    save_current_progress(comparisons_computed, run_id)
-
-    t4 = time.time()
-
-    sims, _, _ = chunk_results
-    num_results = len(sims)
-
-    if num_results:
-        result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
-            generate_code(12))
-        log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
-
-        bytes_iter, file_size \
-            = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
-        iter_stream = iterable_to_stream(bytes_iter)
-
-        mc = connect_to_object_store()
+    with opentracing.tracer.start_span('comparing-encodings', child_of=span):
+        log.debug("Calculating filter similarity")
         try:
-            mc.put_object(
-                Config.MINIO_BUCKET, result_filename, iter_stream, file_size)
-        except minio.ResponseError as err:
-            log.warning("Failed to store result in minio")
-            raise
-    else:
-        result_filename = None
-        file_size = None
-    t5 = time.time()
+            chunk_results = anonlink.concurrency.process_chunk(
+                chunk_info,
+                (chunk_dp1, chunk_dp2),
+                anonlink.similarities.dice_coefficient_accelerated,
+                threshold,
+                k=min(chunk_dp1_size, chunk_dp2_size))
+        except NotImplementedError as e:
+            log.warning("Encodings couldn't be compared using anonlink.")
+            return
 
-    log.info("run={} Comparisons: {}, Links above threshold: {}".format(run_id, comparisons_computed, len(chunk_results)))
-    log.info("Prep: {:.3f} + {:.3f}, Solve: {:.3f}, Progress: {:.3f}, Save: {:.3f}, Total: {:.3f}".format(
-        t1 - t0,
-        t2 - t1,
-        t3 - t2,
-        t4 - t3,
-        t5 - t4,
-        t5 - t0)
-    )
+    log.debug('Encoding similarities calculated')
+
+    with opentracing.tracer.start_span('save-comparison-progress', child_of=span):
+        # Update the number of comparisons completed
+        comparisons_computed = chunk_dp1_size * chunk_dp2_size
+        save_current_progress(comparisons_computed, run_id)
+
+    with opentracing.tracer.start_span('save-comparison-results', child_of=span):
+        sims, _, _ = chunk_results
+        num_results = len(sims)
+
+        if num_results:
+            result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+                generate_code(12))
+            log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+
+            bytes_iter, file_size \
+                = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
+            iter_stream = iterable_to_stream(bytes_iter)
+
+            mc = connect_to_object_store()
+            try:
+                mc.put_object(
+                    Config.MINIO_BUCKET, result_filename, iter_stream, file_size)
+            except minio.ResponseError as err:
+                log.warning("Failed to store result in minio")
+                raise
+        else:
+            result_filename = None
+            file_size = None
+
+    log.info("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(chunk_results)))
+
     return num_results, file_size, result_filename
 
 

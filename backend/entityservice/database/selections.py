@@ -285,7 +285,7 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
         """.format("AND block_id = %s" if block_name else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
-    cur = db.cursor(f'encodingfetcher-{dp_id}')
+    cur = db.cursor(f'encodingblockfetcher-{dp_id}')
 
     args = (dp_id, block_name) if block_name else (dp_id,)
 
@@ -296,6 +296,25 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
             break
         for row in rows:
             yield row[0]
+
+
+def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=None):
+    """Yield all encodings in a given range for a given data provider."""
+    sql_query = """
+        SELECT encoding 
+        FROM encodings
+        WHERE dp = %s
+        {}
+        {}
+        """.format(
+        f"AND encoding_id >= {encoding_id_min}" if encoding_id_min else "",
+        f"AND encoding_id < {encoding_id_max}" if encoding_id_max else "",
+    )
+    cur = db.cursor()
+    cur.execute(sql_query, (dp_id,))
+    rows = cur.fetchall()
+    for row in rows:
+        yield row[0]
 
 
 def get_filter_metadata(db, dp_id):
