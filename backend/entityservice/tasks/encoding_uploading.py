@@ -32,7 +32,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         # Get number of blocks + total number of encodings from database
         expected_count, block_count = get_encoding_metadata(db, dp_id)
 
-    log.info(f"Expecting to handle {expected_count} encodings of in {block_count} blocks")
+    log.info(f"Expecting to handle {expected_count} encodings in {block_count} blocks")
     mc = connect_to_object_store()
     raw_file = Config.RAW_FILENAME_FMT.format(receipt_token)
     raw_data = mc.get_object(Config.MINIO_BUCKET, raw_file)
