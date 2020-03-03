@@ -86,11 +86,14 @@ class Project(object):
             logger.debug("New project created in DB")
             logger.debug("Creating new data provider entries")
 
+            dp_ids = []
             for auth_token in self.update_tokens:
                 dp_id = db.insert_dataprovider(cur, auth_token, project_id)
+                dp_ids.append(dp_id)
                 logger.debug("Added a dataprovider to db", dp_id=dp_id)
 
             logger.debug("Added data providers")
 
             logger.debug("Committing transaction")
             conn.commit()
+        return dp_ids
