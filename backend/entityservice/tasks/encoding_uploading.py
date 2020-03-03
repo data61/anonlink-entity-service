@@ -4,11 +4,10 @@ import opentracing
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
-    convert_encodings_from_json_to_binary, store_encodings_in_db
+    store_encodings_in_db
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
-from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask

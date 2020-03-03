@@ -1,9 +1,6 @@
 import minio
 from structlog import get_logger
-import psycopg2
 
-from entityservice.database import insert_similarity_score_file
-from entityservice.errors import RunDeleted
 from entityservice.settings import Config as config
 
 logger = get_logger('objectstore')
