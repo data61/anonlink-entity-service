@@ -60,7 +60,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
         log.info(f"Computing similarity for "
                  f"{' x '.join(map(str, dataset_sizes))} entities")
-        current_span.log_kv({"event": 'get-dataset-sizes'})
+        current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
 
     log.debug("Chunking computation task")
 
@@ -111,30 +111,36 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     :returns A 3-tuple: (num_results, result size in bytes, results_filename_in_object_store, )
     """
     log = logger.bind(pid=project_id, run_id=run_id)
+    task_span = compute_filter_similarity.span
+
+    def new_child_span(name):
+        return compute_filter_similarity.tracer.start_active_span(
+            name,
+            child_of=compute_filter_similarity.span)
+
     log.debug("Computing similarity for a chunk of filters")
-    span = compute_filter_similarity.span
+
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
     assert_valid_run(project_id, run_id, log)
 
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
     with DBConn() as conn:
-        with opentracing.tracer.start_span('fetching-encodings', child_of=span) as fetch_span:
-            with opentracing.tracer.start_span('chunk-1', child_of=fetch_span):
-                log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
-                chunk_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
-                #TODO: use the entity ids!
-                entity_ids_dp1, chunk_dp1 = zip(*chunk_dp1)
-            with opentracing.tracer.start_span('chunk-2', child_of=fetch_span):
-                log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
-                chunk_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
-                # TODO: use the entity ids!
-                entity_ids_dp2, chunk_dp2 = zip(*chunk_dp2)
+        with new_child_span('fetching-encodings'):
+            log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+            chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
+            #TODO: use the entity ids!
+            entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
+
+            log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
+            chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
+            # TODO: use the entity ids!
+            entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
 
     log.debug('Both chunks are fetched and deserialized')
-    span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
+    task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
 
-    with opentracing.tracer.start_span('comparing-encodings', child_of=span):
+    with new_child_span('comparing-encodings'):
         log.debug("Calculating filter similarity")
         try:
             chunk_results = anonlink.concurrency.process_chunk(
@@ -149,18 +155,19 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
 
     log.debug('Encoding similarities calculated')
 
-    with opentracing.tracer.start_span('save-comparison-progress', child_of=span):
+    with new_child_span('update-comparison-progress'):
         # Update the number of comparisons completed
         comparisons_computed = chunk_dp1_size * chunk_dp2_size
         save_current_progress(comparisons_computed, run_id)
 
-    with opentracing.tracer.start_span('save-comparison-results', child_of=span):
+    with new_child_span('save-comparison-results-to-minio'):
         sims, _, _ = chunk_results
         num_results = len(sims)
 
         if num_results:
             result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
                 generate_code(12))
+            task_span.log_kv({"edges": num_results})
             log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
 
             bytes_iter, file_size \
