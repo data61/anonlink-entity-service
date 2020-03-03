@@ -4,8 +4,8 @@ import time
 import psycopg2
 from pytest import raises
 
-from entityservice.database import insert_dataprovider, insert_new_project, \
-    insert_encodings_into_blocks, insert_blocking_metadata, get_project, get_encodingblock_ids
+from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
+    get_project, get_encodingblock_ids, get_encodings_by_id_range
 from entityservice.models import Project
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
@@ -88,12 +88,14 @@ class TestInsertions:
         assert elapsed_time < 2
 
         stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1'))
-        fetch_time = time.perf_counter() - end_time
+        id_fetch_time = time.perf_counter() - end_time
         # retrieval of encoding ids should be much faster than insertion
-        assert fetch_time < elapsed_time
-
+        assert id_fetch_time < elapsed_time
         assert len(stored_encoding_ids) == num_entities
-        for stored_encoding_id, original in zip(stored_encoding_ids, range(num_entities)):
-            assert stored_encoding_id == original
+        for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
+            assert stored_encoding_id == original_id
 
-        # TODO fetch binary encodings and verify against uploaded
+        stored_encodings = list(get_encodings_by_id_range(conn, dp_id))
+        assert len(stored_encodings) == num_entities
+        for stored_encoding, original_encoding in zip(stored_encodings, encodings):
+            assert stored_encoding == original_encoding

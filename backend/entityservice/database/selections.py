@@ -282,6 +282,8 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
         FROM encodingblocks
         WHERE dp = %s
         {}
+        ORDER BY
+          encoding_ID ASC 
         """.format("AND block_id = %s" if block_name else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
@@ -306,6 +308,8 @@ def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=N
         WHERE dp = %s
         {}
         {}
+        ORDER BY
+          encoding_id ASC
         """.format(
         f"AND encoding_id >= {encoding_id_min}" if encoding_id_min else "",
         f"AND encoding_id < {encoding_id_max}" if encoding_id_max else "",
@@ -314,7 +318,8 @@ def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=N
     cur.execute(sql_query, (dp_id,))
     rows = cur.fetchall()
     for row in rows:
-        yield row[0]
+        # Note row[0] is a memoryview
+        yield bytes(row[0])
 
 
 def get_filter_metadata(db, dp_id):
