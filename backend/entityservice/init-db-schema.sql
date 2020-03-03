@@ -131,7 +131,7 @@ CREATE TABLE uploads (
   token CHAR(48)    NOT NULL UNIQUE,
 
   -- Filename for the raw unprocessed uploaded data
-  file  CHAR(64)    NOT NULL,
+  file  CHAR(64)    NULL,
 
   state PROCESSEDSTATE NOT NULL,
 
