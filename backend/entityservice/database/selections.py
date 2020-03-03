@@ -319,10 +319,12 @@ def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=N
 
 def get_filter_metadata(db, dp_id):
     """
-    :return: The filename and the encoding size of the raw clks.
+    :return: The filename (which could be None), and the encoding size of the raw clks.
     """
     filename, encoding_size = get_uploads_columns(db, dp_id, ['file', 'encoding_size'])
-    return filename.strip(), encoding_size
+    if filename is not None:
+        filename = filename.strip()
+    return filename, encoding_size
 
 
 def get_encoding_metadata(db, dp_id):
