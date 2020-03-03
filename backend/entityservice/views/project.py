@@ -20,6 +20,7 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
+from entityservice.views.util import bind_log_and_span
 
 logger = get_logger()
 
@@ -105,20 +106,9 @@ def project_binaryclks_post(project_id):
     """
     Update a project to provide encoded PII data.
     """
-    log = logger.bind(pid=project_id)
+    log, parent_span = bind_log_and_span(project_id)
     headers = request.headers
-
-    parent_span = g.flask_tracer.get_span()
-
-    with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
-        abort_if_project_doesnt_exist(project_id)
-        if headers is None or 'Authorization' not in headers:
-            safe_fail_request(401, message="Authentication token required")
-
-        token = headers['Authorization']
-
-        # Check the caller has valid token -> otherwise 403
-        abort_if_invalid_dataprovider_token(token)
+    token = precheck_encoding_upload(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
@@ -186,25 +176,29 @@ def project_binaryclks_post(project_id):
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
-def project_clks_post(project_id):
-    """
-    Update a project to provide encoded PII data.
-    """
-    log = logger.bind(pid=project_id)
-    headers = request.headers
-
-    parent_span = g.flask_tracer.get_span()
-
+def precheck_encoding_upload(project_id, headers, parent_span):
     with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
         abort_if_project_doesnt_exist(project_id)
         if headers is None or 'Authorization' not in headers:
             safe_fail_request(401, message="Authentication token required")
 
         token = headers['Authorization']
-        #span.set_tag("headers", headers)
 
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
+    return token
+
+
+def project_clks_post(project_id):
+    """
+    Update a project to provide encoded PII data.
+    """
+
+    headers = request.headers
+
+    log, parent_span = bind_log_and_span(project_id)
+
+    token = precheck_encoding_upload(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)

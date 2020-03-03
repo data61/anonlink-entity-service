@@ -6,6 +6,7 @@ from entityservice.tasks import check_for_executable_runs
 from entityservice.database import get_runs
 from entityservice.models.run import Run
 from entityservice.utils import safe_fail_request
+from entityservice.views import bind_log_and_span
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token, \
     abort_if_project_in_error_state
 from entityservice.views.serialization import RunList, RunDescription
@@ -15,8 +16,8 @@ logger = get_logger()
 
 
 def get(project_id):
-    log = logger.bind(pid=project_id)
-    log.info("Listing runs for project: {}".format(project_id))
+    log, parent_span = bind_log_and_span(project_id)
+    log.info("Listing runs for project")
 
     authorize_run_listing(project_id)
 
@@ -28,7 +29,7 @@ def get(project_id):
 
 
 def post(project_id, run):
-    log = logger.bind(pid=project_id)
+    log, span = bind_log_and_span(project_id)
     log.debug("Processing request to add a new run", run=run)
     # Check the resource exists
     abort_if_project_doesnt_exist(project_id)
@@ -45,9 +46,6 @@ def post(project_id, run):
     with db.DBConn() as db_conn:
         run_model.save(db_conn)
 
-    span = g.flask_tracer.get_span()
-    span.set_tag("run_id", run_model.run_id)
-    span.set_tag("project_id", run_model.project_id)
     check_for_executable_runs.delay(project_id, serialize_span(span))
     return RunDescription().dump(run_model), 201
 

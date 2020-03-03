@@ -5,15 +5,16 @@ import opentracing
 from entityservice import database as db
 from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
+from entityservice.views import bind_log_and_span
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 
 logger = get_logger()
 
 
 def get(project_id, run_id):
-    log = logger.bind(pid=project_id, rid=run_id)
+    log, parent_span = bind_log_and_span(project_id, run_id)
     log.info("Checking for results of run.")
-    parent_span = g.flask_tracer.get_span()
+
     with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
         # Check the project and run resources exist
         abort_if_run_doesnt_exist(project_id, run_id)

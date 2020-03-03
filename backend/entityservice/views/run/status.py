@@ -4,6 +4,7 @@ import opentracing
 
 from entityservice.cache import progress as progress_cache
 from entityservice import database as db
+from entityservice.views import bind_log_and_span
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
 from entityservice.views.serialization import completed, running, error
 from entityservice.models.run import RUN_TYPES
@@ -12,8 +13,7 @@ logger = get_logger()
 
 
 def get(project_id, run_id):
-    log = logger.bind(pid=project_id, rid=run_id)
-    parent_span = g.flask_tracer.get_span()
+    log, parent_span = bind_log_and_span(project_id, run_id)
     log.debug("request run status")
     with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
         # Check the project and run resources exist
