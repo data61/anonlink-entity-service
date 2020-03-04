@@ -7,7 +7,8 @@ services:
     environment:
       - SERVER=http://nginx:8851
       - INITIAL_DELAY=20
-    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest -n 16 entityservice/tests --junitxml=testResults.xml -x"
+      - JAEGER_AGENT_HOST=jaeger
+    command: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest -n 4 entityservice/tests --junitxml=testResults.xml -x"
     depends_on:
       - db
       - redis

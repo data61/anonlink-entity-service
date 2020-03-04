@@ -35,6 +35,7 @@ services:
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - FLASK_DB_MIN_CONNECTIONS=1
       - FLASK_DB_MAX_CONNECTIONS=10
+      - JAEGER_AGENT_HOST=jaeger
     depends_on:
       - db
       - db_init
@@ -73,6 +74,7 @@ services:
       #- CHUNK_SIZE_AIM=300_000_000
       - CELERY_DB_MIN_CONNECTIONS=1
       - CELERY_DB_MAX_CONNECTIONS=3
+      - JAEGER_AGENT_HOST=jaeger
 
 
   nginx:
