@@ -1,5 +1,6 @@
 import array
 import heapq
+import itertools
 import operator
 import time
 
@@ -14,15 +15,14 @@ from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
 from entityservice.cache.progress import save_current_progress
 from entityservice.encoding_storage import get_encoding_chunk
-from entityservice.errors import RunDeleted
+from entityservice.errors import RunDeleted, InactiveRun
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
-    get_filter_metadata, get_project_column, get_project_dataset_sizes,
+    get_project_column, get_project_dataset_sizes,
     get_project_encoding_size, get_run, insert_similarity_score_file,
-    update_run_mark_failure)
+    update_run_mark_failure, get_block_metadata)
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.object_store import connect_to_object_store
-from entityservice.serialization import get_chunk_from_object_store
 from entityservice.settings import Config
 from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
 from entityservice.tasks.solver import solver_task
@@ -31,25 +31,53 @@ from entityservice.tasks.assert_valid_run import assert_valid_run
 from entityservice.utils import generate_code, iterable_to_stream
 
 
+def check_run_active(conn, project_id, run_id):
+    """Raises InactiveRun if the project or run has been deleted from the database.
+    """
+    if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
+        raise InactiveRun("Skipping as project or run not found in database.")
+
+
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'run_id'))
 def create_comparison_jobs(project_id, run_id, parent_span=None):
+    """Schedule all the entity comparisons as sub tasks for a run.
+
+    At a high level this task:
+    - checks if the project and run have been deleted and if so aborts.
+    - retrieves metadata: the number and size of the datasets, the encoding size,
+      and the number and size of blocks.
+    - splits the work into independent "chunks" and schedules them to run in celery
+    - schedules the follow up task to run after all the comparisons have been computed.
+    """
     log = logger.bind(pid=project_id, run_id=run_id)
+    current_span = create_comparison_jobs.span
     with DBConn() as conn:
+        check_run_active(conn, project_id, run_id)
 
         dp_ids = get_dataprovider_ids(conn, project_id)
-        assert len(dp_ids) >= 2, "Expected at least 2 data providers"
-        log.info(f"Starting comparison of CLKs from data provider ids: "
+        number_of_datasets = len(dp_ids)
+        assert number_of_datasets >= 2, "Expected at least 2 data providers"
+        log.info(f"Scheduling comparison of CLKs from data provider ids: "
                  f"{', '.join(map(str, dp_ids))}")
-        current_span = create_comparison_jobs.span
 
-        if not check_project_exists(conn, project_id) or not check_run_exists(conn, project_id, run_id):
-            log.info("Skipping as project or run not found in database.")
-            return
-
-        run_info = get_run(conn, run_id)
-        threshold = run_info['threshold']
-
+        # Retrieve required metadata
         dataset_sizes = get_project_dataset_sizes(conn, project_id)
+
+        # {dp_id -> {block_id -> block_size}}
+        # e.g. {33: {'1': 100}, 34: {'1': 100}, 35: {'1': 100}}
+        dp_block_sizes = {}
+        for dp_id in dp_ids:
+            dp_block_sizes[dp_id] = dict(get_block_metadata(conn, dp_id))
+
+        log.info("Finding blocks in common between dataproviders")
+        # block_id -> List(pairs of dp ids)
+        # e.g. {'1': [(26, 27), (26, 28), (27, 28)]}
+        blocks = {}
+        for dp1, dp2 in itertools.combinations(dp_ids, 2):
+            # Get the intersection of blocks between these two dataproviders
+            common_block_ids = set(dp_block_sizes[dp1]).intersection(set(dp_block_sizes[dp2]))
+            for block_id in common_block_ids:
+                blocks.setdefault(block_id, []).append((dp1, dp2))
 
         if len(dataset_sizes) < 2:
             log.warning("Unexpected number of dataset sizes in db. Stopping")
@@ -61,6 +89,9 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         log.info(f"Computing similarity for "
                  f"{' x '.join(map(str, dataset_sizes))} entities")
         current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
+
+        # Pass the threshold to the comparison tasks to minimize their db lookups
+        threshold = get_run(conn, run_id)['threshold']
 
     log.debug("Chunking computation task")
 
@@ -77,6 +108,8 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     log.info(f"Chunking into {len(chunk_infos)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
     span_serialized = create_comparison_jobs.get_serialized_span()
+
+
 
     # Prepare the Celery Chord that will compute all the similarity scores:
     scoring_tasks = [compute_filter_similarity.si(
