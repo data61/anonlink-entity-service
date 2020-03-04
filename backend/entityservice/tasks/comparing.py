@@ -86,6 +86,30 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
         encoding_size = get_project_encoding_size(conn, project_id)
 
+        # Now look at the sizes of the blocks, some may have to be broken into
+        # chunks, others will directly be compared as a full block. In either case
+        # we create a CandidatePairSubset object which describes the required
+        # comparisons.
+        chunks = []
+        for block_id in blocks:
+            # Note there might be many pairs of datasets in this block
+            for dp1, dp2 in blocks[block_id]:
+                size1 = dp_block_sizes[dp1][block_id]
+                size2 = dp_block_sizes[dp2][block_id]
+
+                comparisons = size1 * size2
+                if comparisons > Config.CHUNK_SIZE_AIM:
+                    log.warning("Need to chunk it up")
+                    # A task will request a range of encodings for a block
+                    # First cut can probably use postgres' LIMIT OFFSET
+                    raise NotImplemented
+                else:
+                    # Add the full block as a chunk
+                    # TODO do we provide a range (I think it should be optional)
+                    chunk_info_1 = {"dataproviderId": dp1, "range": (0, size1), "block_id": block_id}
+                    chunk_info_2 = {"dataproviderId": dp2, "range": (0, size2), "block_id": block_id}
+                    chunks.append((chunk_info_1, chunk_info_2))
+
         log.info(f"Computing similarity for "
                  f"{' x '.join(map(str, dataset_sizes))} entities")
         current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
