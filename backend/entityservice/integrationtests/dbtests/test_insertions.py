@@ -5,7 +5,7 @@ import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
-    get_project, get_encodingblock_ids, get_encodings_by_id_range
+    get_project, get_encodingblock_ids, get_encodings_by_id_range, get_block_metadata
 from entityservice.models import Project
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
@@ -30,7 +30,7 @@ class TestInsertions:
 
         conn, cur = self._get_conn_and_cursor()
         # create a default block
-        insert_blocking_metadata(conn, dp_id, {'1': 99})
+        insert_blocking_metadata(conn, dp_id, {'1': 10000})
         conn.commit()
 
         assert len(dp_auth_token) == 48
@@ -90,3 +90,10 @@ class TestInsertions:
         assert len(stored_encodings) == num_entities
         for stored_encoding, original_encoding in zip(stored_encodings, encodings):
             assert stored_encoding == original_encoding
+
+        block_names, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
+
+        assert len(block_names) == 1
+        assert len(block_sizes) == 1
+        assert block_names[0] == '1'
+        assert block_sizes[0] == 10_000

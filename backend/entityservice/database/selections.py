@@ -288,16 +288,37 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
     cur = db.cursor(f'encodingblockfetcher-{dp_id}')
-
     args = (dp_id, block_name) if block_name else (dp_id,)
-
     cur.execute(sql_query, args)
+    yield from iterate_cursor_results(cur)
+
+
+def get_block_metadata(db, dp_id):
+    """Yield block id and counts for a given data provider."""
+    sql_query = """
+        SELECT block_name, count
+        FROM blocks
+        WHERE dp = %s
+        """
+    # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
+    # records from being downloaded at once.
+    cur = db.cursor(f'blockfetcher-{dp_id}')
+    args = (dp_id,)
+    cur.execute(sql_query, args)
+    for block_name, count in iterate_cursor_results(cur, one=False):
+        yield block_name.strip(), count
+
+
+def iterate_cursor_results(cur, one=True):
     while True:
         rows = cur.fetchmany(10_000)
         if not rows:
             break
         for row in rows:
-            yield row[0]
+            if one:
+                yield row[0]
+            else:
+                yield row
 
 
 def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=None):
