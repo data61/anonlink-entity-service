@@ -4,7 +4,8 @@ from typing import Iterator, List, Tuple
 
 import ijson
 
-from entityservice.database import insert_encodings_into_blocks, get_encodings_by_id_range
+from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
+    get_chunk_of_encodings
 from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
 
 
@@ -102,8 +103,10 @@ def _estimate_group_size(encoding_size):
 def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     chunk_range_start, chunk_range_stop = chunk_info['range']
     dataprovider_id = chunk_info['dataproviderId']
-
-    encoding_data_stream = get_encodings_by_id_range(conn, dataprovider_id, chunk_range_start, chunk_range_stop)
+    block_id = chunk_info['block_id']
+    limit = chunk_range_stop - chunk_range_start
+    encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
+    encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
     chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
