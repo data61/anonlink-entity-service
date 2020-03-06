@@ -9,7 +9,7 @@ import minio
 import opentracing
 import psycopg2
 from celery import chord
-
+import numpy as np
 
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
@@ -88,8 +88,9 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
         # Now look at the sizes of the blocks, some may have to be broken into
         # chunks, others will directly be compared as a full block. In either case
-        # we create a CandidatePairSubset object which describes the required
-        # comparisons.
+        # we create a dict which describes the required comparisons. The dict will
+        # have required keys: dataproviderId, block_id, and range.
+        # And dataproviderIndex?
         chunks = []
         for block_id in blocks:
             # Note there might be many pairs of datasets in this block
@@ -99,16 +100,24 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
                 comparisons = size1 * size2
                 if comparisons > Config.CHUNK_SIZE_AIM:
-                    log.warning("Need to chunk it up")
+                    log.info("Block is too large for single task. Working out how to chunk it up")
                     # A task will request a range of encodings for a block
-                    # First cut can probably use postgres' LIMIT OFFSET
-                    raise NotImplemented
+                    # First cut can probably use postgres' LIMIT OFFSET (ordering by encoding_id?)
+                    for chunk_info in anonlink.concurrency.split_to_chunks(Config.CHUNK_SIZE_AIM,
+                                                                           dataset_sizes=(size1, size2)):
+                        # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
+                        # We need to correct the datasetIndex and add the database datasetId and add block_id.
+                        add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
+                        add_block_id_to_chunk_info(chunk_info, block_id)
+                        chunks.append(chunk_info)
                 else:
                     # Add the full block as a chunk
-                    # TODO do we provide a range (I think it should be optional)
-                    chunk_info_1 = {"dataproviderId": dp1, "range": (0, size1), "block_id": block_id}
-                    chunk_info_2 = {"dataproviderId": dp2, "range": (0, size2), "block_id": block_id}
-                    chunks.append((chunk_info_1, chunk_info_2))
+                    # TODO should we provide a range (it could be optional)
+                    chunk_left = {"range": (0, size1), "block_id": block_id}
+                    chunk_right = {"range": (0, size2), "block_id": block_id}
+                    chunk_info = (chunk_left, chunk_right)
+                    add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
+                    chunks.append(chunk_info)
 
         log.info(f"Computing similarity for "
                  f"{' x '.join(map(str, dataset_sizes))} entities")
@@ -119,21 +128,11 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
     log.debug("Chunking computation task")
 
-    chunk_infos = tuple(anonlink.concurrency.split_to_chunks(
-        Config.CHUNK_SIZE_AIM,
-        dataset_sizes=dataset_sizes))
-
-    # Add the db ids to the chunk information.
-    for chunk_info in chunk_infos:
-        for chunk_dp_info in chunk_info:
-            chunk_dp_index = chunk_dp_info['datasetIndex']
-            chunk_dp_info['dataproviderId'] = dp_ids[chunk_dp_index]
+    chunk_infos = chunks
 
     log.info(f"Chunking into {len(chunk_infos)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
     span_serialized = create_comparison_jobs.get_serialized_span()
-
-
 
     # Prepare the Celery Chord that will compute all the similarity scores:
     scoring_tasks = [compute_filter_similarity.si(
@@ -148,9 +147,29 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
 
-    callback_task = aggregate_comparisons.s(project_id, run_id, parent_span=span_serialized).on_error(
+    callback_task = aggregate_comparisons.s(project_id=project_id, run_id=run_id, parent_span=span_serialized).on_error(
         on_chord_error.s(run_id=run_id))
     future = chord(scoring_tasks)(callback_task)
+
+
+def add_dp_id_to_chunk_info(chunk_info, dp_ids, dp_id_left, dp_id_right):
+    """
+    Modify a chunk_info as returned by anonlink.concurrency.split_to_chunks
+    to use correct project dataset indicies and add the database dp identifier.
+    """
+    dpindx = dict(zip(dp_ids, range(len(dp_ids))))
+
+    left, right = chunk_info
+    left['dataproviderId'] = dp_id_left
+    left['datasetIndex'] = dpindx[dp_id_left]
+
+    right['dataproviderId'] = dp_id_right
+    right['datasetIndex'] = dpindx[dp_id_right]
+
+
+def add_block_id_to_chunk_info(chunk_info, block_id):
+    for chunk_dp_info in chunk_info:
+        chunk_dp_info['block_id'] = block_id
 
 
 @celery.task(base=TracedTask, args_as_tags=('project_id', 'run_id', 'threshold'))
@@ -183,29 +202,39 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
     with DBConn() as conn:
-        with new_child_span('fetching-encodings'):
+        with new_child_span('fetching-left-encodings'):
             log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
             chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
             #TODO: use the entity ids!
             entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
 
+        with new_child_span('fetching-right-encodings'):
             log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
             chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
             # TODO: use the entity ids!
             entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
 
     log.debug('Both chunks are fetched and deserialized')
-    task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size})
+    task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size, 'chunk_info': chunk_info})
 
     with new_child_span('comparing-encodings'):
         log.debug("Calculating filter similarity")
         try:
-            chunk_results = anonlink.concurrency.process_chunk(
-                chunk_info,
-                (chunk_dp1, chunk_dp2),
-                anonlink.similarities.dice_coefficient_accelerated,
-                threshold,
+            sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
+                datasets=(chunk_dp1, chunk_dp2),
+                threshold=threshold,
                 k=min(chunk_dp1_size, chunk_dp2_size))
+
+            # TODO check offset results are working... in rec_is0 and rec_is1 using encoding_ids
+            def offset(recordarray, encoding_id_list):
+                rec = np.frombuffer(recordarray, dtype=recordarray.typecode)
+                encoding_ids = np.array(encoding_id_list)
+                res_np = encoding_ids[rec]
+                return array.array('I', [i for i in res_np])
+
+            rec_is0 = offset(rec_is0, entity_ids_dp1)
+            rec_is1 = offset(rec_is1, entity_ids_dp2)
+
         except NotImplementedError as e:
             log.warning("Encodings couldn't be compared using anonlink.")
             return
@@ -216,9 +245,9 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         # Update the number of comparisons completed
         comparisons_computed = chunk_dp1_size * chunk_dp2_size
         save_current_progress(comparisons_computed, run_id)
+        log.info("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(sims)))
 
     with new_child_span('save-comparison-results-to-minio'):
-        sims, _, _ = chunk_results
         num_results = len(sims)
 
         if num_results:
@@ -226,6 +255,12 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
                 generate_code(12))
             task_span.log_kv({"edges": num_results})
             log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+
+            # Make index arrays for serialization
+            index_1 = array.array('I', (chunk_info_dp1["datasetIndex"],)) * num_results
+            index_2 = array.array('I', (chunk_info_dp2["datasetIndex"],)) * num_results
+
+            chunk_results = sims, (rec_is0, rec_is1), (index_1, index_2)
 
             bytes_iter, file_size \
                 = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
@@ -241,8 +276,6 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         else:
             result_filename = None
             file_size = None
-
-    log.info("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(chunk_results)))
 
     return num_results, file_size, result_filename
 
