@@ -5,7 +5,7 @@ import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
-    get_project, get_encodingblock_ids, get_encodings_by_id_range, get_block_metadata
+    get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings
 from entityservice.models import Project
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
@@ -79,6 +79,7 @@ class TestInsertions:
                                      encoding_ids=list(range(num_entities)),
                                      encodings=encodings
                                      )
+        conn.commit()
 
         stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1'))
 
@@ -86,10 +87,11 @@ class TestInsertions:
         for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
             assert stored_encoding_id == original_id
 
-        stored_encodings = list(get_encodings_by_id_range(conn, dp_id))
+        stored_encodings = list(get_chunk_of_encodings(conn, dp_id, stored_encoding_ids))
+
         assert len(stored_encodings) == num_entities
         for stored_encoding, original_encoding in zip(stored_encodings, encodings):
-            assert stored_encoding == original_encoding
+            assert bytes(stored_encoding) == original_encoding
 
         block_names, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
 
@@ -97,3 +99,25 @@ class TestInsertions:
         assert len(block_sizes) == 1
         assert block_names[0] == '1'
         assert block_sizes[0] == 10_000
+
+    def test_fetch_chunk(self):
+        data = [generate_bytes(128) for _ in range(100)]
+        project_id, project_auth_token, dp_id, dp_auth_token = self._create_project_and_dp()
+        conn, cur = self._get_conn_and_cursor()
+        num_entities = 10_000
+        blocks = [['1'] for _ in range(num_entities)]
+        encodings = [data[i % 100] for i in range(num_entities)]
+
+        insert_encodings_into_blocks(conn, dp_id,
+                                     block_ids=blocks,
+                                     encoding_ids=list(range(num_entities)),
+                                     encodings=encodings
+                                     )
+        conn.commit()
+
+        stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1', offset=10, limit=20))
+
+        assert len(stored_encoding_ids) == 20
+        for i, stored_encoding_id in enumerate(stored_encoding_ids):
+            assert stored_encoding_id == i + 10
+
