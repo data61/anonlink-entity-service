@@ -275,20 +275,22 @@ def get_uploads_columns(db, dp_id, columns):
     return [result[column] for column in columns]
 
 
-def get_encodingblock_ids(db, dp_id, block_name=None):
+def get_encodingblock_ids(db, dp_id, block_name=None, offset=0, limit=None):
     """Yield all encoding ids in either a single block, or all blocks for a given data provider."""
     sql_query = """
         SELECT encoding_id 
         FROM encodingblocks
-        WHERE dp = %s
+        WHERE dp = %(dp_id)s
         {}
         ORDER BY
-          encoding_ID ASC 
-        """.format("AND block_id = %s" if block_name else "")
+          encoding_ID ASC
+        OFFSET %(offset)s
+        LIMIT %(limit)s
+        """.format("AND block_id = %(block_id)s" if block_name else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
     cur = db.cursor(f'encodingblockfetcher-{dp_id}')
-    args = (dp_id, block_name) if block_name else (dp_id,)
+    args = {'dp_id': dp_id, 'block_id': block_name, 'offset': offset, 'limit': limit}
     cur.execute(sql_query, args)
     yield from iterate_cursor_results(cur)
 
@@ -309,9 +311,9 @@ def get_block_metadata(db, dp_id):
         yield block_name.strip(), count
 
 
-def iterate_cursor_results(cur, one=True):
+def iterate_cursor_results(cur, one=True, page_size=4096):
     while True:
-        rows = cur.fetchmany(10_000)
+        rows = cur.fetchmany(page_size)
         if not rows:
             break
         for row in rows:
@@ -320,27 +322,50 @@ def iterate_cursor_results(cur, one=True):
             else:
                 yield row
 
+#
+# def get_block_of_encodings(db, dp_id, block_id, offset=0, limit=None):
+#     """Yield a block of all encodings - optionally with an offset and limit - for a data provider.
+#
+#     I don't understand why this is slower than fetching all encoding_ids to Python and then fetching
+#     all the encoding in the below version.
+#     """
+#     sql_query = """
+#         SELECT encoding
+#         FROM encodings,
+#              encodingblocks
+#         WHERE encodings.dp = %(dp_id)s
+#           AND encodingblocks.dp = %(dp_id)s
+#           and encodingblocks.block_id = %(block_id)s
+#           AND encodingblocks.encoding_id = encodings.encoding_id
+#         ORDER BY encodingblocks.encoding_id ASC
+#         OFFSET %(offset)s
+#         LIMIT %(limit)s
+#         """
+#
+#     cur = db.cursor(f"dp{dp_id}-block{block_id}-{offset}-{limit}")
+#     cur.execute(sql_query, {'dp_id': dp_id, 'block_id': block_id, 'offset': offset, 'limit': limit})
+#     # Note encoding is returned as a memoryview
+#     for encoding in iterate_cursor_results(cur, one=True):
+#         yield encoding
 
-def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=None):
-    """Yield all encodings in a given range for a given data provider."""
+
+def get_chunk_of_encodings(db, dp_id, encoding_ids):
+    """Yield a chunk of encodings for a data provider given the encoding ids.
+
+    """
     sql_query = """
-        SELECT encoding 
+        SELECT encoding
         FROM encodings
-        WHERE dp = %s
-        {}
-        {}
-        ORDER BY
-          encoding_id ASC
-        """.format(
-        f"AND encoding_id >= {encoding_id_min}" if encoding_id_min else "",
-        f"AND encoding_id < {encoding_id_max}" if encoding_id_max else "",
-    )
+        WHERE encodings.dp = %(dp_id)s
+        AND encodings.encoding_id in ({})
+        ORDER BY encoding_id ASC
+        """.format(','.join(map(str, encoding_ids)))
+
     cur = db.cursor()
-    cur.execute(sql_query, (dp_id,))
-    rows = cur.fetchall()
-    for row in rows:
-        # Note row[0] is a memoryview
-        yield bytes(row[0])
+    cur.execute(sql_query, {'dp_id': dp_id})
+    # Note encoding is returned as a memoryview
+    for encoding in iterate_cursor_results(cur, one=True):
+        yield encoding
 
 
 def get_filter_metadata(db, dp_id):
