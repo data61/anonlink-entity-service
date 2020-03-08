@@ -61,23 +61,10 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
                  f"{', '.join(map(str, dp_ids))}")
 
         # Retrieve required metadata
-        dataset_sizes = get_project_dataset_sizes(conn, project_id)
-
-        # {dp_id -> {block_id -> block_size}}
-        # e.g. {33: {'1': 100}, 34: {'1': 100}, 35: {'1': 100}}
-        dp_block_sizes = {}
-        for dp_id in dp_ids:
-            dp_block_sizes[dp_id] = dict(get_block_metadata(conn, dp_id))
+        dataset_sizes, dp_block_sizes = _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids)
 
         log.info("Finding blocks in common between dataproviders")
-        # block_id -> List(pairs of dp ids)
-        # e.g. {'1': [(26, 27), (26, 28), (27, 28)]}
-        blocks = {}
-        for dp1, dp2 in itertools.combinations(dp_ids, 2):
-            # Get the intersection of blocks between these two dataproviders
-            common_block_ids = set(dp_block_sizes[dp1]).intersection(set(dp_block_sizes[dp2]))
-            for block_id in common_block_ids:
-                blocks.setdefault(block_id, []).append((dp1, dp2))
+        common_blocks = _get_common_blocks(dp_block_sizes, dp_ids)
 
         if len(dataset_sizes) < 2:
             log.warning("Unexpected number of dataset sizes in db. Stopping")
@@ -86,38 +73,8 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
         encoding_size = get_project_encoding_size(conn, project_id)
 
-        # Now look at the sizes of the blocks, some may have to be broken into
-        # chunks, others will directly be compared as a full block. In either case
-        # we create a dict which describes the required comparisons. The dict will
-        # have required keys: dataproviderId, block_id, and range.
-        # And dataproviderIndex?
-        chunks = []
-        for block_id in blocks:
-            # Note there might be many pairs of datasets in this block
-            for dp1, dp2 in blocks[block_id]:
-                size1 = dp_block_sizes[dp1][block_id]
-                size2 = dp_block_sizes[dp2][block_id]
-
-                comparisons = size1 * size2
-                if comparisons > Config.CHUNK_SIZE_AIM:
-                    log.info("Block is too large for single task. Working out how to chunk it up")
-                    # A task will request a range of encodings for a block
-                    # First cut can probably use postgres' LIMIT OFFSET (ordering by encoding_id?)
-                    for chunk_info in anonlink.concurrency.split_to_chunks(Config.CHUNK_SIZE_AIM,
-                                                                           dataset_sizes=(size1, size2)):
-                        # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
-                        # We need to correct the datasetIndex and add the database datasetId and add block_id.
-                        add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
-                        add_block_id_to_chunk_info(chunk_info, block_id)
-                        chunks.append(chunk_info)
-                else:
-                    # Add the full block as a chunk
-                    # TODO should we provide a range (it could be optional)
-                    chunk_left = {"range": (0, size1), "block_id": block_id}
-                    chunk_right = {"range": (0, size2), "block_id": block_id}
-                    chunk_info = (chunk_left, chunk_right)
-                    add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
-                    chunks.append(chunk_info)
+        # Create "chunks" of comparisons
+        chunks = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
 
         log.info(f"Computing similarity for "
                  f"{' x '.join(map(str, dataset_sizes))} entities")
@@ -150,6 +107,107 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     callback_task = aggregate_comparisons.s(project_id=project_id, run_id=run_id, parent_span=span_serialized).on_error(
         on_chord_error.s(run_id=run_id))
     future = chord(scoring_tasks)(callback_task)
+
+
+def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log):
+    """Create chunks of comparisons using blocking information.
+
+    .. note::
+
+        Ideally the chunks would be similarly sized, however with blocking the best we
+        can do in this regard is to ensure a similar maximum size. Small blocks will
+        directly translate to small chunks.
+
+    :todo Consider passing all dataproviders to anonlink's `split_to_chunks` for a given
+          large block instead of pairwise.
+
+    :param blocks:
+        dict mapping block identifier to a list of all combinations of
+        data provider pairs containing this block. As created by :func:`_get_common_blocks`
+    :param dp_block_sizes:
+        A map from dataprovider id to a dict mapping
+        block id to the number of encodings from the dataprovider in the
+        block. As created by :func:`_retrieve_blocked_dataset_sizes`
+    :param dp_ids: list of data provider ids
+
+    :returns
+
+        a dict describing the required comparisons. Comprised of:
+        - dataproviderId - The dataprovider identifier in our database
+        - datasetIndex - The dataprovider index [0, 1 ...]
+        - block_id - The block of encodings this chunk is for
+        - range - The range of encodings within the block that make up this chunk.
+    """
+    chunks = []
+    for block_id in blocks:
+        log.debug("Chunking block", block_id=block_id)
+        # Note there might be many pairs of datasets in this block
+        for dp1, dp2 in blocks[block_id]:
+            size1 = dp_block_sizes[dp1][block_id]
+            size2 = dp_block_sizes[dp2][block_id]
+
+            comparisons = size1 * size2
+            if comparisons > Config.CHUNK_SIZE_AIM:
+                log.debug("Block is too large for single task. Working out how to chunk it up")
+                for chunk_info in anonlink.concurrency.split_to_chunks(Config.CHUNK_SIZE_AIM,
+                                                                       dataset_sizes=(size1, size2)):
+                    # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
+                    # We need to correct the datasetIndex and add the database datasetId and add block_id.
+                    add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
+                    add_block_id_to_chunk_info(chunk_info, block_id)
+                    chunks.append(chunk_info)
+            else:
+                log.debug("Add the full block as a single work chunk")
+                # Although the range "could" be optional we choose to make all chunk definitions consistent
+                chunk_left = {"range": (0, size1), "block_id": block_id}
+                chunk_right = {"range": (0, size2), "block_id": block_id}
+                chunk_info = (chunk_left, chunk_right)
+                add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
+                chunks.append(chunk_info)
+    return chunks
+
+
+def _get_common_blocks(dp_block_sizes, dp_ids):
+    """Return all pairs of non-empty blocks across dataproviders.
+
+    :returns
+        dict mapping block identifier to a list of all combinations of
+        data provider pairs containing this block.
+
+        block_id -> List(pairs of dp ids)
+        e.g. {'1': [(26, 27), (26, 28), (27, 28)]}
+    """
+    blocks = {}
+    for dp1, dp2 in itertools.combinations(dp_ids, 2):
+        # Get the intersection of blocks between these two dataproviders
+        common_block_ids = set(dp_block_sizes[dp1]).intersection(set(dp_block_sizes[dp2]))
+        for block_id in common_block_ids:
+            blocks.setdefault(block_id, []).append((dp1, dp2))
+    return blocks
+
+
+def _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids):
+    """Fetch encoding counts for each dataset by block.
+
+    :param dp_ids: Iterable of dataprovider database identifiers.
+    :returns
+        A 2-tuple of:
+
+        - dataset sizes: a tuple of the number of encodings in each dataset.
+
+        - dp_block_sizes: A map from dataprovider id to a dict mapping
+          block id to the number of encodings from the dataprovider in the
+          block.
+
+          {dp_id -> {block_id -> block_size}}
+          e.g. {33: {'1': 100}, 34: {'1': 100}, 35: {'1': 100}}
+    """
+    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+
+    dp_block_sizes = {}
+    for dp_id in dp_ids:
+        dp_block_sizes[dp_id] = dict(get_block_metadata(conn, dp_id))
+    return dataset_sizes, dp_block_sizes
 
 
 def add_dp_id_to_chunk_info(chunk_info, dp_ids, dp_id_left, dp_id_right):
@@ -225,12 +283,8 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
                 threshold=threshold,
                 k=min(chunk_dp1_size, chunk_dp2_size))
 
-            # TODO check offset results are working... in rec_is0 and rec_is1 using encoding_ids
             def offset(recordarray, encoding_id_list):
-                rec = np.frombuffer(recordarray, dtype=recordarray.typecode)
-                encoding_ids = np.array(encoding_id_list)
-                res_np = encoding_ids[rec]
-                return array.array('I', [i for i in res_np])
+                return array.array('I', [encoding_id_list[i] for i in recordarray])
 
             rec_is0 = offset(rec_is0, entity_ids_dp1)
             rec_is1 = offset(rec_is1, entity_ids_dp2)
@@ -260,7 +314,7 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
             index_1 = array.array('I', (chunk_info_dp1["datasetIndex"],)) * num_results
             index_2 = array.array('I', (chunk_info_dp2["datasetIndex"],)) * num_results
 
-            chunk_results = sims, (rec_is0, rec_is1), (index_1, index_2)
+            chunk_results = sims, (index_1, index_2), (rec_is0, rec_is1),
 
             bytes_iter, file_size \
                 = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
