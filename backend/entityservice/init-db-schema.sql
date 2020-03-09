@@ -175,6 +175,7 @@ CREATE TABLE encodings (
   PRIMARY KEY (dp, encoding_id)
 );
 
+CREATE INDEX ON encodings (dp, encoding_id);
 
 -- Table mapping blocks to encodings
 CREATE TABLE encodingblocks (
@@ -188,7 +189,6 @@ CREATE TABLE encodingblocks (
   FOREIGN KEY (dp, block_id) REFERENCES blocks (dp, block_name)
 );
 
--- TODO index to accelerate ordering/filtering operations?
 CREATE INDEX ON encodingblocks (dp, block_id);
 CREATE INDEX ON encodingblocks (encoding_id);
 
