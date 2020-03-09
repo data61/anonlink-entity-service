@@ -24,7 +24,7 @@ from entityservice.database import (
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config
-from entityservice.tasks.base_task import TracedTask, celery_bug_fix, on_chord_error
+from entityservice.tasks.base_task import TracedTask, celery_bug_fix, run_failed_handler
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
 from entityservice.tasks.assert_valid_run import assert_valid_run
@@ -71,24 +71,21 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
             update_run_mark_failure(conn, run_id)
             return
 
+        # We pass the encoding_size and threshold to the comparison tasks to minimize their db lookups
         encoding_size = get_project_encoding_size(conn, project_id)
-
-        # Create "chunks" of comparisons
-        chunks = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
-
-        log.info(f"Computing similarity for "
-                 f"{' x '.join(map(str, dataset_sizes))} entities")
-        current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
-
-        # Pass the threshold to the comparison tasks to minimize their db lookups
         threshold = get_run(conn, run_id)['threshold']
 
     log.debug("Chunking computation task")
+    # Create "chunks" of comparisons
+    chunks = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
 
-    chunk_infos = chunks
+    log.info(f"Computing similarity for "
+             f"{' x '.join(map(str, dataset_sizes))} entities")
+    current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
 
-    log.info(f"Chunking into {len(chunk_infos)} computation tasks")
-    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunk_infos)})
+
+    log.info(f"Chunking into {len(chunks)} computation tasks")
+    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunks)})
     span_serialized = create_comparison_jobs.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
@@ -99,13 +96,13 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         threshold,
         encoding_size,
         span_serialized
-    ) for chunk_info in chunk_infos]
+    ) for chunk_info in chunks]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
 
     callback_task = aggregate_comparisons.s(project_id=project_id, run_id=run_id, parent_span=span_serialized).on_error(
-        on_chord_error.s(run_id=run_id))
+        run_failed_handler.s(run_id=run_id))
     future = chord(scoring_tasks)(callback_task)
 
 
@@ -380,18 +377,6 @@ def _merge_files(mc, log, file0, file1):
     return total_num, merged_file_size, merged_file_name
 
 
-def _insert_similarity_into_db(db, log, run_id, merged_filename):
-    try:
-        result_id = insert_similarity_score_file(
-            db, run_id, merged_filename)
-    except psycopg2.IntegrityError:
-        log.info("Error saving similarity score filename to database. "
-                 "The project may have been deleted.")
-        raise RunDeleted(run_id)
-    log.debug(f"Saved path to similarity scores file to db with id "
-              f"{result_id}")
-
-
 @celery.task(
     base=TracedTask,
     ignore_result=True,
@@ -439,8 +424,9 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
 
     with DBConn() as db:
         result_type = get_project_column(db, project_id, 'result_type')
-
-        _insert_similarity_into_db(db, log, run_id, merged_filename)
+        result_id = insert_similarity_score_file(db, run_id, merged_filename)
+        log.debug(f"Saved path to similarity scores file to db with id "
+                  f"{result_id}")
 
         if result_type == "similarity_scores":
             # Post similarity computation cleanup

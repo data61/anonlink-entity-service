@@ -5,7 +5,7 @@ from entityservice.cache.active_runs import set_run_state_active, is_run_missing
 from entityservice.database import DBConn, check_project_exists, get_run, get_run_state_for_update
 from entityservice.database import update_run_set_started
 from entityservice.errors import RunDeleted, ProjectDeleted
-from entityservice.tasks.base_task import TracedTask
+from entityservice.tasks.base_task import TracedTask, run_failed_handler
 from entityservice.tasks.comparing import create_comparison_jobs
 from entityservice.async_worker import celery, logger
 
@@ -47,5 +47,8 @@ def prerun_check(project_id, run_id, parent_span=None):
         set_run_state_active(run_id)
         progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
-    create_comparison_jobs.delay(project_id, run_id, prerun_check.get_serialized_span())
+    create_comparison_jobs.apply_async(
+        kwargs={'project_id': project_id, 'run_id': run_id, 'parent_span': prerun_check.get_serialized_span()},
+        link_error=run_failed_handler.s()
+    )
     log.info("CLK similarity computation scheduled")
