@@ -106,7 +106,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     future = chord(scoring_tasks)(callback_task)
 
 
-def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log):
+def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Config.CHUNK_SIZE_AIM):
     """Create chunks of comparisons using blocking information.
 
     .. note::
@@ -126,6 +126,8 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log):
         block id to the number of encodings from the dataprovider in the
         block. As created by :func:`_retrieve_blocked_dataset_sizes`
     :param dp_ids: list of data provider ids
+    :param log: A logger instance
+    :param chunk_size_aim: The desired number of comparisons per chunk.
 
     :returns
 
@@ -144,9 +146,10 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log):
             size2 = dp_block_sizes[dp2][block_id]
 
             comparisons = size1 * size2
-            if comparisons > Config.CHUNK_SIZE_AIM:
+
+            if comparisons > chunk_size_aim:
                 log.debug("Block is too large for single task. Working out how to chunk it up")
-                for chunk_info in anonlink.concurrency.split_to_chunks(Config.CHUNK_SIZE_AIM,
+                for chunk_info in anonlink.concurrency.split_to_chunks(chunk_size_aim,
                                                                        dataset_sizes=(size1, size2)):
                     # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
                     # We need to correct the datasetIndex and add the database datasetId and add block_id.
