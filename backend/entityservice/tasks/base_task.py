@@ -104,7 +104,7 @@ def celery_bug_fix(*args, **kwargs):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def on_chord_error(*args, **kwargs):
+def run_failed_handler(*args, **kwargs):
     """
     Record that a task has encountered an error, mark the run as failed.
 
