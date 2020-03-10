@@ -20,7 +20,7 @@ class TestEncodingStorage:
 
     def test_convert_encodings_from_json_to_binary_empty(self):
         empty = io.BytesIO(b'''{
-            "clksnblocks": []
+            "clknblocks": []
          }''')
 
         with pytest.raises(StopIteration):
@@ -28,7 +28,7 @@ class TestEncodingStorage:
 
     def test_convert_encodings_from_json_to_binary_short(self):
         d = serialize_bytes(b'abcdabcd')
-        json_data = io.BytesIO(b'{' + f'''"clksnblocks": [["{d}", "02"]]'''.encode() + b'}')
+        json_data = io.BytesIO(b'{' + f'''"clknblocks": [["{d}", "02"]]'''.encode() + b'}')
         encoding_ids, encodings, blocks = list(zip(*stream_json_clksnblocks(json_data)))
 
         assert len(encodings[0]) == 8

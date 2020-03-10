@@ -15,7 +15,7 @@ def stream_json_clksnblocks(f):
     the following structure:
 
     {
-        "clksnblocks": [
+        "clknblocks": [
             ["BASE64 ENCODED ENCODING 1", blockid1, blockid2, ...],
             ["BASE64 ENCODED ENCODING 2", blockid1, ...],
             ...
@@ -26,7 +26,7 @@ def stream_json_clksnblocks(f):
     :return: Generator of (entity_id, base64 encoding, list of blocks)
     """
     # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
-    for i, obj in enumerate(ijson.items(f, 'clksnblocks.item')):
+    for i, obj in enumerate(ijson.items(f, 'clknblocks.item')):
         b64_encoding, *blocks = obj
         yield i, deserialize_bytes(b64_encoding), blocks
 
@@ -100,13 +100,15 @@ def _estimate_group_size(encoding_size):
     return math.ceil(network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4)))
 
 
-def get_encoding_chunk(conn, chunk_info, encoding_size=128):
+def get_encoding_chunk(conn, chunk_info, encoding_size=128, s=None):
     chunk_range_start, chunk_range_stop = chunk_info['range']
     dataprovider_id = chunk_info['dataproviderId']
     block_id = chunk_info['block_id']
     limit = chunk_range_stop - chunk_range_start
-    encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
-    encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
-    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    with s.span.tracer.start_span("get_encodingblock_ids"):
+        encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
+    with s.span.tracer.start_span('get_chunk_of_encodings'):
+        encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
+        chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
