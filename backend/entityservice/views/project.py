@@ -386,8 +386,8 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
 
     if element == 'clks':
         logger.info("Rewriting provided json into clknsblocks format")
-        clk_json = {'clksnblocks': [[encoding, '1'] for encoding in clk_json['clks']]}
-        element = 'clksnblocks'
+        clk_json = {'clknblocks': [[encoding, '1'] for encoding in clk_json['clks']]}
+        element = 'clknblocks'
 
     logger.info("Counting block sizes and number of blocks")
     # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}

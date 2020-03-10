@@ -6,16 +6,14 @@ import time
 
 import anonlink
 import minio
-import opentracing
-import psycopg2
 from celery import chord
-import numpy as np
+
 
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
 from entityservice.cache.progress import save_current_progress
 from entityservice.encoding_storage import get_encoding_chunk
-from entityservice.errors import RunDeleted, InactiveRun
+from entityservice.errors import InactiveRun
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
     get_project_column, get_project_dataset_sizes,
@@ -248,9 +246,7 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     task_span = compute_filter_similarity.span
 
     def new_child_span(name):
-        return compute_filter_similarity.tracer.start_active_span(
-            name,
-            child_of=compute_filter_similarity.span)
+        return compute_filter_similarity.tracer.start_active_span(name, child_of=compute_filter_similarity.span)
 
     log.debug("Computing similarity for a chunk of filters")
 

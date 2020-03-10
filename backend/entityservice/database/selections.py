@@ -322,32 +322,6 @@ def iterate_cursor_results(cur, one=True, page_size=4096):
             else:
                 yield row
 
-#
-# def get_block_of_encodings(db, dp_id, block_id, offset=0, limit=None):
-#     """Yield a block of all encodings - optionally with an offset and limit - for a data provider.
-#
-#     I don't understand why this is slower than fetching all encoding_ids to Python and then fetching
-#     all the encoding in the below version.
-#     """
-#     sql_query = """
-#         SELECT encoding
-#         FROM encodings,
-#              encodingblocks
-#         WHERE encodings.dp = %(dp_id)s
-#           AND encodingblocks.dp = %(dp_id)s
-#           and encodingblocks.block_id = %(block_id)s
-#           AND encodingblocks.encoding_id = encodings.encoding_id
-#         ORDER BY encodingblocks.encoding_id ASC
-#         OFFSET %(offset)s
-#         LIMIT %(limit)s
-#         """
-#
-#     cur = db.cursor(f"dp{dp_id}-block{block_id}-{offset}-{limit}")
-#     cur.execute(sql_query, {'dp_id': dp_id, 'block_id': block_id, 'offset': offset, 'limit': limit})
-#     # Note encoding is returned as a memoryview
-#     for encoding in iterate_cursor_results(cur, one=True):
-#         yield encoding
-
 
 def get_chunk_of_encodings(db, dp_id, encoding_ids):
     """Yield a chunk of encodings for a data provider given the encoding ids.
