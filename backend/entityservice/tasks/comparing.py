@@ -249,7 +249,6 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         return compute_filter_similarity.tracer.start_active_span(name, child_of=compute_filter_similarity.span)
 
     log.debug("Computing similarity for a chunk of filters")
-
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
     assert_valid_run(project_id, run_id, log)
 
@@ -259,13 +258,11 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
         with new_child_span('fetching-left-encodings'):
             log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
             chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
-            #TODO: use the entity ids!
             entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
 
         with new_child_span('fetching-right-encodings'):
             log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
             chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
-            # TODO: use the entity ids!
             entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
 
     log.debug('Both chunks are fetched and deserialized')
@@ -279,6 +276,7 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
                 threshold=threshold,
                 k=min(chunk_dp1_size, chunk_dp2_size))
 
+            # Map results from "index in chunk" to encoding id.
             def offset(recordarray, encoding_id_list):
                 return array.array('I', [encoding_id_list[i] for i in recordarray])
 

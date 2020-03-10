@@ -100,15 +100,13 @@ def _estimate_group_size(encoding_size):
     return math.ceil(network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4)))
 
 
-def get_encoding_chunk(conn, chunk_info, encoding_size=128, s=None):
+def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     chunk_range_start, chunk_range_stop = chunk_info['range']
     dataprovider_id = chunk_info['dataproviderId']
     block_id = chunk_info['block_id']
     limit = chunk_range_stop - chunk_range_start
-    with s.span.tracer.start_span("get_encodingblock_ids"):
-        encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
-    with s.span.tracer.start_span('get_chunk_of_encodings'):
-        encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
-        chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
+    encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
+    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
