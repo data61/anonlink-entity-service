@@ -1,6 +1,6 @@
 import requests
 
-from entityservice.tests.config import url
+from e2etests.config import url
 
 
 def test_version(record_property):

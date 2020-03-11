@@ -1,4 +1,4 @@
-from entityservice.tests.util import create_project_upload_fake_data, post_run, get_run
+from e2etests.util import create_project_upload_fake_data, post_run, get_run
 
 
 def test_run_description_missing_run(requests, project):

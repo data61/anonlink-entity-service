@@ -1,4 +1,4 @@
-from entityservice.tests.util import create_project_no_data, post_run, get_run_result
+from e2etests.util import create_project_no_data, post_run, get_run_result
 
 
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):

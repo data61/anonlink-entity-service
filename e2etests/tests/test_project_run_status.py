@@ -1,5 +1,5 @@
 
-from entityservice.tests.util import post_run, get_run_status, is_run_status, \
+from e2etests.util import post_run, get_run_status, is_run_status, \
     create_project_no_data
 
 
