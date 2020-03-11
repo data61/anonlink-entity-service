@@ -1,10 +1,8 @@
 import itertools
 import time
 
-import pytest
-
-from entityservice.tests.config import url
-from entityservice.tests.util import (
+from e2etests.config import url
+from e2etests.util import (
     delete_project, generate_overlapping_clk_data,
     get_expected_number_parties, get_project_description)
 

@@ -1,4 +1,4 @@
-from entityservice.tests.util import post_run, get_runs
+from e2etests.util import post_run, get_runs
 
 
 def test_posting_run_before_data_upload(requests, project):

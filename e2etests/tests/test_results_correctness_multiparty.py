@@ -3,7 +3,7 @@ import pickle
 
 import anonlink
 
-from entityservice.tests.util import (
+from e2etests.util import (
     create_project_upload_data, delete_project, get_run_result, post_run, binary_pack_for_upload)
 
 DATA_FILENAME = 'test-multiparty-results-correctness-data.pkl'

@@ -1,5 +1,5 @@
-from entityservice.tests.config import url
-from entityservice.tests.util import create_project_upload_fake_data, create_project_no_data, get_runs, post_run, \
+from e2etests.config import url
+from e2etests.util import create_project_upload_fake_data, create_project_no_data, get_runs, post_run, \
     temporary_blank_project
 
 

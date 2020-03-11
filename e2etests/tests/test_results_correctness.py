@@ -4,7 +4,7 @@ import os
 import anonlink
 import pytest
 
-from entityservice.tests.util import create_project_upload_data, post_run, get_run_result, delete_project
+from e2etests.util import create_project_upload_data, post_run, get_run_result, delete_project
 
 
 # !!! We assume that anonlink computes the right results.

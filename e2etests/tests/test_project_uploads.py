@@ -2,8 +2,8 @@ import time
 import os
 import pytest
 
-from entityservice.tests.config import url
-from entityservice.tests.util import (
+from e2etests.config import url
+from e2etests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
     get_expected_number_parties, get_run_result, post_run,
