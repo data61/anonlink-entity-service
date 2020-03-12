@@ -9,4 +9,4 @@ RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)
 
 ENV SERVER http://nginx:8851
 ENV INITIAL_DELAY 20
-CMD python -m pytest -n 4 e2etests/tests --junitxml=testResults.xml -x
+CMD python -m pytest -n 2 e2etests/tests --junitxml=testResults.xml -x

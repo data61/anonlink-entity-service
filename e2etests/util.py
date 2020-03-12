@@ -137,7 +137,7 @@ def get_project_description(requests, new_project_data):
 
 
 def create_project_no_data(requests,
-                           result_type='groups', number_parties=None):
+                           result_type='groups', number_parties=None, uses_blocking=False):
     number_parties_param = (
         {} if number_parties is None else {'number_parties': number_parties})
     new_project_response = requests.post(url + '/projects',
@@ -145,6 +145,7 @@ def create_project_no_data(requests,
                                      json={
                                          'schema': {},
                                          'result_type': result_type,
+                                         'uses_blocking': uses_blocking,
                                          **number_parties_param
                                      })
     assert new_project_response.status_code == 201, 'I received this instead: {}'.format(new_project_response.text)
@@ -161,7 +162,7 @@ def temporary_blank_project(requests, result_type='groups'):
 def create_project_upload_fake_data(
         requests,
         sizes, overlap=0.75,
-        result_type='groups', encoding_size=128):
+        result_type='groups', encoding_size=128, uses_blocking=False):
     data = generate_overlapping_clk_data(
         sizes, overlap=overlap, encoding_size=encoding_size)
     new_project_data, json_responses = create_project_upload_data(
@@ -171,13 +172,13 @@ def create_project_upload_fake_data(
 
 
 def create_project_upload_data(
-        requests, data, result_type='groups', binary=False, hash_size=None):
+        requests, data, result_type='groups', binary=False, hash_size=None, uses_blocking=False):
     if binary and hash_size is None:
         raise ValueError('binary mode must specify a hash_size')
 
     number_parties = len(data)
     new_project_data = create_project_no_data(
-        requests, result_type=result_type, number_parties=number_parties)
+        requests, result_type=result_type, number_parties=number_parties, uses_blocking=False)
 
     upload_url = url + f'/projects/{new_project_data["project_id"]}/{"binary" if binary else ""}clks'
     json_responses = []

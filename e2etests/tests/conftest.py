@@ -37,6 +37,7 @@ ENVVAR_NAME = 'ENTITY_SERVICE_RUN_SLOW_TESTS'
 THRESHOLDS = [0.9, 1.0]
 OVERLAPS = [0.0, 0.9]
 ENCODING_SIZES = [8]
+USES_BLOCKING = [True, False]
 NUMBERS_PARTIES = [2, 3, 5]
 
 if os.getenv(ENVVAR_NAME):
@@ -70,12 +71,12 @@ SIZES_NP = (tuple(itertools.chain(FAST_SIZES_NP, SLOW_SIZES_NP))
 PROJECT_PARAMS_2P = tuple(
     itertools.product(SIZES_2P, OVERLAPS, ENCODING_SIZES))
 PROJECT_PARAMS_NP = tuple(
-    itertools.product(SIZES_NP, OVERLAPS, ENCODING_SIZES))
+    itertools.product(SIZES_NP, OVERLAPS, ENCODING_SIZES, USES_BLOCKING))
 PROJECT_RESULT_TYPES_2P = ['similarity_scores', 'permutations']
 PROJECT_RESULT_TYPES_NP = ['groups']
 
 
-def create_project_response(requests, size, overlap, result_type, encoding_size=128):
+def create_project_response(requests, size, overlap, result_type, encoding_size=128, uses_blocking=False):
     """
     Create a project with the given size, overlap and result_type.
 
@@ -99,6 +100,7 @@ def create_project_response(requests, size, overlap, result_type, encoding_size=
         'size': size,
         'encoding-size': encoding_size,
         'upload-mode': 'JSON',
+        'uses_blocking': uses_blocking,
         'overlap': overlap,
         'dp_responses': dp_responses
     })
@@ -171,8 +173,8 @@ def permutations_project(request, requests):
 
 @pytest.fixture(scope='function', params=PROJECT_PARAMS_NP)
 def groups_project(request, requests):
-    size, overlap, encoding_size = request.param
-    prj = create_project_response(requests, size, overlap, 'groups', encoding_size)
+    size, overlap, encoding_size, uses_blocking = request.param
+    prj = create_project_response(requests, size, overlap, 'groups', encoding_size, uses_blocking)
     yield prj
     delete_project(requests, prj)
 
