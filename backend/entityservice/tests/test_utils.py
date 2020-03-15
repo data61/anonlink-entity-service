@@ -3,7 +3,7 @@ import textwrap
 import pytest
 
 from entityservice.errors import InvalidConfiguration
-from entityservice.utils import load_yaml_config
+from entityservice.utils import load_yaml_config, deduplicate_sorted_iter
 from entityservice.tests.util import generate_bytes, temp_file_containing
 
 
@@ -17,7 +17,7 @@ class TestYamlLoader:
     def test_list(self):
         with temp_file_containing(b'[1,2,3]') as fp:
             filename = fp.name
-            assert [1,2,3] == load_yaml_config(filename)
+            assert [1, 2, 3] == load_yaml_config(filename)
 
     def test_missing_file(self):
         filename = 'unlikely a valid file'
@@ -40,7 +40,7 @@ class TestYamlLoader:
         """)
         self._check_valid_yaml(yamldata)
 
-    def _check_valid_yaml(self, yamldata:str):
+    def _check_valid_yaml(self, yamldata: str):
         with temp_file_containing(yamldata.encode()) as fp:
             filename = fp.name
             loaded = load_yaml_config(filename)
@@ -62,3 +62,9 @@ class TestYamlLoader:
         loaded = self._check_valid_yaml(yamldata)
         assert 'host' not in loaded['api']['ingress']
 
+
+def test_deduplicate_sorted_iter():
+    assert list(deduplicate_sorted_iter(iter([1, 2, 2, 2, 3]))) == [1, 2, 3]
+
+    res = list(deduplicate_sorted_iter(zip(['a','a','a'], [1, 1, 1], [1,1,2])))
+    assert res == [('a', 1, 1), ('a', 1, 2)]
