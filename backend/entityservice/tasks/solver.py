@@ -23,20 +23,23 @@ def solver_task(similarity_scores_filename, project_id, run_id, dataset_sizes, p
     float_typecode = similarity_scores.typecode
     int_typecode = dset_is0.typecode
     log.info(f"Number of candidate pairs before deduplication: {len(candidate_pairs_with_duplicates[0])}")
-    dedup_iter = deduplicate_sorted_iter(zip(similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1))
-    # Convert back to typed arrays before solving
-    similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1 = zip(*dedup_iter)
-    similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1 = array(float_typecode, similarity_scores), \
-                                                              array(int_typecode, dset_is0), \
-                                                              array(int_typecode, dset_is1), \
-                                                              array(int_typecode, rec_is0), \
-                                                              array(int_typecode, rec_is1)
-    candidate_pairs = similarity_scores, (dset_is0, dset_is1), (rec_is0, rec_is1)
-    log.info(f"Number of candidate pairs after deduplication: {len(candidate_pairs[0])}")
+    if len(candidate_pairs_with_duplicates[0]) > 0:
+        dedup_iter = deduplicate_sorted_iter(zip(similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1))
+        # Convert back to typed arrays before solving
+        similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1 = zip(*dedup_iter)
+        similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1 = array(float_typecode, similarity_scores), \
+                                                                  array(int_typecode, dset_is0), \
+                                                                  array(int_typecode, dset_is1), \
+                                                                  array(int_typecode, rec_is0), \
+                                                                  array(int_typecode, rec_is1)
+        candidate_pairs = similarity_scores, (dset_is0, dset_is1), (rec_is0, rec_is1)
+        log.info(f"Number of candidate pairs after deduplication: {len(candidate_pairs[0])}")
 
-    log.info("Calculating the optimal mapping from similarity matrix")
+        log.info("Calculating the optimal mapping from similarity matrix")
 
-    groups = anonlink.solving.greedy_solve(candidate_pairs)
+        groups = anonlink.solving.greedy_solve(candidate_pairs)
+    else:
+        groups = []
 
     log.info("Entity groups have been computed")
 
