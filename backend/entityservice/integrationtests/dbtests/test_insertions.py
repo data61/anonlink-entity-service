@@ -74,23 +74,14 @@ class TestInsertions:
         num_entities = 10_000
         blocks = [['1'] for _ in range(num_entities)]
         encodings = [data[i % 100] for i in range(num_entities)]
-        start_time = time.perf_counter()
         insert_encodings_into_blocks(conn, dp_id,
                                      block_ids=blocks,
                                      encoding_ids=list(range(num_entities)),
                                      encodings=encodings
                                      )
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        # This takes ~0.5s using docker compose on a ~5yo desktop.
-        # If the database is busy - e.g. if you're running integration
-        # tests and e2e tests at the same time, this assertion could fail.
-        assert elapsed_time < 2
 
         stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1'))
-        id_fetch_time = time.perf_counter() - end_time
-        # retrieval of encoding ids should be much faster than insertion
-        assert id_fetch_time < elapsed_time
+
         assert len(stored_encoding_ids) == num_entities
         for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
             assert stored_encoding_id == original_id
