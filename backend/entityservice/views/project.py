@@ -177,6 +177,10 @@ def project_binaryclks_post(project_id):
 
 
 def precheck_encoding_upload(project_id, headers, parent_span):
+    """
+    Raise a `ProblemException` if the project doesn't exist or the
+    authentication token passed in the headers isn't valid.
+    """
     with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
         abort_if_project_doesnt_exist(project_id)
         if headers is None or 'Authorization' not in headers:
