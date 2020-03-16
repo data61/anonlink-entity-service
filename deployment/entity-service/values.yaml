@@ -258,7 +258,7 @@ postgresql:
     #  memory: 8Gi
     requests:
       #memory: 1Gi
-      cpu: 100m
+      cpu: 200m
 
 
 global:

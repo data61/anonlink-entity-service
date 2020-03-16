@@ -24,19 +24,14 @@ Soon you should be able to visit the entity service api.
 {{- else if contains "ClusterIP"  .Values.api.service.type }}
 
 If you're using an ingress controller (the default) you may have to manually
-add the DNS entry for {{ .Values.api.ingress.hosts }} now.
+add the DNS entry for http://{{ .Values.api.ingress.hosts }} now.
 
-Alternatively you can forward the port of the entity service's nginx server to your
+Alternatively you can port forward the entity service API to your
 local machine:
 
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "es.fullname" . }}" -o jsonpath="{.items[0].metadata.name}")
-  kubectl port-forward $POD_NAME 8080:80
+  export SVC_NAME=$(kubectl get services --namespace {{ .Release.Namespace }} -l "release={{ .Release.Name }},tier=frontend" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward SVC_NAME 8080:80
 
 And visit http://127.0.0.1:8080/
 
 {{- end }}
-
-2. Task Monitoring
-
-To monitor the entity service tasks (time taken, completions, failures etc)
-You will need to forward a port from the monitoring pod.
