@@ -4,10 +4,6 @@ import connexion
 from flask import g, request
 import structlog
 from tenacity import RetryError
-try:
-    import ijson.backends.yajl2_cffi as ijson
-except ImportError:
-    import ijson
 
 from entityservice.logger_setup import setup_logging
 

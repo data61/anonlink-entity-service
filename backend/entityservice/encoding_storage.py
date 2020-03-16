@@ -4,8 +4,8 @@ from typing import Iterator, List, Tuple
 
 import ijson
 
-from entityservice.database import insert_encodings_into_blocks
-from entityservice.serialization import deserialize_bytes, binary_format
+from entityservice.database import insert_encodings_into_blocks, get_encodings_by_id_range
+from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
 
 
 def stream_json_clksnblocks(f):
@@ -49,6 +49,7 @@ def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, 
             yield i, binary_packed_encoding, blocks
 
     return encoding_size, generator(i, encoding_data, blocks)
+
 
 def _grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -98,29 +99,11 @@ def _estimate_group_size(encoding_size):
     return math.ceil(network_transaction_size / ((blocks_per_record_estimate * 64) + (encoding_size + 4)))
 
 
-def convert_encodings_from_json_to_binary(f):
-    """
-    Temp helper function
+def get_encoding_chunk(conn, chunk_info, encoding_size=128):
+    chunk_range_start, chunk_range_stop = chunk_info['range']
+    dataprovider_id = chunk_info['dataproviderId']
 
-    :param f: File-like object containing `clksnblocks` json.
-    :return: a tuple comprising:
-        - dict mapping blocks to lists of bytes (each encoding in our internal encoding file format)
-        - the size of the first encoding in bytes (excluding entity ID info)
-    """
-    # Each block index contains a set of base64 encodings.
-    encodings_by_block = {}
-
-    # Default which is ignored but makes IDE/typechecker happier
-    bit_packing_struct = binary_format(128)
-    encoding_size = None
-
-    for i, encoding_data, blocks in stream_json_clksnblocks(f):
-        if encoding_size is None:
-            encoding_size = len(encoding_data)
-            bit_packing_struct = binary_format(encoding_size)
-        binary_packed_encoding = bit_packing_struct.pack(i, encoding_data)
-        for block in blocks:
-            encodings_by_block.setdefault(block, []).append(binary_packed_encoding)
-
-    return encodings_by_block, encoding_size
+    encoding_data_stream = get_encodings_by_id_range(conn, dataprovider_id, chunk_range_start, chunk_range_stop)
+    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    return chunk_data, len(chunk_data)
 

@@ -2,17 +2,16 @@ from io import BytesIO
 import json
 import tempfile
 
-import minio
 from flask import request
 from flask import g
 from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
+from entityservice.encoding_storage import store_encodings_in_db
 from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
 from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code, get_stream, \
-    clks_uploaded_to_project, fmt_bytes, iterable_to_stream
+from entityservice.utils import safe_fail_request, get_json, generate_code, clks_uploaded_to_project, fmt_bytes
 from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
@@ -21,8 +20,11 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
+from entityservice.views.util import bind_log_and_span
 
 logger = get_logger()
+
+DEFAULT_BLOCK_ID = '1'
 
 
 def projects_get():
@@ -104,20 +106,9 @@ def project_binaryclks_post(project_id):
     """
     Update a project to provide encoded PII data.
     """
-    log = logger.bind(pid=project_id)
+    log, parent_span = bind_log_and_span(project_id)
     headers = request.headers
-
-    parent_span = g.flask_tracer.get_span()
-
-    with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
-        abort_if_project_doesnt_exist(project_id)
-        if headers is None or 'Authorization' not in headers:
-            safe_fail_request(401, message="Authentication token required")
-
-        token = headers['Authorization']
-
-        # Check the caller has valid token -> otherwise 403
-        abort_if_invalid_dataprovider_token(token)
+    token = precheck_encoding_upload(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
@@ -156,26 +147,27 @@ def project_binaryclks_post(project_id):
                 stream = BytesIO(request.data)
                 binary_formatter = binary_format(size)
 
-                def entity_id_injector(filter_stream):
+                def encoding_iterator(filter_stream):
+                    # Assumes encoding id and block info not provided (yet)
                     for entity_id in range(count):
-                        yield binary_formatter.pack(entity_id, filter_stream.read(size))
+                        yield str(entity_id), binary_formatter.pack(entity_id, filter_stream.read(size)), [DEFAULT_BLOCK_ID]
 
-                data_with_ids = b''.join(entity_id_injector(stream))
                 expected_bytes = size * count
                 log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
                 if len(request.data) != expected_bytes:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    receipt_token = upload_clk_data_binary(project_id, dp_id, BytesIO(data_with_ids), count, size)
+                    receipt_token = upload_clk_data_binary(project_id, dp_id, encoding_iterator(stream), count, size)
                 except ValueError:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
                 safe_fail_request(400, "Content Type not supported")
         except Exception:
-            log.info("The dataprovider was not able to upload her clks,"
-                     " re-enable the corresponding upload token to be used.")
+            log.warning("The dataprovider was not able to upload their clks,"
+                          " re-enable the corresponding upload token to be used.")
+
             with DBConn() as conn:
                 db.set_dataprovider_upload_state(conn, dp_id, state='error')
             raise
@@ -184,25 +176,33 @@ def project_binaryclks_post(project_id):
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
-def project_clks_post(project_id):
+def precheck_encoding_upload(project_id, headers, parent_span):
     """
-    Update a project to provide encoded PII data.
+    Raise a `ProblemException` if the project doesn't exist or the
+    authentication token passed in the headers isn't valid.
     """
-    log = logger.bind(pid=project_id)
-    headers = request.headers
-
-    parent_span = g.flask_tracer.get_span()
-
     with opentracing.tracer.start_span('check-auth', child_of=parent_span) as span:
         abort_if_project_doesnt_exist(project_id)
         if headers is None or 'Authorization' not in headers:
             safe_fail_request(401, message="Authentication token required")
 
         token = headers['Authorization']
-        #span.set_tag("headers", headers)
 
         # Check the caller has valid token -> otherwise 403
         abort_if_invalid_dataprovider_token(token)
+    return token
+
+
+def project_clks_post(project_id):
+    """
+    Update a project to provide encoded PII data.
+    """
+
+    headers = request.headers
+
+    log, parent_span = bind_log_and_span(project_id)
+
+    token = precheck_encoding_upload(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
@@ -317,13 +317,13 @@ def authorise_get_request(project_id):
     return dp_id, project_object
 
 
-def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
+def upload_clk_data_binary(project_id, dp_id, encoding_iter, count, size=128):
     """
-    Save the user provided raw CLK data.
+    Save the user provided binary-packed CLK data.
 
     """
     receipt_token = generate_code()
-    filename = Config.BIN_FILENAME_FMT.format(receipt_token)
+    filename = None
     # Set the state to 'pending' in the uploads table
     with DBConn() as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
@@ -334,20 +334,18 @@ def upload_clk_data_binary(project_id, dp_id, raw_stream, count, size=128):
 
     logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
 
-    # Upload to object store
-    logger.info(f"Uploading {count} binary encodings to object store. Total size: {fmt_bytes(num_bytes)}")
+    # Upload to database
+    logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
     parent_span = g.flask_tracer.get_span()
 
-    with opentracing.tracer.start_span('save-to-minio', child_of=parent_span):
-        mc = connect_to_object_store()
-        try:
-            mc.put_object(Config.MINIO_BUCKET, filename, data=raw_stream, length=num_bytes)
-        except (minio.error.InvalidSizeError, minio.error.InvalidArgumentError, minio.error.ResponseError):
-            logger.info("Mismatch between expected stream length and header info")
-            raise ValueError("Mismatch between expected stream length and header info")
+    with DBConn() as conn:
+        with opentracing.tracer.start_span('create-default-block-in-db', child_of=parent_span):
+            db.insert_blocking_metadata(conn, dp_id, {DEFAULT_BLOCK_ID: count})
 
-    with opentracing.tracer.start_span('update-database-with-metadata', child_of=parent_span):
-        with DBConn() as conn:
+        with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
+            store_encodings_in_db(conn, dp_id, encoding_iter, size)
+
+        with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
 
     # Now work out if all parties have added their data

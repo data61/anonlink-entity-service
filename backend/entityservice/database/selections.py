@@ -282,10 +282,12 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
         FROM encodingblocks
         WHERE dp = %s
         {}
+        ORDER BY
+          encoding_ID ASC 
         """.format("AND block_id = %s" if block_name else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
-    cur = db.cursor(f'encodingfetcher-{dp_id}')
+    cur = db.cursor(f'encodingblockfetcher-{dp_id}')
 
     args = (dp_id, block_name) if block_name else (dp_id,)
 
@@ -298,12 +300,36 @@ def get_encodingblock_ids(db, dp_id, block_name=None):
             yield row[0]
 
 
+def get_encodings_by_id_range(db, dp_id, encoding_id_min=None, encoding_id_max=None):
+    """Yield all encodings in a given range for a given data provider."""
+    sql_query = """
+        SELECT encoding 
+        FROM encodings
+        WHERE dp = %s
+        {}
+        {}
+        ORDER BY
+          encoding_id ASC
+        """.format(
+        f"AND encoding_id >= {encoding_id_min}" if encoding_id_min else "",
+        f"AND encoding_id < {encoding_id_max}" if encoding_id_max else "",
+    )
+    cur = db.cursor()
+    cur.execute(sql_query, (dp_id,))
+    rows = cur.fetchall()
+    for row in rows:
+        # Note row[0] is a memoryview
+        yield bytes(row[0])
+
+
 def get_filter_metadata(db, dp_id):
     """
-    :return: The filename and the encoding size of the raw clks.
+    :return: The filename (which could be None), and the encoding size of the raw clks.
     """
     filename, encoding_size = get_uploads_columns(db, dp_id, ['file', 'encoding_size'])
-    return filename.strip(), encoding_size
+    if filename is not None:
+        filename = filename.strip()
+    return filename, encoding_size
 
 
 def get_encoding_metadata(db, dp_id):

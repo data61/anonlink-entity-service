@@ -4,8 +4,8 @@ import time
 import psycopg2
 from pytest import raises
 
-from entityservice.database import insert_dataprovider, insert_new_project, \
-    insert_encodings_into_blocks, insert_blocking_metadata, get_project, get_encodingblock_ids
+from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
+    get_project, get_encodingblock_ids, get_encodings_by_id_range
 from entityservice.models import Project
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
@@ -74,26 +74,19 @@ class TestInsertions:
         num_entities = 10_000
         blocks = [['1'] for _ in range(num_entities)]
         encodings = [data[i % 100] for i in range(num_entities)]
-        start_time = time.perf_counter()
         insert_encodings_into_blocks(conn, dp_id,
                                      block_ids=blocks,
                                      encoding_ids=list(range(num_entities)),
                                      encodings=encodings
                                      )
-        end_time = time.perf_counter()
-        elapsed_time = end_time - start_time
-        # This takes ~0.5s using docker compose on a ~5yo desktop.
-        # If the database is busy - e.g. if you're running integration
-        # tests and e2e tests at the same time, this assertion could fail.
-        assert elapsed_time < 2
 
         stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1'))
-        fetch_time = time.perf_counter() - end_time
-        # retrieval of encoding ids should be much faster than insertion
-        assert fetch_time < elapsed_time
 
         assert len(stored_encoding_ids) == num_entities
-        for stored_encoding_id, original in zip(stored_encoding_ids, range(num_entities)):
-            assert stored_encoding_id == original
+        for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
+            assert stored_encoding_id == original_id
 
-        # TODO fetch binary encodings and verify against uploaded
+        stored_encodings = list(get_encodings_by_id_range(conn, dp_id))
+        assert len(stored_encodings) == num_entities
+        for stored_encoding, original_encoding in zip(stored_encodings, encodings):
+            assert stored_encoding == original_encoding

@@ -1,8 +1,7 @@
-import io
 
 import typing
 import urllib3
-from bitarray import bitarray
+
 import base64
 import struct
 
@@ -12,7 +11,7 @@ from structlog import get_logger
 
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config as config
-from entityservice.utils import chunks, safe_fail_request, iterable_to_stream
+from entityservice.utils import chunks, safe_fail_request
 import concurrent.futures
 
 
@@ -101,39 +100,6 @@ def binary_unpack_filters(data_iterable, max_bytes=None, encoding_size=None):
             break
 
     return filters
-
-
-def deserialize_filters(filters):
-    """
-    Deserialize iterable of base64 encoded clks.
-
-    Carrying out the popcount and adding the index as we go.
-    """
-    res = []
-    for i, f in enumerate(filters):
-        ba = deserialize_bitarray(f)
-        res.append((ba, i, ba.count()))
-    return res
-
-
-def deserialize_filters_concurrent(filters):
-    """
-    Deserialize iterable of base64 encoded clks.
-
-    Carrying out the popcount and adding the index as we go.
-    """
-    res = []
-    chunk_size = int(100000)
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = []
-        for i, chunk in enumerate(chunks(filters, chunk_size)):
-            future = executor.submit(deserialize_filters, chunk)
-            futures.append(future)
-
-        for future in futures:
-            res.extend(future.result())
-
-    return res
 
 
 def generate_scores(candidate_pair_stream: typing.BinaryIO):
