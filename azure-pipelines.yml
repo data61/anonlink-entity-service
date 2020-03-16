@@ -250,17 +250,10 @@ stages:
           helmVersionToInstall: '3.1.2'
 
       - task: HelmDeploy@0
-        displayName: Helm init
-        inputs:
-          connectionType: 'Kubernetes Service Connection'
-          kubernetesServiceConnection: $(CLUSTER)
-          command: init
-          arguments: --client-only
-
-      - task: HelmDeploy@0
         displayName: Helm package
         inputs:
           command: package
+          save: false
           chartPath: 'deployment/entity-service'
           destination: $(Build.ArtifactStagingDirectory)
           updatedependency: true
