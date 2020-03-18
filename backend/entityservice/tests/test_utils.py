@@ -3,7 +3,7 @@ import textwrap
 import pytest
 
 from entityservice.errors import InvalidConfiguration
-from entityservice.utils import load_yaml_config, deduplicate_sorted_iter
+from entityservice.utils import load_yaml_config
 from entityservice.tests.util import generate_bytes, temp_file_containing
 
 
@@ -63,8 +63,3 @@ class TestYamlLoader:
         assert 'host' not in loaded['api']['ingress']
 
 
-def test_deduplicate_sorted_iter():
-    assert list(deduplicate_sorted_iter(iter([1, 2, 2, 2, 3]))) == [1, 2, 3]
-
-    res = list(deduplicate_sorted_iter(zip(['a','a','a'], [1, 1, 1], [1,1,2])))
-    assert res == [('a', 1, 1), ('a', 1, 2)]

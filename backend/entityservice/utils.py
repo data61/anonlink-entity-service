@@ -189,19 +189,3 @@ def convert_mapping_to_list(permutation):
         defined by the keys.
     """
     return [permutation[i] for i in range(len(permutation))]
-
-
-def deduplicate_sorted_iter(iterable):
-    """
-    Remove duplicates from a sorted iterable.
-
-    :param iterable:
-    :return:
-    """
-    previous = next(iterable)
-    yield previous
-
-    for current in iterable:
-        if current != previous:
-            yield current
-        previous = current
