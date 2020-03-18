@@ -249,17 +249,17 @@ stages:
         inputs:
           helmVersionToInstall: '3.1.2'
 
-      - task: HelmDeploy@0
-        displayName: Helm package
-        inputs:
-          command: package
-          save: false
-          chartPath: 'deployment/entity-service'
-          destination: $(Build.ArtifactStagingDirectory)
-          updatedependency: true
+#      - task: HelmDeploy@0
+#        displayName: Helm package
+#        inputs:
+#          command: package
+#          save: false
+#          chartPath: 'deployment/entity-service'
+#          destination: $(Build.ArtifactStagingDirectory)
+#          updatedependency: true
 
       - script: |
-          helm template --namespace $(NAMESPACE) $(DEPLOYMENT) deployment/entity-service --set global.postgresql.postgresqlPassword=notaproductionpassword,api.ingress.enabled=false,workers.replicaCount=4,api.www.image.repository=$(frontendImageName),api.app.image.repository=$(backendImageName),api.dbinit.image.repository=$(backendImageName),workers.image.repository=$(backendImageName) > $(Build.ArtifactStagingDirectory)/manifestsBundle.yaml
+          helm template --namespace $(NAMESPACE) $(DEPLOYMENT) deployment/entity-service --dependency-update --set global.postgresql.postgresqlPassword=notaproductionpassword,api.ingress.enabled=false,workers.replicaCount=4,api.www.image.repository=$(frontendImageName),api.app.image.repository=$(backendImageName),api.dbinit.image.repository=$(backendImageName),workers.image.repository=$(backendImageName) > $(Build.ArtifactStagingDirectory)/manifestsBundle.yaml
         displayName: Bake K8s manifests from Helm chart
 
       - task: KubernetesManifest@0
