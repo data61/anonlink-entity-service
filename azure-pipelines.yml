@@ -236,6 +236,7 @@ stages:
           sed 's|\$PVC'"|$(PVC)|g" | \
           sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" > $(Build.ArtifactStagingDirectory)/k8s_test_pvc.yaml
         displayName: 'Create test result volume claim from template'
+
       - task: KubernetesManifest@0
         displayName: 'Create test result volume claim'
         inputs:
@@ -247,20 +248,42 @@ stages:
       # Install Helm on an agent machine
       - task: HelmInstaller@1
         inputs:
-          helmVersionToInstall: '3.1.2'
+          helmVersionToInstall: '2.16.3'
 
-#      - task: HelmDeploy@0
-#        displayName: Helm package
-#        inputs:
-#          command: package
-#          save: false
-#          chartPath: 'deployment/entity-service'
-#          destination: $(Build.ArtifactStagingDirectory)
-#          updatedependency: true
+      - task: HelmDeploy@0
+        displayName: Helm init
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceConnection: $(CLUSTER)
+          command: init
+          arguments: --client-only
 
-      - script: |
-          helm template --namespace $(NAMESPACE) $(DEPLOYMENT) deployment/entity-service --dependency-update --set global.postgresql.postgresqlPassword=notaproductionpassword,api.ingress.enabled=false,workers.replicaCount=4,api.www.image.repository=$(frontendImageName),api.app.image.repository=$(backendImageName),api.dbinit.image.repository=$(backendImageName),workers.image.repository=$(backendImageName) > $(Build.ArtifactStagingDirectory)/manifestsBundle.yaml
+      - task: HelmDeploy@0
+        displayName: Helm package
+        inputs:
+          command: package
+          save: false
+          chartPath: 'deployment/entity-service'
+          destination: $(Build.ArtifactStagingDirectory)
+          updatedependency: true
+
+      - task: KubernetesManifest@0
+        name: bake
         displayName: Bake K8s manifests from Helm chart
+        inputs:
+          action: 'bake'
+          helmChart: 'deployment/entity-service'
+          namespace: $(NAMESPACE)
+          releaseName: $(DEPLOYMENT)
+          overrides: |
+            api.app.debug:true
+            global.postgresql.postgresqlPassword:notaproductionpassword
+            api.ingress.enabled:false
+            workers.replicaCount:4
+            api.www.image.repository:$(frontendImageName)
+            api.app.image.repository:$(backendImageName)
+            api.dbinit.image.repository:$(backendImageName)
+            workers.image.repository:$(backendImageName)
 
       - task: KubernetesManifest@0
         displayName: Deploy K8s manifest
@@ -268,7 +291,7 @@ stages:
           action: 'deploy'
           failOnStderr: false
           kubernetesServiceConnection: '$(CLUSTER)'
-          manifests: '$(Build.ArtifactStagingDirectory)/manifestsBundle.yaml'
+          manifests: '$(bake.manifestsBundle)'
           namespace: $(NAMESPACE)
           containers: |
             data61/anonlink-nginx:$(DOCKER_TAG)
@@ -358,7 +381,7 @@ stages:
         inputs:
           action: 'delete'
           kubernetesServiceConnection: $(CLUSTER)
-          arguments: '-f $(Build.ArtifactStagingDirectory)/manifestsBundle.yaml'
+          arguments: '-f $(bake.manifestsBundle)'
           namespace: $(NAMESPACE)
 
       # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
@@ -367,5 +390,5 @@ stages:
         inputs:
           action: 'delete'
           kubernetesServiceConnection: $(CLUSTER)
-          arguments: 'pods,jobs,pvc,pv -l deployment=$(DEPLOYMENT)'
+          arguments: 'pods,jobs,pvc,pv,statefulsets,deployment -l deployment=$(DEPLOYMENT)'
           namespace: $(NAMESPACE)
