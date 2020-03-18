@@ -315,6 +315,8 @@ redis-ha:
     size: 10Gi
   nameOverride: "memstore"
 
+  # Enable transparent hugepages
+  # https://github.com/helm/charts/tree/master/stable/redis-ha#host-kernel-settings
   sysctlImage:
     enabled: true
     mountHostSys: true
