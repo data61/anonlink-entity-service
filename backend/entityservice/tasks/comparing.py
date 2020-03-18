@@ -64,11 +64,6 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         log.info("Finding blocks in common between dataproviders")
         common_blocks = _get_common_blocks(dp_block_sizes, dp_ids)
 
-        if len(dataset_sizes) < 2:
-            log.warning("Unexpected number of dataset sizes in db. Stopping")
-            update_run_mark_failure(conn, run_id)
-            return
-
         # We pass the encoding_size and threshold to the comparison tasks to minimize their db lookups
         encoding_size = get_project_encoding_size(conn, project_id)
         threshold = get_run(conn, run_id)['threshold']
@@ -77,13 +72,8 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     # Create "chunks" of comparisons
     chunks = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
 
-    log.info(f"Computing similarity for "
-             f"{' x '.join(map(str, dataset_sizes))} entities")
-    current_span.log_kv({"event": 'get-dataset-sizes', 'sizes': dataset_sizes})
-
-
     log.info(f"Chunking into {len(chunks)} computation tasks")
-    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunks)})
+    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunks), 'dataset-sizes': dataset_sizes})
     span_serialized = create_comparison_jobs.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
@@ -101,6 +91,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
     callback_task = aggregate_comparisons.s(project_id=project_id, run_id=run_id, parent_span=span_serialized).on_error(
         run_failed_handler.s(run_id=run_id))
+    log.info(f"Scheduling comparison tasks")
     future = chord(scoring_tasks)(callback_task)
 
 
@@ -276,12 +267,12 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
                 threshold=threshold,
                 k=min(chunk_dp1_size, chunk_dp2_size))
 
-            # Map results from "index in chunk" to encoding id.
-            def offset(recordarray, encoding_id_list):
+            def reindex_using_encoding_ids(recordarray, encoding_id_list):
+                # Map results from "index in chunk" to encoding id.
                 return array.array('I', [encoding_id_list[i] for i in recordarray])
 
-            rec_is0 = offset(rec_is0, entity_ids_dp1)
-            rec_is1 = offset(rec_is1, entity_ids_dp2)
+            rec_is0 = reindex_using_encoding_ids(rec_is0, entity_ids_dp1)
+            rec_is1 = reindex_using_encoding_ids(rec_is1, entity_ids_dp2)
 
         except NotImplementedError as e:
             log.warning("Encodings couldn't be compared using anonlink.")

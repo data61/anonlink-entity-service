@@ -275,7 +275,7 @@ def get_uploads_columns(db, dp_id, columns):
     return [result[column] for column in columns]
 
 
-def get_encodingblock_ids(db, dp_id, block_name=None, offset=0, limit=None):
+def get_encodingblock_ids(db, dp_id, block_id=None, offset=0, limit=None):
     """Yield all encoding ids in either a single block, or all blocks for a given data provider."""
     sql_query = """
         SELECT encoding_id 
@@ -286,11 +286,11 @@ def get_encodingblock_ids(db, dp_id, block_name=None, offset=0, limit=None):
           encoding_ID ASC
         OFFSET %(offset)s
         LIMIT %(limit)s
-        """.format("AND block_id = %(block_id)s" if block_name else "")
+        """.format("AND block_id = %(block_id)s" if block_id else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
     cur = db.cursor(f'encodingblockfetcher-{dp_id}')
-    args = {'dp_id': dp_id, 'block_id': block_name, 'offset': offset, 'limit': limit}
+    args = {'dp_id': dp_id, 'block_id': block_id, 'offset': offset, 'limit': limit}
     cur.execute(sql_query, args)
     yield from iterate_cursor_results(cur)
 
