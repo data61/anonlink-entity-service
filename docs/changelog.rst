@@ -8,6 +8,12 @@ Next Version
 ------------
 
 
+Version 1.13.0-beta2
+-------------------
+
+- Encodings are now stored in Postgres database instead of files in an object store.
+- Initial support for user supplied blocking implemented.
+
 Version 1.13.0-beta
 -------------------
 
