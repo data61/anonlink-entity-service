@@ -21,6 +21,7 @@ steps:
   displayName: 'Anonlink Entity Service Backend Worker Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
@@ -30,6 +31,7 @@ steps:
   displayName: 'Anonlink Entity Service NGINX Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
@@ -39,6 +41,7 @@ steps:
   displayName: 'Anonlink Entity Service API Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
@@ -48,6 +51,7 @@ steps:
   displayName: 'DB Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
@@ -57,6 +61,7 @@ steps:
   displayName: 'Redis Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
@@ -66,6 +71,7 @@ steps:
   displayName: 'Minio Logs'
   condition: always()
   inputs:
+    failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'

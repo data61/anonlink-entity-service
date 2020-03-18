@@ -236,6 +236,7 @@ stages:
           sed 's|\$PVC'"|$(PVC)|g" | \
           sed 's|\$DEPLOYMENT_NAME'"|$(DEPLOYMENT)|g" > $(Build.ArtifactStagingDirectory)/k8s_test_pvc.yaml
         displayName: 'Create test result volume claim from template'
+
       - task: KubernetesManifest@0
         displayName: 'Create test result volume claim'
         inputs:
@@ -243,6 +244,11 @@ stages:
           kubernetesServiceConnection: '$(CLUSTER)'
           manifests: '$(Build.ArtifactStagingDirectory)/k8s_test_pvc.yaml'
           namespace: $(NAMESPACE)
+
+      # Install Helm on an agent machine
+      - task: HelmInstaller@1
+        inputs:
+          helmVersionToInstall: '2.16.3'
 
       - task: HelmDeploy@0
         displayName: Helm init
@@ -256,6 +262,7 @@ stages:
         displayName: Helm package
         inputs:
           command: package
+          save: false
           chartPath: 'deployment/entity-service'
           destination: $(Build.ArtifactStagingDirectory)
           updatedependency: true
@@ -282,6 +289,7 @@ stages:
         displayName: Deploy K8s manifest
         inputs:
           action: 'deploy'
+          failOnStderr: false
           kubernetesServiceConnection: '$(CLUSTER)'
           manifests: '$(bake.manifestsBundle)'
           namespace: $(NAMESPACE)
@@ -315,7 +323,7 @@ stages:
           connectionType: 'Kubernetes Service Connection'
           kubernetesServiceEndpoint: $(CLUSTER)
           command: 'wait'
-          arguments: '--namespace $(NAMESPACE) -ldeployment=$(DEPLOYMENT) --timeout=30s --for=condition=Ready pods'
+          arguments: '--namespace $(NAMESPACE) -ldeployment=$(DEPLOYMENT) --timeout=60s --for=condition=Ready pods'
 
       - task: Kubernetes@1
         displayName: 'Integration test logs'
@@ -382,5 +390,5 @@ stages:
         inputs:
           action: 'delete'
           kubernetesServiceConnection: $(CLUSTER)
-          arguments: 'pods,jobs,pvc,pv -l deployment=$(DEPLOYMENT)'
+          arguments: 'pods,jobs,pvc,pv,statefulsets,deployment -l deployment=$(DEPLOYMENT)'
           namespace: $(NAMESPACE)
