@@ -112,7 +112,8 @@ def run_failed_handler(*args, **kwargs):
     :param kwargs: Keyword arguments to the task e.g. {'run_id': '...', }
     """
     task_id = args[0]
-    logger.bind(run_id=kwargs['run_id'])
+    if 'run_id' in kwargs:
+        logger.bind(run_id=kwargs['run_id'])
     logger.info("An error occurred while processing task", task_id=task_id)
 
     with DBConn() as db:

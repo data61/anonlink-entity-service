@@ -236,8 +236,10 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     log = logger.bind(pid=project_id, run_id=run_id)
     task_span = compute_filter_similarity.span
 
-    def new_child_span(name):
-        return compute_filter_similarity.tracer.start_active_span(name, child_of=compute_filter_similarity.span)
+    def new_child_span(name, parent_scope=None):
+        if parent_scope is None:
+            parent_scope = compute_filter_similarity
+        return compute_filter_similarity.tracer.start_active_span(name, child_of=parent_scope.span)
 
     log.debug("Computing similarity for a chunk of filters")
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
@@ -246,37 +248,40 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     chunk_info_dp1, chunk_info_dp2 = chunk_info
 
     with DBConn() as conn:
-        with new_child_span('fetching-left-encodings'):
-            log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
-            chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
-            entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
+        with new_child_span('fetching-encodings') as parent_scope:
+            with new_child_span('fetching-left-encodings', parent_scope):
+                log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+                chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
+                entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
 
-        with new_child_span('fetching-right-encodings'):
-            log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
-            chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
-            entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
+            with new_child_span('fetching-right-encodings', parent_scope):
+                log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
+                chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
+                entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
 
     log.debug('Both chunks are fetched and deserialized')
     task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size, 'chunk_info': chunk_info})
 
-    with new_child_span('comparing-encodings'):
-        log.debug("Calculating filter similarity")
-        try:
-            sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
-                datasets=(chunk_dp1, chunk_dp2),
-                threshold=threshold,
-                k=min(chunk_dp1_size, chunk_dp2_size))
+    with new_child_span('comparing-encodings') as parent_scope:
 
+        log.debug("Calculating filter similarity")
+        with new_child_span('dice-call', parent_scope):
+            try:
+                sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
+                    datasets=(chunk_dp1, chunk_dp2),
+                    threshold=threshold,
+                    k=min(chunk_dp1_size, chunk_dp2_size))
+            except NotImplementedError as e:
+                log.warning("Encodings couldn't be compared using anonlink.")
+                return
+
+        with new_child_span('reindex-call', parent_scope):
             def reindex_using_encoding_ids(recordarray, encoding_id_list):
                 # Map results from "index in chunk" to encoding id.
                 return array.array('I', [encoding_id_list[i] for i in recordarray])
 
             rec_is0 = reindex_using_encoding_ids(rec_is0, entity_ids_dp1)
             rec_is1 = reindex_using_encoding_ids(rec_is1, entity_ids_dp2)
-
-        except NotImplementedError as e:
-            log.warning("Encodings couldn't be compared using anonlink.")
-            return
 
     log.debug('Encoding similarities calculated')
 
