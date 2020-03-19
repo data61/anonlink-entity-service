@@ -63,12 +63,12 @@ class Config(object):
     }
 
     CELERY_ROUTES = {
-        'async_worker.calculate_mapping': {'queue': 'celery'},
-        'async_worker.compute_similarity': {'queue': 'compute'},
-        'async_worker.aggregate_filter_chunks': {'queue': 'highmemory'},
-        'async_worker.solver_task': {'queue': 'highmemory'},
-        'async_worker.save_and_permute': {'queue': 'highmemory'},
-        'async_worker.handle_raw_upload': {'queue': 'celery'}
+        'entityservice.tasks.comparing.create_comparison_jobs': {'queue': 'celery'},
+        'entityservice.tasks.comparing.compute_filter_similarity': {'queue': 'compute'},
+        'entityservice.tasks.comparing.aggregate_comparisons': {'queue': 'highmemory'},
+        'entityservice.tasks.solver.solver_task': {'queue': 'highmemory'},
+        'entityservice.tasks.permutation.save_and_permute': {'queue': 'highmemory'},
+        'entityservice.tasks.encoding_uploading.handle_raw_upload': {'queue': 'celery'}
     }
 
     CELERYD_PREFETCH_MULTIPLIER = int(os.getenv('CELERYD_PREFETCH_MULTIPLIER', '1'))
