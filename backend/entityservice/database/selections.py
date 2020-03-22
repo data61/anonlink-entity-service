@@ -1,3 +1,4 @@
+import io
 import itertools
 
 from entityservice.database.util import query_db, logger
@@ -323,23 +324,49 @@ def iterate_cursor_results(cur, one=True, page_size=4096):
                 yield row
 
 
-def get_chunk_of_encodings(db, dp_id, encoding_ids):
-    """Yield a chunk of encodings for a data provider given the encoding ids.
+def get_chunk_of_encodings(db, dp_id, encoding_ids, stored_binary_size=132):
+    """Yields raw byte encodings for a data provider given the encoding ids.
 
+    :param dp_id: Fetch encodings from this dataprovider (encoding ids are not unique across data providers).
+    :param encoding_ids: List of ints of the encoding ids to include.
+    :param stored_binary_size: Size of each encoding stored in the database. Including encoding ids.
     """
-    sql_query = """
-        SELECT encoding
-        FROM encodings
-        WHERE encodings.dp = %(dp_id)s
-        AND encodings.encoding_id in ({})
-        ORDER BY encoding_id ASC
-        """.format(','.join(map(str, encoding_ids)))
 
     cur = db.cursor()
-    cur.execute(sql_query, {'dp_id': dp_id})
-    # Note encoding is returned as a memoryview
-    for encoding in iterate_cursor_results(cur, one=True):
-        yield encoding
+
+    sql_query = """COPY 
+    (
+    SELECT encoding
+    FROM encodings
+    WHERE encodings.dp = {}
+    AND encodings.encoding_id in ({})
+    ORDER BY encoding_id ASC)
+    TO STDOUT WITH binary
+    """.format(
+        dp_id,
+        ','.join(map(str, encoding_ids))
+    )
+
+    stream = io.BytesIO()
+    cur.copy_expert(sql_query, stream)
+    raw_data = stream.getvalue()
+
+    # Need to read/remove the Postgres Binary Header, Trailer, and the per tuple info
+    # https://www.postgresql.org/docs/current/sql-copy.html
+    ignored_header = raw_data[:15]
+    header_extension = raw_data[16:20]
+    assert header_extension == b'\x00\x00\x00\x00', "Need to implement skipping postgres binary header extension"
+    binary_trailer = raw_data[-2:]
+    assert binary_trailer == b'\xff\xff', "Corrupt COPY of binary data from postgres"
+    raw_data = raw_data[19:-2]
+
+    size = stored_binary_size + 2 + 4
+    for i in range(0, len(raw_data), size):
+        # Skip the first 6 bytes - tuple field count and field length
+        start_index = i + 6
+        end_index = start_index + stored_binary_size
+
+        yield raw_data[start_index: end_index]
 
 
 def get_filter_metadata(db, dp_id):

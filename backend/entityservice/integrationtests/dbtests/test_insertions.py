@@ -1,13 +1,14 @@
 import datetime
-import time
 
 import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
     get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings
+
 from entityservice.integrationtests.dbtests import _get_conn_and_cursor
 from entityservice.models import Project
+from entityservice.serialization import binary_format
 from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
 
@@ -59,12 +60,17 @@ class TestInsertions:
             insert_dataprovider(cur, auth_token=dp_auth, project_id=project_id)
 
     def test_insert_many_clks(self):
-        data = [generate_bytes(128) for _ in range(100)]
+        num_entities = 10_000
+        encoding_size = 2048  # non default encoding size
+        binary_formatter = binary_format(encoding_size)
+
+        raw_data = [generate_bytes(encoding_size) for i in range(100)]
+        encodings = [binary_formatter.pack(i, raw_data[i % 100]) for i in range(num_entities)]
+        blocks = [['1'] for _ in range(num_entities)]
+
         project_id, project_auth_token, dp_id, dp_auth_token = self._create_project_and_dp()
         conn, cur = _get_conn_and_cursor()
-        num_entities = 10_000
-        blocks = [['1'] for _ in range(num_entities)]
-        encodings = [data[i % 100] for i in range(num_entities)]
+
         insert_encodings_into_blocks(conn, dp_id,
                                      block_ids=blocks,
                                      encoding_ids=list(range(num_entities)),
@@ -78,7 +84,7 @@ class TestInsertions:
         for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
             assert stored_encoding_id == original_id
 
-        stored_encodings = list(get_chunk_of_encodings(conn, dp_id, stored_encoding_ids))
+        stored_encodings = list(get_chunk_of_encodings(conn, dp_id, stored_encoding_ids, stored_binary_size=(encoding_size+4)))
 
         assert len(stored_encodings) == num_entities
         for stored_encoding, original_encoding in zip(stored_encodings, encodings):
