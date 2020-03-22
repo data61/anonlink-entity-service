@@ -53,7 +53,7 @@ def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, 
 
 
 def _grouper(iterable, n, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
+    "Collect data into fixed-length chunks or blocks from an iterable"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
@@ -106,7 +106,7 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     block_id = chunk_info['block_id']
     limit = chunk_range_stop - chunk_range_start
     encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
-    encoding_data_stream = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
-    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    encoding_iter = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
+    chunk_data = binary_unpack_filters(encoding_iter, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
