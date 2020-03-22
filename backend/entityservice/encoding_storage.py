@@ -106,7 +106,7 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     block_id = chunk_info['block_id']
     limit = chunk_range_stop - chunk_range_start
     encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
-    encoding_iter = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids)
+    encoding_iter = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids, stored_binary_size=(encoding_size+4))
     chunk_data = binary_unpack_filters(encoding_iter, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
