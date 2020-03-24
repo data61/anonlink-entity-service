@@ -35,21 +35,24 @@ class SerializationTest(unittest.TestCase):
             (array('I', [1, 2, 5]), array('I', [2, 2, 5]))
         )
 
-        buffer = io.BytesIO()
-        anonlink.serialization.dump_candidate_pairs(sims_iter, buffer)
-        buffer.seek(0)
-        json_iterator = generate_scores(buffer)
-
-        # Consume the whole iterator and ensure it is valid json
-        json_str = ''.join(json_iterator)
-        json_obj = json.loads(json_str)
-        self.assertIn('similarity_scores', json_obj)
+        json_obj = self._serialize_and_load_scores(sims_iter)
         assert len(json_obj["similarity_scores"]) == 3
         for pair_and_score in json_obj["similarity_scores"]:
             self.assertEqual(len(pair_and_score), 3)
             a, b, score = pair_and_score
             self.assertEqual(len(a), 2)
             self.assertEqual(len(b), 2)
+
+    def _serialize_and_load_scores(self, sims_iter):
+        buffer = io.BytesIO()
+        anonlink.serialization.dump_candidate_pairs(sims_iter, buffer)
+        buffer.seek(0)
+        json_iterator = generate_scores(buffer)
+        # Consume the whole iterator and ensure it is valid json
+        json_str = ''.join(json_iterator)
+        json_obj = json.loads(json_str)
+        self.assertIn('similarity_scores', json_obj)
+        return json_obj
 
     def test_sims_to_json_empty(self):
         sims_iter = (
@@ -58,15 +61,7 @@ class SerializationTest(unittest.TestCase):
             (array('I', []), array('I', []))
         )
 
-        buffer = io.BytesIO()
-        anonlink.serialization.dump_candidate_pairs(sims_iter, buffer)
-        buffer.seek(0)
-        json_iterator = generate_scores(buffer)
-
-        # Consume the whole iterator and ensure it is valid json
-        json_str = ''.join(json_iterator)
-        json_obj = json.loads(json_str)
-        self.assertIn('similarity_scores', json_obj)
+        json_obj = self._serialize_and_load_scores(sims_iter)
         assert len(json_obj["similarity_scores"]) == 0
 
     def test_binary_pack_filters(self):
