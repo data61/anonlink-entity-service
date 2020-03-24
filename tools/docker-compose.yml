@@ -9,6 +9,11 @@ services:
       - psql:/var/lib/postgresql/data
     #ports:
     #- 5432:5432
+    healthcheck:
+      test: pg_isready -q -h db -p 5432 -U postgres
+      interval: 5s
+      timeout: 30s
+      retries: 5
 
   minio:
     image: minio/minio:RELEASE.2017-02-16T01-47-30Z
@@ -42,7 +47,6 @@ services:
       - redis
       - minio
 
-
   # The application server can also setup the database
   db_init:
     image: data61/anonlink-app:${TAG:-latest}
@@ -53,18 +57,6 @@ services:
     entrypoint: python -m flask initdb
     depends_on:
       - db
-
-  # The dm admin
-  db_admin:
-    image: dpage/pgadmin4
-    environment:
-      - PGADMIN_DEFAULT_PASSWORD=rX%QpV7Xgyrz
-      - PGADMIN_DEFAULT_EMAIL=brian@thorne.link
-    depends_on:
-      - db
-    ports:
-    - 5050:80
-
 
   # A celery worker
   worker:
@@ -98,13 +90,13 @@ services:
       PUBLIC_PORT: 8851
 
 
-  # A celery monitor. Useful for debugging but okay to remain
-  # commented out for deployment. Access via the nginx container with url `/monitor`
+  # A celery monitor. Useful for debugging.
 #  celery_monitor:
-#    image: quay.io/n1analytics/entity-app
+#    image: data61/anonlink-app:${TAG:-latest}
 #    depends_on:
 #      - redis
-#    entrypoint: celery flower -A  entityservice.async_worker --basic_auth=n1:paillier --url_prefix=/ --port=8888 -Q celery,compute
+#      - worker
+#    command: celery flower -A entityservice.async_worker
 #    ports:
 #      - 8888:8888
 
