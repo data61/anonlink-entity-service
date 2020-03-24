@@ -17,14 +17,14 @@ WORKDIR /var/www
 ADD requirements.txt /var/www/requirements.txt
 RUN apk add --no-cache \
     python3=3.8.2-r0 \
-    libstdc++=9.2.0-r3 \
+    libstdc++=9.2.0-r4 \
     mpc1-dev=1.1.0-r1 \
     yajl=2.1.0-r0 \
     libpq=12.2-r0 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     ln -s /usr/bin/pip3 /usr/bin/pip && \
     apk add --no-cache --virtual .build-deps \
-    g++=9.2.0-r3 \
+    g++=9.2.0-r4 \
     python3-dev=3.8.2-r0 \
     yajl-dev=2.1.0-r0 \
     postgresql-dev=12.2-r0 \
@@ -32,7 +32,7 @@ RUN apk add --no-cache \
     gmp-dev=6.1.2-r1 \
     mpfr-dev=4.0.2-r1 \
     wait4ports=0.2.3-r0 && \
-    pip install pip==20.0.2 setuptools==45.2.0 wheel==0.34.2 && \
+    pip install pip==20.0.2 setuptools==46.1.1 wheel==0.34.2 && \
     pip install --upgrade -r requirements.txt && \
     apk del --no-cache .build-deps && \
     rm -fr /tmp/* /var/cache/apk/* /root/.cache/pip
