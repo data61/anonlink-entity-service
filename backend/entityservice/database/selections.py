@@ -329,18 +329,19 @@ def copy_binary_column_from_select_query(cur, select_query, stored_binary_size=1
 
     :param select_query: An sql query that select's a single binary column. Include ordering the results.
     :param stored_binary_size: Fixed size of each bytea data.
+    :raises AssertionError if the database implements an unhandled extension or the EOF is corrupt.
     """
 
     copy_to_stream_query = """COPY ({}) TO STDOUT WITH binary""".format(select_query)
     stream = io.BytesIO()
     cur.copy_expert(copy_to_stream_query, stream)
-    # TODO: It may be more efficient to introduce a buffered binary stream instead of getting the entire stream at once
+
     raw_data = stream.getvalue()
 
     # Need to read/remove the Postgres Binary Header, Trailer, and the per tuple info
     # https://www.postgresql.org/docs/current/sql-copy.html
     _ignored_header = raw_data[:15]
-    header_extension = raw_data[16:20]
+    header_extension = raw_data[15:19]
     assert header_extension == b'\x00\x00\x00\x00', "Need to implement skipping postgres binary header extension"
     binary_trailer = raw_data[-2:]
     assert binary_trailer == b'\xff\xff', "Corrupt COPY of binary data from postgres"

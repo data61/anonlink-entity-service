@@ -4,7 +4,7 @@ import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
-    get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings
+    get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings, copy_binary_column_from_select_query
 
 from entityservice.integrationtests.dbtests import _get_conn_and_cursor
 from entityservice.models import Project
@@ -13,7 +13,28 @@ from entityservice.tests.util import generate_bytes
 from entityservice.utils import generate_code
 
 
+class TestBinaryCopy:
+
+    def test_copy_binary_column_from_select_query(self, conn, cur, prepopulated_binary_test_data):
+        query = "select encoding from binary_test where id >= 10 and id < 20"
+        res = list(copy_binary_column_from_select_query(cur, query, stored_binary_size=4))
+        assert len(res) == 10
+        for (i, original), stored in zip(prepopulated_binary_test_data[10:20], res):
+            assert original == stored
+
+    def test_copy_binary_column_from_select_query_empty(self, conn, cur, prepopulated_binary_test_data):
+        query = "select encoding from binary_test where id < 0"
+        res = list(copy_binary_column_from_select_query(cur, query, stored_binary_size=4))
+        assert len(res) == 0
+
+
 class TestInsertions:
+
+    def _create_project(self):
+        project = Project('groups', {}, name='', notes='', parties=2, uses_blocking=False)
+        conn, cur = _get_conn_and_cursor()
+        dp_ids = project.save(conn)
+        return project, dp_ids
 
     def _create_project_and_dp(self):
         project, dp_ids = self._create_project()
@@ -28,11 +49,6 @@ class TestInsertions:
         assert len(dp_auth_token) == 48
         return project.project_id, project.result_token, dp_id, dp_auth_token
 
-    def _create_project(self):
-        project = Project('groups', {}, name='', notes='', parties=2, uses_blocking=False)
-        conn, cur = _get_conn_and_cursor()
-        dp_ids = project.save(conn)
-        return project, dp_ids
 
     def test_insert_project(self):
         before = datetime.datetime.now()
