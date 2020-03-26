@@ -29,7 +29,7 @@ services:
     image: data61/anonlink-benchmark:${TAG:-latest}
     environment:
       - SERVER=http://nginx:8851
-      - DATA_PATH=/app/cache
+      - DATA_PATH=/cache
       - EXPERIMENT=/app/linkage-bench-cache-experiments.json
       - RESULTS_PATH=/app/results.json
     depends_on:
@@ -38,7 +38,9 @@ services:
       - worker
       - nginx
     entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python benchmark.py"
-    
+    volumes:
+      - benchmarkdata:/cache
+
   tutorials:
     image: data61/anonlink-docs-tutorials:${TAG:-latest}
     environment:
@@ -49,3 +51,6 @@ services:
       - worker
       - nginx
     entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src"
+
+volumes:
+  benchmarkdata:
