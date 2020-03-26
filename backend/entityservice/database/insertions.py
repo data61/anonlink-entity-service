@@ -1,5 +1,6 @@
 from typing import List
 
+import opentracing
 import psycopg2
 import psycopg2.extras
 
@@ -95,13 +96,15 @@ def insert_encodings_into_blocks(db, dp_id: int, block_ids: List[List[str]], enc
     def block_data_generator(encoding_ids, block_ids):
         for eid, block_ids in zip(encoding_ids, block_ids):
             for block_id in block_ids:
-                yield (dp_id, eid, block_id)
+                yield dp_id, eid, block_id
 
     with db.cursor() as cur:
-        psycopg2.extras.execute_values(cur, encodings_insertion_query, encoding_data, page_size=page_size)
-        psycopg2.extras.execute_values(cur,
+        with opentracing.tracer.start_span('insert-encodings-to-db'):
+            psycopg2.extras.execute_values(cur, encodings_insertion_query, encoding_data, page_size=page_size)
+        with opentracing.tracer.start_span('insert-encodingblocks-to-db'):
+            psycopg2.extras.execute_values(cur,
                                        blocks_insertion_query,
-                                       block_data_generator(encoding_ids, block_ids),
+                                       list(block_data_generator(encoding_ids, block_ids)),
                                        page_size=page_size)
 
 

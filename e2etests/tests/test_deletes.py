@@ -1,4 +1,4 @@
-from entityservice.tests.util import post_run, delete_project, create_project_upload_fake_data, delete_run, \
+from e2etests.util import post_run, delete_project, create_project_upload_fake_data, delete_run, \
     get_project_description, get_run, wait_for_run_completion
 import pytest
 

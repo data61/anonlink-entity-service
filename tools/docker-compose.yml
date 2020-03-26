@@ -40,6 +40,7 @@ services:
       - db
       - db_init
       - redis
+      - minio
 
 
   # The application server can also setup the database
@@ -53,6 +54,17 @@ services:
     depends_on:
       - db
 
+  # The dm admin
+  db_admin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_PASSWORD=rX%QpV7Xgyrz
+      - PGADMIN_DEFAULT_EMAIL=brian@thorne.link
+    depends_on:
+      - db
+    ports:
+    - 5050:80
+
 
   # A celery worker
   worker:
@@ -63,14 +75,12 @@ services:
     command: celery -A entityservice.async_worker worker --loglevel=info -O fair -Q celery,compute,highmemory
     environment:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - DEBUG=true
-      - LOGGING_LEVEL=DEBUG
-      #- LOG_CFG=entityservice/verbose_logging.yaml
+      - LOG_CFG=entityservice/verbose_logging.yaml
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       - CELERY_ACKS_LATE=true
       - REDIS_USE_SENTINEL=false
-      - CELERYD_MAX_TASKS_PER_CHILD=30
+      - CELERYD_MAX_TASKS_PER_CHILD=2048
       #- CHUNK_SIZE_AIM=300_000_000
       - CELERY_DB_MIN_CONNECTIONS=1
       - CELERY_DB_MAX_CONNECTIONS=3

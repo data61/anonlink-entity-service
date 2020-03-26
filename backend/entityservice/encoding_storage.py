@@ -4,7 +4,8 @@ from typing import Iterator, List, Tuple
 
 import ijson
 
-from entityservice.database import insert_encodings_into_blocks, get_encodings_by_id_range
+from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
+    get_chunk_of_encodings
 from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
 
 
@@ -14,7 +15,7 @@ def stream_json_clksnblocks(f):
     the following structure:
 
     {
-        "clksnblocks": [
+        "clknblocks": [
             ["BASE64 ENCODED ENCODING 1", blockid1, blockid2, ...],
             ["BASE64 ENCODED ENCODING 2", blockid1, ...],
             ...
@@ -25,7 +26,7 @@ def stream_json_clksnblocks(f):
     :return: Generator of (entity_id, base64 encoding, list of blocks)
     """
     # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
-    for i, obj in enumerate(ijson.items(f, 'clksnblocks.item')):
+    for i, obj in enumerate(ijson.items(f, 'clknblocks.item')):
         b64_encoding, *blocks = obj
         yield i, deserialize_bytes(b64_encoding), blocks
 
@@ -52,7 +53,7 @@ def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, 
 
 
 def _grouper(iterable, n, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
+    "Collect data into fixed-length chunks or blocks from an iterable"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
@@ -102,8 +103,10 @@ def _estimate_group_size(encoding_size):
 def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     chunk_range_start, chunk_range_stop = chunk_info['range']
     dataprovider_id = chunk_info['dataproviderId']
-
-    encoding_data_stream = get_encodings_by_id_range(conn, dataprovider_id, chunk_range_start, chunk_range_stop)
-    chunk_data = binary_unpack_filters(encoding_data_stream, encoding_size=encoding_size)
+    block_id = chunk_info['block_id']
+    limit = chunk_range_stop - chunk_range_start
+    encoding_ids = get_encodingblock_ids(conn, dataprovider_id, block_id, chunk_range_start, limit)
+    encoding_iter = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids, stored_binary_size=(encoding_size+4))
+    chunk_data = binary_unpack_filters(encoding_iter, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 

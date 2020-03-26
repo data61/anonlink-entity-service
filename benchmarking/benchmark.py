@@ -130,19 +130,20 @@ def upload_binary_clks(config, sizes, credentials):
         file_name = os.path.join(data_path, "{}Parties".format(len(sizes)),
                                  "clk_{}_{}_v2.bin".format(participant, clk_length))
         with open(file_name, 'rb') as f:
-            facs_data = f.read()
-        assert len(facs_data) % SIZE_PER_CLK == 0
+            encoding_data = f.read()
+        assert len(encoding_data) % SIZE_PER_CLK == 0
         try:
             r = requests.post(
                 server + '/api/v1/projects/{}/binaryclks'.format(credentials['project_id']),
                 headers={
                     'Authorization': auth_token,
                     'Content-Type': 'application/octet-stream',
-                    'Hash-Count': str(len(facs_data) // SIZE_PER_CLK),
+                    'Hash-Count': str(len(encoding_data) // SIZE_PER_CLK),
                     'Hash-Size': '128'
                 },
-                data=facs_data
+                data=encoding_data
             )
+            logger.info(f"Upload status: {r.status_code}")
             logger.debug('upload result: {}'.format(r.json()))
         except Exception as e:
             logger.warning('oh no...\n{}'.format(e))

@@ -104,7 +104,7 @@ def celery_bug_fix(*args, **kwargs):
 
 
 @celery.task(base=BaseTask, ignore_result=True)
-def on_chord_error(*args, **kwargs):
+def run_failed_handler(*args, **kwargs):
     """
     Record that a task has encountered an error, mark the run as failed.
 
@@ -112,7 +112,8 @@ def on_chord_error(*args, **kwargs):
     :param kwargs: Keyword arguments to the task e.g. {'run_id': '...', }
     """
     task_id = args[0]
-    logger.bind(run_id=kwargs['run_id'])
+    if 'run_id' in kwargs:
+        logger.bind(run_id=kwargs['run_id'])
     logger.info("An error occurred while processing task", task_id=task_id)
 
     with DBConn() as db:

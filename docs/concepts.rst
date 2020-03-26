@@ -56,8 +56,8 @@ characters.
 
 .. _schema:
 
-Schema
-------
+Linkage Schema
+--------------
 
 It is important that participating organisations agree on how personally identifiable information is
 processed to create the :ref:`clks <cryptographic-longterm-keys>`. We call the configuration for creating CLKs
@@ -83,6 +83,19 @@ The similarity metric used is the
 although this may become a configurable option in the future.
 
 .. _result-types:
+
+Blocking
+--------
+
+Blocking is a technique that makes large-scale record linkage practical. Blocking partitions datasets
+into groups, called blocks and only the records in corresponding blocks are compared. This can massively
+reduce the total number of comparisons that need to be conducted to find matching records.
+
+In the *Anonlink Entity Service* blocking is optional, and is carried out by the client e.g., using the
+`blocklib <https://github.com/data61/blocklib/>`_ library. See the
+`blocklib documentation <https://blocklib.readthedocs.io/en/latest/>`_ for more information including
+tutorials.
+
 
 Output Types
 ------------

@@ -2,8 +2,8 @@ import time
 import os
 import pytest
 
-from entityservice.tests.config import url
-from entityservice.tests.util import (
+from e2etests.config import url
+from e2etests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
     get_expected_number_parties, get_run_result, post_run,
@@ -185,7 +185,7 @@ def test_project_json_data_upload_with_too_large_encoded_size(
     max_rep = 10
     while not project_description['error'] and rep < max_rep:
         rep += 1
-        time.sleep(1)
+        time.sleep(2)
         project_description = requests.get(
             url + '/projects/{}'.format(new_project_data['project_id']),
             headers={'Authorization': new_project_data['result_token']}

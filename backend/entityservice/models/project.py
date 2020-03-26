@@ -36,12 +36,6 @@ class Project(object):
         # Order is important here
         self.update_tokens = [generate_code() for _ in range(parties)]
 
-        # TODO DELETE?
-        self.ready = False
-        self.status = 'not ready'
-        self.data = {}
-        self.result = {}
-
     VALID_RESULT_TYPES = {'groups',
                           'permutations',
                           'similarity_scores'}
@@ -60,12 +54,14 @@ class Project(object):
         # Get optional fields from JSON data
         name = data.get('name', '')
         notes = data.get('notes', '')
-        parties = data.get('number_parties', 2)
+        parties = int(data.get('number_parties', 2))
         uses_blocking = data.get('uses_blocking', False)
 
         if parties > 2 and result_type != 'groups':
             raise InvalidProjectParametersException(
                 "Multi-party linkage requires result type 'groups'.")            
+        if parties < 2:
+            raise InvalidProjectParametersException("Record linkage requires at least 2 parties!")
 
         return Project(result_type, schema, name, notes, parties, uses_blocking)
 

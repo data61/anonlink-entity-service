@@ -25,12 +25,12 @@ spec:
             claimName: $PVC
       containers:
         - name: entitytester
-          image: $IMAGE_NAME_WITH_TAG
+          image: $TEST_E2E_IMAGE_NAME_WITH_TAG
           imagePullPolicy: Always
           env:
             - name: SERVER
               value: http://$SERVICE
-          command: ["dockerize", "-wait", "http://$SERVICE/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "-n", "4", "entityservice/tests", "-x", "--junit-xml=/mnt/results.xml"]
+          command: ["dockerize", "-wait", "http://$SERVICE/api/v1/status", "-timeout", "5m", "python", "-m", "pytest", "-n", "4", "e2etests/tests", "-x", "--junit-xml=/mnt/results.xml"]
           volumeMounts:
             - mountPath: /mnt
               name: results
