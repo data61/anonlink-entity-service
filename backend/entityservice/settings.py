@@ -72,7 +72,7 @@ class Config(object):
     }
 
     CELERYD_PREFETCH_MULTIPLIER = int(os.getenv('CELERYD_PREFETCH_MULTIPLIER', '1'))
-    CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '4'))
+    CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '2048'))
     # number of concurrent worker processes/threads, executing tasks
     CELERYD_CONCURRENCY = int(os.getenv("CELERYD_CONCURRENCY", '2'))
     CELERY_ACKS_LATE = os.getenv('CELERY_ACKS_LATE', 'false') == 'true'
