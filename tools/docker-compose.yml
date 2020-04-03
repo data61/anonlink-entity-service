@@ -34,7 +34,7 @@ services:
     image: data61/anonlink-app:${TAG:-latest}
     environment:
       - DEBUG=false
-      #- LOG_CFG=entityservice/verbose_logging.yaml
+      - LOG_CFG=entityservice/verbose_logging.yaml
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
@@ -54,7 +54,7 @@ services:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - FLASK_APP=entityservice
-    entrypoint: python -m flask initdb
+    entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 python -m flask initdb"
     depends_on:
       - db
 
