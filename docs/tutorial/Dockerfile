@@ -13,3 +13,4 @@ ADD tutorial-requirements.txt /src/requirements.txt
 WORKDIR /src
 RUN pip install -U -r requirements.txt
 ADD . /src
+ENTRYPOINT /bin/sh

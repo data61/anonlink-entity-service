@@ -45,14 +45,14 @@ services:
     image: data61/anonlink-docs-tutorials:${TAG:-latest}
     environment:
       - SERVER=http://nginx:8851
-      - INITIAL_DELAY=20
+      - INITIAL_DELAY=2
     depends_on:
       - db
       - redis
       - worker
       - backend
       - nginx
-    entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 -wait http://nginx:8851/api/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src"
+    command: dockerize -wait tcp://db:5432 -wait http://nginx:8851/api/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src
 
 volumes:
   benchmarkdata:
