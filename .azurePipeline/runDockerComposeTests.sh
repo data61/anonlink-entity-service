@@ -76,7 +76,7 @@ else
 fi
 
 echo "Start type $TYPE"
-$commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from $TYPE db minio redis backend worker nginx $TYPE
+$commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from $TYPE db db_init minio redis backend worker nginx $TYPE
 exit_code=$?
 echo "Retrieve the $TYPE tests results." 
 $commandPrefix -p $PROJECT_NAME ps -q $TYPE | xargs -I@ docker cp @:$CREATED_RESULT_FILE $RESULT_FILE
