@@ -12,9 +12,6 @@ class Config(object):
     """
 
     # If adding or deleting any, please ensure that the changelog will mention them.
-
-    DEBUG = os.getenv("DEBUG", "false") == "true"
-
     CONNEXION_STRICT_VALIDATION = os.getenv("CONNEXION_STRICT_VALIDATION", "true").lower() == "true"
     CONNEXION_RESPONSE_VALIDATION = os.getenv("CONNEXION_RESPONSE_VALIDATION", "true").lower() == "true"
 

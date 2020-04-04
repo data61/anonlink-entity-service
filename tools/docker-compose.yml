@@ -33,8 +33,7 @@ services:
   backend:
     image: data61/anonlink-app:${TAG:-latest}
     environment:
-      - DEBUG=false
-      - LOG_CFG=entityservice/verbose_logging.yaml
+      #- LOG_CFG=entityservice/verbose_logging.yaml
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY

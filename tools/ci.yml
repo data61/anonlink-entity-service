@@ -45,7 +45,6 @@ services:
     image: data61/anonlink-docs-tutorials:${TAG:-latest}
     environment:
       - SERVER=http://nginx:8851
-      - INITIAL_DELAY=2
     depends_on:
       - db
       - redis
