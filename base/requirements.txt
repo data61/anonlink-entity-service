@@ -7,7 +7,7 @@ colorama==0.4.3 # required for structlog
 connexion==2.6.0
 Flask-Opentracing==1.1.0
 Flask==1.1.1
-flower==0.9.3
+flower==0.9.4
 gunicorn==20.0.4
 ijson==2.6.1
 iso8601==0.1.12
