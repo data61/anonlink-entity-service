@@ -4,7 +4,7 @@
 
 A service for performing privacy preserving record linkage. Allows organizations to carry out record linkage without disclosing personally identifiable information.
 
-Clients should use [clkhash](https://github.com/data61/clkhash/) or the [encoding-service](https://github.com/data61/anonlink-encoding-service/).
+Clients should use [anonlink-client](https://github.com/data61/anonlink-client/) or the [encoding-service](https://github.com/data61/anonlink-encoding-service/).
 
 ## Documentation
 

@@ -1,4 +1,5 @@
-clkhash==0.15.0
+anonlink-client==0.1.2
+clkhash==0.16.0a1
 ipython
 matplotlib
 pandas

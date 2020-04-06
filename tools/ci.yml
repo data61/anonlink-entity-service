@@ -18,7 +18,7 @@ services:
       - SERVER=http://nginx:8851
       - INITIAL_DELAY=20
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
-    command: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
+    command: /bin/sh -c "dockerize -wait tcp://db:5432 -wait tcp://nginx:8851/api/v1/status -timeout 1m python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
     depends_on:
       - db
       - backend
@@ -37,7 +37,7 @@ services:
       - redis
       - worker
       - nginx
-    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python benchmark.py"
+    entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 -wait tcp://nginx:8851/api/v1/status -timeout 1m python benchmark.py"
     volumes:
       - benchmarkdata:/cache
 
@@ -49,8 +49,9 @@ services:
       - db
       - redis
       - worker
+      - backend
       - nginx
-    entrypoint: /bin/sh -c "dockerize -wait tcp://nginx:8851/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src"
+    command: dockerize -wait tcp://db:5432 -wait http://nginx:8851/api/v1/status -timeout 1m python -m pytest --junitxml=testResults.xml -x --nbval-lax /src
 
 volumes:
   benchmarkdata:
