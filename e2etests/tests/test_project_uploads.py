@@ -28,6 +28,21 @@ def test_project_single_party_data_uploaded(requests, valid_project_params):
     assert 'receipt_token' in upload_response
 
 
+def test_project_external_data_uploaded(requests, valid_project_params):
+    new_project_data = requests.post(url + 'projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][0]},
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
 def test_project_binary_data_uploaded(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={

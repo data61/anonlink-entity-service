@@ -80,3 +80,11 @@ class running(RunStatus):
 class error(RunStatus):
     message = fields.String(required=True)
     detail = fields.String()
+
+
+class ObjectStoreCredentials(Schema):
+    access_key = fields.String(data_key="AccessKeyId")
+    secret_key = fields.String(data_key="SecretAccessKey")
+    session_token = fields.String(data_key="SessionToken")
+    # Note expiry is from a separate object
+    #expiry = fields.String(data_key="Expiration")

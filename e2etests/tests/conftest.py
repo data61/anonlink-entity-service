@@ -140,6 +140,16 @@ def valid_project_params(request, result_type_number_parties_or_none):
         params_dict['number_parties'] = number_parties_or_none
     return params_dict
 
+@pytest.fixture(scope='function')
+def a_project(request, requests):
+    project = create_project_no_data(
+        requests,
+        result_type="groups",
+        number_parties=2)
+    yield project
+    # Release project resource
+    delete_project(requests, project)
+
 
 @pytest.fixture(scope='function')
 def project(request, requests, result_type_number_parties):

@@ -6,7 +6,11 @@ rbac:
 anonlink:
 
   ## Set arbitrary environment variables for the API and Workers.
-  config: {}
+  config: # {}
+    UPLOAD_OBJECT_STORE_ENABLED: "true"
+    UPLOAD_OBJECT_STORE_ACCESS_KEY: ""
+    UPLOAD_OBJECT_STORE_SECRET_KEY: ""
+    UPLOAD_OBJECT_STORE_BUCKET: "uploads"
 
 
 api:

@@ -23,7 +23,13 @@ services:
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     volumes:
       - minio:/export
-
+    ports:
+      - 9000:9000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
   redis:
     image: redis:5.0
@@ -37,6 +43,8 @@ services:
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - UPLOAD_OBJECT_STORE_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
+      - UPLOAD_OBJECT_STORE_SECRET_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
       - FLASK_DB_MIN_CONNECTIONS=1
       - FLASK_DB_MAX_CONNECTIONS=10
       - JAEGER_AGENT_HOST=jaeger
@@ -45,6 +53,7 @@ services:
       - db_init
       - redis
       - minio
+      - objectstore_init
 
   # The application server can also setup the database
   db_init:
@@ -56,6 +65,24 @@ services:
     entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 python -m flask initdb"
     depends_on:
       - db
+
+  # Setup the object store to have another more restricted user
+  objectstore_init:
+    image: minio/mc
+    environment:
+      - INITIAL_DELAY=10
+      # Provide root credentials to MINIO to set up more restricted service accounts
+      # MC_HOST_alias is equivalent to manually configuring a minio host
+      # mc config host add minio http://minio:9000 <MINIO_ACCESS_KEY> <MINIO_SECRET_KEY>
+      - MC_HOST_minio=http://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY@minio:9000
+      # Account which will have upload only object store access.
+      - UPLOAD_ONLY_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
+      - UPLOAD_ONLY_SECRET_ACCESS_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
+    entrypoint: sh /opt/init-object-store.sh
+    volumes:
+      - "./init-object-store.sh:/opt/init-object-store.sh"
+    depends_on:
+      - minio
 
   # A celery worker
   worker:

@@ -108,7 +108,7 @@ def project_binaryclks_post(project_id):
     """
     log, parent_span = bind_log_and_span(project_id)
     headers = request.headers
-    token = precheck_encoding_upload(project_id, headers, parent_span)
+    token = precheck_upload_token(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
@@ -176,7 +176,7 @@ def project_binaryclks_post(project_id):
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
-def precheck_encoding_upload(project_id, headers, parent_span):
+def precheck_upload_token(project_id, headers, parent_span):
     """
     Raise a `ProblemException` if the project doesn't exist or the
     authentication token passed in the headers isn't valid.
@@ -202,7 +202,7 @@ def project_clks_post(project_id):
 
     log, parent_span = bind_log_and_span(project_id)
 
-    token = precheck_encoding_upload(project_id, headers, parent_span)
+    token = precheck_upload_token(project_id, headers, parent_span)
 
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
