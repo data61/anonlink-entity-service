@@ -38,18 +38,26 @@ The sections are:
 - Specifications for implementation (including the REST API).
 - decisions and alternatives considered. What would be the "best"/"easiest" approach.
 
+## User Stories
+
+- As a user with a multi-gigabyte dataset on my machine and a slow, intermittent NBN internet connection, I want my upload
+  to happen as quickly and smoothly as possible.
+
+- As a user with an encoded dataset already available in an S3 bucket, I want Anonlink to fetch it directly so I don't 
+  have to download and then upload it.
 
 ## Requirements
 
-- A method for requesting temporary & restricted object store credentials shall be added to the Anonlink Entity Service 
-  API. The temporary credentials will authorize the holder to upload data, the credentials **must not** provide access 
-  to any other data providers encodings, or other working data stored in the object store.
-- A method for a data provider to provide an object store URI pointing to the encoding data instead of uploading it 
-  shall be added to the Anonlink Entity Service API. This method **may** support pulling directly via http as well.
-- A deployment option to expose the MinIO object store via an ingress will be added. As this increases the attack 
-  surface an internal security review of MinIO must be conducted. Deployment using default or publicly committed 
-  credentials must be mitigated.
-- The maximum size of a clients' encodings will be 1TiB.
+- A user shall be able to point to data in an object store instead of directly uploading to Anonlink.
+- A user may be able to point to data via a http URL instead of directly uploading to Anonlink.
+- The system shall provide a mechanism to grant temporary & restricted object store credentials.
+- The system shall accept uploads of up to 1TiB of data.
+- In the event of an upload being interrupted, a user shall be able to resume the upload at a later stage without 
+  having to re-upload data already sent.
+- The system shall provide an option to expose the MinIO object store.
+- The client tool shall not share users object store credentials with the service without explicit direction.
+- The client tool shall support uploading to the service's object store.
+- The client tool may support uploading to an external object store.
 
 
 ## High Level Design
@@ -169,7 +177,9 @@ EncodingArray:
 
 Returns a set of temporary security credentials that the client can use to upload data to the object store.
 
-`/authorize-external-upload`
+`/projects/{project_id}/authorise-external-upload`
+
+A valid upload token is required to authorise this call.
 
 The response will contain:
 
@@ -181,31 +191,33 @@ The response will contain:
 * `upload`
   * `endpoint` (e.g. `minio.anonlink.example.com`)
   * `bucket` (e.g. `anonlink-uploads`)
-  * `file` (e.g. `2020/05/Z7hSjluf6gEbxxyy.json`)
+  * `path` (e.g. `2020/05/Z7hSjluf6gEbxxyy`)
 
 This endpoint may fail if the object store does not support creating temporary credentials.
 This feature may be entirely disabled in the server configuration, see `settings.py` and `values.yaml`.
 
-The temporary credentials must be configured to have a security policy only allowing uploads to a particular
-bucket for a period of time. The client will not be able to list objects or retrieve objects from this bucket. 
+The temporary credentials must be configured to have a security policy only allowing uploads to a particular folder in
+a bucket for a period of time. The client will not be able to list objects or retrieve objects from this bucket. 
 
 An example policy:
 
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
     {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Action": [
-            "s3:PutObject"
-          ],
-          "Effect": "Allow",
-          "Resource": [
-            "arn:aws:s3:::anonlink-uploads/*"
-          ],
-          "Sid": "Upload-access-to-specific-bucket-only"
-        }
-      ]
-    } 
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::anonlink-uploads/2020/05/Z7hSjluf6gEbxxyy/*"
+      ],
+      "Sid": "Upload-access-to-specific-bucket-only"
+    }
+  ]
+}
+```
 
 
 A possible future extension is to take advantage of MinIO's [Security Token Service (STS)](https://docs.min.io/docs/minio-sts-quickstart-guide.html)
@@ -218,6 +230,35 @@ Relevant links:
 * https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#generating-a-presigned-url-to-upload-a-file
 * https://docs.min.io/docs/upload-files-from-browser-using-pre-signed-urls.html
 
+*Test/prototype procedure*
+
+Need to create a new user (can't use the root credentials for sts)
+
+```sh
+$ docker run -it --entrypoint /bin/sh minio/mc
+# mc config host add minio http://192.168.1.25:9000 AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+# mc admin user add minio newuser newuser123
+# mc admin policy set minio writeonly user=newuser
+```
+
+Add a _restricted_ section to your `.aws/configure`:
+
+```
+[restricted]
+aws_access_key_id = newuser
+aws_secret_access_key = newuser123
+region = us-east-1
+```
+
+In another terminal use the aws cli to fetch temp credentials:
+
+```
+aws --profile restricted --endpoint-url http://localhost:9000 sts assume-role --policy '{"Version":"2012-10-17","Statement":[{"Sid":"Stmt1","Effect":"Allow","Action":"s3:*","Resource":"arn:aws:s3:::*"}]}' --role-arn arn:xxx:xxx:xxx:xxxx --role-session-name anything
+```
+
+Alternatively use minio or boto3
+
+
 ### Client Side Specification 
 
 The client side implementation will be in `anonlink-client`, there will be both a public, documented, Python API as well as
@@ -225,6 +266,54 @@ an implementation via the command line tool.
 
 Uploading will be implemented using either [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html) or 
 [MinIO](https://docs.min.io/docs/python-client-api-reference) at the implementors discretion.
+
+In the default case, uploading via the client tool will involve making the three network requests in sequence: 
+
+- Retrieving temporary object store credentials.
+- Uploading encodings to the object store.
+- Informing the anonlink entity service of the upload.
+
+
+If the user already has object store credentials (e.g. for `S3`) they can upload without having to request
+temporary credentials. The anonlink client tool aims to deal with this transparently.
+
+#### Example client tool usage
+
+The default case using temporary credentials for our object store:
+
+```sh
+$ anonlink upload mydata.csv <AUTH params etc>
+```
+
+Where the user wants our client to upload to their own bucket, optionally providing the AWS credential profile to use:
+
+```sh
+$ anonlink upload mydata.csv [--profile easd] --upload-to=s3://my-own-bucket/mydata.csv <AUTH params etc>
+```
+
+If the user wants to use already uploaded data, they will have to either explicitly provide the anonlink entity service
+with credentials that are appropriate to share with the service, or explicitly request temporary credentials. 
+
+```sh
+$ anonlink upload s3://my-own-bucket/mydata.csv [--profile easd] --request-read-only-credentials \
+           <AUTH params etc>
+```
+
+or 
+```sh
+$ anonlink upload s3://my-own-bucket/mydata.csv [--profile easd] --share-aws-credentials-with-server \
+           <AUTH params etc>
+```
+
+It is very important that the client doesn't assume it can share a user's AWS credentials with the service.
+
+This means something like:
+```
+$ anonlink upload s3://my-own-bucket/mydata.csv
+```
+
+Explicitly telling us could be via the additional command line arguments shown above,  or an `~/.anonlink` config file
+or via environment variables. 
 
 #### Progress Handling
 
@@ -238,15 +327,22 @@ used to show progress during hashing.
 #### Error Handling
 
 Errors during upload detected by the object store client will be caught and raised as an `AnonlinkClientError`. 
-`ResponseError` exceptions should be caught and presented to the command line user without a traceback. The object store credentials
-may be used during a retry attempt. If the object store credentials have expired the client may request new credentials from
-the Anonlink Entity Service.
+`ResponseError` exceptions should be caught and presented to the command line user without a traceback. The object store
+credentials may be used during a retry attempt. If the object store credentials have expired the client may automatically
+request new credentials from the Anonlink Entity Service.
 
 ### Deployment Changes
 
-Extra policy, user, & bucket must be created in MinIO.
+Extra policy, user, & bucket must be created in MinIO. This can be carried out by a new container
+`init_object_store` that includes the `mc` command line tool for Minio. In the kubernetes deployment
+this will run as a job similar to our `init_db` job.
+
+An option to expose Minio will be added to the deployment.
+When the option is enabled, Minio will be exposed via an ingress. 
 
 #### Ingress configuration
+
+**Domain** By default Minio will be available at the `minio` sub-domain of the service's domain/s. 
 
 **Proxy** The ingress controller may need to be modified to support proxying large uploads through to MinIO.
 
@@ -261,6 +357,16 @@ The user is supplying an object store address - can we trust it? We don't want t
 making our server download illegal data, making our server download terabytes and terabytes of data.
 
 If using our own object store we can dictate the bucket and file, but we want to support an external object store too. 
+
+As exposing Minio increases the attack surface an internal security review of MinIO must be conducted. 
+Deployment using default or publicly committed credentials must be mitigated.
+
+## Alternatives (WIP)
+
+The primary alternative that we considered was modification to the Anonlink REST api to handle partial uploads.
+The Anonlink api and client would be modified to deal with multipart uploads. The reason this design wasn't
+pursued is we would have to design and implement everything on both the server and client side - the retrying
+mechanisms, integrity checks, dropped connections, proxy handling etc. 
 
 ## Additional Considerations (WIP)
 
