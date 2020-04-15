@@ -176,8 +176,11 @@ EncodingArray:
 #### Addition of an endpoint to retrieve temporary object store credentials
 
 Returns a set of temporary security credentials that the client can use to upload data to the object store.
+This endpoint may fail if the object store does not support creating temporary credentials.
+This feature may be entirely disabled in the server configuration, see `settings.py` and `values.yaml`, in this case the
+endpoint will return a `500` server error.
 
-`/projects/{project_id}/authorise-external-upload`
+The endpoint shall be: `/projects/{project_id}/authorise-external-upload`.
 
 A valid upload token is required to authorise this call.
 
@@ -193,13 +196,13 @@ The response will contain:
   * `bucket` (e.g. `anonlink-uploads`)
   * `path` (e.g. `2020/05/Z7hSjluf6gEbxxyy`)
 
-This endpoint may fail if the object store does not support creating temporary credentials.
-This feature may be entirely disabled in the server configuration, see `settings.py` and `values.yaml`.
+The credentials returned will be valid for a deployment configurable duration - defaulting to 12 hours.
+Note that if a client upload is in progress and then the credentials expire, the upload will most likely fail.
 
 The temporary credentials must be configured to have a security policy only allowing uploads to a particular folder in
 a bucket for a period of time. The client will not be able to list objects or retrieve objects from this bucket. 
 
-An example policy:
+An example policy which restricts holders to upload only into a project and data provider specific path:
 
 ```json
 {
@@ -211,7 +214,7 @@ An example policy:
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::anonlink-uploads/2020/05/Z7hSjluf6gEbxxyy/*"
+        "arn:aws:s3:::anonlink-uploads/<PROJECT ID>/<Data Provider ID>/*"
       ],
       "Sid": "Upload-access-to-specific-bucket-only"
     }
@@ -241,7 +244,7 @@ $ docker run -it --entrypoint /bin/sh minio/mc
 # mc admin policy set minio writeonly user=newuser
 ```
 
-Add a _restricted_ section to your `.aws/configure`:
+Add a _restricted_ section to `.aws/configure`:
 
 ```
 [restricted]
@@ -253,16 +256,41 @@ region = us-east-1
 In another terminal use the aws cli to fetch temp credentials:
 
 ```
-aws --profile restricted --endpoint-url http://localhost:9000 sts assume-role --policy '{"Version":"2012-10-17","Statement":[{"Sid":"Stmt1","Effect":"Allow","Action":"s3:*","Resource":"arn:aws:s3:::*"}]}' --role-arn arn:xxx:xxx:xxx:xxxx --role-session-name anything
+aws --profile restricted --endpoint-url http://localhost:9000 sts assume-role --policy \
+    '{"Version":"2012-10-17","Statement":[{"Sid":"Stmt1","Effect":"Allow","Action":"s3:*","Resource":"arn:aws:s3:::*"}]}' \
+    --role-arn arn:xxx:xxx:xxx:xxxx --role-session-name anything
 ```
 
-Alternatively use minio or boto3
+The backend will use the minio-py client library to retrieve the temporary credentials.
 
 
+### Backend Specification
+
+The backend is responsible for pulling data from an object store - either the Anonlink Entity Service's "internal" 
+object store or an external one. The data must be treated as untrusted, as with all client provided data. The backend
+will authenticate with the object store, and ingest the data directly into its database.
+
+In the initial version only binary encoding data can be provided in an external file. This is expected to change after
+the addition of a binary blocking format. 
+
+**Alternative** the backend could copy data to our existing configured object store and then ingest. This method
+doubles up on the data storage and thus wasn't used.
+
+The backend may fail when attempting to pull the data, the credentials may be invalid, the objects may not exist
+at the given path, the external object store could be unavailable or unreachable. In all cases the backend will
+gracefully fail and mark the project as **failed**.
+
+If possible the backend should carry out a quick sanity check during the client's call to the upload endpoint - to 
+verify the object store is up and that the credentials are valid to retrieve an object.
+
+**Future version**: With the addition of a new per data provider `/status` api, the data provider could see any issues
+with their upload and address them without the whole project being marked as a failure.
+
+ 
 ### Client Side Specification 
 
-The client side implementation will be in `anonlink-client`, there will be both a public, documented, Python API as well as
-an implementation via the command line tool.
+The client side implementation will be in `anonlink-client`, there will be both a public, documented, Python API as well
+as an implementation via the command line tool.
 
 Uploading will be implemented using either [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html) or 
 [MinIO](https://docs.min.io/docs/python-client-api-reference) at the implementors discretion.
@@ -375,21 +403,22 @@ Do we support pulling data via HTTP (e.g. someone gives the server a Google Driv
 
 Monitoring progress during pulling data, resuming pulling data, identifying and dealing with data corruption, service failure.
 
-Should the entity service deploy a separate publicly available object store, or expose the one it uses internally?
-
 Authentication/presigned urls? Presigned URLs are usually used with non object store clients - enabling direct POST/GET
 calls. Need to determine if object store clients can use them to take advantage of chunked uploads, integrity checking etc.
 See https://github.com/minio/minio/blob/master/docs/sts/assume-role.md and 
 https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html#using-presigned-urls-to-perform-other-s3-operations 
 
-Ability to easily copy from one object store to another? MinIO has a sync
-
-Configuration of client tool - `~/.anonlinkcfg`
-
 Notification of an upload by MinIO into Redis or Postgres is possible. We decided it was not worth the extra complexity as the client
 will be uploading via our tool so the client is in a good position to reliably inform the server when the upload is complete.
 See the [MinIO bucket notification guide](https://docs.min.io/docs/minio-bucket-notification-guide.html).
 
-What if the object changes or is deleted while we are pulling it?
 
-Anything else?
+*What if the object changes or is deleted while we are pulling it?*
+
+In the case where we are using our own object store (e.g. minio rather than client operated s3 bucket) the client's 
+assumed role can actually prevent them from deleting objects they have uploaded. This has the upside that the anonlink 
+entity service is responsible for when it is deleted. If the object is just on AWS S3 then the "pull" operation can fail
+due to the data being locked down or deleted. This will be handled the same as if the object wasn't there in the first 
+place, or if the entity service doesn't have permission to pull the data - that is we will probably just have to mark
+the whole project as a failure. We will also consider an API where each data provider's upload can check the status of 
+their own upload which would be a much faster feedback mechanism.
