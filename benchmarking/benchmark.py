@@ -13,21 +13,21 @@ Configured via environment variables:
 - TIMEOUT : this timeout defined the time to wait for the result of a run in seconds. Default is 1200 (20min).
 
 """
-import arrow
-import boto3
 import copy
 import json
-import jsonschema
 import logging
-import pandas as pd
-import requests
-import time
 import os
-
-from anonlinkclient.rest_client import RestClient
+import time
+from collections import defaultdict
 from pprint import pprint
 from traceback import format_exc
 
+import arrow
+import boto3
+import jsonschema
+import pandas as pd
+import requests
+from anonlinkclient.rest_client import RestClient, ServiceError
 
 EXP_LOOKUP = {
     '10K': 10_000,
@@ -57,7 +57,7 @@ def load_experiments(filepath):
             experiment['repetition'] = 1
 
     jsonschema.validate(experiments, experiment_schema)
-
+    logger.info('loaded experiments: {}'.format(experiments))
     return experiments
 
 
@@ -153,6 +153,28 @@ def upload_binary_clks(config, sizes, credentials):
     for participant_id in range(len(sizes)):
         # participant's name starts from the letter `a` to be back portable.
         upload_data(chr(97 + participant_id), credentials['update_tokens'][participant_id], sizes[participant_id])
+
+
+def upload_clknblocks(config, sizes, credentials):
+    data_path = config['data_path']
+    tick = time.perf_counter
+
+    assert len(sizes) == len(credentials['update_tokens'])
+    for participant_id in range(len(sizes)):
+        # participant's name starts from the letter `a` to be back portable.
+        auth_token = credentials['update_tokens'][participant_id]
+        ds_size = sizes[participant_id]
+        participant = chr(97 + participant_id)
+        start = tick()
+        file_name = os.path.join(data_path, "{}Parties".format(len(sizes)),
+                                 "clknblocks_{}_{}.json".format(participant, ds_size))
+        with open(file_name, 'rb') as data:
+            try:
+                r = rest_client.project_upload_clks(credentials['project_id'], apikey=auth_token, clk_data=data)
+                logger.info('upload result: {}'.format(r))
+            except ServiceError as e:
+                logger.warning('error during upload:\n{}'.format(e))
+        logger.info('uploading clknblocks for {} took {:.3f}'.format(participant, tick() - start))
 
 
 def load_truth(config, sizes):
@@ -263,9 +285,10 @@ def download_data(config):
     """
     Download data used in the configured experiments.
     On S3, the data is organised in folders for the number of parties (e.g. folder `3Parties` for the data related to
-    the 3 party linkage), and then a number a file following the format `PII_{user}_{size_data}.csv`, `clk_{user}_{size_data}_v2.bin`
-    and `clk_{user}_{size_data}.json` where $user is a letter starting from `a` indexing the data owner, and `size_data`
-    is a integer representing the number of data rows in the dataset (e.g. 10000). Note that the csv usually has a header.
+    the 3 party linkage), and then a number a file following the format `PII_{user}_{size_data}.csv`,
+    `clk_{user}_{size_data}_v2.bin`, `clk_{user}_{size_data}.json` and `clknblocks_{user}_{size_data}.json` where $user
+    is a letter starting from `a` indexing the data owner, and `size_data` is a integer representing the number of data
+    rows in the dataset (e.g. 10000). Note that the csv usually has a header.
 
     The data is stored in the folder provided from the configuration, following the same structure as the one on S3.
     """
@@ -275,26 +298,33 @@ def download_data(config):
     os.makedirs(data_folder, exist_ok=True)
     download_file_if_not_present(base, data_folder, 'schema.json')
 
-    to_download = {}
+    to_download = defaultdict(lambda: defaultdict(set))
     for experiment in config['experiments']:
         nb_parties = len(experiment['sizes'])
-        if nb_parties in to_download:
-            to_download[nb_parties].update(set(experiment['sizes']))
+        if 'use_blocking' in experiment and experiment['use_blocking']:
+            to_download[nb_parties]['clknblocks'].update(set(experiment['sizes']))
         else:
-            to_download[nb_parties] = set(experiment['sizes'])
+            to_download[nb_parties]['bin_clks'].update(set(experiment['sizes']))
 
     for nb_parties in to_download:
         folder = os.path.join(base, "{}Parties/".format(nb_parties))
         local_data_folder = os.path.join(data_folder, "{}Parties/".format(nb_parties))
-
-        sizes = to_download[nb_parties]
-        for user in [chr(x + 97) for x in range(nb_parties)]:
-            for size in sizes:
-                pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
-                clk_file = f"clk_{user}_{EXP_LOOKUP[size]}_v2.bin"
-                download_file_if_not_present(folder, local_data_folder, pii_file)
-                download_file_if_not_present(folder, local_data_folder, clk_file)
-
+        if 'clknblocks' in to_download[nb_parties]:
+            sizes = to_download[nb_parties]['clknblocks']
+            for user in [chr(x + 97) for x in range(nb_parties)]:
+                for size in sizes:
+                    pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
+                    clk_file = f"clknblocks_{user}_{EXP_LOOKUP[size]}.json"
+                    download_file_if_not_present(folder, local_data_folder, pii_file)
+                    download_file_if_not_present(folder, local_data_folder, clk_file)
+        if 'bin_clks' in to_download[nb_parties]:
+            sizes = to_download[nb_parties]['bin_clks']
+            for user in [chr(x + 97) for x in range(nb_parties)]:
+                for size in sizes:
+                    pii_file = f"PII_{user}_{EXP_LOOKUP[size]}.csv"
+                    clk_file = f"clk_{user}_{EXP_LOOKUP[size]}_v2.bin"
+                    download_file_if_not_present(folder, local_data_folder, pii_file)
+                    download_file_if_not_present(folder, local_data_folder, clk_file)
     logger.info('Downloads complete')
 
 
@@ -328,11 +358,16 @@ def run_single_experiment(config, threshold, sizes, experiment):
     run = {}
     logger.info("Starting time: {}".format(time.asctime()))
     nb_parties = len(sizes)
+    use_blocking = experiment.get('use_blocking', False)
     try:
         credentials = rest_client.project_create(config['schema'], 'groups',
-                                                 "benchy_{}".format(experiment), parties=nb_parties)
+                                                 "benchy_{}".format(experiment), parties=nb_parties,
+                                                 uses_blocking=use_blocking)
         # upload clks
-        upload_binary_clks(config, sizes, credentials)
+        if use_blocking:
+            upload_clknblocks(config, sizes, credentials)
+        else:
+            upload_binary_clks(config, sizes, credentials)
         # create run
         project_id = credentials['project_id']
         result['project_id'] = project_id
