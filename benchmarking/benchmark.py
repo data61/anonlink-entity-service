@@ -286,9 +286,9 @@ def download_data(config):
     Download data used in the configured experiments.
     On S3, the data is organised in folders for the number of parties (e.g. folder `3Parties` for the data related to
     the 3 party linkage), and then a number a file following the format `PII_{user}_{size_data}.csv`,
-    `clk_{user}_{size_data}_v2.bin`, `clk_{user}_{size_data}.json` and `clknblocks_{user}_{size_data}.json` where $user
-    is a letter starting from `a` indexing the data owner, and `size_data` is a integer representing the number of data
-    rows in the dataset (e.g. 10000). Note that the csv usually has a header.
+    `clk_{user}_{size_data}_v2.bin`, `clk_{user}_{size_data}.json` and `clknblocks_{user}_{size_data}.json` where `user`
+    is a letter starting from `a` indexing the data providers, and `size_data` is an integer representing the number of
+    data rows in the dataset (e.g. 10000). Note that the csv usually has a header.
 
     The data is stored in the folder provided from the configuration, following the same structure as the one on S3.
     """
