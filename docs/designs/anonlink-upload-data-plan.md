@@ -292,10 +292,11 @@ with their upload and address them without the whole project being marked as a f
 The client side implementation will be in `anonlink-client`, there will be both a public, documented, Python API as well
 as an implementation via the command line tool.
 
-Uploading will be implemented using either [`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html) or 
+Uploading will be implemented using either 
+[`boto3`](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html) or 
 [MinIO](https://docs.min.io/docs/python-client-api-reference) at the implementors discretion.
 
-In the default case, uploading via the client tool will involve making the three network requests in sequence: 
+In the default case, uploading via the client tool will involve making three network requests in sequence: 
 
 - Retrieving temporary object store credentials.
 - Uploading encodings to the object store.
@@ -310,35 +311,34 @@ temporary credentials. The anonlink client tool aims to deal with this transpare
 The default case using temporary credentials for our object store:
 
 ```sh
-$ anonlink upload mydata.csv <AUTH params etc>
+$ anonlink upload mydata.csv <project auth params>
 ```
 
 Where the user wants our client to upload to their own bucket, optionally providing the AWS credential profile to use:
 
 ```sh
-$ anonlink upload mydata.csv [--profile easd] --upload-to=s3://my-own-bucket/mydata.csv <AUTH params etc>
+$ anonlink upload mydata.csv [--profile easd] --upload-to=s3://my-own-bucket/mydata.csv <project auth params>
 ```
 
 If the user wants to use already uploaded data, they will have to either explicitly provide the anonlink entity service
 with credentials that are appropriate to share with the service, or explicitly request temporary credentials. 
 
 ```sh
-$ anonlink upload s3://my-own-bucket/mydata.csv [--profile easd] --request-read-only-credentials \
+$ anonlink serverpull s3://my-own-bucket/mydata.csv [--profile easd] --request-read-only-credentials \
            <AUTH params etc>
 ```
 
-or 
+The client will attempt to fetch read only credentials from AWS using the user's given profile. If this succeeds
+the client will then inform the anonlink server of the data url along with the temporary credentials.
+
+In the case where the user wants to provide their current credentials to the Anonlink Entity Service:
+
 ```sh
-$ anonlink upload s3://my-own-bucket/mydata.csv [--profile easd] --share-aws-credentials-with-server \
+$ anonlink serverpull s3://my-own-bucket/mydata.csv [--profile easd] --share-aws-credentials-with-server \
            <AUTH params etc>
 ```
 
 It is very important that the client doesn't assume it can share a user's AWS credentials with the service.
-
-This means something like:
-```
-$ anonlink upload s3://my-own-bucket/mydata.csv
-```
 
 Explicitly telling us could be via the additional command line arguments shown above,  or an `~/.anonlink` config file
 or via environment variables. 
