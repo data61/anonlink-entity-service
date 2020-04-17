@@ -248,16 +248,3 @@ CREATE TABLE metrics (
   -- Comparisons per second
   rate BIGINT
 );
-
--- Create a "product" aggregation function
-CREATE OR REPLACE FUNCTION product_sfunc(state numeric, factor numeric)
-RETURNS numeric AS $$
-    SELECT $1 * $2
-$$ LANGUAGE sql;
-
-CREATE AGGREGATE product (
-    sfunc = product_sfunc,
-    basetype = numeric,
-    stype = numeric,
-    initcond = '1'
-);

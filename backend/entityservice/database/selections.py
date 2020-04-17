@@ -231,21 +231,32 @@ def get_total_comparisons_for_project(db, project_id):
     """
     Returns the number of comparisons that a project requires.
 
-    For each data provider multiple the size of each block, then sum number
-    of comparisons in all blocks together.
+    For each block:
+        for each pairwise combination of data providers in each block:
+            multiply the block sizes together
+        then sum number of comparisons for each block
+    Sum the number of comparisons in all blocks together.
 
     :return total number of comparisons for this project
     """
+
+    # The full computation is *hard* to do in postgres, so we return an array of sizes
+    # for each block and then use Python to find the pairwise combinations.
     sql_query = """
-        -- Note this returns a numeric (which psycopg maps to decimal.Decimal) 
-        select sum(product) from (select product(count)
+        select block_name, array_agg(count) as counts
         from blocks
         where dp in (
             select id from dataproviders where project = %s
         )
-        GROUP BY block_name) as per_block_product
+        group by block_name
         """
-    total_comparisons = int(query_db(db, sql_query, [project_id], one=True)['sum'])
+
+    query_results = query_db(db, sql_query, [project_id])
+    total_comparisons = 0
+    for block in query_results:
+        num_comparisons_in_block = sum(c0 * c1 for c0, c1 in itertools.combinations(block['counts'], 2))
+        total_comparisons += num_comparisons_in_block
+
     return total_comparisons
 
 
