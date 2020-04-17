@@ -11,10 +11,11 @@ def save_current_progress(comparisons, run_id, config=None):
     if config is None:
         config = globalconfig
     logger.debug(f"Updating progress. Compared {comparisons} CLKS", run_id=run_id)
-    r = connect_to_redis()
-    key = _get_run_hash_key(run_id)
-    r.hincrby(key, 'progress', comparisons)
-    r.expire(key, config.CACHE_EXPIRY)
+    if comparisons > 0:
+        r = connect_to_redis()
+        key = _get_run_hash_key(run_id)
+        r.hincrby(key, 'progress', comparisons)
+        r.expire(key, config.CACHE_EXPIRY)
 
 
 def get_progress(run_id):

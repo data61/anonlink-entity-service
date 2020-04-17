@@ -237,6 +237,7 @@ def get_total_comparisons_for_project(db, project_id):
     :return total number of comparisons for this project
     """
     sql_query = """
+        -- Note this returns a numeric (which psycopg maps to decimal.Decimal) 
         select sum(product) from (select product(count)
         from blocks
         where dp in (
@@ -244,7 +245,7 @@ def get_total_comparisons_for_project(db, project_id):
         )
         GROUP BY block_name) as per_block_product
         """
-    total_comparisons = query_db(db, sql_query, [project_id], one=True)['sum']
+    total_comparisons = int(query_db(db, sql_query, [project_id], one=True)['sum'])
     return total_comparisons
 
 
