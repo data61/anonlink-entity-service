@@ -229,27 +229,23 @@ def get_smaller_dataset_size_for_project(db, project_id):
 
 def get_total_comparisons_for_project(db, project_id):
     """
+    Returns the number of comparisons that a project requires.
+
+    For each data provider multiple the size of each block, then sum number
+    of comparisons in all blocks together.
+
     :return total number of comparisons for this project
     """
-    expected_datasets = get_project_column(db, project_id, 'parties')
     sql_query = """
-        SELECT uploads.count as rows
-        from dataproviders, uploads
-        where
-          uploads.dp=dataproviders.id AND
-          dataproviders.project=%s
+        select sum(product) from (select product(count)
+        from blocks
+        where dp in (
+            select id from dataproviders where project = %s
+        )
+        GROUP BY block_name) as per_block_product
         """
-    query_results = query_db(db, sql_query, [project_id])
-    if len(query_results) < expected_datasets:
-        return 'NA'
-    elif len(query_results) == expected_datasets:
-        counts = (qr['rows'] for qr in query_results)
-        total_comparisons = sum(
-            c0 * c1 for c0, c1 in itertools.combinations(counts, 2))
-        return total_comparisons
-    else:
-        raise ValueError(f'expected at most {expected_datasets} '
-                         f'datasets, got {len(query_results)}')
+    total_comparisons = query_db(db, sql_query, [project_id], one=True)['sum']
+    return total_comparisons
 
 
 def get_dataprovider_id(db, update_token):

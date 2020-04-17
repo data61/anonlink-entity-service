@@ -52,7 +52,9 @@ def get(project_id, run_id):
         abs_val = progress_cache.get_progress(run_id)
         if abs_val is not None:
             with db.DBConn() as conn:
+                # todo cache this
                 max_val = db.get_total_comparisons_for_project(conn, project_id)
+                logger.debug(f"total comparisons: {max_val}")
     else:
         # Solving for mapping (no progress)
         abs_val = None
