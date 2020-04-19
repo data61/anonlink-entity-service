@@ -5,7 +5,6 @@ services:
     image: data61/anonlink-test:${TAG:-latest}
     environment:
       - SERVER=http://nginx:8851
-      - INITIAL_DELAY=20
       - JAEGER_AGENT_HOST=jaeger
     depends_on:
       - backend
@@ -22,7 +21,7 @@ services:
       - UPLOAD_OBJECT_STORE_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
       - UPLOAD_OBJECT_STORE_SECRET_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
     command: dockerize -wait tcp://db:5432 -wait tcp://nginx:8851/api/v1/status -timeout 5m
-             /bin/sh -c "sleep 30 && python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
+             /bin/sh -c "sleep 10 && python -m pytest -n 1 entityservice/integrationtests --junitxml=testResults.xml -x"
     depends_on:
       - db
       - backend

@@ -70,7 +70,6 @@ services:
   objectstore_init:
     image: minio/mc:RELEASE.2020-04-19T19-17-53Z
     environment:
-      - INITIAL_DELAY=10
       # Provide root credentials to MINIO to set up more restricted service accounts
       # MC_HOST_alias is equivalent to manually configuring a minio host
       # mc config host add minio http://minio:9000 <MINIO_ACCESS_KEY> <MINIO_SECRET_KEY>
@@ -78,9 +77,10 @@ services:
       # Account which will have upload only object store access.
       - UPLOAD_ONLY_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
       - UPLOAD_ONLY_SECRET_ACCESS_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
-    entrypoint: sh /opt/init-object-store.sh
+    entrypoint: |
+      /bin/sh /opt/init-object-store.sh
     volumes:
-      - "./init-object-store.sh:/opt/init-object-store.sh"
+      - ./tools/init-object-store.sh:/opt/init-object-store.sh:ro
     depends_on:
       - minio
 
