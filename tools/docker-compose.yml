@@ -16,7 +16,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:RELEASE.2020-04-04T05-39-31Z
+    image: minio/minio:RELEASE.2020-04-15T19-42-18Z
     command: server /export
     environment:
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
@@ -68,7 +68,7 @@ services:
 
   # Setup the object store to have another more restricted user
   objectstore_init:
-    image: minio/mc
+    image: minio/mc:RELEASE.2020-04-19T19-17-53Z
     environment:
       - INITIAL_DELAY=10
       # Provide root credentials to MINIO to set up more restricted service accounts
