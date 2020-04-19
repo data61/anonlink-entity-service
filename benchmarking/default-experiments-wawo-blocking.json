@@ -1,0 +1,29 @@
+[
+  {
+    "sizes": ["100K", "100K"],
+    "threshold": 0.95
+  },
+  {
+    "sizes": ["100K", "100K"],
+    "threshold": 0.80
+  },
+  {
+    "sizes": ["10K", "10K"],
+    "threshold": 0.95
+  },
+  {
+    "sizes": ["100K", "100K"],
+    "use_blocking": true,
+    "threshold": 0.95
+  },
+  {
+    "sizes": ["100K", "100K"],
+    "use_blocking": true,
+    "threshold": 0.80
+  },
+  {
+    "sizes": ["10K", "10K"],
+    "use_blocking": true,
+    "threshold": 0.95
+  }
+]

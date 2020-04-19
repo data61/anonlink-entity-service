@@ -45,7 +45,6 @@ def prerun_check(project_id, run_id, parent_span=None):
 
         log.debug("Updating redis cache for run")
         set_run_state_active(run_id)
-        progress_cache.save_current_progress(comparisons=0, run_id=run_id)
 
     create_comparison_jobs.apply_async(
         kwargs={'project_id': project_id, 'run_id': run_id, 'parent_span': prerun_check.get_serialized_span()},

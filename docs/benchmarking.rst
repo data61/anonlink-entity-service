@@ -63,8 +63,30 @@ To run the benchmarks using the cache volume::
 
 Experiments
 -----------
+The benchmarking script will run a range of experiments, defined in a json file.
 
-Experiments to run can be configured as a simple json document. The default is::
+Data
+~~~~
+
+The experiments use synthetic data generated with the febrl tool. The data is stored in the S3 bucket
+s3://public-linkage-data. The naming convention is {type_of_data}_{party}_{size}.
+
+You'll find
+
+- the PII data for various dataset sizes, the CLKs in binary and json format, generated with the linkage schema defined in ``schema.json``.
+- the corresponding linkage schema in ``schema.json``
+- the blocks, generated with P-Sig blocking.
+- the corresponding blocking schema ``psig_schema.json``
+- the combined ``clknblocks`` files for the different parties and dataset sizes.
+
+This particular blocking schema creates blocks with a median size of 1. The average size does not exceed 10 for any
+dataset, and each entity is part of 5 different blocks.
+
+Config
+~~~~~~
+
+The experiments are configured in a json document. Currently, you can specify the dataset sizes, the linkage threshold,
+the number of repetitions and if blocking should be used. The default is::
 
     [
       {

@@ -229,27 +229,35 @@ def get_smaller_dataset_size_for_project(db, project_id):
 
 def get_total_comparisons_for_project(db, project_id):
     """
+    Returns the number of comparisons that a project requires.
+
+    For each block:
+        for each pairwise combination of data providers in each block:
+            multiply the block sizes together
+        then sum number of comparisons for each block
+    Sum the number of comparisons in all blocks together.
+
     :return total number of comparisons for this project
     """
-    expected_datasets = get_project_column(db, project_id, 'parties')
+
+    # The full computation is *hard* to do in postgres, so we return an array of sizes
+    # for each block and then use Python to find the pairwise combinations.
     sql_query = """
-        SELECT uploads.count as rows
-        from dataproviders, uploads
-        where
-          uploads.dp=dataproviders.id AND
-          dataproviders.project=%s
+        select block_name, array_agg(count) as counts
+        from blocks
+        where dp in (
+            select id from dataproviders where project = %s
+        )
+        group by block_name
         """
+
     query_results = query_db(db, sql_query, [project_id])
-    if len(query_results) < expected_datasets:
-        return 'NA'
-    elif len(query_results) == expected_datasets:
-        counts = (qr['rows'] for qr in query_results)
-        total_comparisons = sum(
-            c0 * c1 for c0, c1 in itertools.combinations(counts, 2))
-        return total_comparisons
-    else:
-        raise ValueError(f'expected at most {expected_datasets} '
-                         f'datasets, got {len(query_results)}')
+    total_comparisons = 0
+    for block in query_results:
+        num_comparisons_in_block = sum(c0 * c1 for c0, c1 in itertools.combinations(block['counts'], 2))
+        total_comparisons += num_comparisons_in_block
+
+    return total_comparisons
 
 
 def get_dataprovider_id(db, update_token):

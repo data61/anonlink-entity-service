@@ -262,6 +262,9 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
     log.debug('Both chunks are fetched and deserialized')
     task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size, 'chunk_info': chunk_info})
 
+    assert chunk_dp1_size > 0, "Zero sized chunk in dp1"
+    assert chunk_dp2_size > 0, "Zero sized chunk in dp2"
+
     with new_child_span('comparing-encodings') as parent_scope:
 
         log.debug("Calculating filter similarity")
@@ -285,11 +288,12 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
 
     log.debug('Encoding similarities calculated')
 
-    with new_child_span('update-comparison-progress'):
+    with new_child_span('update-comparison-progress') as scope:
         # Update the number of comparisons completed
         comparisons_computed = chunk_dp1_size * chunk_dp2_size
         save_current_progress(comparisons_computed, run_id)
-        log.info("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(sims)))
+        scope.span.log_kv({'comparisons': comparisons_computed, 'num_similar': len(sims)})
+        log.debug("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(sims)))
 
     with new_child_span('save-comparison-results-to-minio'):
         num_results = len(sims)
