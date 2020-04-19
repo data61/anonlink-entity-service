@@ -1,0 +1,28 @@
+@startuml
+
+actor Alice
+
+== Authorization ==
+
+Alice -> Anonlink: Request temporary object store credentials
+activate Anonlink
+
+Anonlink -> "Object Store": Create restricted credentials
+"Object Store" --> Anonlink : Credentials Response
+Anonlink --> Alice: Temporary object store credentials
+deactivate Anonlink
+
+== Upload Encodings ==
+
+Alice -> "Object Store": Upload Binary Encoding Data
+
+== Trigger data pull ==
+
+Alice -> Anonlink: Upload via ""/clks"" (optionally providing blocks)
+Anonlink --> Alice : Upload Receipt
+
+...some time later...
+
+Anonlink --> "Object Store" : Pull/copy encoding data
+
+@enduml
