@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: objectstore-init
-        image: {{ required "api.objectstoreinit.image.repository must be provided." .Values.api.objectstoreinit.image.repository }}:{{ required "api.objectstoreinit.image.tag must be provided." .Values.api.dbinit.image.tag }}
+        image: {{ required "api.objectstoreinit.image.repository must be provided." .Values.api.objectstoreinit.image.repository }}:{{ required "api.objectstoreinit.image.tag must be provided." .Values.api.objectstoreinit.image.tag }}
         env:
           - name: MINIO_SERVER
             valueFrom:

@@ -53,10 +53,11 @@ def authorize_external_upload(project_id):
         client.set_app_info("anonlink", "development version")
 
         bucket_name = config.UPLOAD_OBJECT_STORE_BUCKET
-        log.info(f"Retrieving temporary credentials for bucket name: {bucket_name}")
+        path = f"{project_id}/{dp_id}"
+        log.info(f"Retrieving temporary credentials for bucket/path: '{bucket_name}/{path}'")
 
         credentials_provider = AssumeRoleProvider(client,
-                                                  Policy=_get_upload_policy(bucket_name, path=f"{project_id}/{dp_id}"),
+                                                  Policy=_get_upload_policy(bucket_name, path=path),
                                                   DurationSeconds=config.UPLOAD_OBJECT_STORE_STS_DURATION)
         credential_values = Credentials(provider=credentials_provider).get()
         expiry = credentials_provider._expiry._expiration
