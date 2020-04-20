@@ -13,7 +13,7 @@ ijson==2.6.1
 iso8601==0.1.12
 jaeger-client==4.0.0
 marshmallow==3.0.0b10
-minio==5.0.7
+minio==5.0.10
 opentracing==2.3.0
 opentracing_instrumentation==2.4.3
 psycopg2==2.8.4
