@@ -195,3 +195,7 @@ def groups_project(request, requests):
         [(t, 1) for t in PROJECT_RESULT_TYPES_NP]))
 def invalid_result_type_number_parties(request):
     yield request.param
+
+@pytest.fixture
+def binary_test_file_path(request):
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')

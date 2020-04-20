@@ -40,13 +40,12 @@ def authorize_external_upload(project_id):
 
     log, parent_span = bind_log_and_span(project_id)
 
-    log.info("Authorizing external upload")
+    log.debug("Authorizing external upload")
     token = precheck_upload_token(project_id, headers, parent_span)
     log.debug(f"Update token is valid")
     with db.DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         log = log.bind(dpid=dp_id)
-        log.info("Got dp ID")
 
     with opentracing.tracer.start_span('assume-role-request', child_of=parent_span):
         client = connect_to_upload_object_store()
@@ -54,7 +53,7 @@ def authorize_external_upload(project_id):
 
         bucket_name = config.UPLOAD_OBJECT_STORE_BUCKET
         path = f"{project_id}/{dp_id}"
-        log.info(f"Retrieving temporary credentials for bucket/path: '{bucket_name}/{path}'")
+        log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
 
         credentials_provider = AssumeRoleProvider(client,
                                                   Policy=_get_upload_policy(bucket_name, path=path),
@@ -62,10 +61,7 @@ def authorize_external_upload(project_id):
         credential_values = Credentials(provider=credentials_provider).get()
         expiry = credentials_provider._expiry._expiration
 
-        log.info("Retrieved temporary credentials:")
-        log.info(expiry)
-        log.info(credential_values.access_key)
-        log.info(credential_values.secret_key)
+        log.info("Retrieved temporary credentials")
 
     credentials_json = ObjectStoreCredentials().dump(credential_values)
     log.debug("Temp credentials", **credentials_json)

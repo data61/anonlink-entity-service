@@ -21,6 +21,7 @@ class TestAuthorizeExternalUpload:
             credentials = raw_json['credentials']
             assert "upload" in raw_json
 
+            minio_endpoint = raw_json['upload']['endpoint']
             bucket_name = raw_json['upload']['bucket']
             allowed_path = raw_json['upload']['path']
 
@@ -29,7 +30,7 @@ class TestAuthorizeExternalUpload:
 
             # Test we can create and use these credentials via a Minio client
             restricted_mc_client = minio.Minio(
-                "localhost:9000",
+                minio_endpoint,
                 credentials['AccessKeyId'],
                 credentials['SecretAccessKey'],
                 credentials['SessionToken'],

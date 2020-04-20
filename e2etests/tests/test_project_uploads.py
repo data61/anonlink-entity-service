@@ -1,6 +1,7 @@
 import time
 import os
 import pytest
+from minio import Minio
 
 from e2etests.config import url
 from e2etests.util import (
@@ -23,12 +24,12 @@ def test_project_single_party_data_uploaded(requests, valid_project_params):
             'clks': generate_json_serialized_clks(100)
         }
     )
-    assert r.status_code == 201
+    assert r.status_code == 201, r.text
     upload_response = r.json()
     assert 'receipt_token' in upload_response
 
 
-def test_project_external_data_uploaded(requests, valid_project_params):
+def test_project_external_data_uploaded(requests, valid_project_params, binary_test_file_path):
     new_project_data = requests.post(url + 'projects',
                                      json={
                                          'schema': {},
@@ -38,12 +39,30 @@ def test_project_external_data_uploaded(requests, valid_project_params):
         url + 'projects/{}/authorize-external-upload'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['update_tokens'][0]},
     )
-    assert r.status_code == 201
+    assert r.status_code == 200
     upload_response = r.json()
-    assert 'receipt_token' in upload_response
+
+    credentials = upload_response['credentials']
+    upload_info = upload_response['upload']
+
+    # Use Minio python client to upload data
+    mc = Minio(
+        upload_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=False
+    )
 
 
-def test_project_binary_data_uploaded(requests, valid_project_params):
+    etag = mc.fput_object(upload_info['bucket'], upload_info['path'] + "/test", binary_test_file_path)
+
+    # Later - once the upload endpoint is complete notify the server
+    # of the uploaded data
+
+
+def test_project_binary_data_uploaded(requests, valid_project_params, binary_test_file_path):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
@@ -53,12 +72,10 @@ def test_project_binary_data_uploaded(requests, valid_project_params):
     expected_number_parties = get_expected_number_parties(valid_project_params)
     assert len(update_tokens) == expected_number_parties
 
-    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
-
     for token in update_tokens:
         upload_binary_data_from_file(
             requests,
-            small_file_path, new_project_data['project_id'], token, 1000)
+            binary_test_file_path, new_project_data['project_id'], token, 1000)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True)
