@@ -104,7 +104,7 @@ api:
 
     image:
       repository: minio/mc
-      tag: RELEASE.2020-04-19T19-17-53Z
+      tag: RELEASE.2020-01-13T22-49-03Z
 
   ingress:
     ## By default, we do not want the service to be accessible outside of the cluster.
