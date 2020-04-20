@@ -6,11 +6,16 @@ rbac:
 anonlink:
 
   ## Set arbitrary environment variables for the API and Workers.
-  config: # {}
-    UPLOAD_OBJECT_STORE_ENABLED: "true"
-    UPLOAD_OBJECT_STORE_ACCESS_KEY: ""
-    UPLOAD_OBJECT_STORE_SECRET_KEY: ""
-    UPLOAD_OBJECT_STORE_BUCKET: "uploads"
+  config: {}
+
+  objectstore:
+    uploadEnabled: "true"
+    # TODO can't leave defaults once minio exposed
+    uploadAccessKey: "EXAMPLE_UPLOAD_KEY"
+    uploadSecretKey: "EXAMPLE_UPLOAD_SECRET"
+
+    uploadBucket:
+      name: "uploads"
 
 
 api:
@@ -92,6 +97,14 @@ api:
       limits:
         cpu: 250m
         memory: 256Mi
+
+  ## A job that creates an upload only object store user.
+  objectstoreinit:
+    enabled: "true"
+
+    image:
+      repository: minio/mc
+      tag: RELEASE.2020-04-19T19-17-53Z
 
   ingress:
     ## By default, we do not want the service to be accessible outside of the cluster.
@@ -334,6 +347,7 @@ minio:
   ## https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
   ## Default access credentials for the object store
+  # TODO remove defaults once minio exposed to interwebs
   accessKey: "exampleMinioAccessKey"
   secretKey: "exampleMinioSecretKet"
 

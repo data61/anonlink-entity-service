@@ -82,6 +82,16 @@ spec:
                 secretKeyRef:
                   name: {{ template "es.fullname" . }}
                   key: minioSecretKey
+            - name: UPLOAD_OBJECT_STORE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: minioUploadAccessKey
+            - name: UPLOAD_OBJECT_STORE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ template "es.fullname" . }}
+                  key: minioUploadSecretKey
           ports:
             - containerPort: 8000
               name: entity-flask

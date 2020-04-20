@@ -46,12 +46,14 @@ def authorize_external_upload(project_id):
     with db.DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         log = log.bind(dpid=dp_id)
+        log.info("Got dp ID")
 
     with opentracing.tracer.start_span('assume-role-request', child_of=parent_span):
         client = connect_to_upload_object_store()
         client.set_app_info("anonlink", "development version")
 
         bucket_name = config.UPLOAD_OBJECT_STORE_BUCKET
+        log.info(f"Retrieving temporary credentials for bucket name: {bucket_name}")
 
         credentials_provider = AssumeRoleProvider(client,
                                                   Policy=_get_upload_policy(bucket_name, path=f"{project_id}/{dp_id}"),
