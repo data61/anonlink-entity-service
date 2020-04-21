@@ -85,7 +85,7 @@ services:
     entrypoint: |
       /bin/sh /opt/init-object-store.sh
     volumes:
-      - ./tools/init-object-store.sh:/opt/init-object-store.sh:ro
+      - ./init-object-store.sh:/opt/init-object-store.sh:ro
     depends_on:
       - minio
 

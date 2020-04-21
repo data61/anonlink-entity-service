@@ -157,7 +157,7 @@ stages:
     - template: .azurePipeline/templateSetVariableDockerTag.yml
     - script: |
         ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type integrationtests
-      displayName: 'Start docker compose benchmark'
+      displayName: 'Start docker compose'
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
