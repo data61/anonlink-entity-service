@@ -7,6 +7,7 @@ from minio.credentials import AssumeRoleProvider, Credentials
 from entityservice.settings import Config as config
 import entityservice.database as db
 from entityservice.object_store import connect_to_upload_object_store
+from entityservice.utils import safe_fail_request
 from entityservice.views import bind_log_and_span, precheck_upload_token
 from entityservice.views.serialization import ObjectStoreCredentials
 
@@ -34,7 +35,10 @@ def _get_upload_policy(bucket_name="uploads", path="*"):
 
 
 def authorize_external_upload(project_id):
-    assert config.UPLOAD_OBJECT_STORE_ENABLED, "Feature disabled"
+    if not config.UPLOAD_OBJECT_STORE_ENABLED:
+        safe_fail_request(500,
+                          message="Retrieving temporary object store credentials feature disabled",
+                          title="Feature Disabled")
 
     headers = request.headers
 

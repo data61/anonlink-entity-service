@@ -283,12 +283,20 @@ paths:
   '/projects/{project_id}/authorize-external-upload':
     get:
       operationId: entityservice.views.objectstore.authorize_external_upload
-      summary: Upload encoded PII data to a linkage project.
+      summary: Retrieve temporary objest store credentials for uploading data
       tags:
         - Project
       description: |
         Returns a set of temporary security credentials that the client can use to upload data to the
         object store.
+
+        A valid **upload token** is required to authorise this call. The returned *Temporary Object
+        Store Credentials* can be used with any S3 compatible client. For example by using `boto3` in
+        Python. The returned credentials are restricted to allow only uploading data to a particular path 
+        in a particular bucket for a finite period (defaulting to 12 hours).
+
+        Note this feature may be disabled by the administrator, in this case the endpoint will return a
+        `500` server error.
       parameters:
         - $ref: '#/components/parameters/project_id'
         - $ref: '#/components/parameters/token'
@@ -1110,16 +1118,21 @@ components:
       type: object
       properties:
         upload:
-          description: Configuration of object store to upload file/s to.
+          description: |
+            Configuration of object store to upload file/s to. Specifies the server, bucket and
+            the approved path. The attached credentials are restricted to only allow uploads to
+            this path.
           type: object
           properties:
             endpoint:
               type: string
-              description: Hostname, and port of object store.
+              description: Hostname, and port of object store. E.g. minio.anonlink.example.com:9000
             bucket:
               type: string
+              description: Target bucket
             path:
               type: string
+              description: Target path
 
         credentials:
           description: Object Store credentials (compatible with both AWS & MinIO)
