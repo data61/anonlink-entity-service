@@ -11,3 +11,4 @@ maintainers:
     email: brian.thorne@data61.csiro.au
     url: https://data61.csiro.au
 icon: https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2016-04-11/33560836053_df0d62a81bf32f53df00_72.png
+apiVersion: v1

@@ -1,8 +1,5 @@
 import time
 
-import redis
-from pytest import raises
-
 from entityservice.cache import connect_to_redis, get_status, set_status
 
 
@@ -30,4 +27,5 @@ class TestStatus:
         time.sleep(0.2)
         updated_status = get_status()
         assert 'testkey' in updated_status
+        set_status(original_status)
 

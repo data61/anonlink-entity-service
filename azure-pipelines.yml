@@ -298,7 +298,6 @@ stages:
           namespace: $(NAMESPACE)
           releaseName: $(DEPLOYMENT)
           overrides: |
-            api.app.debug:true
             global.postgresql.postgresqlPassword:notaproductionpassword
             api.ingress.enabled:false
             workers.replicaCount:4
@@ -306,6 +305,7 @@ stages:
             api.app.image.repository:$(backendImageName)
             api.dbinit.image.repository:$(backendImageName)
             workers.image.repository:$(backendImageName)
+            anonlink.objectstore.secure:false
 
       - task: KubernetesManifest@0
         displayName: Deploy K8s manifest

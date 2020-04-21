@@ -726,11 +726,15 @@ paths:
 components:
   parameters:
     token:
+      in: header
+      description: |
+        Authorization token required for each endpoint. This may be an upload token or a result token,
+        both are provided by the `POST /projects` endpoint.
       required: true
       schema:
         type: string
       name: Authorization
-      in: header
+
     project_id:
       in: path
       name: "project_id"
@@ -1127,6 +1131,10 @@ components:
             endpoint:
               type: string
               description: Hostname, and port of object store. E.g. minio.anonlink.example.com:9000
+            secure:
+              type: boolean
+              description: A secure connection to the object store is required.
+              default: true
             bucket:
               type: string
               description: Target bucket

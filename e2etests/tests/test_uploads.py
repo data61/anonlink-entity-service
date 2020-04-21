@@ -22,6 +22,7 @@ class TestAuthorizeExternalUpload:
             assert "upload" in raw_json
 
             minio_endpoint = raw_json['upload']['endpoint']
+            minio_secure = raw_json['upload']['secure']
             bucket_name = raw_json['upload']['bucket']
             allowed_path = raw_json['upload']['path']
 
@@ -35,7 +36,7 @@ class TestAuthorizeExternalUpload:
                 credentials['SecretAccessKey'],
                 credentials['SessionToken'],
                 region='us-east-1',
-                secure=False
+                secure=minio_secure
             )
 
             # Client shouldn't be able to list buckets

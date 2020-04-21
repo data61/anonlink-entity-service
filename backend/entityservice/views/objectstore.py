@@ -77,7 +77,8 @@ def authorize_external_upload(project_id):
         "credentials": credentials_json,
         "upload": {
             "endpoint": config.UPLOAD_OBJECT_STORE_SERVER,
+            "secure": config.UPLOAD_OBJECT_STORE_SECURE,
             "bucket": bucket_name,
             "path": f"{project_id}/{dp_id}"
         }
-    }
+    }, 201

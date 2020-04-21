@@ -9,14 +9,17 @@ anonlink:
   config: {}
 
   objectstore:
-    uploadEnabled: "true"
+    uploadEnabled: true
+
+    ## Allow only secure connection to the object store
+    secure: true
+
     # TODO can't leave defaults once minio exposed
     uploadAccessKey: "EXAMPLE_UPLOAD_KEY"
     uploadSecretKey: "EXAMPLE_UPLOAD_SECRET"
 
     uploadBucket:
       name: "uploads"
-
 
 api:
 
@@ -100,7 +103,7 @@ api:
 
   ## A job that creates an upload only object store user.
   objectstoreinit:
-    enabled: "true"
+    enabled: true
 
     image:
       repository: minio/mc
@@ -117,12 +120,13 @@ api:
      ## To handle large uploads we increase the proxy buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
-     ## Redirect to ssl
+
      nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
      ## Example ingress annotations for certmanager
      certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     ## Redirect to ssl
      ingress.kubernetes.io/force-ssl-redirect: "true"
 
     ## Entity Service API Ingress hostnames
