@@ -8,5 +8,6 @@ RUN python -c "import anonlink; print('anonlink version:', anonlink.__version__)
     python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
 
 ENV SERVER http://nginx:8851
-ENV INITIAL_DELAY 20
-CMD python -m pytest -n 2 e2etests/tests --junitxml=testResults.xml -x
+
+CMD dockerize -wait tcp://db:5432 -wait tcp://nginx:8851/api/v1/status -timeout 5m \
+    /bin/sh -c "sleep 5 && python -m pytest -n 2 e2etests/tests --junitxml=testResults.xml -x"

@@ -22,7 +22,7 @@ pytest-xdist==1.29.0
 PyYAML==5.3
 redis==3.4.1
 requests==2.23.0
-setproctitle==1.1.10 # used by celery to change process nameFlaskTracing
+setproctitle==1.1.10 # used by celery to change process name
 structlog==20.1.0
 tenacity==5.1.1
 tornado==4.5.3

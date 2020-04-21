@@ -489,8 +489,8 @@ def get_all_objects_for_project(db, project_id):
             WHERE dp = %s
             """, [dp['id']], one=True)
 
-        if clk_file_ref is not None:
-            logger.info("blooming data file found: {}".format(clk_file_ref))
+        if clk_file_ref is not None and clk_file_ref['file'] is not None:
+            logger.info("upload record found: {}".format(clk_file_ref))
             object_store_files.append(clk_file_ref['file'])
 
     if result_type == "similarity_scores":

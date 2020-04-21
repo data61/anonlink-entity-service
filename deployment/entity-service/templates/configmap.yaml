@@ -31,6 +31,9 @@ data:
   # MINIO_SECRET_KEY provided as a secret
   MINIO_BUCKET: {{ required "minio.defaultBucket.name is required." .Values.minio.defaultBucket.name | quote }}
 
+  UPLOAD_OBJECT_STORE_ENABLED: {{ .Values.anonlink.objectstore.uploadEnabled | quote }}
+  UPLOAD_OBJECT_STORE_BUCKET: {{ required "anonlink.objectstore.uploadBucket.name is required." .Values.anonlink.objectstore.uploadBucket.name | quote }}
+
   {{ if .Values.provision.postgresql }}
   DATABASE_SERVER: {{ .Release.Name }}-{{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}
   {{ else }}

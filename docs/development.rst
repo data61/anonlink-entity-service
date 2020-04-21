@@ -102,6 +102,19 @@ The run info ``HASH`` stores:
   ``backend/entityservice/cache/active_runs.py`` for implementation.
 
 
+Object Store
+------------
+
+MinIO is an S3 compatible object store which is used to handle uploads and store
+files for the Anonlink Entity Service.
+
+
+
+
+
+Deployment Testing
+------------------
+
 Testing Local Deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~
 

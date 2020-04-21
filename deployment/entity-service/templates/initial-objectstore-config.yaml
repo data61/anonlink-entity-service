@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "es.fullname" . }}-init-objectstore-config
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
+data:
+  init-objectstore.sh: |
+    #!/bin/sh
+    export MC_HOST_minio=http://$MINIO_ACCESS_KEY:$MINIO_SECRET_KEY@$MINIO_SERVER
+    echo $MC_HOST_minio
+    mc --version
+    mc mb minio/$UPLOAD_BUCKET
+    mc admin user add minio $UPLOAD_ONLY_ACCESS_KEY $UPLOAD_ONLY_SECRET_ACCESS_KEY
+    mc admin policy set minio writeonly user=$UPLOAD_ONLY_ACCESS_KEY

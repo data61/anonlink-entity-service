@@ -8,13 +8,15 @@
 #   descriptions.
 openapi: 3.0.0
 info:
-  version: '1.3'
+  version: '1.13'
   title: Entity Matching API
   x-logo:
     url: http://clkhash.readthedocs.io/en/latest/_static/logo.svg
   contact:
     name: 'Confidential Computing, Data61 | CSIRO'
     email: confidential-computing@csiro.au
+    url: https://github.com/data61/anonlink-entity-service
+
   description: >-
     Allows multiple organisations to carry out private record linkage -
     without disclosing personally identifiable information.
@@ -86,6 +88,8 @@ info:
 servers:
 - url: https://anonlink.easd.data61.xyz/api/v1
   description: default EASD cluster
+- url: http://localhost:8851/api/v1
+  description: Local deployment
 
 paths:
   /status:
@@ -276,6 +280,44 @@ paths:
         '503':
           $ref: '#/components/responses/RateLimited'
 
+  '/projects/{project_id}/authorize-external-upload':
+    get:
+      operationId: entityservice.views.objectstore.authorize_external_upload
+      summary: Retrieve temporary objest store credentials for uploading data
+      tags:
+        - Project
+      description: |
+        Returns a set of temporary security credentials that the client can use to upload data to the
+        object store.
+
+        A valid **upload token** is required to authorise this call. The returned *Temporary Object
+        Store Credentials* can be used with any S3 compatible client. For example by using `boto3` in
+        Python. The returned credentials are restricted to allow only uploading data to a particular path 
+        in a particular bucket for a finite period (defaulting to 12 hours).
+
+        Note this feature may be disabled by the administrator, in this case the endpoint will return a
+        `500` server error.
+      parameters:
+        - $ref: '#/components/parameters/project_id'
+        - $ref: '#/components/parameters/token'
+      responses:
+        '201':
+          description: Temporary Object Store Credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectStoreCredentials'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/RateLimited'
+
   '/projects/{project_id}/clks':
     post:
       operationId: entityservice.views.project.project_clks_post
@@ -327,12 +369,6 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/CLKUpload'
                 - $ref: '#/components/schemas/CLKnBlockUpload'
-          # unfortunately connexion can not handle multiple different encoding types on an endpoint.
-          #application/octet-stream:
-          #  schema:
-          #    type: string
-          #    format: binary
-
       responses:
         '201':
           description: Data Uploaded
@@ -833,7 +869,7 @@ components:
           minimum: 0
         description:
           type: string
-          description: oportunity to give those numbers some context, what are we counting here?
+          description: opportunity to give those numbers some context, what are we counting here?
         relative:
           type: number
           format: double
@@ -1076,3 +1112,37 @@ components:
           type: string
         message:
           type: string
+
+    ObjectStoreCredentials:
+      description: Temporary credentials allowing client to upload a file to an object store.
+      type: object
+      properties:
+        upload:
+          description: |
+            Configuration of object store to upload file/s to. Specifies the server, bucket and
+            the approved path. The attached credentials are restricted to only allow uploads to
+            this path.
+          type: object
+          properties:
+            endpoint:
+              type: string
+              description: Hostname, and port of object store. E.g. minio.anonlink.example.com:9000
+            bucket:
+              type: string
+              description: Target bucket
+            path:
+              type: string
+              description: Target path
+
+        credentials:
+          description: Object Store credentials (compatible with both AWS & MinIO)
+          type: object
+          properties:
+            AccessKeyId:
+              type: string
+            SecretAccessKey:
+              type: string
+            Expiration:
+              type: string
+            SessionToken:
+              type: string
