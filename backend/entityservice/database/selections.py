@@ -298,7 +298,10 @@ def get_encodingblock_ids(db, dp_id, block_id=None, offset=0, limit=None):
         """.format("AND block_id = %(block_id)s" if block_id else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
-    cur = db.cursor(f'encodingblockfetcher-{dp_id}')
+    cur_name = f'encodingblockfetcher-{dp_id}'
+    if block_id:
+        cur_name = f'encodingblockfetcher-{dp_id}-{block_id}'
+    cur = db.cursor(cur_name)
     args = {'dp_id': dp_id, 'block_id': block_id, 'offset': offset, 'limit': limit}
     cur.execute(sql_query, args)
     yield from iterate_cursor_results(cur)
