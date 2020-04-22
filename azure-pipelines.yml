@@ -302,9 +302,12 @@ stages:
             api.ingress.enabled:false
             workers.replicaCount:4
             api.www.image.repository:$(frontendImageName)
+            api.www.image.pullPolicy:Always
             api.app.image.repository:$(backendImageName)
+            api.app.image.pullPolicy:Always
             api.dbinit.image.repository:$(backendImageName)
             workers.image.repository:$(backendImageName)
+            workers.image.pullPolicy:Always
             anonlink.objectstore.secure:false
 
       - task: KubernetesManifest@0
