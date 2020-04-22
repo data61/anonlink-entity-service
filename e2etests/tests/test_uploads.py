@@ -15,7 +15,7 @@ class TestAuthorizeExternalUpload:
             res = requests.get(url + f"projects/{pid}/authorize-external-upload",
                                headers={'Authorization': a_project['update_tokens'][dp_index]})
 
-            assert res.status_code == 200
+            assert res.status_code == 201
             raw_json = res.json()
             assert "credentials" in raw_json
             credentials = raw_json['credentials']
