@@ -91,7 +91,7 @@ def binary_unpack_filters(data_iterable, max_bytes=None, encoding_size=None):
     filters = []
     bytes_consumed = 0
 
-    logger.info(f"Iterating over encodings of size {encoding_size} - packed as {bit_packed_element_size}")
+    #logger.info(f"Iterating over encodings of size {encoding_size} - packed as {bit_packed_element_size}")
     for raw_bytes in data_iterable:
         filters.append(binary_unpack_one(raw_bytes, bit_packed_element))
 
