@@ -310,6 +310,10 @@ stages:
             workers.image.pullPolicy:Always
             anonlink.objectstore.secure:false
             anonlink.objectstore.uploadEnabled:true
+            anonlink.objectstore.uploadAccessKey:testUploadAccessKey
+            anonlink.objectstore.uploadSecretKey:testUploadSecretKey
+            minio.accessKey:testMinioAccessKey
+            minio.secretKey:testMinioSecretKey
 
       - task: KubernetesManifest@0
         displayName: Deploy K8s manifest
