@@ -9,7 +9,8 @@ anonlink:
   config: {}
 
   objectstore:
-    uploadEnabled: true
+    ## By default we don't expose the Minio object store
+    uploadEnabled: false
 
     ## Allow only secure connection to the object store
     secure: true
@@ -68,8 +69,7 @@ api:
     image:
       repository: data61/anonlink-app
       tag: "v1.13.0-beta2"
-      # pullPolicy: IfNotPresent
-      pullPolicy: Always
+      pullPolicy: IfNotPresent
 
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -80,8 +80,6 @@ api:
       requests:
         cpu: 500m
         memory: 512Mi
-
-    debug: "false"
 
   dbinit:
     enabled: "true"

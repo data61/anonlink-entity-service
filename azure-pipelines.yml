@@ -309,6 +309,7 @@ stages:
             workers.image.repository:$(backendImageName)
             workers.image.pullPolicy:Always
             anonlink.objectstore.secure:false
+            anonlink.objectstore.uploadEnabled:true
 
       - task: KubernetesManifest@0
         displayName: Deploy K8s manifest

@@ -1,19 +1,35 @@
 
-*- Confidential Computing Anonlink Service Deployed -*
+*- Anonlink Service Deployed -*
 
-Soon you should be able to visit the entity service api.
+The Anonlink Entity Service can be accessed via port {{ .Values.api.service.servicePort }} on the
+following DNS name from within your cluster:
+{{ template "api.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
 
 1. Get the entity service URL by running:
 
-{{- if contains "NodePort" .Values.api.service.type }}
+{{- if eq .Values.api.service.type "NodePort" "ClusterIP" }}
 
-  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "es.fullname" . }})
-  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
-  echo http://$NODE_IP:$NODE_PORT/
+{{- if .Values.api.ingress.enabled }}
+As you're using an ingress controller you will find the Anonlink Entity Service running at
+
+    http://{{ index .Values.api.ingress.hosts 0 }}
+
+in just a moment. Note depending on your cluster set up you may have to manually configure the
+DNS entry.
+{{- end }}
+
+To access Anonlink Entity Service API from localhost:
+
+  export SVC_NAME=$(kubectl get services --namespace {{ .Release.Namespace }} -l "release={{ .Release.Name }},tier=frontend" -o jsonpath="{.items[0].metadata.name}")
+  kubectl port-forward svc/$SVC_NAME 8080:80
+
+Read more about port forwarding here: http://kubernetes.io/docs/user-guide/kubectl/kubectl_port-forward/
+
+And visit http://127.0.0.1:8080
 
 {{- else if contains "LoadBalancer" .Values.api.service.type }}
 
-  It may take a few minutes for the LoadBalancer IP to be available.
+  It may take a few minutes for the LoadBalancer's public IP to be available.
   Watch the status with:
 
       kubectl get svc -w entityservice-api --namespace {{ .Release.Namespace }}
@@ -21,17 +37,12 @@ Soon you should be able to visit the entity service api.
       export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} entityservice-api -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
       echo http://$SERVICE_IP/
 
-{{- else if contains "ClusterIP"  .Values.api.service.type }}
-
-If you're using an ingress controller (the default) you may have to manually
-add the DNS entry for http://{{ .Values.api.ingress.hosts }} now.
-
-Alternatively you can port forward the entity service API to your
-local machine:
-
-  export SVC_NAME=$(kubectl get services --namespace {{ .Release.Namespace }} -l "release={{ .Release.Name }},tier=frontend" -o jsonpath="{.items[0].metadata.name}")
-  kubectl port-forward SVC_NAME 8080:80
-
-And visit http://127.0.0.1:8080/
-
 {{- end }}
+
+You may wish to connect to the API using anonlink-client. https://github.com/data61/anonlink-client/
+The client can be installed using pip:
+
+    $ pip install anonlinkclient
+    $ anonlink status --server=<SERVER>
+
+Issues with the Anonlink Entity Service can be created on Github - https://github.com/data61/anonlink-entity-service/
