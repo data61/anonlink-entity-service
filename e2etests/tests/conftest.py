@@ -142,10 +142,26 @@ def valid_project_params(request, result_type_number_parties_or_none):
 
 @pytest.fixture(scope='function')
 def a_project(request, requests):
+    # a 2 party project with blocking disabled
     project = create_project_no_data(
         requests,
         result_type="groups",
-        number_parties=2)
+        number_parties=2,
+        uses_blocking=False
+    )
+    yield project
+    # Release project resource
+    delete_project(requests, project)
+
+@pytest.fixture(scope='function')
+def a_blocking_project(request, requests):
+    # a 2 party project with blocking disabled
+    project = create_project_no_data(
+        requests,
+        result_type="groups",
+        number_parties=2,
+        uses_blocking=True
+    )
     yield project
     # Release project resource
     delete_project(requests, project)

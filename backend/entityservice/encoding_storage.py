@@ -3,10 +3,21 @@ from itertools import zip_longest
 from typing import Iterator, List, Tuple
 
 import ijson
+import opentracing
+from flask import g
+from structlog import get_logger
 
+from entityservice import database as db
 from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
-    get_chunk_of_encodings
+    get_chunk_of_encodings, DBConn
 from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
+#from entityservice.tasks import check_for_executable_runs
+from entityservice.tracing import serialize_span
+from entityservice.utils import clks_uploaded_to_project, fmt_bytes
+
+logger = get_logger()
+
+DEFAULT_BLOCK_ID = '1'
 
 
 def stream_json_clksnblocks(f):
@@ -109,4 +120,55 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     encoding_iter = get_chunk_of_encodings(conn, dataprovider_id, encoding_ids, stored_binary_size=(encoding_size+4))
     chunk_data = binary_unpack_filters(encoding_iter, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
+
+
+def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128):
+    """
+    Save the user provided binary-packed CLK data.
+
+    """
+    filename = None
+    # Set the state to 'pending' in the uploads table
+    with DBConn() as conn:
+        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
+        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
+    logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
+
+    num_bytes = binary_format(size).size * count
+
+    logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
+
+    # Upload to database
+    logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
+    parent_span = g.flask_tracer.get_span()
+
+    with DBConn() as conn:
+        with opentracing.tracer.start_span('create-default-block-in-db', child_of=parent_span):
+            db.insert_blocking_metadata(conn, dp_id, {DEFAULT_BLOCK_ID: count})
+
+        with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
+            store_encodings_in_db(conn, dp_id, encoding_iter, size)
+
+        with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
+            db.update_encoding_metadata(conn, filename, dp_id, 'ready')
+
+    # # Now work out if all parties have added their data
+    # if clks_uploaded_to_project(project_id):
+    #     logger.info("All parties data present. Scheduling any queued runs")
+    #     check_for_executable_runs.delay(project_id, serialize_span(parent_span))
+
+
+def include_encoding_id_in_binary_stream(stream, size, count):
+    """
+    Inject an encoding_id and default block into a binary stream of encodings.
+    """
+
+    binary_formatter = binary_format(size)
+
+    def encoding_iterator(filter_stream):
+        # Assumes encoding id and block info not provided (yet)
+        for entity_id in range(count):
+            yield str(entity_id), binary_formatter.pack(entity_id, filter_stream.read(size)), [DEFAULT_BLOCK_ID]
+
+    return encoding_iterator(stream)
 

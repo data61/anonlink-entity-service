@@ -3,15 +3,14 @@ import json
 import tempfile
 
 from flask import request
-from flask import g
 from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
-from entityservice.encoding_storage import store_encodings_in_db
-from entityservice.tasks import handle_raw_upload, check_for_executable_runs, remove_project
+from entityservice.encoding_storage import upload_clk_data_binary, include_encoding_id_in_binary_stream
+from entityservice.tasks import handle_raw_upload, remove_project, handle_external_data_pull
 from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code, clks_uploaded_to_project, fmt_bytes
+from entityservice.utils import safe_fail_request, get_json, generate_code
 from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
@@ -20,11 +19,11 @@ from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
-from entityservice.views.util import bind_log_and_span
+from entityservice.views.util import bind_log_and_span, convert_clks_to_clknblocks, \
+    convert_encoding_upload_to_clknblock
 
 logger = get_logger()
 
-DEFAULT_BLOCK_ID = '1'
 
 
 def projects_get():
@@ -145,12 +144,8 @@ def project_binaryclks_post(project_id):
                 # https://github.com/zalando/connexion/issues/592
                 # stream = get_stream()
                 stream = BytesIO(request.data)
-                binary_formatter = binary_format(size)
 
-                def encoding_iterator(filter_stream):
-                    # Assumes encoding id and block info not provided (yet)
-                    for entity_id in range(count):
-                        yield str(entity_id), binary_formatter.pack(entity_id, filter_stream.read(size)), [DEFAULT_BLOCK_ID]
+                converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
 
                 expected_bytes = size * count
                 log.debug(f"Stream size is {len(request.data)} B, and we expect {expected_bytes} B")
@@ -158,7 +153,7 @@ def project_binaryclks_post(project_id):
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    receipt_token = upload_clk_data_binary(project_id, dp_id, encoding_iterator(stream), count, size)
+                    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
                 except ValueError:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
@@ -203,7 +198,7 @@ def project_clks_post(project_id):
     log, parent_span = bind_log_and_span(project_id)
 
     token = precheck_upload_token(project_id, headers, parent_span)
-
+    receipt_token = generate_code()
     with DBConn() as conn:
         dp_id = db.get_dataprovider_id(conn, token)
         project_encoding_size = db.get_project_schema_encoding_size(conn, project_id)
@@ -216,7 +211,6 @@ def project_clks_post(project_id):
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
-    receipt_token = None
 
     with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)
@@ -228,10 +222,8 @@ def project_clks_post(project_id):
                 #       However, as connexion is very, very strict about input validation when it comes to json, it will always
                 #       consume the stream first to validate it against the spec. Thus the backflip to fully reading the CLks as
                 #       json into memory. -> issue #184
-                receipt_token, raw_file = upload_json_clk_data(dp_id, get_json(), uses_blocking, parent_span=span)
-                # Schedule a task to deserialize the hashes, and carry
-                # out a pop count.
-                handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(span))
+                handle_encoding_upload_json(project_id, dp_id, get_json(), receipt_token, uses_blocking, parent_span=span)
+
                 log.info("Job scheduled to handle user uploaded hashes")
             elif headers['Content-Type'] == "application/octet-stream":
                 span.set_tag("content-type", 'binary')
@@ -258,7 +250,7 @@ def project_clks_post(project_id):
                 if len(request.data) != expected_bytes:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    receipt_token = upload_clk_data_binary(project_id, dp_id, stream, count, size)
+                    upload_clk_data_binary(project_id, dp_id, stream, receipt_token, count, size)
                 except ValueError:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
@@ -317,64 +309,54 @@ def authorise_get_request(project_id):
     return dp_id, project_object
 
 
-def upload_clk_data_binary(project_id, dp_id, encoding_iter, count, size=128):
+def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses_blocking, parent_span):
     """
-    Save the user provided binary-packed CLK data.
+    Take user provided upload information - accepting multiple formats - and eventually
+    injest into the database.
 
-    """
-    receipt_token = generate_code()
-    filename = None
-    # Set the state to 'pending' in the uploads table
-    with DBConn() as conn:
-        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
-        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
-    logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
+    Encodings uploaded directly in the JSON are first quarantined in the object store,
+    and a background task deserializes them.
 
-    num_bytes = binary_format(size).size * count
-
-    logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
-
-    # Upload to database
-    logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
-    parent_span = g.flask_tracer.get_span()
-
-    with DBConn() as conn:
-        with opentracing.tracer.start_span('create-default-block-in-db', child_of=parent_span):
-            db.insert_blocking_metadata(conn, dp_id, {DEFAULT_BLOCK_ID: count})
-
-        with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
-            store_encodings_in_db(conn, dp_id, encoding_iter, size)
-
-        with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
-            db.update_encoding_metadata(conn, filename, dp_id, 'ready')
-
-    # Now work out if all parties have added their data
-    if clks_uploaded_to_project(project_id):
-        logger.info("All parties data present. Scheduling any queued runs")
-        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
-
-    return receipt_token
-
-
-def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
-    """
-    Take user provided encodings as json dict and save them, as-is, to the object store.
-
-    Note this implementation is non-streaming.
+    Encodings that are in an object store are streamed directly into the database by
+    a background task.
     """
     try:
         abort_if_inconsistent_upload(uses_blocking, clk_json)
     except ValueError as e:
-        safe_fail_request(403, e)
+        safe_fail_request(403, e.args[0])
 
-    # now we need to know element name - clks or clknblocks
+    # Convert uploaded JSON to common schema.
+    #
+    # The original JSON API simply accepted "clks", then came a combined encoding and
+    # blocking API expecting the top level element "clknblocks". Finally an API that
+    # specifies both "encodings" and "blocks" independently at the top level.
+    #
+    # We rewrite all into the "clknblocks" format.
+
+    if "encodings" in clk_json and 'file' not in clk_json['encodings']:
+        logger.info("converting")
+        clk_json = convert_encoding_upload_to_clknblock(clk_json)
+    elif "encodings" in clk_json and 'file' in clk_json['encodings']:
+        # external encodings
+        logger.warning("External encodings uploaded!")
+
+        object_info = clk_json['encodings']['file']
+        credentials = clk_json['encodings'].get('credentials')
+
+        # Schedule a background task to pull the encodings from the object store
+        handle_external_data_pull.delay(
+            project_id,
+            dp_id,
+            object_info,
+            credentials,
+            receipt_token,
+            parent_span=serialize_span(parent_span))
+
     is_valid_clks = not uses_blocking and 'clks' in clk_json
     element = 'clks' if is_valid_clks else 'clknblocks'
 
     if len(clk_json[element]) < 1:
         safe_fail_request(400, message="Missing CLKs information")
-
-    receipt_token = generate_code()
 
     filename = Config.RAW_FILENAME_FMT.format(receipt_token)
     logger.info("Storing user {} supplied {} from json".format(dp_id, element))
@@ -386,7 +368,7 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
 
     if element == 'clks':
         logger.info("Rewriting provided json into clknsblocks format")
-        clk_json = {'clknblocks': [[encoding, '1'] for encoding in clk_json['clks']]}
+        clk_json = convert_clks_to_clknblocks(clk_json)
         element = 'clknblocks'
 
     logger.info("Counting block sizes and number of blocks")
@@ -421,4 +403,5 @@ def upload_json_clk_data(dp_id, clk_json, uses_blocking, parent_span):
             db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count, block_count)
             db.insert_blocking_metadata(conn, dp_id, block_sizes)
 
-    return receipt_token, filename
+    # Schedule a task to deserialize the encodings
+    handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(parent_span))
