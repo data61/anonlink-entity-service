@@ -4,7 +4,7 @@ import opentracing
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
-    store_encodings_in_db
+    store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store
@@ -13,6 +13,32 @@ from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.pre_run_check import check_for_executable_runs
 from entityservice.utils import fmt_bytes, clks_uploaded_to_project
+
+
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
+def handle_external_data_pull(project_id, dp_id, object_info, credentials, receipt_token, parent_span=None):
+    """
+
+    """
+    log = logger.bind(pid=project_id, dp_id=dp_id)
+    log.info("Pulling data from an object store")
+
+    with DBConn() as db:
+        if not check_project_exists(db, project_id):
+            log.info("Project deleted, stopping immediately")
+            return
+
+    mc = connect_to_object_store()
+    log.info("Retrieving metadata from object store")
+    stat = mc.stat_object(bucket_name=object_info['bucket'], object_name=object_info['path'])
+    logger.info(stat.metadata)
+    count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
+    size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
+    log.info("Retrieving file from object store")
+    response = mc.get_object(bucket_name=object_info['bucket'], object_name=object_info['path'])
+    stream = response.stream()
+    converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
+    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
@@ -45,7 +71,7 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
         with DBConn() as db:
             store_encodings_in_db(db, dp_id, pipeline, encoding_size)
 
-    log.info(f"Converted uploaded encodings of size {encoding_size} bytes into internal binary format. Number of blocks: {block_count}")
+    log.info(f"Converted uploaded encodings of size {fmt_bytes(encoding_size)} into internal binary format. Number of blocks: {block_count}")
 
     # As this is the first time we've seen the encoding size actually uploaded from this data provider
     # We check it complies with the project encoding size.
