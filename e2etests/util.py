@@ -140,7 +140,7 @@ def create_project_no_data(requests,
                            result_type='groups', number_parties=None, uses_blocking=False):
     number_parties_param = (
         {} if number_parties is None else {'number_parties': number_parties})
-    new_project_response = requests.post(url + '/projects',
+    new_project_response = requests.post(url + 'projects',
                                      headers={'Authorization': 'invalid'},
                                      json={
                                          'schema': {},
