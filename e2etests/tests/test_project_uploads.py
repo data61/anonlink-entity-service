@@ -11,7 +11,7 @@ from e2etests.util import (
     upload_binary_data, upload_binary_data_from_file, binary_pack_for_upload)
 
 
-def test_project_single_party_data_uploaded(requests, valid_project_params):
+def test_project_single_party_data_uploaded_clks_format(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
@@ -29,15 +29,62 @@ def test_project_single_party_data_uploaded(requests, valid_project_params):
     assert 'receipt_token' in upload_response
 
 
-def test_project_external_data_uploaded(requests, valid_project_params, binary_test_file_path):
-    new_project_data = requests.post(url + 'projects',
+def test_project_single_party_data_uploaded_clknblocks_format(requests, a_blocking_project):
+
+    clksnblocks = [[encoding, '1'] for encoding in generate_json_serialized_clks(10)]
+
+    r = requests.post(
+        url + '/projects/{}/clks'.format(a_blocking_project['project_id']),
+        headers={'Authorization': a_blocking_project['update_tokens'][0]},
+        json={
+            'clknblocks': clksnblocks
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_single_party_data_uploaded_encodings_format(requests, valid_project_params):
+    new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
                                          **valid_project_params
                                      }).json()
-    r = requests.get(
-        url + 'projects/{}/authorize-external-upload'.format(new_project_data['project_id']),
+    r = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['update_tokens'][0]},
+        json={
+            'encodings': generate_json_serialized_clks(100)
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_single_party_data_uploaded_encodings_and_blocks_format(requests, a_blocking_project):
+    encodings = generate_json_serialized_clks(10)
+    blocks = {encoding_id: ['1'] for encoding_id in range(len(encodings))}
+
+    r = requests.post(
+        url + '/projects/{}/clks'.format(a_blocking_project['project_id']),
+        headers={'Authorization': a_blocking_project['update_tokens'][0]},
+        json={
+            'encodings': encodings,
+            'blocks': blocks
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_external_data_uploaded(requests, a_project, binary_test_file_path):
+
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(a_project['project_id']),
+        headers={'Authorization': a_project['update_tokens'][0]},
     )
     assert r.status_code == 201
     upload_response = r.json()
@@ -47,7 +94,7 @@ def test_project_external_data_uploaded(requests, valid_project_params, binary_t
 
     # Use Minio python client to upload data
     mc = Minio(
-        upload_info['endpoint'],
+        'localhost:9000', #upload_info['endpoint'],
         access_key=credentials['AccessKeyId'],
         secret_key=credentials['SecretAccessKey'],
         session_token=credentials['SessionToken'],
@@ -55,10 +102,29 @@ def test_project_external_data_uploaded(requests, valid_project_params, binary_t
         secure=upload_info['secure']
     )
 
-    etag = mc.fput_object(upload_info['bucket'], upload_info['path'] + "/test", binary_test_file_path)
+    etag = mc.fput_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/test",
+        binary_test_file_path,
+        metadata={
+            "hash-count": 99,
+            "hash-size": 128
+        }
+    )
 
-    # Later - once the upload endpoint is complete notify the server
-    # of the uploaded data
+    # Should be able to notify the service that we've uploaded data
+    res = requests.post(url + f"projects/{a_project['project_id']}/clks",
+                        headers={'Authorization': a_project['update_tokens'][0]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/test",
+                                }
+                            }
+                        }
+                       )
+    assert res.status_code == 201
 
 
 def test_project_binary_data_uploaded(requests, valid_project_params, binary_test_file_path):

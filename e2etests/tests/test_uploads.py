@@ -4,13 +4,17 @@ import minio
 import pytest
 
 from e2etests.config import url
+from e2etests.util import generate_overlapping_clk_data
 
 
 class TestAuthorizeExternalUpload:
 
     def test_get_auth_credentials(self, requests, a_project):
+        expected_number_parties = 2
+        datasets = generate_overlapping_clk_data(
+            [100] * expected_number_parties, overlap=0.8)
 
-        for dp_index in range(2):
+        for dp_index in range(expected_number_parties):
             pid = a_project['project_id']
             res = requests.get(url + f"projects/{pid}/authorize-external-upload",
                                headers={'Authorization': a_project['update_tokens'][dp_index]})
@@ -67,3 +71,11 @@ class TestAuthorizeExternalUpload:
             with pytest.raises(minio.error.AccessDenied):
                 list(restricted_mc_client.list_objects(bucket_name, prefix=allowed_path))
 
+            # Should be able to notify the service that we've uploaded data
+            res = requests.post(url + f"projects/{pid}/clks",
+                                headers={'Authorization': a_project['update_tokens'][dp_index]},
+                                json={
+                                    'encodings': datasets[dp_index]
+                                }
+                               )
+            assert res.status_code == 201
