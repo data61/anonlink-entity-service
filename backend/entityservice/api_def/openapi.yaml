@@ -321,16 +321,21 @@ paths:
   '/projects/{project_id}/clks':
     post:
       operationId: entityservice.views.project.project_clks_post
-      summary: Upload encoded PII data to a linkage project.
+      summary: Upload encoded data to a linkage project.
       tags:
         - Project
       description: |
-        Called by each of the data providers with their calculated `CLK` vectors.
-        The project must have been created, and the caller must have both the
-        `project_id` and a valid `upload_token` in order to contribute data.
+        Called by each data provider with their encodings and optional blocking
+        information.
 
-        The data uploaded must be of one of the following formats.
-        - CLKs only upload: An array of base64 encoded [CLKs](./concepts.html#cryptographic-longterm-keys), one per
+        The caller must have both the `project_id` and a valid `upload_token` in order to contribute data,
+        both of these are generated when a project is created.
+        This endpoint can directly accept uploads up to several hundred MiB, and can pull encoding data from
+        an object store for larger uploads.
+
+        The data uploaded must be of one of the following formats:
+
+        - Encodings only: An array of base64 encoded [CLKs](./concepts.html#cryptographic-longterm-keys), one per
           entity.
         - CLKs with blocking information upload: An array of base64 encoded CLKs with corresponding blocking
           information. One element in this array is an array with the first element being a base64 encoded CLK followed
@@ -342,7 +347,7 @@ paths:
         The uploaded encodings must all have the same length in bytes. If the project's linkage schema
         specifes an encoding size it will be checked and enforced before any runs are computed. Note a
         minimum and maximum encoding size can be set at the server level at deployment time.
-        Currently anonlink requires this _encoding size_ to be a multiple of 8. An example value is 128 Bytes.
+        Currently anonlink requires this _encoding size_ to be a multiple of 8. A common value is `128 Bytes`.
 
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
@@ -361,12 +366,13 @@ paths:
         - $ref: '#/components/parameters/project_id'
         - $ref: '#/components/parameters/token'
       requestBody:
-        description: the encoded PII
+        description: Data to upload
         required: true
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: '#/components/schemas/EncodingUpload'
                 - $ref: '#/components/schemas/CLKUpload'
                 - $ref: '#/components/schemas/CLKnBlockUpload'
       responses:
@@ -1081,17 +1087,92 @@ components:
       required:
         - number
 
+    EncodingUpload:
+      description: Object that contains one data provider's encodings
+      type: object
+      required: [encodings]
+      properties:
+        encodings:
+          oneOf:
+            - $ref: '#/components/schemas/EncodingArray'
+            - $ref: '#/components/schemas/ExternalData'
+        blocks:
+          oneOf:
+            - $ref: '#/components/schemas/BlockMap'
+            ## TODO may be useful to handle external blocking data too
+            #- $ref: '#/ExternalData'
+
+    EncodingArray:
+      description: Array of encodings, comprising the base64-encoding (and encoding id?).
+      type: array
+      items:
+        anyOf:
+          - type: string
+            format: byte
+            description: Base64 encoded CLK data
+          - type: string
+          - type: integer
+
+
+    BlockMap:
+      description: Blocking information for encodings. A mapping from encoding id (a string) to a list of block ids
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          - type: string
+            description: Block ID
+
+    ExternalData:
+      description: A file in an object store.
+      type: object
+      required: [file]
+      properties:
+        credentials:
+          type: object
+          description: |
+            Optional credentials to pull the file from the object store.
+
+            Not required if using the Anonlink Entity Service's own object store.
+          properties:
+            AccessKeyId:
+              type: string
+            SecretAccessKey:
+              type: string
+            SessionToken:
+              type: string
+        file:
+          type: object
+          required: [bucket, path]
+          properties:
+            bucket:
+              type: string
+              example: anonlink-uploads
+            path:
+              type: string
+              description: The object name in the bucket.
+              example: project-foo/encodings.bin
+            endpoint:
+              type: string
+              description: |
+                Object store endpoint - usually a public endpoint for a MinIO as part of an Anonlink deployment e.g.
+                `minio.anonlink.easd.data61.xyz`, or a public (region specific) endpoint for AWS S3:
+                `s3.ap-southeast-2.amazonaws.com`.
+
+                If not given the Anonlink Entity Service's own object store will be assumed.
+              example: s3.ap-southeast-2.amazonaws.com
+            secure:
+              type: boolean
+              default: true
+              description: If this object store should be connected to only over a secure connection.
+
     CLKUpload:
       description: Object that contains this party's Bloom Filters
       type: object
       required: [clks]
       properties:
         clks:
-          type: array
-          items:
-            type: string
-            format: byte
-            description: Base64 encoded CLK data
+          $ref: '#/components/schemas/EncodingArray'
 
     CLKnBlockUpload:
       description: Object that contains this party's Bloom Filters including blocking information
