@@ -12,7 +12,7 @@ from celery import chord
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
 from entityservice.cache.progress import save_current_progress
-from entityservice.encoding_storage import get_encoding_chunk
+from entityservice.encoding_storage import get_encoding_chunk, get_encoding_chunks
 from entityservice.errors import InactiveRun
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
@@ -269,29 +269,59 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     assert_valid_run(project_id, run_id, log)
 
     #chunk_info_dp1, chunk_info_dp2 = chunk_info
+    def reindex_using_encoding_ids(recordarray, encoding_id_list):
+        # Map results from "index in chunk" to encoding id.
+        return array.array('I', [encoding_id_list[i] for i in recordarray])
 
-    filter_data = []
-    with DBConn() as conn:
-        with new_child_span('fetching-encodings'):
-            for chunk_info_dp1, chunk_info_dp2 in package:
+    num_results = 0
+    num_comparisons = 0
+    sim_results = []
+
+    if len(package) > 1:  # multiple full blocks in one package
+        with DBConn() as conn:
+            with new_child_span(f'fetching-encodings of package of size {len(package)}'):
+                package = get_encoding_chunks(conn, package)
+                log.debug('All chunks are fetched and deserialized')
+                log.debug("Calculating filter similarities for work package")
+
+        with new_child_span('comparing-encodings') as parent_scope:
+            for chunk_dp1, chunk_dp2 in package:
+                enc_dp1 = chunk_dp1['encodings']
+                enc_dp1_size = len(enc_dp1)
+                enc_dp2 = chunk_dp2['encodings']
+                enc_dp2_size = len(enc_dp2)
+                assert enc_dp1_size > 0, "Zero sized chunk in dp1"
+                assert enc_dp2_size > 0, "Zero sized chunk in dp2"
+                try:
+                    sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
+                        datasets=(enc_dp1, enc_dp2),
+                        threshold=threshold,
+                        k=min(enc_dp1_size, enc_dp2_size))
+                except NotImplementedError as e:
+                    log.warning(f"Encodings couldn't be compared using anonlink. {e}")
+                    return
+                rec_is0 = reindex_using_encoding_ids(rec_is0, chunk_dp1['entity_ids'])
+                rec_is1 = reindex_using_encoding_ids(rec_is1, chunk_dp2['entity_ids'])
+                num_results += len(sims)
+                num_comparisons += enc_dp1_size * enc_dp2_size
+                sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
+            log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
+
+    else:  # this chunk is all part of one block
+        with DBConn() as conn:
+            with new_child_span(f'fetching-encodings of package with 1 chunk'):
+                chunk_info_dp1, chunk_info_dp2 = package[0]
                 chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
                 entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
                 chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
                 entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
-                filter_data.append((entity_ids_dp1, chunk_dp1, chunk_dp1_size, chunk_info_dp1["datasetIndex"],
-                                    entity_ids_dp2, chunk_dp2, chunk_dp2_size, chunk_info_dp2["datasetIndex"]))
 
-    log.debug('All chunks are fetched and deserialized')
+        log.debug('All chunks are fetched and deserialized')
     #task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size, 'chunk_info': chunk_info})
-    log.debug("Calculating filter similarities for work package")
-    num_results = 0
-    num_comparisons = 0
-    sim_results = []
-    with new_child_span('comparing-encodings') as parent_scope:
-        def reindex_using_encoding_ids(recordarray, encoding_id_list):
-            # Map results from "index in chunk" to encoding id.
-            return array.array('I', [encoding_id_list[i] for i in recordarray])
-        for entity_ids_dp1, chunk_dp1, chunk_dp1_size, dp1_ds_idx, entity_ids_dp2, chunk_dp2, chunk_dp2_size, dp2_ds_idx in filter_data:
+        log.debug("Calculating filter similarities for work package")
+
+        with new_child_span('comparing-encodings') as parent_scope:
+
             assert chunk_dp1_size > 0, "Zero sized chunk in dp1"
             assert chunk_dp2_size > 0, "Zero sized chunk in dp2"
             try:
@@ -300,13 +330,13 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
                     threshold=threshold,
                     k=min(chunk_dp1_size, chunk_dp2_size))
             except NotImplementedError as e:
-                log.warning("Encodings couldn't be compared using anonlink.")
+                log.warning(f"Encodings couldn't be compared using anonlink. {e}")
                 return
             rec_is0 = reindex_using_encoding_ids(rec_is0, entity_ids_dp1)
             rec_is1 = reindex_using_encoding_ids(rec_is1, entity_ids_dp2)
             num_results += len(sims)
             num_comparisons += chunk_dp1_size * chunk_dp2_size
-            sim_results.append((sims, (rec_is0, rec_is1), dp1_ds_idx, dp2_ds_idx))
+            sim_results.append((sims, (rec_is0, rec_is1), chunk_info_dp1['datasetIndex'], chunk_info_dp2['datasetIndex']))
 
 ##### progess reporting
     log.debug('Encoding similarities calculated')
@@ -339,26 +369,25 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             # we need to merge them first into one ordered thingy
             merged_file_iter, merged_file_size \
                 = anonlink.serialization.merge_streams_iter(file_iters, sizes=file_sizes)
+            merged_file_iter = iterable_to_stream(merged_file_iter)
         elif len(file_iters) == 1:
             merged_file_iter = file_iters[0]
             merged_file_size = file_sizes[0]
-
-            result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
-                generate_code(12))
-            task_span.log_kv({"edges": num_results})
-            log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
-
-            mc = connect_to_object_store()
-            try:
-                mc.put_object(
-                    Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
-            except minio.ResponseError as err:
-                log.warning("Failed to store result in minio: {}".format(err))
-                raise
         else:
-            result_filename = None
-            file_size = None
             return 0, 0, None
+
+        result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+            generate_code(12))
+        task_span.log_kv({"edges": num_results})
+        log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+
+        mc = connect_to_object_store()
+        try:
+            mc.put_object(
+                Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
+        except minio.ResponseError as err:
+            log.warning("Failed to store result in minio: {}".format(err))
+            raise
 
     return num_results, file_size, result_filename
 

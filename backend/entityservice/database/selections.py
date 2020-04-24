@@ -390,6 +390,28 @@ def get_chunk_of_encodings(db, dp_id, encoding_ids, stored_binary_size=132):
     yield from copy_binary_column_from_select_query(cur, sql_query, stored_binary_size=stored_binary_size)
 
 
+
+def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
+
+    cur = db.cursor()
+    sql_query = """
+    SELECT  encodingblocks.block_id, encodings.encoding_id, encoding 
+    FROM encodingblocks, encodings
+    WHERE
+      encodingblocks.dp = %s AND
+      encodingblocks.dp = encodings.dp AND
+      block_id IN %s AND
+      encodingblocks.encoding_id = encodings.encoding_id
+    ORDER BY
+        block_id asc, encoding_id asc
+    """#.format(dp_id, ",".join(map(lambda s: f"'{s}'", block_ids)))
+    #args = {'dp_id': dp_id, 'block_id': block_id}
+    cur.execute(sql_query, [dp_id, tuple(block_ids)])
+    for block_id, enconding_id, encoding in cur.fetchall():
+        yield block_id.strip(), enconding_id, bytes(encoding)
+    #yield from iterate_cursor_results(cur, one=False)
+
+
 def get_filter_metadata(db, dp_id):
     """
     :return: The filename (which could be None), and the encoding size of the raw clks.

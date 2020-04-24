@@ -1,12 +1,13 @@
 import math
+from collections import defaultdict
 from itertools import zip_longest
 from typing import Iterator, List, Tuple
 
 import ijson
 
 from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
-    get_chunk_of_encodings
-from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
+    get_chunk_of_encodings, get_encodings_of_multiple_blocks
+from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters, binary_unpack_one
 
 
 def stream_json_clksnblocks(f):
@@ -110,3 +111,51 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     chunk_data = binary_unpack_filters(encoding_iter, encoding_size=encoding_size)
     return chunk_data, len(chunk_data)
 
+
+def get_encoding_chunks(conn, package, encoding_size=128):
+    """enrich the chunks in the package with the encodings and entity_ids"""
+    chunks_per_dp = defaultdict(list)
+    for chunk_info_1, chunk_info_2 in package:
+        chunks_per_dp[chunk_info_1['dataproviderId']].append(chunk_info_1)
+        chunks_per_dp[chunk_info_2['dataproviderId']].append(chunk_info_2)
+
+    encodings_with_ids = {}
+    for dp_id in chunks_per_dp:
+        #get all encodings for that dp, save in dict with blockID as key.
+        chunks = sorted(chunks_per_dp[dp_id], key=lambda chunk: '|'.join(chunk['block_id']))
+        block_ids = [chunk['block_id'] for chunk in chunks]
+        values = get_encodings_of_multiple_blocks(conn, dp_id, block_ids)
+        i = 0
+
+        bit_packing_struct = binary_format(encoding_size)
+        def block_values_iter(values):
+            block_id, entity_id, encoding = next(values)
+            entity_ids = [entity_id]
+            encodings = [binary_unpack_one(encoding, bit_packing_struct)[1]]
+            while True:
+                try:
+                    new_id, n_entity_id, n_encoding = next(values)
+                    if new_id == block_id:
+                        entity_ids.append(n_entity_id)
+                        encodings.append(binary_unpack_one(n_encoding, bit_packing_struct)[1])
+                    else:
+                        yield block_id, entity_ids, encodings
+                        block_id = new_id
+                        entity_ids = [n_entity_id]
+                        encodings = [binary_unpack_one(n_encoding, bit_packing_struct)[1]]
+                except StopIteration:
+                    yield block_id, entity_ids, encodings
+                    break
+
+        for block_id, entity_ids, encodings in block_values_iter(values):
+            encodings_with_ids[(dp_id, block_id)] = (entity_ids, encodings)
+
+    for chunk_info_1, chunk_info_2 in package:
+        entity_ids, encodings = encodings_with_ids[(chunk_info_1['dataproviderId'], chunk_info_1['block_id'])]
+        chunk_info_1['encodings'] = encodings
+        chunk_info_1['entity_ids'] = entity_ids
+        entity_ids, encodings = encodings_with_ids[(chunk_info_2['dataproviderId'], chunk_info_2['block_id'])]
+        chunk_info_2['encodings'] = encodings
+        chunk_info_2['entity_ids'] = entity_ids
+
+    return package
