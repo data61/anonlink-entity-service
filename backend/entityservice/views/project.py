@@ -325,6 +325,29 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     except ValueError as e:
         safe_fail_request(403, e.args[0])
 
+    if "encodings" in clk_json and 'file' in clk_json['encodings']:
+        # external encodings
+        logger.info("External encodings uploaded")
+        object_info = clk_json['encodings']['file']
+        credentials = clk_json['encodings'].get('credentials')
+        # Schedule a background task to pull the encodings from the object store
+        # This background task updates the database with encoding metadata assuming
+        # that there are no blocks.
+        if 'blocks' not in clk_json:
+            handle_external_data_pull.delay(
+                project_id,
+                dp_id,
+                object_info,
+                credentials,
+                receipt_token,
+                parent_span=serialize_span(parent_span))
+        else:
+            # TODO need to deal with the optional blocks
+            raise NotImplementedError("Don't currently handle combination of external encodings and blocks")
+
+
+        return
+
     # Convert uploaded JSON to common schema.
     #
     # The original JSON API simply accepted "clks", then came a combined encoding and
@@ -332,25 +355,9 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     # specifies both "encodings" and "blocks" independently at the top level.
     #
     # We rewrite all into the "clknblocks" format.
-
-    if "encodings" in clk_json and 'file' not in clk_json['encodings']:
-        logger.info("converting")
+    if "encodings" in clk_json:
+        logger.debug("converting from 'encodings' & 'blocks' format to 'clknblocks'")
         clk_json = convert_encoding_upload_to_clknblock(clk_json)
-    elif "encodings" in clk_json and 'file' in clk_json['encodings']:
-        # external encodings
-        logger.warning("External encodings uploaded!")
-
-        object_info = clk_json['encodings']['file']
-        credentials = clk_json['encodings'].get('credentials')
-
-        # Schedule a background task to pull the encodings from the object store
-        handle_external_data_pull.delay(
-            project_id,
-            dp_id,
-            object_info,
-            credentials,
-            receipt_token,
-            parent_span=serialize_span(parent_span))
 
     is_valid_clks = not uses_blocking and 'clks' in clk_json
     element = 'clks' if is_valid_clks else 'clknblocks'
