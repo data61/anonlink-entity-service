@@ -1,7 +1,7 @@
 import io
 import itertools
 
-from entityservice.database.util import query_db, logger
+from entityservice.database.util import query_db, logger, binary_format
 from entityservice.errors import ProjectDeleted, RunDeleted, DataProviderDeleted
 
 
@@ -367,6 +367,22 @@ def copy_binary_column_from_select_query(cur, select_query, stored_binary_size=1
         yield raw_data[start_index: end_index]
 
 
+def execute_select_query_in_binary(cur, select_query):
+    """Yields raw bytes from postgres given a query.
+
+    :param cur: db cursor
+    :param select_query: An sql query that select's a single binary column. Include ordering the results.
+    :raises AssertionError if the database implements an unhandled extension or the EOF is corrupt.
+    """
+
+    copy_to_stream_query = """COPY ({}) TO STDOUT WITH binary""".format(select_query)
+    stream = io.BytesIO()
+    cur.copy_expert(copy_to_stream_query, stream)
+
+    for row in binary_format(stream):
+        yield row
+
+
 def get_chunk_of_encodings(db, dp_id, encoding_ids, stored_binary_size=132):
     """Yields raw byte encodings for a data provider given the encoding ids.
 
@@ -398,18 +414,23 @@ def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
     SELECT  encodingblocks.block_id, encodings.encoding_id, encoding 
     FROM encodingblocks, encodings
     WHERE
-      encodingblocks.dp = %s AND
+      encodingblocks.dp = {} AND
       encodingblocks.dp = encodings.dp AND
-      block_id IN %s AND
+      block_id IN ({}) AND
       encodingblocks.encoding_id = encodings.encoding_id
     ORDER BY
         block_id asc, encoding_id asc
-    """#.format(dp_id, ",".join(map(lambda s: f"'{s}'", block_ids)))
+    """.format(dp_id, ",".join(map(lambda s: f"'{s}'", block_ids)))
     #args = {'dp_id': dp_id, 'block_id': block_id}
-    cur.execute(sql_query, [dp_id, tuple(block_ids)])
-    for block_id, enconding_id, encoding in cur.fetchall():
-        yield block_id.strip(), enconding_id, bytes(encoding)
+    #cur.execute(sql_query, [dp_id, tuple(block_ids)])
+    #for block_id, enconding_id, encoding in cur.fetchall():
+    #    yield block_id.strip(), enconding_id, bytes(encoding)
     #yield from iterate_cursor_results(cur, one=False)
+    for row in execute_select_query_in_binary(cur, sql_query):
+        if len(row) != 3:
+            logger.warning(f'something went wrong! Got a row with this: {row}')
+        bin_block_id, bin_encoding_id, bin_encoding = row
+        yield bin_block_id.decode('utf-8').strip(), int.from_bytes(bin_encoding_id, byteorder='big'), bin_encoding
 
 
 def get_filter_metadata(db, dp_id):
