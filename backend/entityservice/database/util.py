@@ -1,4 +1,5 @@
 import time
+from io import BytesIO
 
 import atexit
 import psycopg2
@@ -145,3 +146,24 @@ def execute_returning_id(cur, query, args):
     else:
         resource_id = query_result[0]
         return resource_id
+
+
+def binary_format(stream: BytesIO):
+    stream.seek(0)
+    # Need to read/remove the Postgres Binary Header, Trailer, and the per tuple info
+    # https://www.postgresql.org/docs/current/sql-copy.html
+    header = stream.read(15)
+    assert header == b'PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00', "Invalid Binary Format"
+    header_extension = stream.read(4)
+    assert header_extension == b'\x00\x00\x00\x00', "Need to implement skipping postgres binary header extension"
+    # now iterate over the rows
+    while True:
+        num_elements = int.from_bytes(stream.read(2), byteorder='big')  # apparently bytes are in network byte order
+        if num_elements == 65535:   # we reached the end of the results. Binary trailer of \xff\xff
+            return
+        row_values = []
+        for i in range(num_elements):
+            size = int.from_bytes(stream.read(4), byteorder='big')
+            el_value = stream.read(size)
+            row_values.append(el_value)
+        yield row_values
