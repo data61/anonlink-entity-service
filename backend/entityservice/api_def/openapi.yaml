@@ -357,6 +357,12 @@ paths:
         This endpoint can be used with the Content-Type: application/json and uses the `CLKUpload`
         structure of a JSON array of base64 encoded strings.
 
+        ### Object Store Upload
+
+        `encodings` and `blocks` can be pulled from an object store. `encodings` must be in the binary format
+        documented under the `/projects/{project_id}/binaryclks` endpoint. `blocks` must be a JSON file, comprising
+        a mapping of encoding identifiers to a list of block identifiers; both identifiers must be strings.
+
         ### Binary Upload
 
         An additional api endpoint (/projects/{project_id}/binaryclks) has been added for uploading CLKs as a binary
@@ -400,8 +406,8 @@ paths:
       tags:
         - Project
       description: |
-        An experimental api for uploading CLKs as a binary file. This is to allow for
-        faster and more efficient data transfer.
+        An experimental api for directly uploading CLKs as a binary file. You may instead want to
+        upload via an object store.
         Called by each of the data providers with their calculated `CLK` vectors.
         The project must have been created, and the caller must have both the
         `project_id` and a valid `upload_token` in order to contribute data.
@@ -1099,9 +1105,7 @@ components:
         blocks:
           oneOf:
             - $ref: '#/components/schemas/BlockMap'
-            ## TODO may be useful to handle external blocking data too
-            #- $ref: '#/ExternalData'
-
+            - $ref: '#/components/schemas/ExternalData'
     EncodingArray:
       description: Array of encodings, comprising the base64-encoding (and encoding id?).
       type: array
@@ -1130,6 +1134,7 @@ components:
       properties:
         credentials:
           type: object
+          required: [AccessKeyId, SecretAccessKey]
           description: |
             Optional credentials to pull the file from the object store.
 
