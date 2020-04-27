@@ -47,7 +47,7 @@ def insert_dataprovider(cur, auth_token, project_id):
 
 def insert_blocking_metadata(db, dp_id, blocks):
     """
-    Insert a new entry into the blocks table.
+    Insert new entries into the blocks table.
 
     :param blocks: A dict mapping block id to the number of encodings per block.
     """
@@ -200,6 +200,24 @@ def update_encoding_metadata(db, clks_filename, dp_id, state):
         ])
 
 
+def update_blocks_state(db, dp_id, blocks, state):
+    assert state in {'pending', 'ready', 'error'}
+    sql_query = """
+        UPDATE blocks
+        SET
+          state = %s
+        WHERE
+          dp = %s AND
+          block_name in %s
+        """
+
+    with db.cursor() as cur:
+        cur.execute(sql_query, [
+            state,
+            dp_id,
+            tuple(blocks)
+        ])
+
 def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
     sql_query = """
         UPDATE uploads
@@ -276,6 +294,18 @@ def update_project_mark_all_runs_failed(conn, project_id):
               project = %s
             """
         cur.execute(sql_query, [project_id])
+
+
+def update_dataprovider_uploaded_state(conn, project_id, dp_id, state):
+    with conn.cursor() as cur:
+        sql_query = """
+            UPDATE dataproviders SET
+              uploaded = %s
+            WHERE
+              id = %s AND
+              project = %s
+            """
+        cur.execute(sql_query, [state, dp_id, project_id])
 
 
 def mark_project_deleted(db, project_id):

@@ -8,9 +8,9 @@ import opentracing
 
 import entityservice.database as db
 from entityservice.encoding_storage import upload_clk_data_binary, include_encoding_id_in_binary_stream
-from entityservice.tasks import handle_raw_upload, remove_project, handle_external_data_pull
+from entityservice.tasks import handle_raw_upload, remove_project, pull_external_data_encodings_only, pull_external_data
 from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code
+from entityservice.utils import safe_fail_request, get_json, generate_code, object_store_upload_path
 from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
@@ -119,7 +119,7 @@ def project_binaryclks_post(project_id):
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
-    receipt_token = None
+    receipt_token = generate_code()
 
     with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)
@@ -328,22 +328,43 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     if "encodings" in clk_json and 'file' in clk_json['encodings']:
         # external encodings
         logger.info("External encodings uploaded")
-        object_info = clk_json['encodings']['file']
-        credentials = clk_json['encodings'].get('credentials')
+        encoding_object_info = clk_json['encodings']['file']
+        object_name = encoding_object_info['path']
+        if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
+            safe_fail_request(403, "Provided object store path is not allowed")
+
+        encoding_credentials = clk_json['encodings'].get('credentials')
         # Schedule a background task to pull the encodings from the object store
         # This background task updates the database with encoding metadata assuming
         # that there are no blocks.
         if 'blocks' not in clk_json:
-            handle_external_data_pull.delay(
+            pull_external_data_encodings_only.delay(
                 project_id,
                 dp_id,
-                object_info,
-                credentials,
+                encoding_object_info,
+                encoding_credentials,
                 receipt_token,
                 parent_span=serialize_span(parent_span))
         else:
-            # TODO need to deal with the optional blocks
-            raise NotImplementedError("Don't currently handle combination of external encodings and blocks")
+            # Need to deal with both encodings and blocks
+            if 'file' in clk_json['blocks']:
+                object_name = clk_json['blocks']['file']['path']
+                if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
+                    safe_fail_request(403, "Provided object store path is not allowed")
+                # Blocks are in an external file
+                blocks_object_info = clk_json['blocks']['file']
+                blocks_credentials = clk_json['blocks'].get('credentials')
+                pull_external_data.delay(
+                    project_id,
+                    dp_id,
+                    encoding_object_info,
+                    encoding_credentials,
+                    blocks_object_info,
+                    blocks_credentials,
+                    receipt_token,
+                    parent_span=serialize_span(parent_span))
+            else:
+                raise NotImplementedError("Don't currently handle combination of external encodings and blocks")
 
 
         return
