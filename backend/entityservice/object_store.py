@@ -1,4 +1,5 @@
 import minio
+from minio.credentials import Credentials, Static
 from structlog import get_logger
 
 from entityservice.settings import Config as config
@@ -55,3 +56,14 @@ def stat_and_stream_object(bucket_name, object_name, credentials=None):
     logger.debug("Retrieving file from object store")
     response = mc.get_object(bucket_name=bucket_name, object_name=object_name)
     return stat, response
+
+
+def parse_minio_credentials(credentials):
+    if credentials:
+        access_key = credentials['AccessKeyId']
+        secret_key = credentials['SecretAccessKey']
+        session_token = credentials.get('SessionToken', None)
+        mc_credentials = Credentials(provider=Static(access_key, secret_key, session_token))
+    else:
+        mc_credentials = None
+    return mc_credentials
