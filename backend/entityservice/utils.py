@@ -189,3 +189,7 @@ def convert_mapping_to_list(permutation):
         defined by the keys.
     """
     return [permutation[i] for i in range(len(permutation))]
+
+
+def object_store_upload_path(project_id, dp_id):
+    return f"{project_id}/{dp_id}"
