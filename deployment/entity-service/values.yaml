@@ -9,10 +9,10 @@ anonlink:
   config: {}
 
   objectstore:
-    ## Disable the feature providing client's with restricted upload access to the object store.
-    ## By default we don't expose the Minio object store, however it needs to be exposed when
-    ## enabling this feature. See section `minio.ingress`.
-    uploadEnabled: false
+    ## Toggle the feature providing client's with restricted upload access to the object store.
+    ## By default we don't expose the Minio object store, which is required for clients to upload
+    ## via the object store. See section `minio.ingress` to create an ingress for minio.
+    uploadEnabled: true
 
     ## Object store credentials used to grant temporary upload access to clients
     ## Will be created with an "upload only" policy for a upload bucket if using the default
