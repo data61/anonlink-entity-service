@@ -1,19 +1,17 @@
 import json
 
-from minio.credentials import Credentials, Static
-
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
     store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
-from entityservice.object_store import connect_to_object_store, stat_and_stream_object
+from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.pre_run_check import check_for_executable_runs
-from entityservice.utils import fmt_bytes, clks_uploaded_to_project, object_store_upload_path
+from entityservice.utils import fmt_bytes, clks_uploaded_to_project
 
 logger = get_logger()
 
@@ -24,8 +22,9 @@ def pull_external_data(project_id, dp_id,
                                       blocks_object_info, blocks_credentials,
                                       receipt_token, parent_span=None):
     """
+    Load encoding and blocking data from object store.
 
-    - pull blocking map into memory, create blocks in db (with dummy counts?)
+    - pull blocking map into memory, create blocks in db
     - stream encodings into DB and add encoding + blocks from in memory dict.
 
     """
@@ -107,7 +106,6 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         bucket_name = object_info['bucket']
         object_name = object_info['path']
 
-
     log.info("Pulling encoding data from an object store")
     mc_credentials = parse_minio_credentials(credentials)
     stat, stream = stat_and_stream_object(bucket_name, object_name, mc_credentials)
@@ -116,17 +114,6 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
     converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
-
-
-def parse_minio_credentials(credentials):
-    if credentials:
-        access_key = credentials['AccessKeyId']
-        secret_key = credentials['SecretAccessKey']
-        session_token = credentials.get('SessionToken', None)
-        mc_credentials = Credentials(provider=Static(access_key, secret_key, session_token))
-    else:
-        mc_credentials = None
-    return mc_credentials
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
