@@ -1,9 +1,11 @@
+import io
+import json
 import time
 import os
 import pytest
 from minio import Minio
 
-from e2etests.config import url
+from e2etests.config import url, minio_host
 from e2etests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
@@ -80,7 +82,7 @@ def test_project_single_party_data_uploaded_encodings_and_blocks_format(requests
     assert 'receipt_token' in upload_response
 
 
-def test_project_external_data_uploaded(requests, a_project, binary_test_file_path):
+def test_project_upload_external_encodings(requests, a_project, binary_test_file_path):
 
     r = requests.get(
         url + 'projects/{}/authorize-external-upload'.format(a_project['project_id']),
@@ -93,8 +95,9 @@ def test_project_external_data_uploaded(requests, a_project, binary_test_file_pa
     upload_info = upload_response['upload']
 
     # Use Minio python client to upload data
+
     mc = Minio(
-        upload_info['endpoint'],
+        minio_host or upload_info['endpoint'],
         access_key=credentials['AccessKeyId'],
         secret_key=credentials['SecretAccessKey'],
         session_token=credentials['SessionToken'],
@@ -107,7 +110,7 @@ def test_project_external_data_uploaded(requests, a_project, binary_test_file_pa
         upload_info['path'] + "/test",
         binary_test_file_path,
         metadata={
-            "hash-count": 99,
+            "hash-count": 1000,
             "hash-size": 128
         }
     )
@@ -123,8 +126,88 @@ def test_project_external_data_uploaded(requests, a_project, binary_test_file_pa
                                 }
                             }
                         }
+                        )
+    assert res.status_code == 201
+
+
+def test_project_upload_external_data(requests, a_blocking_project, binary_test_file_path):
+    project = a_blocking_project
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(project['project_id']),
+        headers={'Authorization': project['update_tokens'][0]},
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+    blocking_data = json.dumps(
+        {str(encoding_id): [str(encoding_id % 2), str(encoding_id % 3)] for encoding_id in range(1000)}).encode()
+    credentials = upload_response['credentials']
+    upload_info = upload_response['upload']
+    mc = Minio(
+        minio_host or upload_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=upload_info['secure']
+    )
+
+    mc.fput_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/encodings",
+        binary_test_file_path,
+        metadata={
+            "hash-count": 1000,
+            "hash-size": 128
+        }
+    )
+    mc.put_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/blocks",
+        io.BytesIO(blocking_data),
+        len(blocking_data)
+    )
+
+    # Should be able to notify the service that we've uploaded data
+    res = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][0]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/blocks",
+                                }
+                            }
+
+                        }
                        )
     assert res.status_code == 201
+
+    # If the second data provider uses the same path to upload data, that shouldn't work
+    res2 = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][1]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/blocks",
+                                }
+                            }
+
+                        }
+                       )
+    assert res2.status_code == 403
 
 
 def test_project_binary_data_uploaded(requests, valid_project_params, binary_test_file_path):
