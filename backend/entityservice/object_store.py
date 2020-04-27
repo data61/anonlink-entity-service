@@ -6,11 +6,12 @@ from entityservice.settings import Config as config
 logger = get_logger('objectstore')
 
 
-def connect_to_object_store():
+def connect_to_object_store(credentials=None):
     mc = minio.Minio(
         config.MINIO_SERVER,
         config.MINIO_ACCESS_KEY,
         config.MINIO_SECRET_KEY,
+        credentials=credentials,
         secure=False
     )
     logger.debug("Connected to minio")
@@ -45,3 +46,12 @@ def create_bucket(minio_client, bucket):
             minio_client.make_bucket(bucket)
         except minio.error.BucketAlreadyOwnedByYou:
             logger.info("The bucket {} was already created.".format(bucket))
+
+
+def stat_and_stream_object(bucket_name, object_name, credentials=None):
+    mc = connect_to_object_store(credentials)
+    logger.debug("Checking object exists in object store")
+    stat = mc.stat_object(bucket_name=bucket_name, object_name=object_name)
+    logger.debug("Retrieving file from object store")
+    response = mc.get_object(bucket_name=bucket_name, object_name=object_name)
+    return stat, response
