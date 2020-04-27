@@ -33,8 +33,6 @@ spec:
               secretKeyRef:
                 name: {{ template "es.fullname" . }}
                 key: postgresPassword
-          - name: DEBUG
-            value: {{default "false" .Values.api.app.debug | quote }}
           - name: FLASK_APP
             value: entityservice
         command:

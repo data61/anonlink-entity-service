@@ -9,13 +9,23 @@ anonlink:
   config: {}
 
   objectstore:
-    uploadEnabled: "true"
-    # TODO can't leave defaults once minio exposed
+    ## Toggle the feature providing client's with restricted upload access to the object store.
+    ## By default we don't expose the Minio object store, which is required for clients to upload
+    ## via the object store. See section `minio.ingress` to create an ingress for minio.
+    uploadEnabled: true
+
+    ## Object store credentials used to grant temporary upload access to clients
+    ## Will be created with an "upload only" policy for a upload bucket if using the default
+    ## MINIO provisioning.
     uploadAccessKey: "EXAMPLE_UPLOAD_KEY"
     uploadSecretKey: "EXAMPLE_UPLOAD_SECRET"
 
+    ## The bucket for client uploads.
     uploadBucket:
       name: "uploads"
+
+    ## Allow only secure connections to the object store.
+    secure: true
 
 
 api:
@@ -65,8 +75,7 @@ api:
     image:
       repository: data61/anonlink-app
       tag: "v1.13.0-beta2"
-      # pullPolicy: IfNotPresent
-      pullPolicy: Always
+      pullPolicy: IfNotPresent
 
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -77,8 +86,6 @@ api:
       requests:
         cpu: 500m
         memory: 512Mi
-
-    debug: "false"
 
   dbinit:
     enabled: "true"
@@ -100,7 +107,7 @@ api:
 
   ## A job that creates an upload only object store user.
   objectstoreinit:
-    enabled: "true"
+    enabled: true
 
     image:
       repository: minio/mc
@@ -117,12 +124,13 @@ api:
      ## To handle large uploads we increase the proxy buffer size
      ingress.kubernetes.io/proxy-body-size: 4096m
      nginx.ingress.kubernetes.io/proxy-body-size: 4096m
-     ## Redirect to ssl
+
      nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
      nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
      ## Example ingress annotations for certmanager
      certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
+     ## Redirect to ssl
      ingress.kubernetes.io/force-ssl-redirect: "true"
 
     ## Entity Service API Ingress hostnames
@@ -346,10 +354,11 @@ minio:
   ## Configure the object storage
   ## https://github.com/helm/charts/blob/master/stable/minio/values.yaml
 
-  ## Default access credentials for the object store
-  # TODO remove defaults once minio exposed to interwebs
-  accessKey: "exampleMinioAccessKey"
-  secretKey: "exampleMinioSecretKet"
+  ## Root access credentials for the object store
+  ## Note no defaults are provided to help prevent data breaches where
+  ## the object store is exposed to the internet
+  #accessKey: "exampleMinioAccessKey"
+  #secretKey: "exampleMinioSecretKet"
 
   ## Settings required for connecting to another object store, the server is ignored
   ## if provisioning minio during deployment.

@@ -30,7 +30,7 @@ def connect_to_upload_object_store():
         config.UPLOAD_OBJECT_STORE_ACCESS_KEY,
         config.UPLOAD_OBJECT_STORE_SECRET_KEY,
         region="us-east-1",
-        secure=False
+        secure=config.UPLOAD_OBJECT_STORE_SECURE
     )
     mc.set_app_info("anonlink-upload", "minio client for uploads")
     logger.debug("Connected to minio upload account")

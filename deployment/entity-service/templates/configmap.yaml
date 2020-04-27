@@ -32,6 +32,13 @@ data:
   MINIO_BUCKET: {{ required "minio.defaultBucket.name is required." .Values.minio.defaultBucket.name | quote }}
 
   UPLOAD_OBJECT_STORE_ENABLED: {{ .Values.anonlink.objectstore.uploadEnabled | quote }}
+
+  {{ if .Values.minio.ingress.enabled }}
+  UPLOAD_OBJECT_STORE_SERVER: {{ index .Values.minio.ingress.hosts 0 }}
+  {{ end }}
+
+  UPLOAD_OBJECT_STORE_SECURE: {{ .Values.anonlink.objectstore.secure | quote }}
+
   UPLOAD_OBJECT_STORE_BUCKET: {{ required "anonlink.objectstore.uploadBucket.name is required." .Values.anonlink.objectstore.uploadBucket.name | quote }}
 
   {{ if .Values.provision.postgresql }}

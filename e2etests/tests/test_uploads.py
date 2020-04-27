@@ -15,13 +15,14 @@ class TestAuthorizeExternalUpload:
             res = requests.get(url + f"projects/{pid}/authorize-external-upload",
                                headers={'Authorization': a_project['update_tokens'][dp_index]})
 
-            assert res.status_code == 200
+            assert res.status_code == 201
             raw_json = res.json()
             assert "credentials" in raw_json
             credentials = raw_json['credentials']
             assert "upload" in raw_json
 
             minio_endpoint = raw_json['upload']['endpoint']
+            minio_secure = raw_json['upload']['secure']
             bucket_name = raw_json['upload']['bucket']
             allowed_path = raw_json['upload']['path']
 
@@ -35,7 +36,7 @@ class TestAuthorizeExternalUpload:
                 credentials['SecretAccessKey'],
                 credentials['SessionToken'],
                 region='us-east-1',
-                secure=False
+                secure=minio_secure
             )
 
             # Client shouldn't be able to list buckets

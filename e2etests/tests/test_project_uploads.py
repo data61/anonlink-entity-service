@@ -39,7 +39,7 @@ def test_project_external_data_uploaded(requests, valid_project_params, binary_t
         url + 'projects/{}/authorize-external-upload'.format(new_project_data['project_id']),
         headers={'Authorization': new_project_data['update_tokens'][0]},
     )
-    assert r.status_code == 200
+    assert r.status_code == 201
     upload_response = r.json()
 
     credentials = upload_response['credentials']
@@ -52,9 +52,8 @@ def test_project_external_data_uploaded(requests, valid_project_params, binary_t
         secret_key=credentials['SecretAccessKey'],
         session_token=credentials['SessionToken'],
         region='us-east-1',
-        secure=False
+        secure=upload_info['secure']
     )
-
 
     etag = mc.fput_object(upload_info['bucket'], upload_info['path'] + "/test", binary_test_file_path)
 
