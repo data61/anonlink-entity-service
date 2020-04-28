@@ -119,7 +119,7 @@ def project_binaryclks_post(project_id):
 
     log = log.bind(dp_id=dp_id)
     log.info("Receiving CLK data.")
-    receipt_token = None
+    receipt_token = generate_code()
 
     with opentracing.tracer.start_span('upload-clk-data', child_of=parent_span) as span:
         span.set_tag("project_id", project_id)

@@ -3,7 +3,7 @@ import os
 import pytest
 from minio import Minio
 
-from e2etests.config import url
+from e2etests.config import url, minio_host
 from e2etests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
@@ -94,7 +94,7 @@ def test_project_external_data_uploaded(requests, a_project, binary_test_file_pa
 
     # Use Minio python client to upload data
     mc = Minio(
-        upload_info['endpoint'],
+        minio_host or upload_info['endpoint'],
         access_key=credentials['AccessKeyId'],
         secret_key=credentials['SecretAccessKey'],
         session_token=credentials['SessionToken'],
