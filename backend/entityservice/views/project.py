@@ -8,9 +8,9 @@ import opentracing
 
 import entityservice.database as db
 from entityservice.encoding_storage import upload_clk_data_binary, include_encoding_id_in_binary_stream
-from entityservice.tasks import handle_raw_upload, remove_project, handle_external_data_pull
+from entityservice.tasks import handle_raw_upload, remove_project, handle_external_data_pull, check_for_executable_runs
 from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code
+from entityservice.utils import safe_fail_request, get_json, generate_code, clks_uploaded_to_project
 from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
@@ -168,6 +168,13 @@ def project_binaryclks_post(project_id):
             raise
     with DBConn() as conn:
         db.set_dataprovider_upload_state(conn, dp_id, state='done')
+
+    # Now work out if all parties have added their data
+    if clks_uploaded_to_project(project_id):
+        logger.info("All parties data present. Scheduling any queued runs")
+        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
+
+
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 
@@ -261,8 +268,15 @@ def project_clks_post(project_id):
             with DBConn() as conn:
                 db.set_dataprovider_upload_state(conn, dp_id, state='error')
             raise
+
     with DBConn() as conn:
         db.set_dataprovider_upload_state(conn, dp_id, state='done')
+
+    # Now work out if all parties have added their data
+    if clks_uploaded_to_project(project_id):
+        logger.info("All parties data present. Scheduling any queued runs")
+        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
+
     return {'message': 'Updated', 'receipt_token': receipt_token}, 201
 
 

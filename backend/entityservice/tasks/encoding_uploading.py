@@ -12,6 +12,7 @@ from entityservice.settings import Config
 from entityservice.async_worker import celery, logger
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.pre_run_check import check_for_executable_runs
+from entityservice.tracing import serialize_span
 from entityservice.utils import fmt_bytes, clks_uploaded_to_project
 
 
@@ -39,6 +40,12 @@ def handle_external_data_pull(project_id, dp_id, object_info, credentials, recei
     stream = response.stream()
     converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
+
+    # # Now work out if all parties have added their data
+    if clks_uploaded_to_project(project_id):
+        logger.info("All parties data present. Scheduling any queued runs")
+        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
+
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
