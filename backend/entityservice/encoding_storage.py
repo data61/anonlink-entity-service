@@ -11,9 +11,7 @@ from entityservice import database as db
 from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
     get_chunk_of_encodings, DBConn
 from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
-#from entityservice.tasks import check_for_executable_runs
-from entityservice.tracing import serialize_span
-from entityservice.utils import clks_uploaded_to_project, fmt_bytes
+from entityservice.utils import fmt_bytes
 
 logger = get_logger()
 
@@ -132,8 +130,6 @@ def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, coun
     with DBConn() as conn:
         db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
-    logger.info(f"Storing supplied binary clks of individual size {size} in file: {filename}")
-
     num_bytes = binary_format(size).size * count
 
     logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
@@ -151,11 +147,6 @@ def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, coun
 
         with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
             db.update_encoding_metadata(conn, filename, dp_id, 'ready')
-
-    # # Now work out if all parties have added their data
-    # if clks_uploaded_to_project(project_id):
-    #     logger.info("All parties data present. Scheduling any queued runs")
-    #     check_for_executable_runs.delay(project_id, serialize_span(parent_span))
 
 
 def include_encoding_id_in_binary_stream(stream, size, count):

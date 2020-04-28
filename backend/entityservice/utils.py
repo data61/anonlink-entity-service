@@ -146,7 +146,7 @@ def clks_uploaded_to_project(project_id, check_data_ready=False):
     """ See if the given project has had all parties contribute data.
     """
     log = logger.bind(pid=project_id)
-    log.info("Counting contributing parties")
+    log.debug("Counting contributing parties")
     with DBConn() as conn:
         if check_data_ready:
             parties_contributed = get_number_parties_ready(conn, project_id)
