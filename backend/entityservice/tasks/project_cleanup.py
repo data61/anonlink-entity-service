@@ -28,9 +28,10 @@ def remove_project(project_id):
         db.delete_project_data(conn, project_id)
         log.debug("Getting object store files associated with project from database")
         object_store_files = db.get_all_objects_for_project(conn, project_id)
-        
-    log.debug(f"Removing {len(object_store_files)} object store files associated with project.")
-    delete_minio_objects.delay(object_store_files, project_id)
+
+    if len(object_store_files) > 0:
+        log.debug(f"Removing {len(object_store_files)} object store files associated with project.")
+        delete_minio_objects.delay(object_store_files, project_id, parent_span)
     log.info("Project resources removed")
 
 
