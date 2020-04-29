@@ -1107,15 +1107,12 @@ components:
             - $ref: '#/components/schemas/BlockMap'
             - $ref: '#/components/schemas/ExternalData'
     EncodingArray:
-      description: Array of encodings, comprising the base64-encoding (and encoding id?).
+      description: Array of encodings, base64 encoded.
       type: array
       items:
-        anyOf:
-          - type: string
-            format: byte
-            description: Base64 encoded CLK data
-          - type: string
-          - type: integer
+        - type: string
+          format: byte
+          description: Base64 encoded CLK data
 
 
     BlockMap:
@@ -1126,6 +1123,10 @@ components:
         items:
           - type: string
             description: Block ID
+      example:
+        "1": ["block1", "block2"]
+        "2": []
+        "3": ["block1"]
 
     ExternalData:
       description: A file in an object store.
