@@ -2,6 +2,7 @@ import minio
 from minio.credentials import Credentials, Static
 from structlog import get_logger
 
+from entityservice.async_worker import logger
 from entityservice.settings import Config as config
 
 logger = get_logger('objectstore')
@@ -67,3 +68,10 @@ def parse_minio_credentials(credentials):
     else:
         mc_credentials = None
     return mc_credentials
+
+
+def delete_object_store_folder(mc, bucket_name, path):
+    objects_to_delete = mc.list_objects(bucket_name, prefix=path, recursive=True)
+    objects_to_delete = [x.object_name for x in objects_to_delete]
+    for del_err in mc.remove_objects(bucket_name, objects_to_delete):
+        logger.warning("Deletion Error: {}".format(del_err))

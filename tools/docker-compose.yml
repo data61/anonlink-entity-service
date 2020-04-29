@@ -102,6 +102,8 @@ services:
       - LOG_CFG=entityservice/verbose_logging.yaml
       - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
       - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      - UPLOAD_OBJECT_STORE_BUCKET=uploads
+      - UPLOAD_OBJECT_STORE_SECURE=false
       - CELERY_ACKS_LATE=true
       - REDIS_USE_SENTINEL=false
       - CELERYD_MAX_TASKS_PER_CHILD=2048
