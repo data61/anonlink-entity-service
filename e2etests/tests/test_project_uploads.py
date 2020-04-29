@@ -132,40 +132,12 @@ def test_project_upload_external_encodings(requests, a_project, binary_test_file
 
 def test_project_upload_external_data(requests, a_blocking_project, binary_test_file_path):
     project = a_blocking_project
-    r = requests.get(
-        url + 'projects/{}/authorize-external-upload'.format(project['project_id']),
-        headers={'Authorization': project['update_tokens'][0]},
-    )
-    assert r.status_code == 201
-    upload_response = r.json()
     blocking_data = json.dumps(
         {str(encoding_id): [str(encoding_id % 2), str(encoding_id % 3)] for encoding_id in range(1000)}).encode()
-    credentials = upload_response['credentials']
-    upload_info = upload_response['upload']
-    mc = Minio(
-        minio_host or upload_info['endpoint'],
-        access_key=credentials['AccessKeyId'],
-        secret_key=credentials['SecretAccessKey'],
-        session_token=credentials['SessionToken'],
-        region='us-east-1',
-        secure=upload_info['secure']
-    )
 
-    mc.fput_object(
-        upload_info['bucket'],
-        upload_info['path'] + "/encodings",
-        binary_test_file_path,
-        metadata={
-            "hash-count": 1000,
-            "hash-size": 128
-        }
-    )
-    mc.put_object(
-        upload_info['bucket'],
-        upload_info['path'] + "/blocks",
-        io.BytesIO(blocking_data),
-        len(blocking_data)
-    )
+    mc, upload_info = get_temp_upload_client(project, requests, project['update_tokens'][0])
+
+    _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path)
 
     # Should be able to notify the service that we've uploaded data
     res = requests.post(url + f"projects/{project['project_id']}/clks",
@@ -208,6 +180,68 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
                         }
                        )
     assert res2.status_code == 403
+
+    mc2, upload_info2 = get_temp_upload_client(project, requests, project['update_tokens'][1])
+    _upload_encodings_and_blocks(mc2, upload_info2, blocking_data, binary_test_file_path)
+
+    # If the second data provider uses the correct path to upload data, that should work
+    res3 = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][1]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info2['bucket'],
+                                    'path': upload_info2['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info2['bucket'],
+                                    'path': upload_info2['path'] + "/blocks",
+                                }
+                            }
+
+                        }
+                       )
+    assert res3.status_code == 201
+
+
+def _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path):
+    mc.fput_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/encodings",
+        binary_test_file_path,
+        metadata={
+            "hash-count": 1000,
+            "hash-size": 128
+        }
+    )
+    mc.put_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/blocks",
+        io.BytesIO(blocking_data),
+        len(blocking_data)
+    )
+
+
+def get_temp_upload_client(project, requests, update_token):
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(project['project_id']),
+        headers={'Authorization': update_token},
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+    credentials = upload_response['credentials']
+    upload_info = upload_response['upload']
+    mc = Minio(
+        minio_host or upload_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=upload_info['secure']
+    )
+    return mc, upload_info
 
 
 def test_project_binary_data_uploaded(requests, valid_project_params, binary_test_file_path):
