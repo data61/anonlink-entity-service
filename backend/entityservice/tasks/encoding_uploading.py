@@ -64,8 +64,8 @@ def pull_external_data(project_id, dp_id,
 
     with DBConn() as conn:
         with opentracing.tracer.start_span('update-metadata-db', child_of=parent_span):
-            update_encoding_metadata_set_encoding_size(conn, dp_id, size)
             insert_encoding_metadata(conn, None, dp_id, receipt_token, encoding_count=count, block_count=block_count)
+            update_encoding_metadata_set_encoding_size(conn, dp_id, size)
         with opentracing.tracer.start_span('create-block-entries-in-db', child_of=parent_span):
             log.debug("Adding blocks to db")
             insert_blocking_metadata(conn, dp_id, block_sizes)
