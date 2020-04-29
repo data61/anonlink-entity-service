@@ -60,7 +60,7 @@ def projects_post(project):
 
 
 def project_delete(project_id):
-    log = logger.bind(pid=project_id)
+    log, parent_span = bind_log_and_span(project_id)
     log.info('Request to delete project')
     # Check the resource exists and hasn't already been marked for deletion
     abort_if_project_doesnt_exist(project_id)
@@ -203,7 +203,7 @@ def project_clks_post(project_id):
     headers = request.headers
 
     log, parent_span = bind_log_and_span(project_id)
-
+    log.debug("Starting data upload request")
     token = precheck_upload_token(project_id, headers, parent_span)
     receipt_token = generate_code()
     with DBConn() as conn:
@@ -231,7 +231,7 @@ def project_clks_post(project_id):
                 #       json into memory. -> issue #184
                 handle_encoding_upload_json(project_id, dp_id, get_json(), receipt_token, uses_blocking, parent_span=span)
 
-                log.info("Job scheduled to handle user uploaded hashes")
+                log.info("Job scheduled to handle users upload")
             elif headers['Content-Type'] == "application/octet-stream":
                 span.set_tag("content-type", 'binary')
                 log.info("Handling binary CLK upload")
@@ -334,6 +334,8 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     Encodings that are in an object store are streamed directly into the database by
     a background task.
     """
+    log = logger.bind(pid=project_id)
+    log.info("Checking json is consistent")
     try:
         abort_if_inconsistent_upload(uses_blocking, clk_json)
     except ValueError as e:
@@ -341,7 +343,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
 
     if "encodings" in clk_json and 'file' in clk_json['encodings']:
         # external encodings
-        logger.info("External encodings uploaded")
+        log.info("External encodings uploaded")
         encoding_object_info = clk_json['encodings']['file']
         object_name = encoding_object_info['path']
         if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
@@ -352,6 +354,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
         # This background task updates the database with encoding metadata assuming
         # that there are no blocks.
         if 'blocks' not in clk_json:
+            log.info("scheduling task to pull encodings from object store")
             pull_external_data_encodings_only.delay(
                 project_id,
                 dp_id,
@@ -368,6 +371,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
                 # Blocks are in an external file
                 blocks_object_info = clk_json['blocks']['file']
                 blocks_credentials = clk_json['blocks'].get('credentials')
+                log.info("scheduling task to pull both encodings and blocking data from object store")
                 pull_external_data.delay(
                     project_id,
                     dp_id,

@@ -59,8 +59,8 @@ def pull_external_data(project_id, dp_id,
     stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, parse_minio_credentials(encoding_credentials))
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
-    log.debug(f"Processing {count} encodings")
-    assert count == len(encoding_to_block_map), f"Expected {count} encodings in blocks. Got {len(encoding_to_block_map)}"
+    log.debug(f"Processing {count} encodings of size {size}")
+    assert count == len(encoding_to_block_map), f"Expected {count} encodings in blocks got {len(encoding_to_block_map)}"
 
     with DBConn() as conn:
         with opentracing.tracer.start_span('update-metadata-db', child_of=parent_span):

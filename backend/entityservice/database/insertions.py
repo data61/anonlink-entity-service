@@ -227,7 +227,7 @@ def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
           dp = %s
         """
 
-    logger.info("Updating database with info about encodings")
+    logger.info(f"Updating uploads table for dp {dp_id} with encoding size ({encoding_size})")
     with db.cursor() as cur:
         cur.execute(sql_query, [
             encoding_size,
@@ -358,10 +358,11 @@ def get_created_runs_and_queue(db, project_id):
 
 def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     """
-    This method returns true if the dataprovider is allowed to upload her clks.
-    A dataprovider is not allowed to upload clks if she has already uploaded them, or if the upload is in progress.
+    This method returns true if the data provider is allowed to upload their encodings.
+
+    A dataprovider is not allowed to upload clks if they has already uploaded them, or if the upload is in progress.
     This method will lock the resource by setting the upload state to `in_progress` and returning `true`.
-    Note that the upload state can be `error`, in which case we are allowing the dataprovider to re-try uploading
+    Note that the upload state can be `error`, in which case we allow the dataprovider to re-try uploading
     her clks not to block a project if a failure occurred.
     """
     logger.debug("Setting dataprovider {} upload state to `in_progress``".format(dp_id))
@@ -378,5 +379,5 @@ def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     elif length > 1:
         logger.error("{} rows in the table `dataproviders` are associated to the same dataprovider id {}, while each"
                      " dataprovider id should be unique.".format(length, dp_id))
-        raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times her clks.")
+        raise ValueError("Houston, we have a problem!!! This dataprovider has uploaded multiple times")
     return True

@@ -32,10 +32,11 @@ def abort_if_run_doesnt_exist(project_id, run_id):
 
 
 def abort_if_invalid_dataprovider_token(update_token):
-    logger.debug("checking authorization token to update data")
+    logger.debug("checking authorization token to upload data")
     with DBConn() as conn:
         resource_exists = db.check_update_auth(conn, update_token)
     if not resource_exists:
+        logger.debug("authorization token invalid")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
