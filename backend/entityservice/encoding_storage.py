@@ -139,6 +139,8 @@ def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, coun
     parent_span = g.flask_tracer.get_span()
 
     with DBConn() as conn:
+        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
+
         with opentracing.tracer.start_span('create-default-block-in-db', child_of=parent_span):
             db.insert_blocking_metadata(conn, dp_id, {DEFAULT_BLOCK_ID: count})
 
