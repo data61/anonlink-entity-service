@@ -56,7 +56,7 @@ def authorize_external_upload(project_id):
         client.set_app_info("anonlink", "development version")
 
         bucket_name = config.UPLOAD_OBJECT_STORE_BUCKET
-        path = object_store_upload_path(project_id,dp_id)
+        path = object_store_upload_path(project_id, dp_id)
         log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
 
         credentials_provider = AssumeRoleProvider(client,
