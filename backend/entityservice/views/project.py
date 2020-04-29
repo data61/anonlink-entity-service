@@ -73,7 +73,7 @@ def project_delete(project_id):
         db.mark_project_deleted(db_conn, project_id)
 
     log.info("Queuing authorized request to delete project resources")
-    remove_project.delay(project_id)
+    remove_project.delay(project_id, serialize_span(parent_span))
 
     return '', 204
 
