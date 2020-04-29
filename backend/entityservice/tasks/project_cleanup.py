@@ -12,7 +12,7 @@ from entityservice.settings import Config
 @celery.task(base=TracedTask,
              ignore_result=True,
              args_as_tags=('project_id',))
-def remove_project(project_id):
+def remove_project(project_id, parent_span=None):
     """
 
     """
@@ -38,7 +38,7 @@ def remove_project(project_id):
 @celery.task(base=TracedTask,
              ignore_result=True,
              args_as_tags=('project_id',))
-def delete_minio_objects(filenames, project_id):
+def delete_minio_objects(filenames, project_id, parent_span=None):
     log = logger.bind(pid=project_id)
     mc = connect_to_object_store()
     log.info(f"Deleting {len(filenames)} files from object store")

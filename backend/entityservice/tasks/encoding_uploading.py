@@ -8,7 +8,7 @@ from entityservice.error_checking import check_dataproviders_encoding, handle_in
 from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
-from entityservice.async_worker import celery, logger
+from entityservice.async_worker import celery
 from entityservice.tasks.base_task import TracedTask
 from entityservice.tasks.pre_run_check import check_for_executable_runs
 from entityservice.tracing import serialize_span

@@ -27,7 +27,7 @@ def calculate_comparison_rate():
             rate = total_comparisons/total_time.total_seconds()
             logger.info("Total comparisons: {}".format(total_comparisons))
             logger.info("Total time:        {}".format(total_time.total_seconds()))
-            logger.info("Comparison rate:   {}".format(rate))
+            logger.info("Comparison rate:   {:.0f}".format(rate))
 
             with dbinstance.cursor() as cur:
                 insert_comparison_rate(cur, rate)
