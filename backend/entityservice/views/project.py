@@ -2,6 +2,7 @@ from io import BytesIO
 import json
 import tempfile
 
+from connexion import ProblemException
 from flask import request
 from structlog import get_logger
 import opentracing
@@ -262,12 +263,20 @@ def project_clks_post(project_id):
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
                 safe_fail_request(400, "Content Type not supported")
-        except Exception:
-            log.info("The dataprovider was not able to upload her clks,"
-                     " re-enable the corresponding upload token to be used.")
+        except ProblemException as e:
+            # Have an exception that is safe for the user. We reset the upload state to
+            # allow the user to try upload again.
+            log.info(f"Problem occurred, returning status={e.status} - {e.detail}")
+            with DBConn() as conn:
+                db.set_dataprovider_upload_state(conn, dp_id, state='not_started')
+            raise
+        except Exception as e:
+            log.warning("Unhandled error occurred during data upload")
+            log.exception(e)
             with DBConn() as conn:
                 db.set_dataprovider_upload_state(conn, dp_id, state='error')
-            raise
+            safe_fail_request(500, "Sorry, the server couldn't handle that request")
+
 
     with DBConn() as conn:
         db.set_dataprovider_upload_state(conn, dp_id, state='done')
@@ -346,8 +355,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
         log.info("External encodings uploaded")
         encoding_object_info = clk_json['encodings']['file']
         object_name = encoding_object_info['path']
-        if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
-            safe_fail_request(403, "Provided object store path is not allowed")
+        _check_object_path_allowed(project_id, dp_id, object_name, log)
 
         encoding_credentials = clk_json['encodings'].get('credentials')
         # Schedule a background task to pull the encodings from the object store
@@ -366,8 +374,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
             # Need to deal with both encodings and blocks
             if 'file' in clk_json['blocks']:
                 object_name = clk_json['blocks']['file']['path']
-                if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
-                    safe_fail_request(403, "Provided object store path is not allowed")
+                _check_object_path_allowed(project_id, dp_id, object_name, log)
                 # Blocks are in an external file
                 blocks_object_info = clk_json['blocks']['file']
                 blocks_credentials = clk_json['blocks'].get('credentials')
@@ -451,3 +458,9 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
 
     # Schedule a task to deserialize the encodings
     handle_raw_upload.delay(project_id, dp_id, receipt_token, parent_span=serialize_span(parent_span))
+
+
+def _check_object_path_allowed(project_id, dp_id, object_name, log):
+    if not object_name.startswith(object_store_upload_path(project_id, dp_id)):
+        log.warning(f"Attempt to upload to illegal path: {object_name}")
+        safe_fail_request(403, "Provided object store path is not allowed")
