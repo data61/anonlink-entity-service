@@ -200,10 +200,12 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
                                     'path': upload_info2['path'] + "/blocks",
                                 }
                             }
-
                         }
                        )
     assert res3.status_code == 201
+    run_id = post_run(requests, project, threshold=0.9)
+    result = get_run_result(requests, project, run_id, timeout=60)
+    assert 'groups' in result
 
 
 def _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path):
