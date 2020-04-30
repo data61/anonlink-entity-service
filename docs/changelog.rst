@@ -56,6 +56,8 @@ Version 1.13.0-beta
     - ``anonlinkclient`` now used for benchmarking. (#490)
     - Chart dependencies ``redis-ha``, ``postgres`` and ``minio`` all updated. (#496, #497)
 
+Breaking Change
+~~~~~~~~~~~~~~~
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~
