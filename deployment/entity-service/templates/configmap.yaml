@@ -5,8 +5,6 @@ metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
 data:
-  DEBUG: {{ required "workers.debug is required." .Values.workers.debug | quote }}
-
   CONNEXION_STRICT_VALIDATION: "true"
   CONNEXION_RESPONSE_VALIDATION: "true"
 
