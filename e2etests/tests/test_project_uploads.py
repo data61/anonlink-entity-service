@@ -133,7 +133,7 @@ def test_project_upload_external_encodings(requests, a_project, binary_test_file
 def test_project_upload_external_data(requests, a_blocking_project, binary_test_file_path):
     project = a_blocking_project
     blocking_data = json.dumps(
-        {str(encoding_id): [str(encoding_id % 2), str(encoding_id % 3)] for encoding_id in range(1000)}).encode()
+        {str(encoding_id): list({str(encoding_id % 3), str(encoding_id % 13)}) for encoding_id in range(1000)}).encode()
 
     mc, upload_info = get_temp_upload_client(project, requests, project['update_tokens'][0])
 
@@ -203,8 +203,8 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
                         }
                        )
     assert res3.status_code == 201
-    run_id = post_run(requests, project, threshold=0.9)
-    result = get_run_result(requests, project, run_id, timeout=60)
+    run_id = post_run(requests, project, threshold=0.95)
+    result = get_run_result(requests, project, run_id, timeout=120)
     assert 'groups' in result
 
 
