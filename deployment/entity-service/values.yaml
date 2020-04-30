@@ -204,8 +204,6 @@ workers:
   ## Worker configuration
   ## These settings populate the deployment's configmap.
 
-  debug: false
-
   ## Desired task size in "number of comparisons"
   ## Note there is some overhead creating a task and a single dedicated cpu core can do between 50M and 100M
   ## comparisons per second, so much lower that 100M isn't generally worth splitting across celery workers.
