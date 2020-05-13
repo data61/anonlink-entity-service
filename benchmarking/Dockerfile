@@ -16,7 +16,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 RUN python -c "import clkhash; print('clkhash version:', clkhash.__version__)"
 
 RUN mkdir /cache
-RUN adduser user && \
+RUN adduser --disabled-password --gecos '' user && \
     chown user:user /app /var/log /cache
 VOLUME /cache
 USER user
