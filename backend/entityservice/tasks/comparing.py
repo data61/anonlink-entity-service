@@ -389,7 +389,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             log.warning("Failed to store result in minio: {}".format(err))
             raise
 
-    return num_results, file_size, result_filename
+    return num_results, merged_file_size, result_filename
 
 
 def _put_placeholder_empty_file(mc, log):
