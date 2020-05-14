@@ -406,19 +406,19 @@ stages:
           JobAttempt: $(System.JobAttempt)
 
       # Cleanup
-    #  - task: KubernetesManifest@0
-    #    condition: always()
-    #    inputs:
-    #      action: 'delete'
-    #      kubernetesServiceConnection: $(CLUSTER)
-    #      arguments: '-f $(bake.manifestsBundle)'
-    #      namespace: $(NAMESPACE)
+      - task: KubernetesManifest@0
+        condition: always()
+        inputs:
+          action: 'delete'
+          kubernetesServiceConnection: $(CLUSTER)
+          arguments: '-f $(bake.manifestsBundle)'
+          namespace: $(NAMESPACE)
 
       # Note that all the test resources (i.e. the pvc, the job and the pod have a label `deployment` set to $(DEPLOYMENT)
-    #  - task: KubernetesManifest@0
-    #    condition: always()
-    #    inputs:
-    #      action: 'delete'
-    #      kubernetesServiceConnection: $(CLUSTER)
-    #      arguments: 'pods,jobs,pvc,pv,statefulsets,deployment -l deployment=$(DEPLOYMENT)'
-    #      namespace: $(NAMESPACE)
+      - task: KubernetesManifest@0
+        condition: always()
+        inputs:
+          action: 'delete'
+          kubernetesServiceConnection: $(CLUSTER)
+          arguments: 'pods,jobs,pvc,pv,statefulsets,deployment -l deployment=$(DEPLOYMENT)'
+          namespace: $(NAMESPACE)
