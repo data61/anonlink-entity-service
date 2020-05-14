@@ -262,7 +262,7 @@ def test_project_binary_data_uploaded(requests, valid_project_params, binary_tes
             binary_test_file_path, new_project_data['project_id'], token, 1000)
 
     run_id = post_run(requests, new_project_data, 0.99)
-    result = get_run_result(requests, new_project_data, run_id, wait=True)
+    result = get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
 
     if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
@@ -307,7 +307,7 @@ def test_project_binary_data_upload_with_different_encoded_size(
             requests, d, project_id, token, 500, size=encoding_size)
 
     run_id = post_run(requests, new_project_data, 0.99)
-    result = get_run_result(requests, new_project_data, run_id, wait=True)
+    result = get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
     if valid_project_params['result_type'] == 'groups':
         assert 'groups' in result
         groups = result['groups']
@@ -330,7 +330,7 @@ def test_project_json_data_upload_with_various_encoded_sizes(
     )
 
     run_id = post_run(requests, new_project_data, 0.9)
-    result = get_run_result(requests, new_project_data, run_id, wait=True)
+    result = get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
     if result_type == 'groups':
         assert 'groups' in result
         # This is a pretty bad bound, but we're not testing the
@@ -350,7 +350,7 @@ def test_project_json_data_upload_with_mismatched_encoded_size(
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
-        get_run_result(requests, new_project_data, run_id, wait=True)
+        get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
 
 
 def test_project_json_data_upload_with_invalid_encoded_size(
@@ -366,7 +366,7 @@ def test_project_json_data_upload_with_invalid_encoded_size(
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
-        get_run_result(requests, new_project_data, run_id, wait=True)
+        get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
 
 
 def test_project_json_data_upload_with_too_small_encoded_size(
@@ -382,7 +382,7 @@ def test_project_json_data_upload_with_too_small_encoded_size(
 
     with pytest.raises(AssertionError):
         run_id = post_run(requests, new_project_data, 0.9)
-        get_run_result(requests, new_project_data, run_id, wait=True)
+        get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)
 
 
 def test_project_json_data_upload_with_too_large_encoded_size(
