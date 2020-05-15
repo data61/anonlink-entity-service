@@ -45,7 +45,7 @@ def test_similarity_scores(requests, the_truth):
         (the_truth['clks_a'], the_truth['clks_b']),
         result_type='similarity_scores')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    result = get_run_result(requests, project_data, run, timeout=60)
+    result = get_run_result(requests, project_data, run, timeout=240)
     
     true_scores = the_truth['similarity_scores']
     result_scores = {tuple(index for _, index in sorted([a, b])): score
@@ -67,7 +67,7 @@ def test_permutation(requests, the_truth):
         (the_truth['clks_a'], the_truth['clks_b']),
         result_type='permutations')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    mask_result = get_run_result(requests, project_data, run, timeout=60)
+    mask_result = get_run_result(requests, project_data, run, timeout=240)
     perm_a_result = get_run_result(requests, project_data, run, result_token=r_a['receipt_token'], wait=False)
     perm_b_result = get_run_result(requests, project_data, run, result_token=r_b['receipt_token'], wait=False)
     # compare permutations and mask against mapping of the truth
@@ -94,7 +94,7 @@ def test_groups(requests, the_truth):
         (the_truth['clks_a'], the_truth['clks_b']),
         result_type='groups')
     run = post_run(requests, project_data, threshold=the_truth['threshold'])
-    result = get_run_result(requests, project_data, run)
+    result = get_run_result(requests, project_data, run, timeout=240)
     # compare mapping with the truth
     result_groups = result['groups']
     true_groups = the_truth['groups']

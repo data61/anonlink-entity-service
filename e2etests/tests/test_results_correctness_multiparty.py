@@ -35,7 +35,7 @@ def test_groups_correctness(requests):
         binary=True, hash_size=DATA_HASH_SIZE)
     try:
         run = post_run(requests, project_data, threshold=THRESHOLD)
-        result_groups = get_run_result(requests, project_data, run)['groups']
+        result_groups = get_run_result(requests, project_data, run, timeout=240)['groups']
     finally:
         delete_project(requests, project_data)
     
