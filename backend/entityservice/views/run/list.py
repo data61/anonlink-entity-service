@@ -25,7 +25,7 @@ def get(project_id):
     with db.DBConn() as conn:
         runs = get_runs(conn, project_id)
 
-    return RunList().dump(runs)
+    return RunList(many=True).dump(runs)
 
 
 def post(project_id, run):
