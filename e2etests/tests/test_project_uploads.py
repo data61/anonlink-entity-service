@@ -204,7 +204,7 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
                        )
     assert res3.status_code == 201
     run_id = post_run(requests, project, threshold=0.95)
-    result = get_run_result(requests, project, run_id, timeout=120)
+    result = get_run_result(requests, project, run_id, timeout=240)
     assert 'groups' in result
 
 
