@@ -31,7 +31,7 @@ def projects_get():
     logger.info("Getting list of all projects")
     with DBConn() as conn:
         projects = db.query_db(conn, 'select project_id, time_added from projects')
-    return ProjectList().dump(projects)
+    return ProjectList(many=True).dump(projects)
 
 
 def projects_post(project):
