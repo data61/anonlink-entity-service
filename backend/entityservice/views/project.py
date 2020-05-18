@@ -19,7 +19,7 @@ from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
-from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
+from entityservice.views.serialization import ProjectListItem, NewProjectResponse, ProjectDescription
 from entityservice.views.util import bind_log_and_span, convert_clks_to_clknblocks, \
     convert_encoding_upload_to_clknblock
 
@@ -31,7 +31,7 @@ def projects_get():
     logger.info("Getting list of all projects")
     with DBConn() as conn:
         projects = db.query_db(conn, 'select project_id, time_added from projects')
-    return ProjectList(many=True).dump(projects)
+    return ProjectListItem(many=True).dump(projects)
 
 
 def projects_post(project):
