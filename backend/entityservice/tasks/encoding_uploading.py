@@ -91,6 +91,11 @@ def pull_external_data(project_id, dp_id,
             update_encoding_metadata(conn, None, dp_id, 'ready')
             update_blocks_state(conn, dp_id, block_sizes.keys(), 'ready')
 
+    # # Now work out if all parties have added their data
+    if clks_uploaded_to_project(project_id):
+        logger.info("All parties data present. Scheduling any queued runs")
+        check_for_executable_runs.delay(project_id, serialize_span(parent_span))
+
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def pull_external_data_encodings_only(project_id, dp_id, object_info, credentials, receipt_token, parent_span=None):
