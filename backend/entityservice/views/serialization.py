@@ -1,7 +1,10 @@
 from marshmallow import Schema, fields
 
 
-class ProjectList(Schema):
+class ProjectListItem(Schema):
+    """
+    serialize a list of projects by calling ProjectListItem(many=True).dump(projects)
+    """
     project_id = fields.String()
     time_added = fields.DateTime(format='iso8601')
 
@@ -34,7 +37,7 @@ class RunDescription(NewRun):
     run_id = fields.String()
 
 
-class RunList(Schema):
+class RunListItem(Schema):
     run_id = fields.String()
     time_added = fields.DateTime(format='iso8601')
     state = fields.String()
