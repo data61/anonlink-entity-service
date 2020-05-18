@@ -114,7 +114,7 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
     converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
-    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
+    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=parent_span)
 
     # # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):

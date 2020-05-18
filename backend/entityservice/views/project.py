@@ -154,7 +154,7 @@ def project_binaryclks_post(project_id):
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
+                    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=span)
                 except ValueError:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
@@ -258,7 +258,7 @@ def project_clks_post(project_id):
                 if len(request.data) != expected_bytes:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    upload_clk_data_binary(project_id, dp_id, stream, receipt_token, count, size)
+                    upload_clk_data_binary(project_id, dp_id, stream, receipt_token, count, size, parent_span=span)
                 except ValueError:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
