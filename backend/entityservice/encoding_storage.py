@@ -120,7 +120,7 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     return chunk_data, len(chunk_data)
 
 
-def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128):
+def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128, parent_span=None):
     """
     Save the user provided binary-packed CLK data.
 
@@ -136,7 +136,6 @@ def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, coun
 
     # Upload to database
     logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
-    parent_span = g.flask_tracer.get_span()
 
     with DBConn() as conn:
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
