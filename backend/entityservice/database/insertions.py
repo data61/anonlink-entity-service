@@ -6,6 +6,8 @@ import psycopg2.extras
 
 from entityservice.database.util import execute_returning_id, logger, query_db
 from entityservice.errors import RunDeleted
+from entityservice.database.selections import get_block_metadata
+from entityservice.encoding_storage import compute_encoding_ids
 
 
 def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes, uses_blocking):
@@ -59,7 +61,7 @@ def insert_blocking_metadata(db, dp_id, blocks):
         """
 
     logger.info("Preparing SQL for bulk insert of blocks")
-    values = [(dp_id, block_id, blocks[block_id], 'pending') for block_id in blocks]
+    values = [(dp_id, block_name, blocks[block_name], 'pending') for block_name in blocks]
 
     with db.cursor() as cur:
         psycopg2.extras.execute_values(cur, sql_insertion_query, values)
@@ -78,7 +80,7 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
 
 
-def insert_encodings_into_blocks(db, dp_id: int, block_ids: List[List[str]], encoding_ids: List[int],
+def insert_encodings_into_blocks(db, dp_id: int, block_names: List[List[str]], entity_ids: List[int],
                                  encodings: List[bytes], page_size: int = 4096):
     """
     Bulk load blocking and encoding data into the database.
@@ -89,23 +91,33 @@ def insert_encodings_into_blocks(db, dp_id: int, block_ids: List[List[str]], enc
         will require more local memory, but could be faster due to less network transfers.
 
     """
-    encodings_insertion_query = "INSERT INTO encodings (dp, encoding_id, encoding) VALUES %s"
-    blocks_insertion_query = "INSERT INTO encodingblocks (dp, encoding_id, block_id) VALUES %s"
-    encoding_data = ((dp_id, eid, encoding) for eid, encoding in zip(encoding_ids, encodings))
+    ## first we have to look up the block numbers corresponding to the given block_names
+    block_info_iter = get_block_metadata(db, dp_id)
+    block_lookup = {bl_name: bl_id for bl_name, bl_id, _ in block_info_iter}
 
-    def block_data_generator(encoding_ids, block_ids):
-        for eid, block_ids in zip(encoding_ids, block_ids):
+    encodings_insertion_query = "INSERT INTO encodings (encoding_id, encoding) VALUES %s"
+    blocks_insertion_query = "INSERT INTO encodingblocks (dp, entity_id, encoding_id, block_id) VALUES %s"
+    # we differentiate between entity_id and encoding_id.
+    # The entity_id is the id that the dataprovider assigns to an entity. Usually the row number of that entity in the
+    # dataset.
+    # The encoding_id is used internally to address encodings uniquely.
+
+    encoding_ids = compute_encoding_ids(map(int, entity_ids), dp_id)
+    encoding_data = ((eid, encoding) for eid, encoding in zip(encoding_ids, encodings))
+
+    def block_data_generator(entity_ids, encoding_ids, block_ids):
+        for en_id, eid, block_ids in zip(entity_ids, encoding_ids, block_ids):
             for block_id in block_ids:
-                yield dp_id, eid, block_id
+                yield dp_id, en_id, eid, block_lookup[block_id]
 
     with db.cursor() as cur:
         with opentracing.tracer.start_span('insert-encodings-to-db'):
             psycopg2.extras.execute_values(cur, encodings_insertion_query, encoding_data, page_size=page_size)
         with opentracing.tracer.start_span('insert-encodingblocks-to-db'):
             psycopg2.extras.execute_values(cur,
-                                       blocks_insertion_query,
-                                       list(block_data_generator(encoding_ids, block_ids)),
-                                       page_size=page_size)
+                                           blocks_insertion_query,
+                                           list(block_data_generator(entity_ids, encoding_ids, block_names)),
+                                           page_size=page_size)
 
 
 def set_dataprovider_upload_state(db, dp_id, state='error'):
