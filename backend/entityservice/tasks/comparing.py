@@ -409,7 +409,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             merged_file_iter = file_iters[0]
             merged_file_size = file_sizes[0]
         else:
-            return 0, 0, None
+            return 0, None, None
 
         result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
             generate_code(12))
