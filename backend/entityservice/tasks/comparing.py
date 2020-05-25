@@ -59,7 +59,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
                  f"{', '.join(map(str, dp_ids))}")
 
         # Retrieve required metadata
-        dataset_sizes, dp_block_sizes = _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids)
+        dataset_sizes, dp_block_sizes, dp_lookups = _retrieve_blocked_dataset_sizes_and_lookup(conn, project_id, dp_ids)
 
         log.info("Finding blocks in common between dataproviders")
         common_blocks = _get_common_blocks(dp_block_sizes, dp_ids)
@@ -70,7 +70,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
 
     log.debug("creating work packages for computation tasks")
     # Create "chunks" of comparisons
-    packages = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
+    packages = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log, block_lookups=dp_lookups)
 
     log.info(f"Chunking into {len(packages)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(packages), 'dataset-sizes': dataset_sizes})
@@ -95,7 +95,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     future = chord(scoring_tasks)(callback_task)
 
 
-def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Config.CHUNK_SIZE_AIM):
+def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=Config.CHUNK_SIZE_AIM):
     """Create chunks of comparisons using blocking information.
 
     .. note::
@@ -127,6 +127,7 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Conf
         - range - The range of encodings within the block that make up this chunk.
     """
     chunks = []
+    MAX_CHUNKS_PER_PACKAGE = 320000
 
     def next_block(blocks):
         try:
@@ -138,7 +139,7 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Conf
         except StopIteration as e:
             raise e
 
-    block_id, dp1, dp2, size1, size2, comparisons = next_block(blocks)
+    block_name, dp1, dp2, size1, size2, comparisons = next_block(blocks)
     cur_package = []
     cur_comparisons = 0
     try:
@@ -154,22 +155,25 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Conf
                     # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
                     # We need to correct the datasetIndex and add the database datasetId and add block_id.
                     add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
-                    add_block_id_to_chunk_info(chunk_info, block_id)
+                    ##add_block_id_to_chunk_info(chunk_info, block_id)
+                    left, right = chunk_info
+                    left['block_id'] = block_lookups[dp1][block_name]
+                    right['block_id'] = block_lookups[dp2][block_name]
                     chunks.append([chunk_info])
             else:
-                chunk_left = {"range": (0, size1), "block_id": block_id}
-                chunk_right = {"range": (0, size2), "block_id": block_id}
+                chunk_left = {"range": (0, size1), "block_id": block_lookups[dp1][block_name]}
+                chunk_right = {"range": (0, size2), "block_id": block_lookups[dp2][block_name]}
                 chunk_info = (chunk_left, chunk_right)
                 add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
                 # if there is still enough capacity in the current work package, then append, otherwise new package
-                if cur_comparisons + comparisons <= chunk_size_aim:
+                if cur_comparisons + comparisons <= chunk_size_aim and len(cur_package) < MAX_CHUNKS_PER_PACKAGE:
                     cur_package.append(chunk_info)
                     cur_comparisons += comparisons
                 else:
                     chunks.append(cur_package)
                     cur_package = [chunk_info]
                     cur_comparisons = comparisons
-            block_id, dp1, dp2, size1, size2, comparisons = next_block(blocks)
+            block_name, dp1, dp2, size1, size2, comparisons = next_block(blocks)
     except StopIteration:
         # no more blocks left...
         if len(cur_package) > 0:
@@ -220,6 +224,37 @@ def _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids):
     for dp_id in dp_ids:
         dp_block_sizes[dp_id] = dict(get_block_metadata(conn, dp_id))
     return dataset_sizes, dp_block_sizes
+
+
+def _retrieve_blocked_dataset_sizes_and_lookup(conn, project_id, dp_ids):
+    """Fetch encoding counts for each dataset by block. And create lookup table from block_name to block_id
+
+    :param dp_ids: Iterable of dataprovider database identifiers.
+    :returns
+        A 2-tuple of:
+
+        - dataset sizes: a tuple of the number of encodings in each dataset.
+
+        - dp_block_sizes: A map from dataprovider id to a dict mapping
+          block id to the number of encodings from the dataprovider in the
+          block.
+
+          {dp_id -> {block_id -> block_size}}
+          e.g. {33: {'1': 100}, 34: {'1': 100}, 35: {'1': 100}}
+    """
+    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+
+    dp_block_sizes = {}
+    dp_block_lookups = {}
+    for dp_id in dp_ids:
+        block_sizes = {}
+        lookup = {}
+        for block_name, block_id, count in get_block_metadata(conn, dp_id):
+            block_sizes[block_name] = count
+            lookup[block_name] = block_id
+        dp_block_sizes[dp_id] = block_sizes
+        dp_block_lookups[dp_id] = lookup
+    return dataset_sizes, dp_block_sizes, dp_block_lookups
 
 
 def add_dp_id_to_chunk_info(chunk_info, dp_ids, dp_id_left, dp_id_right):
