@@ -49,9 +49,8 @@ class TestInsertions:
         assert len(dp_auth_token) == 48
         return project.project_id, project.result_token, dp_id, dp_auth_token
 
-
     def test_insert_project(self):
-        before = datetime.datetime.now()
+        before = datetime.datetime.utcnow()
         project, _ = self._create_project()
         assert len(project.result_token) == 48
         # check we can fetch the inserted project back from the database
@@ -88,13 +87,21 @@ class TestInsertions:
         conn, cur = _get_conn_and_cursor()
 
         insert_encodings_into_blocks(conn, dp_id,
-                                     block_ids=blocks,
-                                     encoding_ids=list(range(num_entities)),
+                                     block_names=blocks,
+                                     entity_ids=list(range(num_entities)),
                                      encodings=encodings
                                      )
         conn.commit()
 
-        stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1'))
+        block_names, block_ids, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
+
+        assert len(block_names) == 1
+        assert len(block_ids) == 1
+        assert len(block_sizes) == 1
+        assert block_names[0] == '1'
+        assert block_sizes[0] == 10_000
+
+        stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, block_ids[0]))
 
         assert len(stored_encoding_ids) == num_entities
         for stored_encoding_id, original_id in zip(stored_encoding_ids, range(num_entities)):
@@ -106,13 +113,6 @@ class TestInsertions:
         for stored_encoding, original_encoding in zip(stored_encodings, encodings):
             assert bytes(stored_encoding) == original_encoding
 
-        block_names, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
-
-        assert len(block_names) == 1
-        assert len(block_sizes) == 1
-        assert block_names[0] == '1'
-        assert block_sizes[0] == 10_000
-
     def test_fetch_chunk(self):
         data = [generate_bytes(128) for _ in range(100)]
         project_id, project_auth_token, dp_id, dp_auth_token = self._create_project_and_dp()
@@ -122,13 +122,14 @@ class TestInsertions:
         encodings = [data[i % 100] for i in range(num_entities)]
 
         insert_encodings_into_blocks(conn, dp_id,
-                                     block_ids=blocks,
-                                     encoding_ids=list(range(num_entities)),
+                                     block_names=blocks,
+                                     entity_ids=list(range(num_entities)),
                                      encodings=encodings
                                      )
         conn.commit()
 
-        stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, '1', offset=10, limit=20))
+        block_names, block_ids, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
+        stored_encoding_ids = list(get_encodingblock_ids(conn, dp_id, block_ids[0], offset=10, limit=20))
 
         assert len(stored_encoding_ids) == 20
         for i, stored_encoding_id in enumerate(stored_encoding_ids):
