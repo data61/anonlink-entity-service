@@ -32,10 +32,11 @@ def abort_if_run_doesnt_exist(project_id, run_id):
 
 
 def abort_if_invalid_dataprovider_token(update_token):
-    logger.debug("checking authorization token to update data")
+    logger.debug("checking authorization token to upload data")
     with DBConn() as conn:
         resource_exists = db.check_update_auth(conn, update_token)
     if not resource_exists:
+        logger.debug("authorization token invalid")
         safe_fail_request(403, message=INVALID_ACCESS_MSG)
 
 
@@ -60,35 +61,37 @@ def abort_if_invalid_results_token(resource_id, results_token):
 
 
 def abort_if_inconsistent_upload(uses_blocking, clk_json):
-    """
-    check if the following combinations are true
-      - uses_blocking is False AND 'clks' element in upload JSON
-      - uses_blocking if True AND 'clknblocks' element in upload JSON
-    otherwise, return safe_fail_request
+    """Check if the uploaded data is consistent with requirements imposed at the project
+     level.
+
+     Specifically checks that one of these combinations is true:
+
+     If the project uses_blocking:
+     - `clknblocks` element in upload JSON, OR
+     - `blocks` element in uploaded JSON
+
+     If the project doesn't use blocking:
+      - No `blocks` element or `clksnblocks` elment in uploaded JSON.
+
+    Finally checks that encodings are uploaded somehow by either `clksnblocks` or
+    `encodings` being present in the uploaded JSON.
+
+    If these conditions are not met raise a ValueError exception.
 
     :param uses_blocking: Boolean that indicates if the project uses blocking
-    :param clk_json: a json dict
-    :return: safe_fail_request if conditions are not met
+    :param clk_json: a dict of the JSON from the client.
+    :raises ValueError:
     """
-    is_valid_clks = not uses_blocking and 'clks' in clk_json
-    is_valid_clknblocks = uses_blocking and 'clknblocks' in clk_json
-    if not (is_valid_clks or is_valid_clknblocks):
-        # fail condition1 - uses_blocking is True but uploaded element is "clks"
-        if uses_blocking and 'clks' in clk_json:
-            raise ValueError('Uploaded element is "clks" while expecting "clknblocks"')
-        # fail condition2 - uses_blocking is False but uploaded element is "clknblocks"
-        if not uses_blocking and 'clknblocks' in clk_json:
-            raise ValueError('Uploaded element is "clknblocks" while expecting "clks"')
-        # fail condition3 - "clks" exist in JSON but there is no data
-        if 'clks' in clk_json and len(clk_json['clks']) < 1:
-            raise ValueError('Missing CLKs information')
-        # fail condition4 - "clknblocks" exist in JSON but there is no data
-        if 'clknblocks' in clk_json and len(clk_json['clknblocks']) < 1:
-            raise ValueError('Missing CLK and Blocks information')
-        # fail condition5 - unknown element in JSON
-        if 'clks' not in clk_json and 'clknblocks' not in clk_json:
-            raise ValueError('Unknown upload element - expect "clks" or "clknblocks"')
+    if uses_blocking:
+        if 'clknblocks' not in clk_json and 'blocks' not in clk_json:
+            raise ValueError('Expecting blocking information. Either in "blocks" or "clksnblocks"')
+    else:
+        if 'clknblocks' in clk_json or 'blocks' in clk_json:
+            _msg = 'Blocking has been disabled for this project, but received blocking information'
+            raise ValueError(_msg)
 
+    if 'clknblocks' not in clk_json and 'encodings' not in clk_json and 'clks' not in clk_json:
+        raise ValueError('Missing encoding information')
 
 
 def dataprovider_id_if_authorize(resource_id, receipt_token):

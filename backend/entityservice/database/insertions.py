@@ -48,7 +48,7 @@ def insert_dataprovider(cur, auth_token, project_id):
 
 def insert_blocking_metadata(db, dp_id, blocks):
     """
-    Insert a new entry into the blocks table.
+    Insert new entries into the blocks table.
 
     :param blocks: A dict mapping block id to the number of encodings per block.
     """
@@ -211,6 +211,24 @@ def update_encoding_metadata(db, clks_filename, dp_id, state):
         ])
 
 
+def update_blocks_state(db, dp_id, blocks, state):
+    assert state in {'pending', 'ready', 'error'}
+    sql_query = """
+        UPDATE blocks
+        SET
+          state = %s
+        WHERE
+          dp = %s AND
+          block_name in %s
+        """
+
+    with db.cursor() as cur:
+        cur.execute(sql_query, [
+            state,
+            dp_id,
+            tuple(blocks)
+        ])
+
 def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
     sql_query = """
         UPDATE uploads
@@ -220,7 +238,7 @@ def update_encoding_metadata_set_encoding_size(db, dp_id, encoding_size):
           dp = %s
         """
 
-    logger.info("Updating database with info about encodings")
+    logger.info(f"Updating uploads table for dp {dp_id} with encoding size ({encoding_size})")
     with db.cursor() as cur:
         cur.execute(sql_query, [
             encoding_size,
@@ -289,6 +307,18 @@ def update_project_mark_all_runs_failed(conn, project_id):
         cur.execute(sql_query, [project_id])
 
 
+def update_dataprovider_uploaded_state(conn, project_id, dp_id, state):
+    with conn.cursor() as cur:
+        sql_query = """
+            UPDATE dataproviders SET
+              uploaded = %s
+            WHERE
+              id = %s AND
+              project = %s
+            """
+        cur.execute(sql_query, [state, dp_id, project_id])
+
+
 def mark_project_deleted(db, project_id):
     with db.cursor() as cur:
         sql_query = """
@@ -339,10 +369,11 @@ def get_created_runs_and_queue(db, project_id):
 
 def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     """
-    This method returns true if the dataprovider is allowed to upload her clks.
-    A dataprovider is not allowed to upload clks if she has already uploaded them, or if the upload is in progress.
+    This method returns true if the data provider is allowed to upload their encodings.
+
+    A dataprovider is not allowed to upload clks if they has already uploaded them, or if the upload is in progress.
     This method will lock the resource by setting the upload state to `in_progress` and returning `true`.
-    Note that the upload state can be `error`, in which case we are allowing the dataprovider to re-try uploading
+    Note that the upload state can be `error`, in which case we allow the dataprovider to re-try uploading
     her clks not to block a project if a failure occurred.
     """
     logger.debug("Setting dataprovider {} upload state to `in_progress``".format(dp_id))
@@ -359,5 +390,5 @@ def is_dataprovider_allowed_to_upload_and_lock(db, dp_id):
     elif length > 1:
         logger.error("{} rows in the table `dataproviders` are associated to the same dataprovider id {}, while each"
                      " dataprovider id should be unique.".format(length, dp_id))
-        raise ValueError("Houston, we have a problem!!! This dataprovider can upload multiple times her clks.")
+        raise ValueError("Houston, we have a problem!!! This dataprovider has uploaded multiple times")
     return True

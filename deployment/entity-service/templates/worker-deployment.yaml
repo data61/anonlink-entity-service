@@ -16,6 +16,7 @@ spec:
     matchLabels:
       app: {{ template "es.appname" . }}
       component: "{{ .Values.workers.name }}"
+      release: {{ .Release.Name }}
       tier: backend
   {{- if .Values.workers.strategy }}
   strategy:

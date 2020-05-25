@@ -9,10 +9,34 @@ Next Version
 
 
 Version 1.13.0-beta2
--------------------
+--------------------
 
-- Encodings are now stored in Postgres database instead of files in an object store.
-- Initial support for user supplied blocking implemented.
+Adds support for users to supply blocking information along with encodings. Data can now be uploaded to
+an object store and pulled by the Anonlink Entity Service instead of uploaded via the REST API.
+This release includes substantial internal changes as encodings are now stored in Postgres instead of
+the object store.
+
+- Feature to pull data from an object store and create temporary upload credentials. #537, #544, #551
+- Blocking implementation #510 #527,
+- Benchmarking #478, #541
+- Encodings are now stored in Postgres database instead of files in an object store. #516, #522
+- Start to add integration tests to complement our end to end tests. #520, #528
+- Use anonlink-client instead of clkhash #536
+- Use Python 3.8 in base image. #518
+- A base image is now used for all our Docker images. #506, #511, #517, #519
+- Binary encodings now stored internally with their encoding id. #505
+- REST API implementation for accepting clknblocks #503
+- Update Open API spec to version 3. Add Blocking API #479
+- CI Updates #476
+- Chart updates #496, #497, #539
+- Documentation updates (production deployment, debugging with PyCharm) #473, #504
+- Fix Jaeger #500, #523
+
+Misc changes/fixes:
+- Detect invalid encoding size as early as possible #507
+- Use local benchmark cache #531
+- Cleanup docker-compose #533, #534, #547
+- Calculate number of comparisons accounting for user supplied blocks. #543
 
 Version 1.13.0-beta
 -------------------
@@ -31,7 +55,6 @@ Version 1.13.0-beta
     - We have enabled `dependabot <https://dependabot.com/>`_ on GitHub to keep our Python dependencies up to date.
     - ``anonlinkclient`` now used for benchmarking. (#490)
     - Chart dependencies ``redis-ha``, ``postgres`` and ``minio`` all updated. (#496, #497)
-
 
 Breaking Changes
 ~~~~~~~~~~~~~~~~

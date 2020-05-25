@@ -222,6 +222,8 @@ An example policy which restricts holders to upload only into a project and data
 }
 ```
 
+This endpoint may fail if the object store does not support creating temporary credentials.
+This feature may be entirely disabled in the server configuration, see `settings.py` and `values.yaml`.
 
 A possible future extension is to take advantage of MinIO's [Security Token Service (STS)](https://docs.min.io/docs/minio-sts-quickstart-guide.html)
 to enable clients to request temporary credentials using their existing identity management system.
@@ -260,6 +262,8 @@ aws --profile restricted --endpoint-url http://localhost:9000 sts assume-role --
     '{"Version":"2012-10-17","Statement":[{"Sid":"Stmt1","Effect":"Allow","Action":"s3:*","Resource":"arn:aws:s3:::*"}]}' \
     --role-arn arn:xxx:xxx:xxx:xxxx --role-session-name anything
 ```
+
+Alternatively use minio or boto3 to retrieve credentials.
 
 The backend will use the minio-py client library to retrieve the temporary credentials.
 

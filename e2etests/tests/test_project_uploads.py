@@ -1,8 +1,11 @@
+import io
+import json
 import time
 import os
 import pytest
+from minio import Minio
 
-from e2etests.config import url
+from e2etests.config import url, minio_host
 from e2etests.util import (
     create_project_upload_data, create_project_upload_fake_data,
     generate_clks, generate_json_serialized_clks,
@@ -10,7 +13,7 @@ from e2etests.util import (
     upload_binary_data, upload_binary_data_from_file, binary_pack_for_upload)
 
 
-def test_project_single_party_data_uploaded(requests, valid_project_params):
+def test_project_single_party_data_uploaded_clks_format(requests, valid_project_params):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
@@ -23,12 +26,227 @@ def test_project_single_party_data_uploaded(requests, valid_project_params):
             'clks': generate_json_serialized_clks(100)
         }
     )
-    assert r.status_code == 201
+    assert r.status_code == 201, r.text
     upload_response = r.json()
     assert 'receipt_token' in upload_response
 
 
-def test_project_binary_data_uploaded(requests, valid_project_params):
+def test_project_single_party_data_uploaded_clknblocks_format(requests, a_blocking_project):
+
+    clksnblocks = [[encoding, '1'] for encoding in generate_json_serialized_clks(10)]
+
+    r = requests.post(
+        url + '/projects/{}/clks'.format(a_blocking_project['project_id']),
+        headers={'Authorization': a_blocking_project['update_tokens'][0]},
+        json={
+            'clknblocks': clksnblocks
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_single_party_data_uploaded_encodings_format(requests, valid_project_params):
+    new_project_data = requests.post(url + '/projects',
+                                     json={
+                                         'schema': {},
+                                         **valid_project_params
+                                     }).json()
+    r = requests.post(
+        url + '/projects/{}/clks'.format(new_project_data['project_id']),
+        headers={'Authorization': new_project_data['update_tokens'][0]},
+        json={
+            'encodings': generate_json_serialized_clks(100)
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_single_party_data_uploaded_encodings_and_blocks_format(requests, a_blocking_project):
+    encodings = generate_json_serialized_clks(10)
+    blocks = {encoding_id: ['1'] for encoding_id in range(len(encodings))}
+
+    r = requests.post(
+        url + '/projects/{}/clks'.format(a_blocking_project['project_id']),
+        headers={'Authorization': a_blocking_project['update_tokens'][0]},
+        json={
+            'encodings': encodings,
+            'blocks': blocks
+        }
+    )
+    assert r.status_code == 201, r.text
+    upload_response = r.json()
+    assert 'receipt_token' in upload_response
+
+
+def test_project_upload_external_encodings(requests, a_project, binary_test_file_path):
+
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(a_project['project_id']),
+        headers={'Authorization': a_project['update_tokens'][0]},
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+
+    credentials = upload_response['credentials']
+    upload_info = upload_response['upload']
+
+    # Use Minio python client to upload data
+
+    mc = Minio(
+        minio_host or upload_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=upload_info['secure']
+    )
+
+    etag = mc.fput_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/test",
+        binary_test_file_path,
+        metadata={
+            "hash-count": 1000,
+            "hash-size": 128
+        }
+    )
+
+    # Should be able to notify the service that we've uploaded data
+    res = requests.post(url + f"projects/{a_project['project_id']}/clks",
+                        headers={'Authorization': a_project['update_tokens'][0]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/test",
+                                }
+                            }
+                        }
+                        )
+    assert res.status_code == 201
+
+
+def test_project_upload_external_data(requests, a_blocking_project, binary_test_file_path):
+    project = a_blocking_project
+    blocking_data = json.dumps(
+        {str(encoding_id): list({str(encoding_id % 3), str(encoding_id % 13)}) for encoding_id in range(1000)}).encode()
+
+    mc, upload_info = get_temp_upload_client(project, requests, project['update_tokens'][0])
+
+    _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path)
+
+    # Should be able to notify the service that we've uploaded data
+    res = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][0]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/blocks",
+                                }
+                            }
+
+                        }
+                       )
+    assert res.status_code == 201
+
+    # If the second data provider uses the same path to upload data, that shouldn't work
+    res2 = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][1]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info['bucket'],
+                                    'path': upload_info['path'] + "/blocks",
+                                }
+                            }
+
+                        }
+                       )
+    assert res2.status_code == 403
+
+    mc2, upload_info2 = get_temp_upload_client(project, requests, project['update_tokens'][1])
+    _upload_encodings_and_blocks(mc2, upload_info2, blocking_data, binary_test_file_path)
+
+    # If the second data provider uses the correct path to upload data, that should work
+    res3 = requests.post(url + f"projects/{project['project_id']}/clks",
+                        headers={'Authorization': project['update_tokens'][1]},
+                        json={
+                            'encodings': {
+                                'file': {
+                                    'bucket': upload_info2['bucket'],
+                                    'path': upload_info2['path'] + "/encodings",
+                                }
+                            },
+                            'blocks': {
+                                'file': {
+                                    'bucket': upload_info2['bucket'],
+                                    'path': upload_info2['path'] + "/blocks",
+                                }
+                            }
+                        }
+                       )
+    assert res3.status_code == 201
+    run_id = post_run(requests, project, threshold=0.95)
+    result = get_run_result(requests, project, run_id, timeout=240)
+    assert 'groups' in result
+
+
+def _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path):
+    mc.fput_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/encodings",
+        binary_test_file_path,
+        metadata={
+            "hash-count": 1000,
+            "hash-size": 128
+        }
+    )
+    mc.put_object(
+        upload_info['bucket'],
+        upload_info['path'] + "/blocks",
+        io.BytesIO(blocking_data),
+        len(blocking_data)
+    )
+
+
+def get_temp_upload_client(project, requests, update_token):
+    r = requests.get(
+        url + 'projects/{}/authorize-external-upload'.format(project['project_id']),
+        headers={'Authorization': update_token},
+    )
+    assert r.status_code == 201
+    upload_response = r.json()
+    credentials = upload_response['credentials']
+    upload_info = upload_response['upload']
+    mc = Minio(
+        minio_host or upload_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=upload_info['secure']
+    )
+    return mc, upload_info
+
+
+def test_project_binary_data_uploaded(requests, valid_project_params, binary_test_file_path):
     new_project_data = requests.post(url + '/projects',
                                      json={
                                          'schema': {},
@@ -38,12 +256,10 @@ def test_project_binary_data_uploaded(requests, valid_project_params):
     expected_number_parties = get_expected_number_parties(valid_project_params)
     assert len(update_tokens) == expected_number_parties
 
-    small_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')
-
     for token in update_tokens:
         upload_binary_data_from_file(
             requests,
-            small_file_path, new_project_data['project_id'], token, 1000)
+            binary_test_file_path, new_project_data['project_id'], token, 1000)
 
     run_id = post_run(requests, new_project_data, 0.99)
     result = get_run_result(requests, new_project_data, run_id, wait=True, timeout=240)

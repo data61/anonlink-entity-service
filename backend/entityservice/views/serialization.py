@@ -1,12 +1,10 @@
 from marshmallow import Schema, fields
 
 
-class ListSchema(Schema):
-    def dump(self, obj, update_fields=True):
-        return super().dump(obj, many=True, update_fields=update_fields)
-
-
-class ProjectList(ListSchema):
+class ProjectListItem(Schema):
+    """
+    serialize a list of projects by calling ProjectListItem(many=True).dump(projects)
+    """
     project_id = fields.String()
     time_added = fields.DateTime(format='iso8601')
 
@@ -39,7 +37,7 @@ class RunDescription(NewRun):
     run_id = fields.String()
 
 
-class RunList(ListSchema):
+class RunListItem(Schema):
     run_id = fields.String()
     time_added = fields.DateTime(format='iso8601')
     state = fields.String()
@@ -80,3 +78,11 @@ class running(RunStatus):
 class error(RunStatus):
     message = fields.String(required=True)
     detail = fields.String()
+
+
+class ObjectStoreCredentials(Schema):
+    access_key = fields.String(data_key="AccessKeyId")
+    secret_key = fields.String(data_key="SecretAccessKey")
+    session_token = fields.String(data_key="SessionToken")
+    # Note expiry is from a separate object
+    #expiry = fields.String(data_key="Expiration")

@@ -9,7 +9,7 @@ from entityservice.utils import safe_fail_request
 from entityservice.views import bind_log_and_span
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_results_token, \
     abort_if_project_in_error_state
-from entityservice.views.serialization import RunList, RunDescription
+from entityservice.views.serialization import RunListItem, RunDescription
 from entityservice.tracing import serialize_span
 
 logger = get_logger()
@@ -25,7 +25,7 @@ def get(project_id):
     with db.DBConn() as conn:
         runs = get_runs(conn, project_id)
 
-    return RunList().dump(runs)
+    return RunListItem(many=True).dump(runs)
 
 
 def post(project_id, run):

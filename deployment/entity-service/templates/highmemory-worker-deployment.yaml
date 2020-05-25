@@ -16,6 +16,7 @@ spec:
     matchLabels:
       app: {{ template "es.appname" . }}
       component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
+      release: {{ .Release.Name }}
       tier: backend
   {{- if .Values.workers.strategy }}
   strategy:

@@ -4,10 +4,19 @@ from itertools import zip_longest
 from typing import Iterator, List, Tuple, Iterable
 
 import ijson
+import opentracing
+from flask import g
+from structlog import get_logger
 
+from entityservice import database as db
 from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
-    get_chunk_of_encodings, get_encodings_of_multiple_blocks
+    get_chunk_of_encodings, get_encodings_of_multiple_blocks, DBConn
 from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters, binary_unpack_one
+from entityservice.utils import fmt_bytes
+
+logger = get_logger()
+
+DEFAULT_BLOCK_ID = '1'
 
 
 def stream_json_clksnblocks(f):
@@ -159,3 +168,49 @@ def get_encoding_chunks(conn, package, encoding_size=128):
         chunk_info_2['entity_ids'] = entity_ids
 
     return package
+
+
+def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128, parent_span=None):
+    """
+    Save the user provided binary-packed CLK data.
+
+    """
+    filename = None
+    # Set the state to 'pending' in the uploads table
+    with DBConn() as conn:
+        db.insert_encoding_metadata(conn, filename, dp_id, receipt_token, encoding_count=count, block_count=1)
+        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
+    num_bytes = binary_format(size).size * count
+
+    logger.debug("Directly storing binary file with index, base64 encoded CLK, popcount")
+
+    # Upload to database
+    logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
+
+    with DBConn() as conn:
+        db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
+
+        with opentracing.tracer.start_span('create-default-block-in-db', child_of=parent_span):
+            db.insert_blocking_metadata(conn, dp_id, {DEFAULT_BLOCK_ID: count})
+
+        with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
+            store_encodings_in_db(conn, dp_id, encoding_iter, size)
+
+        with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
+            db.update_encoding_metadata(conn, filename, dp_id, 'ready')
+
+
+def include_encoding_id_in_binary_stream(stream, size, count):
+    """
+    Inject an encoding_id and default block into a binary stream of encodings.
+    """
+
+    binary_formatter = binary_format(size)
+
+    def encoding_iterator(filter_stream):
+        # Assumes encoding id and block info not provided (yet)
+        for entity_id in range(count):
+            yield str(entity_id), binary_formatter.pack(entity_id, filter_stream.read(size)), [DEFAULT_BLOCK_ID]
+
+    return encoding_iterator(stream)
+

@@ -12,7 +12,7 @@ Usage: $SCRIPT_NAME [parameters]
 
 Script run by the Azure Pipeline to start all the services required by the entity service with
 docker-compose and the test or benchmark container, copying the results in a chosen file.
-The result is an xml file for the type 'tests' and 'tutorials', and a JSON file for the type 'benchmark'.
+The result is an xml file for the type 'integrationtests' and 'tutorials', and a JSON file for the type 'benchmark'.
 
   -p                       Project name (used by docker-compose with '-p'). REQUIRED.
   -o                       Output file where to store the results. [$RESULT_FILE]
@@ -56,13 +56,18 @@ process_args "$@"
 [[ $TYPE != "integrationtests" && $TYPE != "benchmark" && $TYPE != "tutorials" ]] && echoerr "ERROR: Unrecognized type '$TYPE'. Should be equal to 'integrationtests', 'benchmark' or 'tutorials'" && exit 1
 export TAG=$TAG
 
-commandPrefix="docker-compose -f tools/docker-compose.yml -f tools/ci.yml --project-directory . "
+commandPrefix="docker-compose -f docker-compose.yml -f ci.yml "
 if [[ "$NO_ANSI" == "TRUE" ]]; then
   commandPrefix="$commandPrefix --no-ansi "
 fi
-  
-echo "Initialise the database"
-$commandPrefix -p $PROJECT_NAME up db_init > /dev/null 2>&1
+
+# change current working directory to the tools directory
+cd "${0%/*}/../tools"
+
+echo "Initialise the database and the object store"
+$commandPrefix -p $PROJECT_NAME up objectstore_init db_init
+echo "Initialisation complete"
+
 
 if [[ $TYPE == "integrationtests" ]]; then
   CREATED_RESULT_FILE="/var/www/testResults.xml"
@@ -75,11 +80,10 @@ else
   exit 1
 fi
 
-echo "Start type $TYPE"
 $commandPrefix -p $PROJECT_NAME up --abort-on-container-exit --exit-code-from $TYPE db minio redis backend worker nginx $TYPE
 exit_code=$?
 echo "Retrieve the $TYPE tests results." 
-$commandPrefix -p $PROJECT_NAME ps -q $TYPE | xargs -I@ docker cp @:$CREATED_RESULT_FILE $RESULT_FILE
+$commandPrefix -p $PROJECT_NAME ps -q $TYPE | xargs -I@ docker cp @:$CREATED_RESULT_FILE ../$RESULT_FILE
 
 echo "Cleaning."
 $commandPrefix -p $PROJECT_NAME down -v

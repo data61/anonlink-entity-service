@@ -1,0 +1,61 @@
+{{- if .Values.api.objectstoreinit.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "es.fullname" . }}-init-objectstore
+  labels:
+    {{- include "es.release_labels" . | indent 4 }}
+    tier: aux
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": hook-succeeded, hook-failed
+spec:
+  template:
+    metadata:
+      name: {{ template "name" . }}-init-objectstore
+      labels:
+        {{- include "es.release_labels" . | indent 8 }}
+    spec:
+      containers:
+      - name: objectstore-init
+        image: {{ required "api.objectstoreinit.image.repository must be provided." .Values.api.objectstoreinit.image.repository }}:{{ required "api.objectstoreinit.image.tag must be provided." .Values.api.objectstoreinit.image.tag }}
+        env:
+          - name: MINIO_SERVER
+            valueFrom:
+              configMapKeyRef:
+                key: MINIO_SERVER
+                name: {{ template "es.fullname" . }}
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioAccessKey
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioSecretKey
+          - name: UPLOAD_ONLY_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioUploadAccessKey
+          - name: UPLOAD_ONLY_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioUploadSecretKey
+          - name: UPLOAD_BUCKET
+            value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
+        command:
+          - "/bin/sh"
+          - "/opt/init-objectstore.sh"
+        volumeMounts:
+          - name: script-volume
+            mountPath: /opt
+      volumes:
+        - name: script-volume
+          configMap:
+            name: {{ template "es.fullname" . }}-init-objectstore-config
+      restartPolicy: Never
+{{- end }}

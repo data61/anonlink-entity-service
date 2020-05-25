@@ -21,28 +21,30 @@ Run
 
 Run docker compose::
 
-    docker-compose -p n1es -f tools/docker-compose.yml up
+    docker-compose -p anonlink -f tools/docker-compose.yml up
 
 This will start the following containers:
 
-- nginx frontend (named ``n1es_nginx_1``)
-- gunicorn/flask backend (named ``n1es_backend_1``)
-- celery backend worker (named ``n1es_worker_1``)
-- postgres database (named ``n1es_db_1``)
-- redis job queue (named ``n1es_redis_1``)
+- nginx frontend
+- gunicorn/flask backend
+- celery backend worker
+- postgres database
+- redis job queue
 - minio object store
 - jaeger opentracing
+
+A temporary container that initializes the database will also be created and soon exit.
 
 The REST api for the service is exposed on port ``8851`` of the nginx container, which docker
 will map to a high numbered port on your host.
 
-The address of the nginx endpoint can be found with::
+The address of the REST API endpoint can be found with::
 
-    docker port n1es_nginx_1 "8851"
+    docker-compose -p anonlink -f tools/docker-compose.yml port nginx 8851
 
 For example to `GET` the service status::
 
-    $ export ENTITY_SERVICE=`docker port n1es_nginx_1 "8851"`
+    $ export ENTITY_SERVICE=`docker-compose -p anonlink -f tools/docker-compose.yml port nginx 8851`
     $ curl $ENTITY_SERVICE/api/v1/status
     {
         "status": "ok",
@@ -55,7 +57,7 @@ the DB volumes, which will persist and conflict with the next call to
 `docker-compose ... up` unless they are removed.  Removing these
 volumes is easy, just run::
 
-    docker-compose -p n1es -f tools/docker-compose.yml down -v
+    docker-compose -p anonlink -f tools/docker-compose.yml down -v
 
 in between calls to `docker-compose ... up`.
 

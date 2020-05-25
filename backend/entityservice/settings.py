@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.4
 """
 Config shared between the application backend and the celery workers.
 """
@@ -30,6 +29,14 @@ class Config(object):
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
     MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', '')
     MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'entityservice')
+
+    UPLOAD_OBJECT_STORE_ENABLED = os.getenv('UPLOAD_OBJECT_STORE_ENABLED', 'true').lower() == "true"
+    UPLOAD_OBJECT_STORE_STS_DURATION = int(os.getenv('UPLOAD_OBJECT_STORE_STS_DURATION', '43200'))
+    UPLOAD_OBJECT_STORE_SERVER = os.getenv('UPLOAD_OBJECT_STORE_SERVER', MINIO_SERVER)
+    UPLOAD_OBJECT_STORE_SECURE = os.getenv('UPLOAD_OBJECT_STORE_SECURE', 'true') == 'true'
+    UPLOAD_OBJECT_STORE_ACCESS_KEY = os.getenv('UPLOAD_OBJECT_STORE_ACCESS_KEY', '')
+    UPLOAD_OBJECT_STORE_SECRET_KEY = os.getenv('UPLOAD_OBJECT_STORE_SECRET_KEY', '')
+    UPLOAD_OBJECT_STORE_BUCKET = os.getenv('UPLOAD_OBJECT_STORE_BUCKET', 'anonlink-uploads')
 
     DATABASE_SERVER = os.getenv('DATABASE_SERVER', 'db')
     DATABASE = os.getenv('DATABASE', 'postgres')

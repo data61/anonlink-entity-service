@@ -95,6 +95,7 @@ the credentials:
 * ``global.postgresql.postgresqlPassword``
 * ``redis.password`` (and ``redis-ha.redisPassword`` if provisioning redis)
 * ``minio.accessKey`` and ``minio.secretKey``
+* ``anonlink.objectstore.uploadAccessKey`` and ``anonlink.objectstore.uploadSecretKey``
 
 
 Configuration of the celery workers

@@ -4,10 +4,10 @@ dependencies:
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.redis
   - name: minio
-    version: 5.0.19
+    version: 5.0.24
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.minio
   - name: postgresql
-    version: 8.3.0
-    repository: https://kubernetes-charts.storage.googleapis.com
+    version: 8.9.1
+    repository: https://charts.bitnami.com/bitnami
     condition: provision.postgresql

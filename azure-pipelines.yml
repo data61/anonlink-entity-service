@@ -157,7 +157,7 @@ stages:
     - template: .azurePipeline/templateSetVariableDockerTag.yml
     - script: |
         ./.azurePipeline/runDockerComposeTests.sh --no-ansi -p es$(DOCKER_TAG)$(Build.SourceVersion) -t $(DOCKER_TAG) -o $(resultFile) --type integrationtests
-      displayName: 'Start docker compose benchmark'
+      displayName: 'Start docker compose'
     - task: PublishTestResults@2
       condition: succeededOrFailed()
       inputs:
@@ -298,14 +298,22 @@ stages:
           namespace: $(NAMESPACE)
           releaseName: $(DEPLOYMENT)
           overrides: |
-            api.app.debug:true
             global.postgresql.postgresqlPassword:notaproductionpassword
             api.ingress.enabled:false
             workers.replicaCount:4
             api.www.image.repository:$(frontendImageName)
+            api.www.image.pullPolicy:Always
             api.app.image.repository:$(backendImageName)
+            api.app.image.pullPolicy:Always
             api.dbinit.image.repository:$(backendImageName)
             workers.image.repository:$(backendImageName)
+            workers.image.pullPolicy:Always
+            anonlink.objectstore.secure:false
+            anonlink.objectstore.uploadEnabled:true
+            anonlink.objectstore.uploadAccessKey:testUploadAccessKey
+            anonlink.objectstore.uploadSecretKey:testUploadSecretKey
+            minio.accessKey:testMinioAccessKey
+            minio.secretKey:testMinioSecretKey
 
       - task: KubernetesManifest@0
         displayName: Deploy K8s manifest

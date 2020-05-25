@@ -140,6 +140,32 @@ def valid_project_params(request, result_type_number_parties_or_none):
         params_dict['number_parties'] = number_parties_or_none
     return params_dict
 
+@pytest.fixture(scope='function')
+def a_project(request, requests):
+    # a 2 party project with blocking disabled
+    project = create_project_no_data(
+        requests,
+        result_type="groups",
+        number_parties=2,
+        uses_blocking=False
+    )
+    yield project
+    # Release project resource
+    delete_project(requests, project)
+
+@pytest.fixture(scope='function')
+def a_blocking_project(request, requests):
+    # a 2 party project with blocking disabled
+    project = create_project_no_data(
+        requests,
+        result_type="groups",
+        number_parties=2,
+        uses_blocking=True
+    )
+    yield project
+    # Release project resource
+    delete_project(requests, project)
+
 
 @pytest.fixture(scope='function')
 def project(request, requests, result_type_number_parties):
@@ -185,3 +211,7 @@ def groups_project(request, requests):
         [(t, 1) for t in PROJECT_RESULT_TYPES_NP]))
 def invalid_result_type_number_parties(request):
     yield request.param
+
+@pytest.fixture
+def binary_test_file_path(request):
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/clks_128B_1k.bin')

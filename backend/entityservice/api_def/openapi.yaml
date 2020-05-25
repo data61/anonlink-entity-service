@@ -6,15 +6,17 @@
 # Some style notes:
 # - This file is used by ReDoc, which allows GitHub Flavored Markdown in
 #   descriptions.
-openapi: 3.0.0
+openapi: 3.0.2
 info:
-  version: '1.3'
+  version: '1.13'
   title: Entity Matching API
   x-logo:
     url: http://clkhash.readthedocs.io/en/latest/_static/logo.svg
   contact:
     name: 'Confidential Computing, Data61 | CSIRO'
     email: confidential-computing@csiro.au
+    url: https://github.com/data61/anonlink-entity-service
+
   description: >-
     Allows multiple organisations to carry out private record linkage -
     without disclosing personally identifiable information.
@@ -86,6 +88,8 @@ info:
 servers:
 - url: https://anonlink.easd.data61.xyz/api/v1
   description: default EASD cluster
+- url: http://localhost:8851/api/v1
+  description: Local deployment
 
 paths:
   /status:
@@ -276,19 +280,62 @@ paths:
         '503':
           $ref: '#/components/responses/RateLimited'
 
-  '/projects/{project_id}/clks':
-    post:
-      operationId: entityservice.views.project.project_clks_post
-      summary: Upload encoded PII data to a linkage project.
+  '/projects/{project_id}/authorize-external-upload':
+    get:
+      operationId: entityservice.views.objectstore.authorize_external_upload
+      summary: Retrieve temporary objest store credentials for uploading data
       tags:
         - Project
       description: |
-        Called by each of the data providers with their calculated `CLK` vectors.
-        The project must have been created, and the caller must have both the
-        `project_id` and a valid `upload_token` in order to contribute data.
+        Returns a set of temporary security credentials that the client can use to upload data to the
+        object store.
 
-        The data uploaded must be of one of the following formats.
-        - CLKs only upload: An array of base64 encoded [CLKs](./concepts.html#cryptographic-longterm-keys), one per
+        A valid **upload token** is required to authorise this call. The returned *Temporary Object
+        Store Credentials* can be used with any S3 compatible client. For example by using `boto3` in
+        Python. The returned credentials are restricted to allow only uploading data to a particular path 
+        in a particular bucket for a finite period (defaulting to 12 hours).
+
+        Note this feature may be disabled by the administrator, in this case the endpoint will return a
+        `500` server error.
+      parameters:
+        - $ref: '#/components/parameters/project_id'
+        - $ref: '#/components/parameters/token'
+      responses:
+        '201':
+          description: Temporary Object Store Credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectStoreCredentials'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/RateLimited'
+
+  '/projects/{project_id}/clks':
+    post:
+      operationId: entityservice.views.project.project_clks_post
+      summary: Upload encoded data to a linkage project.
+      tags:
+        - Project
+      description: |
+        Called by each data provider with their encodings and optional blocking
+        information.
+
+        The caller must have both the `project_id` and a valid `upload_token` in order to contribute data,
+        both of these are generated when a project is created.
+        This endpoint can directly accept uploads up to several hundred MiB, and can pull encoding data from
+        an object store for larger uploads.
+
+        The data uploaded must be of one of the following formats:
+
+        - Encodings only: An array of base64 encoded [CLKs](./concepts.html#cryptographic-longterm-keys), one per
           entity.
         - CLKs with blocking information upload: An array of base64 encoded CLKs with corresponding blocking
           information. One element in this array is an array with the first element being a base64 encoded CLK followed
@@ -300,7 +347,7 @@ paths:
         The uploaded encodings must all have the same length in bytes. If the project's linkage schema
         specifes an encoding size it will be checked and enforced before any runs are computed. Note a
         minimum and maximum encoding size can be set at the server level at deployment time.
-        Currently anonlink requires this _encoding size_ to be a multiple of 8. An example value is 128 Bytes.
+        Currently anonlink requires this _encoding size_ to be a multiple of 8. A common value is `128 Bytes`.
 
         Note in the default deployment the maximum request size is set to `~10 GB`, which __should__
         translate to just over 20 million entities.
@@ -309,6 +356,12 @@ paths:
 
         This endpoint can be used with the Content-Type: application/json and uses the `CLKUpload`
         structure of a JSON array of base64 encoded strings.
+
+        ### Object Store Upload
+
+        `encodings` and `blocks` can be pulled from an object store. `encodings` must be in the binary format
+        documented under the `/projects/{project_id}/binaryclks` endpoint. `blocks` must be a JSON file, comprising
+        a mapping of encoding identifiers to a list of block identifiers; both identifiers must be strings.
 
         ### Binary Upload
 
@@ -319,20 +372,15 @@ paths:
         - $ref: '#/components/parameters/project_id'
         - $ref: '#/components/parameters/token'
       requestBody:
-        description: the encoded PII
+        description: Data to upload
         required: true
         content:
           application/json:
             schema:
               oneOf:
+                - $ref: '#/components/schemas/EncodingUpload'
                 - $ref: '#/components/schemas/CLKUpload'
                 - $ref: '#/components/schemas/CLKnBlockUpload'
-          # unfortunately connexion can not handle multiple different encoding types on an endpoint.
-          #application/octet-stream:
-          #  schema:
-          #    type: string
-          #    format: binary
-
       responses:
         '201':
           description: Data Uploaded
@@ -358,8 +406,8 @@ paths:
       tags:
         - Project
       description: |
-        An experimental api for uploading CLKs as a binary file. This is to allow for
-        faster and more efficient data transfer.
+        An experimental api for directly uploading CLKs as a binary file. You may instead want to
+        upload via an object store.
         Called by each of the data providers with their calculated `CLK` vectors.
         The project must have been created, and the caller must have both the
         `project_id` and a valid `upload_token` in order to contribute data.
@@ -690,11 +738,15 @@ paths:
 components:
   parameters:
     token:
+      in: header
+      description: |
+        Authorization token required for each endpoint. This may be an upload token or a result token,
+        both are provided by the `POST /projects` endpoint.
       required: true
       schema:
         type: string
       name: Authorization
-      in: header
+
     project_id:
       in: path
       name: "project_id"
@@ -833,7 +885,7 @@ components:
           minimum: 0
         description:
           type: string
-          description: oportunity to give those numbers some context, what are we counting here?
+          description: opportunity to give those numbers some context, what are we counting here?
         relative:
           type: number
           format: double
@@ -1041,17 +1093,92 @@ components:
       required:
         - number
 
+    EncodingUpload:
+      description: Object that contains one data provider's encodings
+      type: object
+      required: [encodings]
+      properties:
+        encodings:
+          oneOf:
+            - $ref: '#/components/schemas/EncodingArray'
+            - $ref: '#/components/schemas/ExternalData'
+        blocks:
+          oneOf:
+            - $ref: '#/components/schemas/BlockMap'
+            - $ref: '#/components/schemas/ExternalData'
+    EncodingArray:
+      description: Array of encodings, base64 encoded.
+      type: array
+      items:
+        - type: string
+          format: byte
+          description: Base64 encoded CLK data
+
+
+    BlockMap:
+      description: Blocking information for encodings. A mapping from encoding id (a string) to a list of block ids
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          - type: string
+            description: Block ID
+      example:
+        "1": ["block1", "block2"]
+        "2": []
+        "3": ["block1"]
+
+    ExternalData:
+      description: A file in an object store.
+      type: object
+      required: [file]
+      properties:
+        credentials:
+          type: object
+          required: [AccessKeyId, SecretAccessKey]
+          description: |
+            Optional credentials to pull the file from the object store.
+
+            Not required if using the Anonlink Entity Service's own object store.
+          properties:
+            AccessKeyId:
+              type: string
+            SecretAccessKey:
+              type: string
+            SessionToken:
+              type: string
+        file:
+          type: object
+          required: [bucket, path]
+          properties:
+            bucket:
+              type: string
+              example: anonlink-uploads
+            path:
+              type: string
+              description: The object name in the bucket.
+              example: project-foo/encodings.bin
+            endpoint:
+              type: string
+              description: |
+                Object store endpoint - usually a public endpoint for a MinIO as part of an Anonlink deployment e.g.
+                `minio.anonlink.easd.data61.xyz`, or a public (region specific) endpoint for AWS S3:
+                `s3.ap-southeast-2.amazonaws.com`.
+
+                If not given the Anonlink Entity Service's own object store will be assumed.
+              example: s3.ap-southeast-2.amazonaws.com
+            secure:
+              type: boolean
+              default: true
+              description: If this object store should be connected to only over a secure connection.
+
     CLKUpload:
       description: Object that contains this party's Bloom Filters
       type: object
       required: [clks]
       properties:
         clks:
-          type: array
-          items:
-            type: string
-            format: byte
-            description: Base64 encoded CLK data
+          $ref: '#/components/schemas/EncodingArray'
 
     CLKnBlockUpload:
       description: Object that contains this party's Bloom Filters including blocking information
@@ -1076,3 +1203,41 @@ components:
           type: string
         message:
           type: string
+
+    ObjectStoreCredentials:
+      description: Temporary credentials allowing client to upload a file to an object store.
+      type: object
+      properties:
+        upload:
+          description: |
+            Configuration of object store to upload file/s to. Specifies the server, bucket and
+            the approved path. The attached credentials are restricted to only allow uploads to
+            this path.
+          type: object
+          properties:
+            endpoint:
+              type: string
+              description: Hostname, and port of object store. E.g. minio.anonlink.example.com:9000
+            secure:
+              type: boolean
+              description: A secure connection to the object store is required.
+              default: true
+            bucket:
+              type: string
+              description: Target bucket
+            path:
+              type: string
+              description: Target path
+
+        credentials:
+          description: Object Store credentials (compatible with both AWS & MinIO)
+          type: object
+          properties:
+            AccessKeyId:
+              type: string
+            SecretAccessKey:
+              type: string
+            Expiration:
+              type: string
+            SessionToken:
+              type: string
