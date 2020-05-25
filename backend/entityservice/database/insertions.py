@@ -4,10 +4,9 @@ import opentracing
 import psycopg2
 import psycopg2.extras
 
-from entityservice.database.util import execute_returning_id, logger, query_db
+from entityservice.database.util import execute_returning_id, logger, query_db, compute_encoding_ids
 from entityservice.errors import RunDeleted
 from entityservice.database.selections import get_block_metadata
-from entityservice.encoding_storage import compute_encoding_ids
 
 
 def insert_new_project(cur, result_type, schema, access_token, project_id, num_parties, name, notes, uses_blocking):

@@ -1,9 +1,8 @@
 import io
 import itertools
 
-from entityservice.database.util import query_db, logger, binary_format
+from entityservice.database.util import query_db, logger, binary_format, compute_encoding_ids
 from entityservice.errors import ProjectDeleted, RunDeleted, DataProviderDeleted
-from entityservice.encoding_storage import compute_encoding_ids
 
 
 def select_dataprovider_id(db, project_id, receipt_token):
@@ -401,7 +400,7 @@ def get_chunk_of_encodings(db, dp_id, entity_ids, stored_binary_size=132):
     WHERE encodings.encoding_id in ({})
     ORDER BY encoding_id ASC
     """.format(
-        ','.join(compute_encoding_ids(entity_ids, dp_id))
+        ','.join(map(str, compute_encoding_ids(entity_ids, dp_id)))
     )
     yield from copy_binary_column_from_select_query(cur, sql_query, stored_binary_size=stored_binary_size)
 
