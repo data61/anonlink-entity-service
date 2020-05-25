@@ -87,7 +87,7 @@ def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, Lis
         encoding_ids, encodings, blocks = _transpose(group)
         assert len(blocks) == len(encodings)
         assert len(encoding_ids) == len(encodings)
-        insert_encodings_into_blocks(conn, dp_id, block_names=blocks, encoding_ids=encoding_ids, encodings=encodings)
+        insert_encodings_into_blocks(conn, dp_id, block_names=blocks, entity_ids=encoding_ids, encodings=encodings)
 
 
 def _estimate_group_size(encoding_size):
@@ -159,12 +159,3 @@ def get_encoding_chunks(conn, package, encoding_size=128):
         chunk_info_2['entity_ids'] = entity_ids
 
     return package
-
-
-def compute_encoding_ids(entity_ids: Iterable[int], dp_id: int):
-    """ compute unique encoding ids for given entity ids
-    The user provides entity ids. Although unique for the user, different user can have the same entity ids.
-    However, we want to use the id as a unique identifier for the encoding in the database. Thus, we create a
-    unique number here. """
-    dp_offset = dp_id << 32
-    return [dp_offset + entity_id for entity_id in entity_ids]
