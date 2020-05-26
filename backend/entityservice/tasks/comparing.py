@@ -315,7 +315,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     if len(package) > 1:  # multiple full blocks in one package
         with DBConn() as conn:
             with new_child_span(f'fetching-encodings of package of size {len(package)}'):
-                package = get_encoding_chunks(conn, package)
+                package = get_encoding_chunks(conn, package, encoding_size=encoding_size)
                 log.debug('All chunks are fetched and deserialized')
                 log.debug("Calculating filter similarities for work package")
 
