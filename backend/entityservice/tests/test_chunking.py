@@ -1,6 +1,6 @@
 from structlog import get_logger
 
-from entityservice.tasks.comparing import _get_common_blocks, _create_work_chunks
+from entityservice.tasks.comparing import _get_common_blocks, _create_work_packages
 log = get_logger()
 
 
@@ -34,7 +34,7 @@ class TestChunkingBlocks:
             2: {'1': 100, '2': 100}}
         blocks = _get_common_blocks(dp_block_sizes, dp_ids)
         block_lookups = {1: {'1': 1}, 2: {'1': 1, '2': 2}}
-        chunks = _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=100)
+        chunks = _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=100)
         assert len(chunks) == 100
         for package in chunks:
             for chunk_pair in package:
@@ -56,7 +56,7 @@ class TestChunkingBlocks:
         }
         block_lookups = {1: {'1': 1}, 2: {'1': 1, '2': 2}, 3: {'1': 1, '2': 2}}
         blocks = _get_common_blocks(dp_block_sizes, dp_ids)
-        chunks = _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=100)
+        chunks = _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=100)
         # Case I: all blocks need to be chunked
         # Block 1 should create 100 chunks between dp combinations: 1:2, 1:3, and 2:3 for 300 chunks
         # Block 2 should create 100 chunks between 2:3
@@ -64,11 +64,11 @@ class TestChunkingBlocks:
 
         # Case II: each block fits into exactly one work package
         blocks = _get_common_blocks(dp_block_sizes, dp_ids)
-        chunks = _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=10000)
+        chunks = _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=10000)
         assert len(chunks) == 4
 
         # Case III: all blocks fit into one work package
         blocks = _get_common_blocks(dp_block_sizes, dp_ids)
-        chunks = _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=40000)
+        chunks = _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=40000)
         assert len(chunks) == 1
 

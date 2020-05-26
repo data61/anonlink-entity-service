@@ -44,7 +44,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     - checks if the project and run have been deleted and if so aborts.
     - retrieves metadata: the number and size of the datasets, the encoding size,
       and the number and size of blocks.
-    - splits the work into independent "chunks" and schedules them to run in celery
+    - splits the work into independent "packages" and schedules them to run in celery
     - schedules the follow up task to run after all the comparisons have been computed.
     """
     log = logger.bind(pid=project_id, run_id=run_id)
@@ -69,8 +69,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         threshold = get_run(conn, run_id)['threshold']
 
     log.debug("creating work packages for computation tasks")
-    # Create "chunks" of comparisons
-    packages = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log, block_lookups=dp_lookups)
+    packages = _create_work_packages(common_blocks, dp_block_sizes, dp_ids, log, block_lookups=dp_lookups)
 
     log.info(f"Chunking into {len(packages)} computation tasks")
     current_span.log_kv({"event": "chunking", 'num_chunks': len(packages), 'dataset-sizes': dataset_sizes})
@@ -95,14 +94,11 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     future = chord(scoring_tasks)(callback_task)
 
 
-def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=Config.CHUNK_SIZE_AIM):
-    """Create chunks of comparisons using blocking information.
+def _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=Config.CHUNK_SIZE_AIM):
+    """Create packages of chunks of comparisons using blocking information.
 
-    .. note::
-
-        Ideally the chunks would be similarly sized, however with blocking the best we
-        can do in this regard is to ensure a similar maximum size. Small blocks will
-        directly translate to small chunks.
+    If a block is too large, that is, if the required comparisons is larger than the chunk size aim, then we split
+    the block into several chunks. If blocks are smaller, than multiple blocks are bundled into one package.
 
     :todo Consider passing all dataproviders to anonlink's `split_to_chunks` for a given
           large block instead of pairwise.
@@ -126,7 +122,7 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chun
         - block_id - The block of encodings this chunk is for
         - range - The range of encodings within the block that make up this chunk.
     """
-    chunks = []
+    packages = []
     MAX_CHUNKS_PER_PACKAGE = 320000
 
     def next_block(blocks):
@@ -146,7 +142,7 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chun
         while True:
             if comparisons > chunk_size_aim:
                 if len(cur_package) > 0:
-                    chunks.append(cur_package)
+                    packages.append(cur_package)
                     cur_package = []
                     cur_comparisons = 0
                 log.debug("Block is too large for single task. Working out how to chunk it up")
@@ -159,7 +155,7 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chun
                     left, right = chunk_info
                     left['block_id'] = block_lookups[dp1][block_name]
                     right['block_id'] = block_lookups[dp2][block_name]
-                    chunks.append([chunk_info])
+                    packages.append([chunk_info])
             else:
                 chunk_left = {"range": (0, size1), "block_id": block_lookups[dp1][block_name]}
                 chunk_right = {"range": (0, size2), "block_id": block_lookups[dp2][block_name]}
@@ -170,16 +166,16 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, block_lookups, chun
                     cur_package.append(chunk_info)
                     cur_comparisons += comparisons
                 else:
-                    chunks.append(cur_package)
+                    packages.append(cur_package)
                     cur_package = [chunk_info]
                     cur_comparisons = comparisons
             block_name, dp1, dp2, size1, size2, comparisons = next_block(blocks)
     except StopIteration:
         # no more blocks left...
         if len(cur_package) > 0:
-            chunks.append(cur_package)
+            packages.append(cur_package)
 
-    return chunks
+    return packages
 
 
 def _get_common_blocks(dp_block_sizes, dp_ids):
@@ -192,14 +188,11 @@ def _get_common_blocks(dp_block_sizes, dp_ids):
         block_id -> List(pairs of dp ids)
         e.g. {'1': [(26, 27), (26, 28), (27, 28)]}
     """
-    #blocks = {}
     for dp1, dp2 in itertools.combinations(dp_ids, 2):
         # Get the intersection of blocks between these two dataproviders
         common_block_ids = set(dp_block_sizes[dp1]).intersection(set(dp_block_sizes[dp2]))
         for block_id in common_block_ids:
             yield block_id, (dp1, dp2)
-            #blocks.setdefault(block_id, []).append((dp1, dp2))
-    #return blocks
 
 
 def _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids):
