@@ -4,7 +4,8 @@ import psycopg2
 from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
-    get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings, copy_binary_column_from_select_query
+    get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings, execute_select_query_in_binary,\
+    get_encodings_of_multiple_blocks
 
 from entityservice.integrationtests.dbtests import _get_conn_and_cursor
 from entityservice.models import Project
@@ -15,16 +16,16 @@ from entityservice.utils import generate_code
 
 class TestBinaryCopy:
 
-    def test_copy_binary_column_from_select_query(self, conn, cur, prepopulated_binary_test_data):
+    def test_execute_select_query_in_binary(self, conn, cur, prepopulated_binary_test_data):
         query = "select encoding from binary_test where id >= 10 and id < 20"
-        res = list(copy_binary_column_from_select_query(cur, query, stored_binary_size=4))
+        res = list(execute_select_query_in_binary(cur, query))
         assert len(res) == 10
         for (i, original), stored in zip(prepopulated_binary_test_data[10:20], res):
             assert original == stored
 
-    def test_copy_binary_column_from_select_query_empty(self, conn, cur, prepopulated_binary_test_data):
+    def test_execute_select_query_in_binary_empty(self, conn, cur, prepopulated_binary_test_data):
         query = "select encoding from binary_test where id < 0"
-        res = list(copy_binary_column_from_select_query(cur, query, stored_binary_size=4))
+        res = list(execute_select_query_in_binary(cur, query))
         assert len(res) == 0
 
 
@@ -134,4 +135,33 @@ class TestInsertions:
         assert len(stored_encoding_ids) == 20
         for i, stored_encoding_id in enumerate(stored_encoding_ids):
             assert stored_encoding_id == i + 10
+
+    def test_fetch_multiple_blocks(self):
+        num_entities = 1000
+        blocks = [[str(i)] for i in range(num_entities)]
+        data = [generate_bytes(128) for _ in range(100)]
+        encodings = [data[i % 100] for i in range(num_entities)]
+
+        project, dp_ids = self._create_project()
+        dp_id = dp_ids[0]
+        dp_auth_token = project.update_tokens[0]
+        conn, cur = _get_conn_and_cursor()
+        # create a default block
+        insert_blocking_metadata(conn, dp_id, {block[0]: 1 for block in blocks})
+        conn.commit()
+
+        insert_encodings_into_blocks(conn, dp_id,
+                                     block_names=blocks,
+                                     entity_ids=list(range(num_entities)),
+                                     encodings=encodings
+                                     )
+        conn.commit()
+
+        block_names, block_ids, block_sizes = zip(*list(get_block_metadata(conn, dp_id)))
+        ret_encodings = list(get_encodings_of_multiple_blocks(conn, dp_id, block_ids))
+
+        assert len(ret_encodings) == num_entities
+
+        for enc1, enc2 in zip(encodings, ret_encodings):
+            assert enc1 == enc2[2]
 
