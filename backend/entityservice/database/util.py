@@ -150,6 +150,11 @@ def execute_returning_id(cur, query, args):
 
 
 def binary_format(stream: BytesIO):
+    """
+    parse binary format of Postgresql. This is a generator which yields one row at a time.
+    :param stream: a byte stream containing the result of a binary sql query.
+    :return: yield row of the result
+    """
     stream.seek(0)
     # Need to read/remove the Postgres Binary Header, Trailer, and the per tuple info
     # https://www.postgresql.org/docs/current/sql-copy.html
@@ -167,7 +172,10 @@ def binary_format(stream: BytesIO):
             size = int.from_bytes(stream.read(4), byteorder='big')
             el_value = stream.read(size)
             row_values.append(el_value)
-        yield row_values
+        if num_elements == 1:
+            yield row_values[0]
+        else:
+            yield row_values
 
 
 def compute_encoding_ids(entity_ids: Iterable[int], dp_id: int):
