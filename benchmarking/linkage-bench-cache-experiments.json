@@ -6,5 +6,15 @@
   {
     "sizes": ["10K", "10K", "10K"],
     "threshold": 0.8
+  },
+  {
+    "sizes": ["100K", "100K"],
+    "use_blocking": true,
+    "threshold": 0.8
+  },
+  {
+    "sizes": ["10K", "10K", "10K"],
+    "use_blocking": true,
+    "threshold": 0.8
   }
 ]

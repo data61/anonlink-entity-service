@@ -12,7 +12,7 @@ from celery import chord
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
 from entityservice.cache.progress import save_current_progress
-from entityservice.encoding_storage import get_encoding_chunk
+from entityservice.encoding_storage import get_encoding_chunk, get_encoding_chunks
 from entityservice.errors import InactiveRun
 from entityservice.database import (
     check_project_exists, check_run_exists, DBConn, get_dataprovider_ids,
@@ -44,7 +44,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     - checks if the project and run have been deleted and if so aborts.
     - retrieves metadata: the number and size of the datasets, the encoding size,
       and the number and size of blocks.
-    - splits the work into independent "chunks" and schedules them to run in celery
+    - splits the work into independent "packages" and schedules them to run in celery
     - schedules the follow up task to run after all the comparisons have been computed.
     """
     log = logger.bind(pid=project_id, run_id=run_id)
@@ -59,7 +59,7 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
                  f"{', '.join(map(str, dp_ids))}")
 
         # Retrieve required metadata
-        dataset_sizes, dp_block_sizes = _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids)
+        dataset_sizes, dp_block_sizes, dp_lookups = _retrieve_blocked_dataset_sizes_and_lookup(conn, project_id, dp_ids)
 
         log.info("Finding blocks in common between dataproviders")
         common_blocks = _get_common_blocks(dp_block_sizes, dp_ids)
@@ -68,23 +68,22 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
         encoding_size = get_project_encoding_size(conn, project_id)
         threshold = get_run(conn, run_id)['threshold']
 
-    log.debug("Chunking computation task")
-    # Create "chunks" of comparisons
-    chunks = _create_work_chunks(common_blocks, dp_block_sizes, dp_ids, log)
+    log.debug("creating work packages for computation tasks")
+    packages = _create_work_packages(common_blocks, dp_block_sizes, dp_ids, log, block_lookups=dp_lookups)
 
-    log.info(f"Chunking into {len(chunks)} computation tasks")
-    current_span.log_kv({"event": "chunking", 'num_chunks': len(chunks), 'dataset-sizes': dataset_sizes})
+    log.info(f"Chunking into {len(packages)} computation tasks")
+    current_span.log_kv({"event": "chunking", 'num_chunks': len(packages), 'dataset-sizes': dataset_sizes})
     span_serialized = create_comparison_jobs.get_serialized_span()
 
     # Prepare the Celery Chord that will compute all the similarity scores:
     scoring_tasks = [compute_filter_similarity.si(
-        chunk_info,
+        package,
         project_id,
         run_id,
         threshold,
         encoding_size,
         span_serialized
-    ) for chunk_info in chunks]
+    ) for package in packages]
 
     if len(scoring_tasks) == 1:
         scoring_tasks.append(celery_bug_fix.si())
@@ -95,14 +94,11 @@ def create_comparison_jobs(project_id, run_id, parent_span=None):
     future = chord(scoring_tasks)(callback_task)
 
 
-def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Config.CHUNK_SIZE_AIM):
-    """Create chunks of comparisons using blocking information.
+def _create_work_packages(blocks, dp_block_sizes, dp_ids, log, block_lookups, chunk_size_aim=Config.CHUNK_SIZE_AIM):
+    """Create packages of chunks of comparisons using blocking information.
 
-    .. note::
-
-        Ideally the chunks would be similarly sized, however with blocking the best we
-        can do in this regard is to ensure a similar maximum size. Small blocks will
-        directly translate to small chunks.
+    If a block is too large, that is, if the required comparisons is larger than the chunk size aim, then we split
+    the block into several chunks. If blocks are smaller, than multiple blocks are bundled into one package.
 
     :todo Consider passing all dataproviders to anonlink's `split_to_chunks` for a given
           large block instead of pairwise.
@@ -126,34 +122,47 @@ def _create_work_chunks(blocks, dp_block_sizes, dp_ids, log, chunk_size_aim=Conf
         - block_id - The block of encodings this chunk is for
         - range - The range of encodings within the block that make up this chunk.
     """
-    chunks = []
-    for block_id in blocks:
-        log.debug("Chunking block", block_id=block_id)
-        # Note there might be many pairs of datasets in this block
-        for dp1, dp2 in blocks[block_id]:
-            size1 = dp_block_sizes[dp1][block_id]
-            size2 = dp_block_sizes[dp2][block_id]
+    packages = []
+    MAX_CHUNKS_PER_PACKAGE = 100000
+    cur_package = []
+    cur_comparisons = 0
 
-            comparisons = size1 * size2
-
-            if comparisons > chunk_size_aim:
-                log.debug("Block is too large for single task. Working out how to chunk it up")
-                for chunk_info in anonlink.concurrency.split_to_chunks(chunk_size_aim,
-                                                                       dataset_sizes=(size1, size2)):
-                    # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
-                    # We need to correct the datasetIndex and add the database datasetId and add block_id.
-                    add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
-                    add_block_id_to_chunk_info(chunk_info, block_id)
-                    chunks.append(chunk_info)
-            else:
-                log.debug("Add the full block as a single work chunk")
-                # Although the range "could" be optional we choose to make all chunk definitions consistent
-                chunk_left = {"range": (0, size1), "block_id": block_id}
-                chunk_right = {"range": (0, size2), "block_id": block_id}
-                chunk_info = (chunk_left, chunk_right)
+    for block_name, (dp1, dp2) in blocks:
+        size1 = dp_block_sizes[dp1][block_name]
+        size2 = dp_block_sizes[dp2][block_name]
+        num_comparisons = size1 * size2
+        if num_comparisons > chunk_size_aim:
+            if len(cur_package) > 0:
+                packages.append(cur_package)
+                cur_package = []
+                cur_comparisons = 0
+            log.debug("Block is too large for single task. Working out how to chunk it up")
+            for chunk_info in anonlink.concurrency.split_to_chunks(chunk_size_aim,
+                                                                   dataset_sizes=(size1, size2)):
+                # chunk_info's from anonlink already have datasetIndex of 0 or 1 and a range
+                # We need to correct the datasetIndex and add the database datasetId and add block_id.
                 add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
-                chunks.append(chunk_info)
-    return chunks
+                left, right = chunk_info
+                left['block_id'] = block_lookups[dp1][block_name]
+                right['block_id'] = block_lookups[dp2][block_name]
+                packages.append([chunk_info])
+        else:
+            chunk_left = {"range": (0, size1), "block_id": block_lookups[dp1][block_name]}
+            chunk_right = {"range": (0, size2), "block_id": block_lookups[dp2][block_name]}
+            chunk_info = (chunk_left, chunk_right)
+            add_dp_id_to_chunk_info(chunk_info, dp_ids, dp1, dp2)
+            # if there is still enough capacity in the current work package, then append, otherwise new package
+            if cur_comparisons + num_comparisons <= chunk_size_aim and len(cur_package) < MAX_CHUNKS_PER_PACKAGE:
+                cur_package.append(chunk_info)
+                cur_comparisons += num_comparisons
+            else:
+                packages.append(cur_package)
+                cur_package = [chunk_info]
+                cur_comparisons = num_comparisons
+    # the last package might not have been added to the packages yet.
+    if len(cur_package) > 0:
+        packages.append(cur_package)
+    return packages
 
 
 def _get_common_blocks(dp_block_sizes, dp_ids):
@@ -166,13 +175,11 @@ def _get_common_blocks(dp_block_sizes, dp_ids):
         block_id -> List(pairs of dp ids)
         e.g. {'1': [(26, 27), (26, 28), (27, 28)]}
     """
-    blocks = {}
     for dp1, dp2 in itertools.combinations(dp_ids, 2):
         # Get the intersection of blocks between these two dataproviders
         common_block_ids = set(dp_block_sizes[dp1]).intersection(set(dp_block_sizes[dp2]))
         for block_id in common_block_ids:
-            blocks.setdefault(block_id, []).append((dp1, dp2))
-    return blocks
+            yield block_id, (dp1, dp2)
 
 
 def _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids):
@@ -199,6 +206,37 @@ def _retrieve_blocked_dataset_sizes(conn, project_id, dp_ids):
     return dataset_sizes, dp_block_sizes
 
 
+def _retrieve_blocked_dataset_sizes_and_lookup(conn, project_id, dp_ids):
+    """Fetch encoding counts for each dataset by block. And create lookup table from block_name to block_id
+
+    :param dp_ids: Iterable of dataprovider database identifiers.
+    :returns
+        A 2-tuple of:
+
+        - dataset sizes: a tuple of the number of encodings in each dataset.
+
+        - dp_block_sizes: A map from dataprovider id to a dict mapping
+          block id to the number of encodings from the dataprovider in the
+          block.
+
+          {dp_id -> {block_id -> block_size}}
+          e.g. {33: {'1': 100}, 34: {'1': 100}, 35: {'1': 100}}
+    """
+    dataset_sizes = get_project_dataset_sizes(conn, project_id)
+
+    dp_block_sizes = {}
+    dp_block_lookups = {}
+    for dp_id in dp_ids:
+        block_sizes = {}
+        lookup = {}
+        for block_name, block_id, count in get_block_metadata(conn, dp_id):
+            block_sizes[block_name] = count
+            lookup[block_name] = block_id
+        dp_block_sizes[dp_id] = block_sizes
+        dp_block_lookups[dp_id] = lookup
+    return dataset_sizes, dp_block_sizes, dp_block_lookups
+
+
 def add_dp_id_to_chunk_info(chunk_info, dp_ids, dp_id_left, dp_id_right):
     """
     Modify a chunk_info as returned by anonlink.concurrency.split_to_chunks
@@ -220,7 +258,7 @@ def add_block_id_to_chunk_info(chunk_info, block_id):
 
 
 @celery.task(base=TracedTask, args_as_tags=('project_id', 'run_id', 'threshold'))
-def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encoding_size, parent_span=None):
+def compute_filter_similarity(package, project_id, run_id, threshold, encoding_size, parent_span=None):
     """Compute filter similarity between a chunk of filters in dataprovider 1,
     and a chunk of filters in dataprovider 2.
 
@@ -241,91 +279,113 @@ def compute_filter_similarity(chunk_info, project_id, run_id, threshold, encodin
             parent_scope = compute_filter_similarity
         return compute_filter_similarity.tracer.start_active_span(name, child_of=parent_scope.span)
 
-    log.debug("Computing similarity for a chunk of filters")
+    log.debug(f"Computing similarities for {len(package)} chunks of filters")
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
     assert_valid_run(project_id, run_id, log)
 
-    chunk_info_dp1, chunk_info_dp2 = chunk_info
+    #chunk_info_dp1, chunk_info_dp2 = chunk_info
+    def reindex_using_encoding_ids(recordarray, encoding_id_list):
+        # Map results from "index in chunk" to encoding id.
+        return array.array('I', [encoding_id_list[i] for i in recordarray])
+
+    num_results = 0
+    num_comparisons = 0
+    sim_results = []
+
 
     with DBConn() as conn:
-        with new_child_span('fetching-encodings') as parent_scope:
-            with new_child_span('fetching-left-encodings', parent_scope):
-                log.debug("Fetching and deserializing chunk of filters for dataprovider 1")
+        if len(package) > 1:  # multiple full blocks in one package
+            with new_child_span(f'fetching-encodings of package of size {len(package)}'):
+                package = get_encoding_chunks(conn, package, encoding_size=encoding_size)
+        else:  # this chunk is all part of one block
+            with new_child_span(f'fetching-encodings of package with 1 chunk'):
+                chunk_info_dp1, chunk_info_dp2 = package[0]
                 chunk_with_ids_dp1, chunk_dp1_size = get_encoding_chunk(conn, chunk_info_dp1, encoding_size)
                 entity_ids_dp1, chunk_dp1 = zip(*chunk_with_ids_dp1)
-
-            with new_child_span('fetching-right-encodings', parent_scope):
-                log.debug("Fetching and deserializing chunk of filters for dataprovider 2")
+                chunk_info_dp1['encodings'] = chunk_dp1
+                chunk_info_dp1['entity_ids'] = entity_ids_dp1
                 chunk_with_ids_dp2, chunk_dp2_size = get_encoding_chunk(conn, chunk_info_dp2, encoding_size)
                 entity_ids_dp2, chunk_dp2 = zip(*chunk_with_ids_dp2)
-
-    log.debug('Both chunks are fetched and deserialized')
-    task_span.log_kv({'size1': chunk_dp1_size, 'size2': chunk_dp2_size, 'chunk_info': chunk_info})
-
-    assert chunk_dp1_size > 0, "Zero sized chunk in dp1"
-    assert chunk_dp2_size > 0, "Zero sized chunk in dp2"
+                chunk_info_dp2['encodings'] = chunk_dp2
+                chunk_info_dp2['entity_ids'] = entity_ids_dp2
+    log.debug('All encodings for package are fetched and deserialized')
+    log.debug("Calculating filter similarities for work package")
 
     with new_child_span('comparing-encodings') as parent_scope:
-
-        log.debug("Calculating filter similarity")
-        with new_child_span('dice-call', parent_scope):
+        for chunk_dp1, chunk_dp2 in package:
+            enc_dp1 = chunk_dp1['encodings']
+            enc_dp1_size = len(enc_dp1)
+            enc_dp2 = chunk_dp2['encodings']
+            enc_dp2_size = len(enc_dp2)
+            assert enc_dp1_size > 0, "Zero sized chunk in dp1"
+            assert enc_dp2_size > 0, "Zero sized chunk in dp2"
             try:
                 sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
-                    datasets=(chunk_dp1, chunk_dp2),
+                    datasets=(enc_dp1, enc_dp2),
                     threshold=threshold,
-                    k=min(chunk_dp1_size, chunk_dp2_size))
+                    k=min(enc_dp1_size, enc_dp2_size))
             except NotImplementedError as e:
-                log.warning("Encodings couldn't be compared using anonlink.")
+                log.warning(f"Encodings couldn't be compared using anonlink. {e}")
                 return
+            rec_is0 = reindex_using_encoding_ids(rec_is0, chunk_dp1['entity_ids'])
+            rec_is1 = reindex_using_encoding_ids(rec_is1, chunk_dp2['entity_ids'])
+            num_results += len(sims)
+            num_comparisons += enc_dp1_size * enc_dp2_size
+            sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
+        log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
 
-        with new_child_span('reindex-call', parent_scope):
-            def reindex_using_encoding_ids(recordarray, encoding_id_list):
-                # Map results from "index in chunk" to encoding id.
-                return array.array('I', [encoding_id_list[i] for i in recordarray])
-
-            rec_is0 = reindex_using_encoding_ids(rec_is0, entity_ids_dp1)
-            rec_is1 = reindex_using_encoding_ids(rec_is1, entity_ids_dp2)
-
+##### progess reporting
     log.debug('Encoding similarities calculated')
 
     with new_child_span('update-comparison-progress') as scope:
         # Update the number of comparisons completed
-        comparisons_computed = chunk_dp1_size * chunk_dp2_size
-        save_current_progress(comparisons_computed, run_id)
-        scope.span.log_kv({'comparisons': comparisons_computed, 'num_similar': len(sims)})
-        log.debug("Comparisons: {}, Links above threshold: {}".format(comparisons_computed, len(sims)))
+        save_current_progress(num_comparisons, run_id)
+        scope.span.log_kv({'comparisons': num_comparisons, 'num_similar': num_results})
+        log.debug("Comparisons: {}, Links above threshold: {}".format(num_comparisons, num_results))
 
+###### results into file into minio
     with new_child_span('save-comparison-results-to-minio'):
-        num_results = len(sims)
 
-        if num_results:
-            result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
-                generate_code(12))
-            task_span.log_kv({"edges": num_results})
-            log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+        file_iters = []
+        file_sizes = []
+        for sims, (rec_is0, rec_is1), dp1_ds_idx, dp2_ds_idx in sim_results:
+            num_sims = len(sims)
 
-            # Make index arrays for serialization
-            index_1 = array.array('I', (chunk_info_dp1["datasetIndex"],)) * num_results
-            index_2 = array.array('I', (chunk_info_dp2["datasetIndex"],)) * num_results
+            if num_sims:
+                # Make index arrays for serialization
+                index_1 = array.array('I', (dp1_ds_idx,)) * num_sims
+                index_2 = array.array('I', (dp2_ds_idx,)) * num_sims
+                chunk_results = sims, (index_1, index_2), (rec_is0, rec_is1),
+                bytes_iter, file_size \
+                    = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
+                file_iters.append(iterable_to_stream(bytes_iter))
+                file_sizes.append(file_size)
 
-            chunk_results = sims, (index_1, index_2), (rec_is0, rec_is1),
-
-            bytes_iter, file_size \
-                = anonlink.serialization.dump_candidate_pairs_iter(chunk_results)
-            iter_stream = iterable_to_stream(bytes_iter)
-
-            mc = connect_to_object_store()
-            try:
-                mc.put_object(
-                    Config.MINIO_BUCKET, result_filename, iter_stream, file_size)
-            except minio.ResponseError as err:
-                log.warning("Failed to store result in minio")
-                raise
+        if len(file_iters) > 1:
+            # we need to merge them first into one ordered thingy
+            merged_file_iter, merged_file_size \
+                = anonlink.serialization.merge_streams_iter(file_iters, sizes=file_sizes)
+            merged_file_iter = iterable_to_stream(merged_file_iter)
+        elif len(file_iters) == 1:
+            merged_file_iter = file_iters[0]
+            merged_file_size = file_sizes[0]
         else:
-            result_filename = None
-            file_size = None
+            return 0, None, None
 
-    return num_results, file_size, result_filename
+        result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
+            generate_code(12))
+        task_span.log_kv({"edges": num_results})
+        log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
+
+        mc = connect_to_object_store()
+        try:
+            mc.put_object(
+                Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
+        except minio.ResponseError as err:
+            log.warning("Failed to store result in minio: {}".format(err))
+            raise
+
+    return num_results, merged_file_size, result_filename
 
 
 def _put_placeholder_empty_file(mc, log):
