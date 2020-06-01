@@ -1,4 +1,6 @@
 import time
+from io import BytesIO
+from typing import Iterable
 
 import atexit
 import psycopg2
@@ -145,3 +147,41 @@ def execute_returning_id(cur, query, args):
     else:
         resource_id = query_result[0]
         return resource_id
+
+
+def binary_format(stream: BytesIO):
+    """
+    parse binary format of Postgresql. This is a generator which yields one row at a time.
+    :param stream: a byte stream containing the result of a binary sql query.
+    :return: yield row of the result
+    """
+    stream.seek(0)
+    # Need to read/remove the Postgres Binary Header, Trailer, and the per tuple info
+    # https://www.postgresql.org/docs/current/sql-copy.html
+    header = stream.read(15)
+    assert header == b'PGCOPY\n\xff\r\n\x00\x00\x00\x00\x00', "Invalid Binary Format"
+    header_extension = stream.read(4)
+    assert header_extension == b'\x00\x00\x00\x00', "Need to implement skipping postgres binary header extension"
+    # now iterate over the rows
+    while True:
+        num_elements = int.from_bytes(stream.read(2), byteorder='big')  # apparently bytes are in network byte order
+        if num_elements == 65535:   # we reached the end of the results. Binary trailer of \xff\xff
+            return
+        row_values = []
+        for i in range(num_elements):
+            size = int.from_bytes(stream.read(4), byteorder='big')
+            el_value = stream.read(size)
+            row_values.append(el_value)
+        if num_elements == 1:
+            yield row_values[0]
+        else:
+            yield row_values
+
+
+def compute_encoding_ids(entity_ids: Iterable[int], dp_id: int):
+    """ compute unique encoding ids for given entity ids
+    The user provides entity ids. Although unique for the user, different user can have the same entity ids.
+    However, we want to use the id as a unique identifier for the encoding in the database. Thus, we create a
+    unique number here. """
+    dp_offset = dp_id << 32
+    return [dp_offset + entity_id for entity_id in entity_ids]

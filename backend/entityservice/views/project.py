@@ -1,6 +1,7 @@
 from io import BytesIO
 import json
 import tempfile
+import statistics
 
 from connexion import ProblemException
 from flask import request
@@ -433,8 +434,12 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     block_count = len(block_sizes)
 
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
-    for block in block_sizes:
-        logger.info(f"Block {block} has {block_sizes[block]} elements")
+    if block_count > 20:
+        #only log summary of block sizes
+        logger.info(f'info on block sizes. min: {min(block_sizes.values())}, max: {max(block_sizes.values())} mean: {statistics.mean(block_sizes.values())}, median: {statistics.median(block_sizes.values())}')
+    else:
+        for block in block_sizes:
+            logger.info(f"Block {block} has {block_sizes[block]} elements")
 
     # write clk_json into a temp file
     tmp = tempfile.NamedTemporaryFile(mode='w')
