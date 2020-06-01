@@ -6,7 +6,7 @@ from entityservice.encoding_storage import stream_json_clksnblocks, convert_enco
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
-from entityservice.serialization import binary_format
+from entityservice.serialization import binary_format, deserialize_bytes
 from entityservice.settings import Config
 from entityservice.async_worker import celery
 from entityservice.tasks.base_task import TracedTask
@@ -29,17 +29,21 @@ def pull_external_data(project_id, dp_id,
     - stream encodings into DB and add encoding + blocks from in memory dict.
 
     """
+    env_credentials = parse_minio_credentials({
+        'AccessKeyId': config.MINIO_ACCESS_KEY,
+        'SecretAccessKey': config.MINIO_SECRET_KEY
+    })
     log = logger.bind(pid=project_id, dp_id=dp_id)
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.info("Project deleted, stopping immediately")
             return
 
-        mc = connect_to_object_store(parse_minio_credentials(blocks_credentials))
+        mc = connect_to_object_store(env_credentials)
 
     log.debug("Pulling blocking information from object store")
     response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
-    encoding_to_block_map = json.load(response)
+    encoding_to_block_map = json.load(response)['blocks']
 
     log.debug("Counting the blocks")
     block_sizes = {}
@@ -56,11 +60,18 @@ def pull_external_data(project_id, dp_id,
     bucket_name = encoding_object_info['bucket']
     object_name = encoding_object_info['path']
 
-    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, parse_minio_credentials(encoding_credentials))
+    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
     log.debug(f"Processing {count} encodings of size {size}")
     assert count == len(encoding_to_block_map), f"Expected {count} encodings in blocks got {len(encoding_to_block_map)}"
+
+    # load clks properly
+    encodings = json.loads(encodings_stream.data.decode())['clks']
+    bytesarray = b""
+    for e in encodings:
+        bytesarray += deserialize_bytes(e)
+    encodings_stream = io.BytesIO(bytesarray)
 
     with DBConn() as conn:
         with opentracing.tracer.start_span('update-metadata-db', child_of=parent_span):
@@ -114,7 +125,18 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
 
     log.info("Pulling encoding data from an object store")
     mc_credentials = parse_minio_credentials(credentials)
-    stat, stream = stat_and_stream_object(bucket_name, object_name, mc_credentials)
+    env_credentials = parse_minio_credentials({
+        'AccessKeyId': config.MINIO_ACCESS_KEY,
+        'SecretAccessKey': config.MINIO_SECRET_KEY
+    })
+    stat, stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
+
+    # load clks properly
+    encodings = json.loads(stream.data.decode())['clks']
+    bytesarray = b""
+    for e in encodings:
+        bytesarray += deserialize_bytes(e)
+    stream = io.BytesIO(bytesarray)
 
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
