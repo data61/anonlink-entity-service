@@ -15,7 +15,7 @@ jaeger-client==4.0.0
 marshmallow==3.6.0
 minio==5.0.10
 opentracing==2.3.0
-opentracing_instrumentation==2.4.3
+opentracing_instrumentation==3.2.1
 psycopg2==2.8.4
 pytest==5.3.5
 pytest-xdist==1.29.0
@@ -24,5 +24,5 @@ redis==3.4.1
 requests==2.23.0
 setproctitle==1.1.10 # used by celery to change process name
 structlog==20.1.0
-tenacity==5.1.1
+tenacity==6.2.0
 tornado==4.5.3
