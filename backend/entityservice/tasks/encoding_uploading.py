@@ -68,10 +68,12 @@ def pull_external_data(project_id, dp_id,
 
     # load clks properly
     encodings = json.loads(encodings_stream.data.decode())['clks']
-    bytesarray = b""
-    for e in encodings:
-        bytesarray += deserialize_bytes(e)
-    encodings_stream = io.BytesIO(bytesarray)
+
+    stream = io.BytesIO()
+    for clk in encodings:
+        stream.write(deserialize_bytes(clk))
+    stream.seek(0)
+    encodings_stream = stream
 
     with DBConn() as conn:
         with opentracing.tracer.start_span('update-metadata-db', child_of=parent_span):
@@ -124,7 +126,6 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         object_name = object_info['path']
 
     log.info("Pulling encoding data from an object store")
-    mc_credentials = parse_minio_credentials(credentials)
     env_credentials = parse_minio_credentials({
         'AccessKeyId': config.MINIO_ACCESS_KEY,
         'SecretAccessKey': config.MINIO_SECRET_KEY
@@ -133,10 +134,12 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
 
     # load clks properly
     encodings = json.loads(stream.data.decode())['clks']
-    bytesarray = b""
-    for e in encodings:
-        bytesarray += deserialize_bytes(e)
-    stream = io.BytesIO(bytesarray)
+
+    new_stream = io.BytesIO()
+    for clk in encodings:
+        new_stream.write(deserialize_bytes(clk))
+    new_stream.seek(0)
+    stream = new_stream
 
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])

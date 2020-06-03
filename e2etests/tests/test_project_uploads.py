@@ -133,11 +133,12 @@ def test_project_upload_external_encodings(requests, a_project, binary_test_file
 def test_project_upload_external_data(requests, a_blocking_project, binary_test_file_path):
     project = a_blocking_project
     blocking_data = json.dumps(
-        {str(encoding_id): list({str(encoding_id % 3), str(encoding_id % 13)}) for encoding_id in range(1000)}).encode()
+        {"blocks": {str(encoding_id): list({str(encoding_id % 3), str(encoding_id % 13)}) for encoding_id in range(1000)}}).encode()
 
+    clks_data = json.dumps({"clks": ['ssssssss'] * 1000}).encode()
     mc, upload_info = get_temp_upload_client(project, requests, project['update_tokens'][0])
 
-    _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path)
+    _upload_encodings_and_blocks(mc, upload_info, blocking_data, clks_data)
 
     # Should be able to notify the service that we've uploaded data
     res = requests.post(url + f"projects/{project['project_id']}/clks",
@@ -182,7 +183,7 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
     assert res2.status_code == 403
 
     mc2, upload_info2 = get_temp_upload_client(project, requests, project['update_tokens'][1])
-    _upload_encodings_and_blocks(mc2, upload_info2, blocking_data, binary_test_file_path)
+    _upload_encodings_and_blocks(mc2, upload_info2, blocking_data, clks_data)
 
     # If the second data provider uses the correct path to upload data, that should work
     res3 = requests.post(url + f"projects/{project['project_id']}/clks",
@@ -208,15 +209,16 @@ def test_project_upload_external_data(requests, a_blocking_project, binary_test_
     assert 'groups' in result
 
 
-def _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_file_path):
-    mc.fput_object(
+def _upload_encodings_and_blocks(mc, upload_info, blocking_data, clks_data):
+    mc.put_object(
         upload_info['bucket'],
         upload_info['path'] + "/encodings",
-        binary_test_file_path,
+        io.BytesIO(clks_data),
         metadata={
             "hash-count": 1000,
-            "hash-size": 128
-        }
+            "hash-size": 8
+        },
+        length=len(clks_data)
     )
     mc.put_object(
         upload_info['bucket'],
@@ -224,7 +226,6 @@ def _upload_encodings_and_blocks(mc, upload_info, blocking_data, binary_test_fil
         io.BytesIO(blocking_data),
         len(blocking_data)
     )
-
 
 def get_temp_upload_client(project, requests, update_token):
     r = requests.get(
