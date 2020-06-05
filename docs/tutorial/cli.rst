@@ -1,19 +1,19 @@
 Command line example
 --------------------
 
-This brief example shows using ``clkutil`` - the command line tool that is packaged with the
-``clkhash`` library. It is not a requirement to use ``clkhash`` with the Entity Service REST API.
+This brief example shows using ``anonlink`` - the command line tool that is packaged with the
+``anonlink-client`` library. It is not a requirement to use ``anonlink-client`` with the Entity Service REST API.
 
 We assume you have access to a command line prompt with Python and Pip installed.
 
-Install ``clkhash``::
+Install ``anonlink-client``::
 
-    $ pip install clkhash
+    $ pip install anonlink-client
 
 
 Generate and split some mock personally identifiable data::
 
-    $ clkutil generate 2000 raw_pii_2k.csv
+    $ anonlink generate 2000 raw_pii_2k.csv
 
     $ head -n 1 raw_pii_2k.csv > alice.txt
     $ tail -n 1500 raw_pii_2k.csv >> alice.txt
@@ -22,16 +22,16 @@ Generate and split some mock personally identifiable data::
 
 A corresponding hashing schema can be generated as well::
 
-    $ clkutil generate-default-schema schema.json
+    $ anonlink generate-default-schema schema.json
 
 
 Process the personally identifying data into :ref:`cryptographic-longterm-keys`::
 
-    $ clkutil hash alice.txt horse staple schema.json alice-hashed.json
+    $ anonlink hash alice.txt horse_staple schema.json alice-hashed.json
     generating CLKs: 100%|████████████████████████████████████████████| 1.50K/1.50K [00:00<00:00, 6.69Kclk/s, mean=522, std=34.4]
     CLK data written to alice-hashed.json
 
-    $ clkutil hash bob.txt horse staple schema.json bob-hashed.json
+    $ anonlink hash bob.txt horse_staple schema.json bob-hashed.json
     generating CLKs: 100%|████████████████████████████████████████████| 999/999 [00:00<00:00, 5.14Kclk/s, mean=520, std=34.2]
     CLK data written to bob-hashed.json
 
@@ -39,14 +39,14 @@ Process the personally identifying data into :ref:`cryptographic-longterm-keys`:
 Now to interact with an Entity Service. First check that the service is healthy and responds to
 a status check::
 
-    $ clkutil status --server https://anonlink.easd.data61.xyz
+    $ anonlink status --server https://anonlink.easd.data61.xyz
     {"rate": 53129, "status": "ok", "project_count": 1410}
 
-Then create a new linkage project and set the output type (to ``mapping``)::
+Then create a new linkage project and set the output type (to ``groups``)::
 
-    $ clkutil create-project \
+    $ anonlink create-project \
         --server https://anonlink.easd.data61.xyz \
-        --type mapping \
+        --type groups \
         --schema schema.json \
         --output credentials.json
 
@@ -65,7 +65,7 @@ The contents is two upload tokens and a result token::
 These credentials get substituted in the following commands. Each CLK dataset
 gets uploaded to the Entity Service::
 
-    $ clkutil upload --server https://anonlink.easd.data61.xyz \
+    $ anonlink upload --server https://anonlink.easd.data61.xyz \
                     --apikey 21d4c9249e1c70ac30f9ce03893983c493d7e90574980e55 \
                     --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                     alice-hashed.json
@@ -77,21 +77,20 @@ gets uploaded to the Entity Service::
                     bob-hashed.json
     {"receipt_token": "6d9a0ee7fc3a66e16805738097761d38c62ea01a8c6adf39", "message": "Updated"}
 
-Now we can compute mappings using various thresholds. For example to only see relationships where the
+Now we can compute linkages using various thresholds. For example to only see relationships where the
 similarity is above ``0.9``::
 
-    $ clkutil create --server https://anonlink.easd.data61.xyz \
+    $ anonlink create --server https://anonlink.easd.data61.xyz \
                      --apikey 230a303b05dfd186be87fa65bf7b0970fb786497834910d1 \
                      --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                      --name "Tutorial mapping run" \
                      --threshold 0.9
-    {"run_id": "31a6d3c775151a877dcac625b4b91a6659317046ea45ad11", "notes": "Run created by clkhash 0.11.2", "name": "Tutorial mapping run", "threshold": 0.9}
+    {"run_id": "31a6d3c775151a877dcac625b4b91a6659317046ea45ad11", "notes": "Run created by anonlink-client 0.1.2", "name": "Tutorial mapping run", "threshold": 0.9}
 
 
-After a small delay the mapping will have been computed and we can use ``clkutil`` to retrieve the
-results::
+After a small delay the linkage result will have been computed and we can use ``anonlink`` to retrieve it::
 
-    $ clkutil results --server https://anonlink.easd.data61.xyz \
+    $ anonlink results --server https://anonlink.easd.data61.xyz \
                     --apikey  230a303b05dfd186be87fa65bf7b0970fb786497834910d1 \
                     --project 809b12c7e141837c3a15be758b016d5a7826d90574f36e74 \
                     --run 31a6d3c775151a877dcac625b4b91a6659317046ea45ad11
@@ -100,32 +99,33 @@ results::
     Downloading result
     Received result
     {
-      "mapping": {
-        "0": "500",
-        "1": "501",
-        "10": "510",
-        "100": "600",
-        "101": "601",
-        "102": "602",
-        "103": "603",
-        "104": "604",
-        "105": "605",
-        "106": "606",
-        "107": "607",
+      "groups": [
+        [
+            [0, 403],
+            [1, 903]
+        ],
+        [
+            [0, 402],
+            [1, 092]
+        ],
+        [
+            [0, 401],
+            [1, 901]
+        ],
         ...
 
-This mapping output is telling us that the similarity is above our threshold between identified rows
-of Alice and Bob's data sets.
+This output shows the linked pairs between Alice and Bob that have a similarity above 0.9.
 
-Looking at the first two entities in Alice's data::
+Looking at the corresponding entities in Alice's data::
 
-    head alice.txt -n 3
-    INDEX,NAME freetext,DOB YYYY/MM/DD,GENDER M or F
-    500,Arjun Efron,1990/01/14,M
-    501,Sedrick Verlinden,1954/11/28,M
+    head -n 405 alice.txt | tail -n 3
+    901,Sandra Boone,1974/10/30,F
+    902,Lucas Hernandez,1937/06/11,M
+    903,Ellis Stevens,2008/06/02,M
 
-And looking at the corresponding 500th and 501st entities in Bob's data::
+And the corresponding entities in Bob's data::
 
-    tail -n 499 bob.txt | head -n 2
-    500,Arjun Efron,1990/01/14,M
-    501,Sedrick Verlinden,1954/11/28,M
+    head -n 905 bob.txt | tail -n 3
+    901,Sandra Boone,1974/10/30,F
+    902,Lucas Hernandez,1937/06/11,M
+    903,Ellis Stevens,2008/06/02,M
