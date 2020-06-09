@@ -384,9 +384,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
                     project_id,
                     dp_id,
                     encoding_object_info,
-                    encoding_credentials,
                     blocks_object_info,
-                    blocks_credentials,
                     receipt_token,
                     parent_span=serialize_span(parent_span))
             else:

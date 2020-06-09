@@ -1,12 +1,14 @@
 import json
+import ijson
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
-    store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream
+    store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream, \
+    include_encoding_id_in_json_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
-from entityservice.serialization import binary_format
+from entityservice.serialization import binary_format, deserialize_bytes
 from entityservice.settings import Config
 from entityservice.async_worker import celery
 from entityservice.tasks.base_task import TracedTask
@@ -19,27 +21,37 @@ logger = get_logger()
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def pull_external_data(project_id, dp_id,
-                                      encoding_object_info, encoding_credentials,
-                                      blocks_object_info, blocks_credentials,
-                                      receipt_token, parent_span=None):
+                       encoding_object_info,
+                       blocks_object_info,
+                       receipt_token, parent_span=None):
     """
     Load encoding and blocking data from object store.
 
     - pull blocking map into memory, create blocks in db
     - stream encodings into DB and add encoding + blocks from in memory dict.
 
+    :param project_id: identifier for the project
+    :param dp_id:
+    :param encoding_object_info: a dictionary contains bucket and path of uploaded encoding
+    :param blocks_object_info: a dictionary contains bucket and path of uploaded blocks
+    :param receipt_token: token used to insert into database
+
     """
+    env_credentials = parse_minio_credentials({
+        'AccessKeyId': config.MINIO_ACCESS_KEY,
+        'SecretAccessKey': config.MINIO_SECRET_KEY
+    })
     log = logger.bind(pid=project_id, dp_id=dp_id)
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.info("Project deleted, stopping immediately")
             return
 
-        mc = connect_to_object_store(parse_minio_credentials(blocks_credentials))
+        mc = connect_to_object_store(env_credentials)
 
     log.debug("Pulling blocking information from object store")
     response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
-    encoding_to_block_map = json.load(response)
+    encoding_to_block_map = json.load(response)['blocks']
 
     log.debug("Counting the blocks")
     block_sizes = {}
@@ -56,7 +68,7 @@ def pull_external_data(project_id, dp_id,
     bucket_name = encoding_object_info['bucket']
     object_name = encoding_object_info['path']
 
-    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, parse_minio_credentials(encoding_credentials))
+    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
     log.debug(f"Processing {count} encodings of size {size}")
@@ -70,6 +82,15 @@ def pull_external_data(project_id, dp_id,
             log.debug("Adding blocks to db")
             insert_blocking_metadata(conn, dp_id, block_sizes)
 
+        def ijson_encoding_iterator(encoding_stream):
+            binary_formatter = binary_format(size)
+            for encoding_id, encoding in zip(range(count), encoding_stream):
+                yield (
+                    str(encoding_id),
+                    binary_formatter.pack(encoding_id, deserialize_bytes(encoding)),
+                    encoding_to_block_map[str(encoding_id)]
+                    )
+
         def encoding_iterator(encoding_stream):
             binary_formatter = binary_format(size)
             for encoding_id in range(count):
@@ -79,10 +100,16 @@ def pull_external_data(project_id, dp_id,
                     encoding_to_block_map[str(encoding_id)]
                     )
 
+        if object_name.endswith('.json'):
+            encodings_stream = ijson.items(io.BytesIO(encodings_stream.data), 'clks.item')
+            encoding_generator = ijson_encoding_iterator(encodings_stream)
+        else:
+            encoding_generator = encoding_iterator(encodings_stream)
+
         with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
             log.debug("Adding encodings and associated blocks to db")
             try:
-                store_encodings_in_db(conn, dp_id, encoding_iterator(encodings_stream), size)
+                store_encodings_in_db(conn, dp_id, encoding_generator, size)
             except Exception as e:
                 update_dataprovider_uploaded_state(conn, project_id, dp_id, 'error')
                 log.warning(e)
@@ -113,12 +140,20 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         object_name = object_info['path']
 
     log.info("Pulling encoding data from an object store")
-    mc_credentials = parse_minio_credentials(credentials)
-    stat, stream = stat_and_stream_object(bucket_name, object_name, mc_credentials)
+    env_credentials = parse_minio_credentials({
+        'AccessKeyId': config.MINIO_ACCESS_KEY,
+        'SecretAccessKey': config.MINIO_SECRET_KEY
+    })
+    stat, stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
 
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
-    converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
+
+    if object_name.endswith('.json'):
+        encodings_stream = ijson.items(io.BytesIO(stream.data), 'clks.item')
+        converted_stream = include_encoding_id_in_json_stream(encodings_stream, size, count)
+    else:
+        converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=parent_span)
 
     # # Now work out if all parties have added their data

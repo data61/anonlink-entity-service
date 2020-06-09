@@ -214,3 +214,23 @@ def include_encoding_id_in_binary_stream(stream, size, count):
 
     return encoding_iterator(stream)
 
+
+def include_encoding_id_in_json_stream(stream, size, count):
+    """
+    Inject an encoding_id and default block into a ijson stream of encodings.
+    :param stream: ijson object
+    :param count: integer
+    :return: generator
+    """
+    binary_formatter = binary_format(size)
+
+
+    def encoding_iterator(filter_stream):
+        # Assumes encoding id and block info not provided (yet)
+        for entity_id, encoding in zip(range(count), filter_stream):
+            yield str(entity_id), binary_formatter.pack(entity_id, deserialize_bytes(encoding)), [DEFAULT_BLOCK_ID]
+
+
+    return encoding_iterator(stream)
+
+
