@@ -1,4 +1,5 @@
 import json
+import ijson
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
@@ -19,14 +20,20 @@ logger = get_logger()
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def pull_external_data(project_id, dp_id,
-                                      encoding_object_info, encoding_credentials,
-                                      blocks_object_info, blocks_credentials,
-                                      receipt_token, parent_span=None):
+                       encoding_object_info,
+                       blocks_object_info,
+                       receipt_token, parent_span=None):
     """
     Load encoding and blocking data from object store.
 
     - pull blocking map into memory, create blocks in db
     - stream encodings into DB and add encoding + blocks from in memory dict.
+
+    :param project_id: identifier for the project
+    :param dp_id:
+    :param encoding_object_info: a dictionary contains bucket and path of uploaded encoding
+    :param blocks_object_info: a dictionary contains bucket and path of uploaded blocks
+    :param receipt_token: token used to insert into database
 
     """
     env_credentials = parse_minio_credentials({
@@ -66,15 +73,6 @@ def pull_external_data(project_id, dp_id,
     log.debug(f"Processing {count} encodings of size {size}")
     assert count == len(encoding_to_block_map), f"Expected {count} encodings in blocks got {len(encoding_to_block_map)}"
 
-    # load clks properly
-    encodings = json.loads(encodings_stream.data.decode())['clks']
-
-    stream = io.BytesIO()
-    for clk in encodings:
-        stream.write(deserialize_bytes(clk))
-    stream.seek(0)
-    encodings_stream = stream
-
     with DBConn() as conn:
         with opentracing.tracer.start_span('update-metadata-db', child_of=parent_span):
             insert_encoding_metadata(conn, None, dp_id, receipt_token, encoding_count=count, block_count=block_count)
@@ -82,6 +80,15 @@ def pull_external_data(project_id, dp_id,
         with opentracing.tracer.start_span('create-block-entries-in-db', child_of=parent_span):
             log.debug("Adding blocks to db")
             insert_blocking_metadata(conn, dp_id, block_sizes)
+
+        def ijson_encoding_iterator(encoding_stream):
+            binary_formatter = binary_format(size)
+            for encoding_id, encoding in zip(range(count), encoding_stream):
+                yield (
+                    str(encoding_id),
+                    binary_formatter.pack(encoding_id, deserialize_bytes(encoding)),
+                    encoding_to_block_map[str(encoding_id)]
+                    )
 
         def encoding_iterator(encoding_stream):
             binary_formatter = binary_format(size)
@@ -92,10 +99,16 @@ def pull_external_data(project_id, dp_id,
                     encoding_to_block_map[str(encoding_id)]
                     )
 
+        if object_name.endswith('.json'):
+            encodings_stream = ijson.items(io.BytesIO(encodings_stream.data), 'clks.item')
+            encoding_generator = ijson_encoding_iterator(encodings_stream)
+        else:
+            encoding_generator = encoding_iterator(encodings_stream)
+
         with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
             log.debug("Adding encodings and associated blocks to db")
             try:
-                store_encodings_in_db(conn, dp_id, encoding_iterator(encodings_stream), size)
+                store_encodings_in_db(conn, dp_id, encoding_generator, size)
             except Exception as e:
                 update_dataprovider_uploaded_state(conn, project_id, dp_id, 'error')
                 log.warning(e)
