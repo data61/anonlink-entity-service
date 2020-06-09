@@ -3,7 +3,8 @@ import ijson
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
-    store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream
+    store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream, \
+    include_encoding_id_in_json_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
 from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
@@ -145,18 +146,14 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
     })
     stat, stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
 
-    # load clks properly
-    encodings = json.loads(stream.data.decode())['clks']
-
-    new_stream = io.BytesIO()
-    for clk in encodings:
-        new_stream.write(deserialize_bytes(clk))
-    new_stream.seek(0)
-    stream = new_stream
-
     count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
-    converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
+
+    if object_name.endswith('.json'):
+        encodings_stream = ijson.items(io.BytesIO(stream.data), 'clks.item')
+        converted_stream = include_encoding_id_in_json_stream(encodings_stream, size, count)
+    else:
+        converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=parent_span)
 
     # # Now work out if all parties have added their data
