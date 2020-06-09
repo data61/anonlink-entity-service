@@ -29,11 +29,11 @@ An anonymous linking code that has been shown to produce good results and is wid
 
 Private record linkage - using the *Entity Service* - is a two stage process:
 
-- First, each party locally computes the CLKs for their entities' data (e.g. using the
-  `clkhash <https://github.com/n1analytics/clkhash>`_ tool). These ``CLKs`` are then uploaded to the service.
+- First, each party locally encodes their entities' data (e.g. using the
+  `clkhash <https://github.com/data61/clkhash>`_ tool to produce ``CLKs``, using `blocklib <https://github.com/data61/blocklib>`_ to group similar entities into subgroups). These ``CLKs`` are then uploaded to the service. All these tasks can be conveniently initiated by the `anonlink-client <https://github.com/data61/anonlink-client>`_ tool.
 
 - The service then calculates the :ref:`similarity <comparing-clks>` between entities, using the probabilistic matching library
-  `anonlink <https://github.com/n1analytics/anonlink>`_. Depending on configuration, the output is returned
+  `anonlink <https://github.com/data61/anonlink>`_. Depending on configuration, the output is returned
   as :ref:`a mapping, permutations and mask, or similarity scores <result-types>`.
 
 
