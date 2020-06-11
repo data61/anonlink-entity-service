@@ -8,7 +8,22 @@
     "threshold": 0.80
   },
   {
+    "sizes": ["100K", "100K"],
+    "use_blocking": true,
+    "threshold": 0.80
+  },
+  {
     "sizes": ["100K", "1M"],
     "threshold": 0.95
+  },
+  {
+    "sizes": ["100K", "1M"],
+    "use_blocking": true,
+    "threshold": 0.95
+  },
+  {
+    "sizes": ["1M", "1M"],
+    "use_blocking": true,
+    "threshold": 0.8
   }
 ]

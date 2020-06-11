@@ -1,6 +1,7 @@
 import math
+from collections import defaultdict
 from itertools import zip_longest
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Tuple, Iterable
 
 import ijson
 import opentracing
@@ -9,8 +10,8 @@ from structlog import get_logger
 
 from entityservice import database as db
 from entityservice.database import insert_encodings_into_blocks, get_encodingblock_ids, \
-    get_chunk_of_encodings, DBConn
-from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters
+    get_chunk_of_encodings, get_encodings_of_multiple_blocks, DBConn
+from entityservice.serialization import deserialize_bytes, binary_format, binary_unpack_filters, binary_unpack_one
 from entityservice.utils import fmt_bytes
 
 logger = get_logger()
@@ -95,7 +96,7 @@ def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, Lis
         encoding_ids, encodings, blocks = _transpose(group)
         assert len(blocks) == len(encodings)
         assert len(encoding_ids) == len(encodings)
-        insert_encodings_into_blocks(conn, dp_id, block_ids=blocks, encoding_ids=encoding_ids, encodings=encodings)
+        insert_encodings_into_blocks(conn, dp_id, block_names=blocks, entity_ids=encoding_ids, encodings=encodings)
 
 
 def _estimate_group_size(encoding_size):
@@ -120,7 +121,56 @@ def get_encoding_chunk(conn, chunk_info, encoding_size=128):
     return chunk_data, len(chunk_data)
 
 
-def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128):
+def get_encoding_chunks(conn, package, encoding_size=128):
+    """enrich the chunks in the package with the encodings and entity_ids"""
+    chunks_per_dp = defaultdict(list)
+    for chunk_info_1, chunk_info_2 in package:
+        chunks_per_dp[chunk_info_1['dataproviderId']].append(chunk_info_1)
+        chunks_per_dp[chunk_info_2['dataproviderId']].append(chunk_info_2)
+
+    encodings_with_ids = {}
+    for dp_id in chunks_per_dp:
+        #get all encodings for that dp, save in dict with blockID as key.
+        chunks = sorted(chunks_per_dp[dp_id], key=lambda chunk: chunk['block_id'])
+        block_ids = [chunk['block_id'] for chunk in chunks]
+        values = get_encodings_of_multiple_blocks(conn, dp_id, block_ids)
+        i = 0
+
+        bit_packing_struct = binary_format(encoding_size)
+        def block_values_iter(values):
+            block_id, entity_id, encoding = next(values)
+            entity_ids = [entity_id]
+            encodings = [binary_unpack_one(encoding, bit_packing_struct)[1]]
+            while True:
+                try:
+                    new_id, n_entity_id, n_encoding = next(values)
+                    if new_id == block_id:
+                        entity_ids.append(n_entity_id)
+                        encodings.append(binary_unpack_one(n_encoding, bit_packing_struct)[1])
+                    else:
+                        yield block_id, entity_ids, encodings
+                        block_id = new_id
+                        entity_ids = [n_entity_id]
+                        encodings = [binary_unpack_one(n_encoding, bit_packing_struct)[1]]
+                except StopIteration:
+                    yield block_id, entity_ids, encodings
+                    break
+
+        for block_id, entity_ids, encodings in block_values_iter(values):
+            encodings_with_ids[(dp_id, block_id)] = (entity_ids, encodings)
+
+    for chunk_info_1, chunk_info_2 in package:
+        entity_ids, encodings = encodings_with_ids[(chunk_info_1['dataproviderId'], chunk_info_1['block_id'])]
+        chunk_info_1['encodings'] = encodings
+        chunk_info_1['entity_ids'] = entity_ids
+        entity_ids, encodings = encodings_with_ids[(chunk_info_2['dataproviderId'], chunk_info_2['block_id'])]
+        chunk_info_2['encodings'] = encodings
+        chunk_info_2['entity_ids'] = entity_ids
+
+    return package
+
+
+def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, count, size=128, parent_span=None):
     """
     Save the user provided binary-packed CLK data.
 
@@ -136,7 +186,6 @@ def upload_clk_data_binary(project_id, dp_id, encoding_iter, receipt_token, coun
 
     # Upload to database
     logger.info(f"Uploading {count} binary encodings to database. Total size: {fmt_bytes(num_bytes)}")
-    parent_span = g.flask_tracer.get_span()
 
     with DBConn() as conn:
         db.update_encoding_metadata_set_encoding_size(conn, dp_id, size)
@@ -164,4 +213,24 @@ def include_encoding_id_in_binary_stream(stream, size, count):
             yield str(entity_id), binary_formatter.pack(entity_id, filter_stream.read(size)), [DEFAULT_BLOCK_ID]
 
     return encoding_iterator(stream)
+
+
+def include_encoding_id_in_json_stream(stream, size, count):
+    """
+    Inject an encoding_id and default block into a ijson stream of encodings.
+    :param stream: ijson object
+    :param count: integer
+    :return: generator
+    """
+    binary_formatter = binary_format(size)
+
+
+    def encoding_iterator(filter_stream):
+        # Assumes encoding id and block info not provided (yet)
+        for entity_id, encoding in zip(range(count), filter_stream):
+            yield str(entity_id), binary_formatter.pack(entity_id, deserialize_bytes(encoding)), [DEFAULT_BLOCK_ID]
+
+
+    return encoding_iterator(stream)
+
 

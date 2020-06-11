@@ -1,6 +1,7 @@
 from io import BytesIO
 import json
 import tempfile
+import statistics
 
 from connexion import ProblemException
 from flask import request
@@ -19,7 +20,7 @@ from entityservice import models
 from entityservice.object_store import connect_to_object_store
 from entityservice.serialization import binary_format
 from entityservice.settings import Config
-from entityservice.views.serialization import ProjectList, NewProjectResponse, ProjectDescription
+from entityservice.views.serialization import ProjectListItem, NewProjectResponse, ProjectDescription
 from entityservice.views.util import bind_log_and_span, convert_clks_to_clknblocks, \
     convert_encoding_upload_to_clknblock
 
@@ -31,7 +32,7 @@ def projects_get():
     logger.info("Getting list of all projects")
     with DBConn() as conn:
         projects = db.query_db(conn, 'select project_id, time_added from projects')
-    return ProjectList().dump(projects)
+    return ProjectListItem(many=True).dump(projects)
 
 
 def projects_post(project):
@@ -154,7 +155,7 @@ def project_binaryclks_post(project_id):
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size)
+                    upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=span)
                 except ValueError:
                     safe_fail_request(400,
                                       "Uploaded data did not match the expected size. Check request headers are correct.")
@@ -258,7 +259,7 @@ def project_clks_post(project_id):
                 if len(request.data) != expected_bytes:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct")
                 try:
-                    upload_clk_data_binary(project_id, dp_id, stream, receipt_token, count, size)
+                    upload_clk_data_binary(project_id, dp_id, stream, receipt_token, count, size, parent_span=span)
                 except ValueError:
                     safe_fail_request(400, "Uploaded data did not match the expected size. Check request headers are correct.")
             else:
@@ -383,9 +384,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
                     project_id,
                     dp_id,
                     encoding_object_info,
-                    encoding_credentials,
                     blocks_object_info,
-                    blocks_credentials,
                     receipt_token,
                     parent_span=serialize_span(parent_span))
             else:
@@ -433,8 +432,12 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     block_count = len(block_sizes)
 
     logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
-    for block in block_sizes:
-        logger.info(f"Block {block} has {block_sizes[block]} elements")
+    if block_count > 20:
+        #only log summary of block sizes
+        logger.info(f'info on block sizes. min: {min(block_sizes.values())}, max: {max(block_sizes.values())} mean: {statistics.mean(block_sizes.values())}, median: {statistics.median(block_sizes.values())}')
+    else:
+        for block in block_sizes:
+            logger.info(f"Block {block} has {block_sizes[block]} elements")
 
     # write clk_json into a temp file
     tmp = tempfile.NamedTemporaryFile(mode='w')

@@ -154,44 +154,42 @@ CREATE TABLE blocks
     -- User supplied block name
     block_name CHAR(64)       NOT NULL,
 
+    -- generated block ID
+    block_id SERIAL PRIMARY KEY,
+
     -- Number of encodings in block
     count    INT            NOT NULL,
 
     -- State of the block
-    state    PROCESSEDSTATE NOT NULL,
-
-    PRIMARY KEY (dp, block_name)
+    state    PROCESSEDSTATE NOT NULL
 );
 
 CREATE INDEX ON blocks (dp, block_name);
 
+
 CREATE TABLE encodings (
-  dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
+  -- encoding id from encodingblocks
+  encoding_id BIGINT PRIMARY KEY,
 
-  -- user supplied encoding id
-  encoding_id INT       NOT NULL,
-
-  encoding  bytea       NOT NULL,
-
-  PRIMARY KEY (dp, encoding_id)
+  encoding  bytea       NOT NULL
 );
-
-CREATE INDEX ON encodings (dp, encoding_id);
 
 -- Table mapping blocks to encodings
 CREATE TABLE encodingblocks (
   dp    INT REFERENCES dataproviders (id) on DELETE CASCADE,
 
-  encoding_id INT,
+  -- user supplied entity ID
+  entity_id INT,
 
-  block_id CHAR(64),
+  -- encoding ID uniquely identifies an encoding
+  encoding_id BIGINT REFERENCES encodings(encoding_id) ON DELETE CASCADE,
 
-  FOREIGN KEY (dp, encoding_id) REFERENCES encodings (dp, encoding_id),
-  FOREIGN KEY (dp, block_id) REFERENCES blocks (dp, block_name)
+  block_id INT REFERENCES blocks(block_id)
 );
 
-CREATE INDEX ON encodingblocks (dp, block_id);
+CREATE INDEX ON encodingblocks (block_id);
 CREATE INDEX ON encodingblocks (encoding_id);
+
 
 CREATE TABLE run_results (
   -- Just the table index
