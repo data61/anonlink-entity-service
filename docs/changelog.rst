@@ -7,6 +7,12 @@ Changelog
 Next Version
 ------------
 
+Version 1.13.0
+--------------
+
+- extended tutorial to include upload to object store #573
+- chart update #572
+
 Version 1.13.0-beta3
 --------------------
 
