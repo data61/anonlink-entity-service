@@ -7,6 +7,12 @@ Changelog
 Next Version
 ------------
 
+Version 1.13.0-beta3
+--------------------
+
+- Improved performance for blocks of small size #563
+- fix a problem with the upload to the external object store #564
+- updated documentation #567, $569
 
 Version 1.13.0-beta2
 --------------------
