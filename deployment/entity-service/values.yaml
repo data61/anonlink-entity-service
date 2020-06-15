@@ -57,7 +57,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.6-beta2"
+      tag: "v1.4.6"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -74,7 +74,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0-beta2"
+      tag: "v1.13.0"
       pullPolicy: IfNotPresent
 
 
@@ -94,7 +94,7 @@ api:
     ## It cannot be updated! So we have a separate image + tag
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0-beta2"
+      tag: "v1.13.0"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -174,7 +174,7 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.13.0-beta2"
+    tag: "v1.13.0"
     pullPolicy: Always
 
   ## The initial number of workers for this deployment

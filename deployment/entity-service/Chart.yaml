@@ -1,6 +1,6 @@
 name: entity-service
-appVersion: 1.13.0-beta2
-version: 1.13.1
+appVersion: 1.13.0
+version: 1.13.3
 description: Privacy preserving record linkage service
 sources:
   - https://github.com/data61/anonlink-entity-service
