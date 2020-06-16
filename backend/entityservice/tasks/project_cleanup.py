@@ -48,4 +48,7 @@ def delete_minio_objects(filenames, project_id, parent_span=None):
 
     if Config.UPLOAD_OBJECT_STORE_ENABLED:
         log.debug("Deleting everything uploaded to object store for project")
-        delete_object_store_folder(mc, Config.UPLOAD_OBJECT_STORE_BUCKET, f"{project_id}/")
+        try:
+            delete_object_store_folder(mc, Config.UPLOAD_OBJECT_STORE_BUCKET, f"{project_id}/")
+        except MinioError as e:
+            log.warning(f"Error occurred while trying to remove files from object store upload bucket: {e}")
