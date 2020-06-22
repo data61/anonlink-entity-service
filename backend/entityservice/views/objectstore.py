@@ -3,10 +3,11 @@ import json
 import opentracing
 from flask import request
 from minio.credentials import AssumeRoleProvider, Credentials
+from minio.error import ResponseError
 
 from entityservice.settings import Config as config
 import entityservice.database as db
-from entityservice.object_store import connect_to_upload_object_store
+from entityservice.object_store import connect_to_upload_object_store, connect_to_object_store, create_bucket
 from entityservice.utils import safe_fail_request, object_store_upload_path
 from entityservice.views import bind_log_and_span, precheck_upload_token
 from entityservice.views.serialization import ObjectStoreCredentials
@@ -66,6 +67,11 @@ def authorize_external_upload(project_id):
         expiry = credentials_provider._expiry._expiration
 
         log.info("Retrieved temporary credentials")
+
+        client = connect_to_object_store()
+        if not client.bucket_exists(bucket_name):
+            log.warning(f'bucket "{bucket_name}" does not exist! Trying to create now...')
+            create_bucket(client, bucket_name)
 
     credentials_json = ObjectStoreCredentials().dump(credential_values)
     log.debug("Temp credentials", **credentials_json)
