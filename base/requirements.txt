@@ -9,7 +9,7 @@ Flask-Opentracing==1.1.0
 Flask==1.1.2
 flower==0.9.4
 gunicorn==20.0.4
-ijson==3.0.4
+ijson==3.1.post0
 iso8601==0.1.12
 jaeger-client==4.0.0
 marshmallow==3.6.1
