@@ -1,8 +1,8 @@
-anonlink==0.12.5
-anonlink-client==0.1.3
+anonlink==0.13.1
+anonlink-client==0.1.4
 bitmath==1.3.1.2
 celery==4.4.2
-clkhash==0.16.0a1
+clkhash==0.16.0
 colorama==0.4.3 # required for structlog
 connexion==2.7.0
 Flask-Opentracing==1.1.0

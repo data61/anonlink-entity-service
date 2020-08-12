@@ -16,7 +16,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 WORKDIR /var/www
 ADD requirements.txt /var/www/requirements.txt
 RUN apk add --no-cache \
-    python3=3.8.3-r0 \
+    python3=3.8.5-r0 \
     py3-pip=20.1.1-r0 \
     libstdc++=9.3.0-r2 \
     mpc1-dev=1.1.0-r1 \
@@ -25,7 +25,7 @@ RUN apk add --no-cache \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
     g++=9.3.0-r2 \
-    python3-dev=3.8.3-r0 \
+    python3-dev=3.8.5-r0 \
     yajl-dev=2.1.0-r1 \
     postgresql-dev=12.3-r2 \
     libffi-dev=3.3-r2 \
