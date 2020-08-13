@@ -51,9 +51,8 @@ class TestAssumeRole:
         # Should be able to put an object though
         upload_restricted_minio_client.put_object(bucket_name, 'testobject', io.BytesIO(b'data'), length=4)
 
-        credentials_provider = AssumeRoleProvider(upload_restricted_minio_client,
-                                                  Policy=restricted_upload_policy
-                                                  )
+        credentials_provider = AssumeRoleProvider(
+            lambda: upload_restricted_minio_client.get_assume_role_creds(restricted_upload_policy))
         temp_creds = Credentials(provider=credentials_provider)
 
         newly_restricted_mc_client = Minio(upload_endpoint, credentials=temp_creds, region='us-east-1', secure=False)
