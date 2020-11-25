@@ -4,7 +4,7 @@ dependencies:
     repository: https://kubernetes-charts.storage.googleapis.com
     condition: provision.redis
   - name: minio
-    version: 8.0.5
+    version: 8.0.6
     repository: https://helm.min.io/
     condition: provision.minio
   - name: postgresql

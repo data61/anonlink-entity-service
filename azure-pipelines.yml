@@ -270,15 +270,7 @@ stages:
       # Install Helm on an agent machine
       - task: HelmInstaller@1
         inputs:
-          helmVersionToInstall: '2.16.3'
-
-      - task: HelmDeploy@0
-        displayName: Helm init
-        inputs:
-          connectionType: 'Kubernetes Service Connection'
-          kubernetesServiceConnection: $(CLUSTER)
-          command: init
-          arguments: --client-only
+          helmVersionToInstall: 'latest'
 
       - task: HelmDeploy@0
         displayName: Helm package
@@ -308,8 +300,8 @@ stages:
             api.dbinit.image.repository:$(backendImageName)
             workers.image.repository:$(backendImageName)
             workers.image.pullPolicy:Always
-            anonlink.objectstore.secure:false
             anonlink.objectstore.uploadEnabled:true
+            anonlink.objectstore.uploadSecure:false
             anonlink.objectstore.uploadAccessKey:testUploadAccessKey
             anonlink.objectstore.uploadSecretKey:testUploadSecretKey
             minio.accessKey:testMinioAccessKey
