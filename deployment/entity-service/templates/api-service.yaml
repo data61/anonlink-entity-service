@@ -13,8 +13,8 @@ metadata:
 {{- end }}
   name: {{ template "api.fullname" . }}
 spec:
-{{- if .Values.api.service.clusterIP }}
-  clusterIP: {{ .Values.api.service.clusterIP }}
+{{- if .Values.api.service.clusterIp }}
+  clusterIP: {{ .Values.api.service.clusterIp }}
 {{- end }}
 {{- if .Values.api.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
