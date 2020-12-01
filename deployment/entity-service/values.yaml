@@ -122,36 +122,38 @@ api:
     enabled: false
 
     ## Ingress annotations
-    annotations: # {}
-     kubernetes.io/ingress.class: nginx
+    annotations: {}
+      ## Suggested annotations
+      ## To handle large uploads we increase the proxy buffer size
+      #ingress.kubernetes.io/proxy-body-size: 4096m
 
-     ## To handle large uploads we increase the proxy buffer size
-     ingress.kubernetes.io/proxy-body-size: 4096m
-     nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+      ## Redirect to ssl
+      #ingress.kubernetes.io/force-ssl-redirect: "true"
 
-     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-     ## Example ingress annotations for certmanager
-     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
-     ## Redirect to ssl
-     ingress.kubernetes.io/force-ssl-redirect: "true"
+      ## Deprecated but common
+      ## https://kubernetes.io/docs/concepts/services-networking/ingress/#deprecated-annotation
+      # kubernetes.io/ingress.class: ""
+
+    path: /
+    pathType: Prefix
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
-    hosts:
-     - beta.anonlink.data61.xyz
+    hosts: []
+     ## E.g:
+     #- beta.anonlink.data61.xyz
 
-    ## Entity Service API Ingress TLS configuration
+    ## Ingress TLS configuration
     ## This example setup is for nginx-ingress. We use certificate manager.
     ## to create the TLS secret in the namespace with the name
     ## below.
-    tls: # []
+    tls:  []
+
     ## secretName is the kubernetes secret which will contain the TLS secret and certificates
-    ## for the provided host url. It is automatically generated from the deployed certmanager.
-    - secretName: beta-anonlink-data61-tls
-      hosts:
-      - beta.anonlink.data61.xyz
+    ## for the provided host url. It is automatically generated from the deployed cert-manager.
+    #- secretName: beta-anonlink-data61-tls
+    #  hosts:
+    #  - beta.anonlink.data61.xyz
 
   service:
     annotations: []
