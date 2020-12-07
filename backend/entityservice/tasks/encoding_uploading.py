@@ -1,5 +1,6 @@
 import json
 import ijson
+from requests.structures import CaseInsensitiveDict
 
 from entityservice.database import *
 from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
@@ -69,8 +70,9 @@ def pull_external_data(project_id, dp_id,
     object_name = encoding_object_info['path']
 
     stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
-    count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
-    size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
+    stat_metadata = CaseInsensitiveDict(stat.metadata)
+    count = int(stat_metadata['X-Amz-Meta-Hash-Count'])
+    size = int(stat_metadata['X-Amz-Meta-Hash-Size'])
     log.debug(f"Processing {count} encodings of size {size}")
     assert count == len(encoding_to_block_map), f"Expected {count} encodings in blocks got {len(encoding_to_block_map)}"
 
@@ -145,9 +147,10 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         'SecretAccessKey': config.MINIO_SECRET_KEY
     })
     stat, stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
+    stat_metadata = CaseInsensitiveDict(stat.metadata)
 
-    count = int(stat.metadata['X-Amz-Meta-Hash-Count'])
-    size = int(stat.metadata['X-Amz-Meta-Hash-Size'])
+    count = int(stat_metadata['X-Amz-Meta-Hash-Count'])
+    size = int(stat_metadata['X-Amz-Meta-Hash-Size'])
 
     if object_name.endswith('.json'):
         encodings_stream = ijson.items(io.BytesIO(stream.data), 'clks.item')
@@ -160,7 +163,6 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
     if clks_uploaded_to_project(project_id):
         logger.info("All parties data present. Scheduling any queued runs")
         check_for_executable_runs.delay(project_id, serialize_span(parent_span))
-
 
 
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
