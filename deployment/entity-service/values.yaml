@@ -27,6 +27,11 @@ anonlink:
     uploadAccessKey: "EXAMPLE_UPLOAD_KEY"
     uploadSecretKey: "EXAMPLE_UPLOAD_SECRET"
 
+    ## Object store credentials used to grant temporary download access to clients
+    ## Will be created with an "get only" policy if using the default MINIO provisioning.
+    downloadAccessKey: "EXAMPLE_DOWNLOAD_KEY"
+    downloadSecretKey: "EXAMPLE_DOWNLOAD_SECRET"
+
     ## The bucket for client uploads.
     uploadBucket:
       name: "uploads"

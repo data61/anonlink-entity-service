@@ -304,6 +304,8 @@ stages:
             anonlink.objectstore.uploadSecure:false
             anonlink.objectstore.uploadAccessKey:testUploadAccessKey
             anonlink.objectstore.uploadSecretKey:testUploadSecretKey
+            anonlink.objectstore.downloadAccessKey:testDownloadAccessKey
+            anonlink.objectstore.downloadSecretKey:testDownloadSecretKey
             minio.accessKey:testMinioAccessKey
             minio.secretKey:testMinioSecretKey
 

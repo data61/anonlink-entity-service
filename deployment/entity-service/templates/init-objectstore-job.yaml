@@ -45,6 +45,16 @@ spec:
               secretKeyRef:
                 name: {{ template "es.fullname" . }}
                 key: minioUploadSecretKey
+          - name: DOWNLOAD_ONLY_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioDownloadAccessKey
+          - name: DOWNLOAD_ONLY_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: minioDownloadSecretKey
           - name: UPLOAD_BUCKET
             value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
         command:

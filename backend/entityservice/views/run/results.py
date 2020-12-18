@@ -2,11 +2,13 @@ from flask import request, g
 from structlog import get_logger
 import opentracing
 
+from entityservice.settings import Config as config
 from entityservice import database as db
 from entityservice.serialization import get_similarity_scores
 from entityservice.utils import safe_fail_request
 from entityservice.views import bind_log_and_span
 from entityservice.views.auth_checks import abort_if_run_doesnt_exist, get_authorization_token_type_or_abort
+from entityservice.views.objectstore import prepare_restricted_download_response
 
 logger = get_logger()
 
@@ -46,9 +48,15 @@ def get_result(dbinstance, project_id, run_id, token):
         return {"groups": result}
 
     elif result_type == 'similarity_scores':
-        logger.info("Similarity result being returned")
-        return get_similarity_score_result(dbinstance, run_id)
-
+        if 'RETURN_OBJECT_STORE_ADDRESS' in request.headers:
+            logger.info("Returning object store filename for similarity scores")
+            bucket = config.MINIO_BUCKET
+            object_store_path = get_similarity_score_result_filename(dbinstance, run_id)
+            logger.info("Retrieving temporary object store credentials")
+            return prepare_restricted_download_response(bucket, object_store_path)
+        else:
+            logger.info("Similarity result being returned")
+            return get_similarity_score_result(dbinstance, run_id)
     elif result_type == 'permutations':
         logger.info("Permutation result being returned")
         return get_permutations_result(project_id, run_id, dbinstance, token, auth_token_type)
@@ -57,10 +65,19 @@ def get_result(dbinstance, project_id, run_id, token):
         safe_fail_request(500, message='Project has unknown result type')
 
 
+def get_similarity_score_result_filename(dbinstance, run_id):
+    logger.info("Similarity score result filename being returned")
+    try:
+        return db.get_similarity_scores_filename(dbinstance, run_id)
+    except TypeError:
+        logger.exception("Couldn't find the similarity score file for the runId %s", run_id)
+        safe_fail_request(500, "Failed to retrieve similarity scores")
+
+
 def get_similarity_score_result(dbinstance, run_id):
     logger.info("Similarity score result being returned")
     try:
-        filename = db.get_similarity_scores_filename(dbinstance, run_id)
+        filename = get_similarity_score_result_filename(dbinstance, run_id)
         return get_similarity_scores(filename)
 
     except TypeError:
