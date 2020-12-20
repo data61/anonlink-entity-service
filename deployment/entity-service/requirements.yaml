@@ -1,7 +1,7 @@
 dependencies:
   - name: redis-ha
-    version: 4.4.1
-    repository: https://kubernetes-charts.storage.googleapis.com
+    version: 4.10.5
+    repository: https://dandydeveloper.github.io/charts
     condition: provision.redis
   - name: minio
     version: 8.0.6

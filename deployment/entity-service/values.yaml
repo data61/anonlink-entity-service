@@ -313,11 +313,11 @@ redis:
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
-  ## https://github.com/helm/charts/tree/master/stable/redis-ha
+  ## https://github.com/DandyDeveloper/charts/tree/master/charts/redis-ha#configuration
   ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "exampleRedisPassword"
-  replicas: 3
+  #replicas: 3
   redis:
     resources:
       requests:
@@ -349,6 +349,7 @@ redis-ha:
       - |-
         sysctl -w net.core.somaxconn=10000
         echo never > /host-sys/kernel/mm/transparent_hugepage/enabled
+  # Enable prometheus exporter sidecar
   exporter:
     enabled: true
 
