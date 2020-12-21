@@ -62,8 +62,27 @@ follow the `helm installation documentation <https://helm.sh/docs/intro/install/
 Ingress Controller
 ~~~~~~~~~~~~~~~~~~
 
-For external API access the deployment relies on ``Ingress`` resources, for this to work the cluster must
-have an `ingress controller <https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/>`__.
+For external API access the deployment optionally includes an ``Ingress`` resource.
+
+This can be enabled with the ``api.ingress.enabled`` setting.
+
+Note the ingress requires configuration specifically for the
+`ingress controller <https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/>`__
+installed on the Kubernetes cluster, usually via annotations which can be provided in the
+``api.ingress.annotations`` setting.
+
+.. note::
+
+   If client's are pushing or pulling large amounts of data (e.g. large encodings or many raw similarity scores),
+   the ingress may need to be configured with a large buffer and long timeouts. Using the NGINX ingress controller
+   we found the following ingress annotations to be a good starting point::
+
+         ingress.kubernetes.io/proxy-body-size: 4096m
+         nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+         nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+         nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+         nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
 
 
 Deploy the system
