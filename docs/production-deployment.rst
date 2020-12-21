@@ -235,9 +235,9 @@ to ``false``, set the database server in ``postgresql.nameOverride``, and add cr
 Object Store Deployment Options
 -------------------------------
 
-At deployment time you can decide to deploy MINIO or instead use an existing service such as AWS S3.
+At deployment time you can decide to deploy MinIO or instead use an existing object store service compatible with AWS S3.
 
-Note that there is a trade off between using a local deployment of minio vs S3. In our AWS based experimentation
+Note that there is a trade off between using a local deployment of MinIO vs AWS S3. In our AWS based experimentation
 Minio is noticeably faster, but more expensive and less reliable than AWS S3, your own mileage may vary.
 
 To configure a deployment to use an external object store, set ``provision.minio`` to ``false`` and add
@@ -247,12 +247,40 @@ credentials (and disable provisioning minio)::
     helm install entity-service --name="es-s3" --set provision.minio=false --set minio.accessKey=XXX --set minio.secretKey=YYY --set minio.bucket=<bucket>
 
 
+Object Store for client uploads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Optionally client's can upload data via an object store instead of via the REST API. This requires external access
+to an object store, and the service must have authorization to create temporary credentials.
+
+The following settings control this optional feature:
+
+==================================  ==========================================
+     Environment Variable              Helm Config
+==================================  ==========================================
+``UPLOAD_OBJECT_STORE_ENABLED``      ``anonlink.objectstore.uploadEnabled``
+``UPLOAD_OBJECT_STORE_SERVER``       ``anonlink.objectstore.uploadServer``
+``UPLOAD_OBJECT_STORE_SECURE``       ``anonlink.objectstore.uploadSecure``
+``UPLOAD_OBJECT_STORE_BUCKET``       ``anonlink.objectstore.uploadBucket.name``
+``UPLOAD_OBJECT_STORE_ACCESS_KEY``   ``anonlink.objectstore.uploadAccessKey``
+``UPLOAD_OBJECT_STORE_SECRET_KEY``   ``anonlink.objectstore.uploadSecretKey``
+===================================  ==========================================
+
+
+.. note::
+
+   If the ``uploadServer`` config isn't provided, the deployment will assume that MinIO has been
+   deployed along with the service and fallback to using the MinIO ingress host (if present),
+   otherwise the cluster internal address of the deployed MinIO service. This last fallback is
+   in place simply to make e2e testing easier.
+
 
 Redis Deployment Options
 ------------------------
 
 At deployment time you can decide to provision redis using our chart, or instead use an existing redis installation or
 managed service. The provisioned redis is a highly available 3 node redis cluster using the `redis-ha` helm chart.
+
 Directly connecting to redis, and discovery via the sentinel protocol are supported. When using sentinel protocol
 for redis discovery read only requests are dispatched to redis replicas.
 
@@ -265,6 +293,8 @@ To use a separate install of redis using the server ``shared-redis-ha-redis-ha.d
          --set redis.server=shared-redis-ha-redis-ha.default.svc.cluster.local \
          --set redis.use_sentinel=true
 
+
+Note these settings can also be provided via a ``values.yaml`` deployment configuration file.
 
 Uninstalling
 ------------

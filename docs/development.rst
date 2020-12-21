@@ -105,11 +105,12 @@ The run info ``HASH`` stores:
 Object Store
 ------------
 
-MinIO is an S3 compatible object store which is used to handle uploads and store
-files for the Anonlink Entity Service.
+Write access to an AWS S3 compatible object store is required to store intermediate files for the
+Anonlink Entity Service. The optional feature for data upload via object store also requires access
+to an AWS S3 compatible object store - along with authorization to create temporary credentials.
 
-
-
+`MinIO <https://min.io/>`__ is an open source object store implementation which can be used with
+both Docker Compose and Kubernetes deployments instead of AWS S3.
 
 
 Deployment Testing
@@ -140,3 +141,10 @@ to which the results are written (as ``results.xml``). During the testing the py
 and then the Job's pod terminates. We create a temporary pod which mounts the same results volume and then we copy
 across the produced test result artifact.
 
+Designs & Proposals
+-------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   designs/anonlink-upload-data-plan
