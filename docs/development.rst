@@ -140,11 +140,3 @@ This job includes a ``1GiB`` `persistent volume claim <https://kubernetes.io/doc
 to which the results are written (as ``results.xml``). During the testing the pytest output will be rendered,
 and then the Job's pod terminates. We create a temporary pod which mounts the same results volume and then we copy
 across the produced test result artifact.
-
-Designs & Proposals
--------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   designs/anonlink-upload-data-plan

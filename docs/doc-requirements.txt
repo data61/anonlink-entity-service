@@ -2,4 +2,3 @@ sphinx
 sphinxcontrib-redoc
 nbsphinx
 ipython
-recommonmark
