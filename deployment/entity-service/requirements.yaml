@@ -1,11 +1,11 @@
 dependencies:
   - name: redis-ha
-    version: 4.4.1
-    repository: https://kubernetes-charts.storage.googleapis.com
+    version: 4.10.5
+    repository: https://dandydeveloper.github.io/charts
     condition: provision.redis
   - name: minio
-    version: 5.0.27
-    repository: https://kubernetes-charts.storage.googleapis.com
+    version: 8.0.6
+    repository: https://helm.min.io/
     condition: provision.minio
   - name: postgresql
     version: 8.9.1

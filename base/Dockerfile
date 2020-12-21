@@ -1,4 +1,4 @@
-FROM alpine:3.12.0
+FROM alpine:3.12.1
 
 ENV DOCKERIZE_VERSION v0.6.1
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
@@ -21,13 +21,13 @@ RUN apk add --no-cache \
     libstdc++=9.3.0-r2 \
     mpc1-dev=1.1.0-r1 \
     yajl=2.1.0-r1 \
-    libpq=12.3-r2 && \
+    libpq=12.5-r0 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
     g++=9.3.0-r2 \
     python3-dev=3.8.5-r0 \
     yajl-dev=2.1.0-r1 \
-    postgresql-dev=12.3-r2 \
+    postgresql-dev=12.5-r0 \
     libffi-dev=3.3-r2 \
     gmp-dev=6.2.0-r0 \
     mpfr-dev=4.0.2-r4 \

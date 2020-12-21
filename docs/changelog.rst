@@ -7,6 +7,8 @@ Changelog
 Next Version
 ------------
 
+Updates Redis and MinIO dependencies.
+
 Version 1.13.0
 --------------
 
