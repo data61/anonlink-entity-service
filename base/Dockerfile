@@ -36,8 +36,8 @@ RUN apk add --no-cache \
     mpfr-dev=4.1.0-r0 \
     wait4ports=0.3.1-r0 \
     git && \
-    pip install pip setuptools wheel && \
-    pip install --upgrade pip && \
+    pip install setuptools wheel && \
+    python -m pip install --upgrade pip && \
     pip install --upgrade -r requirements.txt && \
     apk del --no-cache .build-deps && \
     rm -fr /tmp/* /var/cache/apk/* /root/.cache/pip
