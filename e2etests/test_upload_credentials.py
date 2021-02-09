@@ -44,10 +44,10 @@ class TestAuthorizeExternalUpload:
             )
 
             # Client shouldn't be able to list buckets
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 restricted_mc_client.list_buckets()
 
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 restricted_mc_client.put_object(bucket_name, 'testobject', io.BytesIO(b'data'), length=4)
 
             # Should be able to put an object in the approved path
@@ -56,19 +56,19 @@ class TestAuthorizeExternalUpload:
             restricted_mc_client.put_object(bucket_name, allowed_path + '/encodings.bin', io.BytesIO(b'data'), length=4)
 
             # Client shouldn't be allowed to download files
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 restricted_mc_client.get_object(bucket_name, allowed_path + '/blocks.json')
 
             # Client shouldn't be allowed to delete uploaded files:
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 restricted_mc_client.remove_object(bucket_name, allowed_path + '/blocks.json')
 
             # Client shouldn't be able to list objects in the bucket
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 list(restricted_mc_client.list_objects(bucket_name))
 
             # client shouldn't be able to list objects even in the approved path
-            with pytest.raises(minio.error.AccessDenied):
+            with pytest.raises(minio.S3Error):
                 list(restricted_mc_client.list_objects(bucket_name, prefix=allowed_path))
 
             # Should be able to notify the service that we've uploaded data
@@ -76,6 +76,5 @@ class TestAuthorizeExternalUpload:
                                 headers={'Authorization': a_project['update_tokens'][dp_index]},
                                 json={
                                     'encodings': datasets[dp_index]
-                                }
-                               )
+                                })
             assert res.status_code == 201

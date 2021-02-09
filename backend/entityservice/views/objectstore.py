@@ -3,7 +3,6 @@ import json
 import opentracing
 from flask import request
 from minio.credentials import AssumeRoleProvider, Credentials
-from minio.error import ResponseError
 
 from entityservice.settings import Config as config
 import entityservice.database as db
@@ -60,11 +59,16 @@ def authorize_external_upload(project_id):
         path = object_store_upload_path(project_id, dp_id)
         log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
 
-        credentials_provider = AssumeRoleProvider(client,
-                                                  Policy=_get_upload_policy(bucket_name, path=path),
-                                                  DurationSeconds=config.UPLOAD_OBJECT_STORE_STS_DURATION)
-        credential_values = Credentials(provider=credentials_provider).get()
-        expiry = credentials_provider._expiry._expiration
+        credentials_provider = AssumeRoleProvider(
+            'http://' + config.UPLOAD_OBJECT_STORE_SERVER,
+            access_key=config.UPLOAD_OBJECT_STORE_ACCESS_KEY,
+            secret_key=config.UPLOAD_OBJECT_STORE_SECRET_KEY,
+            policy=_get_upload_policy(bucket_name, path=path),
+            duration_seconds=config.UPLOAD_OBJECT_STORE_STS_DURATION
+        )
+        credential_values = credentials_provider.retrieve()
+
+        expiry = credential_values._expiration
 
         log.info("Retrieved temporary credentials")
 

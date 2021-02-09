@@ -1,4 +1,4 @@
-from minio.error import MinioError
+from minio.error import MinioException
 
 import entityservice.database as db
 from entityservice.cache.active_runs import set_run_state_deleted
@@ -43,12 +43,12 @@ def delete_minio_objects(filenames, project_id, parent_span=None):
     try:
         for del_err in mc.remove_objects(Config.MINIO_BUCKET, filenames):
             log.debug("Deletion error: {}".format(del_err))
-    except MinioError as e:
+    except MinioException as e:
         log.warning(f"Error occurred while removing object {filenames}. Ignoring.")
 
     if Config.UPLOAD_OBJECT_STORE_ENABLED:
         log.debug("Deleting everything uploaded to object store for project")
         try:
             delete_object_store_folder(mc, Config.UPLOAD_OBJECT_STORE_BUCKET, f"{project_id}/")
-        except MinioError as e:
+        except MinioException as e:
             log.warning(f"Error occurred while trying to remove files from object store upload bucket: {e}")

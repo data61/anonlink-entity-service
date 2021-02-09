@@ -1,8 +1,7 @@
 import minio
-from minio.credentials import Credentials, Static
+from minio.credentials import Credentials
 from structlog import get_logger
 
-from entityservice.async_worker import logger
 from entityservice.settings import Config as config
 
 logger = get_logger('objectstore')
@@ -46,8 +45,8 @@ def create_bucket(minio_client, bucket):
         logger.info("Creating bucket {}".format(bucket))
         try:
             minio_client.make_bucket(bucket)
-        except minio.error.BucketAlreadyOwnedByYou:
-            logger.info("The bucket {} was already created.".format(bucket))
+        except minio.S3Error:
+            logger.info("The bucket {} was not created.".format(bucket))
 
 
 def stat_and_stream_object(bucket_name, object_name, credentials=None):
@@ -64,7 +63,7 @@ def parse_minio_credentials(credentials):
         access_key = credentials['AccessKeyId']
         secret_key = credentials['SecretAccessKey']
         session_token = credentials.get('SessionToken', None)
-        mc_credentials = Credentials(provider=Static(access_key, secret_key, session_token))
+        mc_credentials = Credentials(access_key=access_key, secret_key=secret_key, session_token=session_token)
     else:
         mc_credentials = None
     return mc_credentials
