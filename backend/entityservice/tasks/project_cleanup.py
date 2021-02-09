@@ -1,3 +1,4 @@
+from minio.deleteobjects import DeleteObject
 from minio.error import MinioException
 
 import entityservice.database as db
@@ -40,8 +41,9 @@ def delete_minio_objects(filenames, project_id, parent_span=None):
     log = logger.bind(pid=project_id)
     mc = connect_to_object_store()
     log.info(f"Deleting {len(filenames)} files from object store")
+    delete_objects = [DeleteObject(f) for f in filenames]
     try:
-        for del_err in mc.remove_objects(Config.MINIO_BUCKET, filenames):
+        for del_err in mc.remove_objects(Config.MINIO_BUCKET, delete_objects):
             log.debug("Deletion error: {}".format(del_err))
     except MinioException as e:
         log.warning(f"Error occurred while removing object {filenames}. Ignoring.")
