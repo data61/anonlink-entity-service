@@ -60,7 +60,7 @@ def authorize_external_upload(project_id):
         log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
 
         credentials_provider = AssumeRoleProvider(
-            'http://' + config.UPLOAD_OBJECT_STORE_SERVER,
+            f'http://{config.UPLOAD_OBJECT_STORE_SERVER}/',
             access_key=config.UPLOAD_OBJECT_STORE_ACCESS_KEY,
             secret_key=config.UPLOAD_OBJECT_STORE_SECRET_KEY,
             policy=_get_upload_policy(bucket_name, path=path),
