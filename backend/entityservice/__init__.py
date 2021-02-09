@@ -40,13 +40,6 @@ logger = structlog.wrap_logger(app.logger)
 flask_tracer = FlaskTracing(initialize_tracer, True, app)
 
 
-@app.cli.command('initdb')
-def initdb_command():
-    """Initializes the database after a short delay."""
-    db.init_db(5)
-    print('Initialised the database.')
-
-
 @app.before_first_request
 def before_first_request():
     db_min_connections = config.FLASK_DB_MIN_CONNECTIONS

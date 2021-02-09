@@ -30,20 +30,6 @@ def query_db(db, query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-def init_db(delay=0.5):
-    """
-    Initializes the database by creating the required tables.
-
-    @param float delay: Number of seconds to wait before executing the SQL.
-    """
-    init_db_pool(1, 3)
-    time.sleep(delay)
-    with DBConn() as db:
-        with current_app.open_resource('init-db-schema.sql', mode='r') as f:
-            logger.warning("Initialising database")
-            db.cursor().execute(f.read())
-
-
 @retry(wait=wait_random_exponential(multiplier=1, max=60),
        retry=(retry_if_exception_type(psycopg2.OperationalError) | retry_if_exception_type(ConnectionError)),
        stop=stop_after_delay(120))
