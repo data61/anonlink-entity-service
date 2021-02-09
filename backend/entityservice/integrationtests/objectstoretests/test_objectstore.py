@@ -55,8 +55,11 @@ class TestAssumeRole:
             f'http://{upload_endpoint}/',
             access_key=Config.UPLOAD_OBJECT_STORE_ACCESS_KEY,
             secret_key=Config.UPLOAD_OBJECT_STORE_SECRET_KEY,
-            policy=restricted_upload_policy
+            policy=restricted_upload_policy,
+            duration_seconds=7200
         )
+
+        credentials_provider.retrieve()
 
         newly_restricted_mc_client = Minio(upload_endpoint, credentials=credentials_provider, region='us-east-1', secure=False)
 
