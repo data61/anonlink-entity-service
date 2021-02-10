@@ -2,7 +2,7 @@ import array
 import heapq
 import itertools
 import operator
-import time
+from minio.error import MinioException
 
 import anonlink
 import minio
@@ -381,7 +381,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         try:
             mc.put_object(
                 Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
-        except minio.ResponseError as err:
+        except minio.S3Error as err:
             log.warning("Failed to store result in minio: {}".format(err))
             raise
 
@@ -403,7 +403,7 @@ def _put_placeholder_empty_file(mc, log):
     try:
         mc.put_object(Config.MINIO_BUCKET, empty_file_name,
                       empty_file_stream, empty_file_size)
-    except minio.ResponseError:
+    except minio.S3Error:
         log.warning("Failed to store empty result in minio.")
         raise
     return 0, empty_file_size, empty_file_name
@@ -424,7 +424,7 @@ def _merge_files(mc, log, file0, file1):
     try:
         mc.put_object(Config.MINIO_BUCKET, merged_file_name,
                       merged_file_stream, merged_file_size)
-    except minio.ResponseError:
+    except minio.S3Error:
         log.warning("Failed to store merged result in minio.")
         raise
     for del_err in mc.remove_objects(
@@ -437,7 +437,7 @@ def _merge_files(mc, log, file0, file1):
 @celery.task(
     base=TracedTask,
     ignore_result=True,
-    autoretry_for=(minio.ResponseError,),
+    autoretry_for=(MinioException,),
     retry_backoff=True,
     args_as_tags=('project_id', 'run_id'))
 def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):

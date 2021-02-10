@@ -5,11 +5,11 @@ cd ..
 
 export APPVERSION=$(cat backend/entityservice/VERSION)
 
+#docker build -t data61/anonlink-base:latest base
+
 docker build -t data61/anonlink-app:latest backend
 docker build -t data61/anonlink-benchmark:latest benchmarking
 
 # Build docs and make them available for anonlink-nginx
-SRC_DIR=`pwd`
-BUILD_DIR=`pwd`/frontend/static
 docker build -t data61/anonlink-docs-tutorials docs/tutorial
-docker build -t data61/anonlink-nginx:latest frontend
+docker build -t data61/anonlink-nginx:latest -f frontend/Dockerfile .
