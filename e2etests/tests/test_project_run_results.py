@@ -7,8 +7,7 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
         requests,
         similarity_scores_project,
         run_id,
-        timeout=240,
-        extra_headers={'RETURN_OBJECT_STORE_ADDRESS': '1'})
+        timeout=240)
     assert 'similarity_scores' in result
     for (party_id_1, rec_id_1), (party_id_2, rec_id_2), score in result['similarity_scores']:
         assert 0.0 <= score >= 1.0
@@ -21,7 +20,7 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
 
 def test_run_similarity_score_results_object_store_link(requests, similarity_scores_project, threshold):
     run_id = post_run(requests, similarity_scores_project, threshold)
-    result = get_run_result(requests, similarity_scores_project, run_id, timeout=240)
+    result = get_run_result(requests, similarity_scores_project, run_id, timeout=240, extra_headers={'RETURN_OBJECT_STORE_ADDRESS': '1'})
     assert 'credentials' in result
 
 
