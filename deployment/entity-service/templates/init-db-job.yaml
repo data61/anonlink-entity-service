@@ -36,10 +36,9 @@ spec:
           - name: FLASK_APP
             value: entityservice
         command:
-          - "python"
-          - "-m"
-          - "flask"
-          - "initdb"
+          - "alembic"
+          - "upgrade"
+          - "head"
         volumeMounts:
           - name: config-volume
             mountPath: /var/config
