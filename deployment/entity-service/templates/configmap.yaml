@@ -30,7 +30,6 @@ data:
   MINIO_BUCKET: {{ required "minio.defaultBucket.name is required." .Values.minio.defaultBucket.name | quote }}
 
   UPLOAD_OBJECT_STORE_ENABLED: {{ .Values.anonlink.objectstore.uploadEnabled | quote }}
-
   {{ if .Values.anonlink.objectstore.uploadServer }}
   UPLOAD_OBJECT_STORE_SERVER: {{ .Values.anonlink.objectstore.uploadServer | quote }}
   {{ else if .Values.minio.ingress.enabled }}
@@ -38,10 +37,19 @@ data:
   {{ else }}
   UPLOAD_OBJECT_STORE_SERVER: "{{ .Release.Name }}-{{ .Values.minio.nameOverride }}:{{ .Values.minio.service.port }}"
   {{ end }}
-
   UPLOAD_OBJECT_STORE_SECURE: {{ .Values.anonlink.objectstore.uploadSecure | quote }}
-
   UPLOAD_OBJECT_STORE_BUCKET: {{ required "anonlink.objectstore.uploadBucket.name is required." .Values.anonlink.objectstore.uploadBucket.name | quote }}
+
+  DOWNLOAD_OBJECT_STORE_ENABLED: {{ .Values.anonlink.objectstore.uploadEnabled | quote }}
+  {{ if .Values.anonlink.objectstore.downloadServer }}
+  DOWNLOAD_OBJECT_STORE_SERVER: {{ .Values.anonlink.objectstore.downloadServer | quote }}
+  {{ else if .Values.minio.ingress.enabled }}
+  DOWNLOAD_OBJECT_STORE_SERVER: {{ index .Values.minio.ingress.hosts 0 | quote }}
+  {{ else }}
+  DOWNLOAD_OBJECT_STORE_SERVER: "{{ .Release.Name }}-{{ .Values.minio.nameOverride }}:{{ .Values.minio.service.port }}"
+  {{ end }}
+  DOWNLOAD_OBJECT_STORE_SECURE: {{ .Values.anonlink.objectstore.downloadSecure | quote }}
+
 
   {{ if .Values.provision.postgresql }}
   DATABASE_SERVER: {{ .Release.Name }}-{{ required "postgresql.nameOverride is required." .Values.postgresql.nameOverride }}

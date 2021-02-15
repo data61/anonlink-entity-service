@@ -334,7 +334,7 @@ def get_run_result(requests, project, run_id, result_token=None, expected_status
         headers.update(extra_headers)
     r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
                      headers=headers)
-    assert r.status_code == expected_status
+    assert r.status_code == expected_status, f"Status received was {r.status_code}, expected {expected_status}"
     return r.json()
 
 
