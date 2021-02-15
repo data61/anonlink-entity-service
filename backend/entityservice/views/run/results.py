@@ -48,7 +48,8 @@ def get_result(dbinstance, project_id, run_id, token):
         return {"groups": result}
 
     elif result_type == 'similarity_scores':
-        if 'RETURN_OBJECT_STORE_ADDRESS' in request.headers:
+        logger.debug(f"Looking at request headers to determine result format")
+        if 'RETURN-OBJECT-STORE-ADDRESS' in request.headers:
             logger.info("Returning object store filename for similarity scores")
             bucket = config.MINIO_BUCKET
             object_store_path = get_similarity_score_result_filename(dbinstance, run_id)

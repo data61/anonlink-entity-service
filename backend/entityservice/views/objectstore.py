@@ -149,9 +149,10 @@ def prepare_restricted_download_response(bucket_name, path):
     return {
         "credentials": credentials_json,
         "object": {
-            # May not be the client facing endpoint
-            #"endpoint": config.MINIO_SERVER,
+            # Note this may be different from the internal minio endpoint
+            "endpoint": config.DOWNLOAD_OBJECT_STORE_SERVER,
+            "secure": config.DOWNLOAD_OBJECT_STORE_SECURE,
             "bucket": bucket_name,
             "path": path
         }
-    }, 201
+    }, 200
