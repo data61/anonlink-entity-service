@@ -266,31 +266,38 @@ credentials (and disable provisioning minio)::
     helm install entity-service --name="es-s3" --set provision.minio=false --set minio.accessKey=XXX --set minio.secretKey=YYY --set minio.bucket=<bucket>
 
 
-Object Store for client uploads
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Object Store for client use
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Optionally client's can upload data via an object store instead of via the REST API. This requires external access
-to an object store, and the service must have authorization to create temporary credentials.
+Optionally client's can upload and download data via an object store instead of via the REST API.
+This requires external access to an object store, and the service must have authorization to create
+temporary restricted credentials.
 
 The following settings control this optional feature:
 
-==================================  ==========================================
-     Environment Variable              Helm Config
-==================================  ==========================================
-``UPLOAD_OBJECT_STORE_ENABLED``      ``anonlink.objectstore.uploadEnabled``
-``UPLOAD_OBJECT_STORE_SERVER``       ``anonlink.objectstore.uploadServer``
-``UPLOAD_OBJECT_STORE_SECURE``       ``anonlink.objectstore.uploadSecure``
-``UPLOAD_OBJECT_STORE_BUCKET``       ``anonlink.objectstore.uploadBucket.name``
-``UPLOAD_OBJECT_STORE_ACCESS_KEY``   ``anonlink.objectstore.uploadAccessKey``
-``UPLOAD_OBJECT_STORE_SECRET_KEY``   ``anonlink.objectstore.uploadSecretKey``
-===================================  ==========================================
+=======================================  ==========================================
+     Environment Variable                 Helm Config
+=======================================  ==========================================
+``UPLOAD_OBJECT_STORE_ENABLED``          ``anonlink.objectstore.uploadEnabled``
+``UPLOAD_OBJECT_STORE_SERVER``           ``anonlink.objectstore.uploadServer``
+``UPLOAD_OBJECT_STORE_SECURE``           ``anonlink.objectstore.uploadSecure``
+``UPLOAD_OBJECT_STORE_BUCKET``           ``anonlink.objectstore.uploadBucket.name``
+``UPLOAD_OBJECT_STORE_ACCESS_KEY``       ``anonlink.objectstore.uploadAccessKey``
+``UPLOAD_OBJECT_STORE_SECRET_KEY``       ``anonlink.objectstore.uploadSecretKey``
+``UPLOAD_OBJECT_STORE_STS_DURATION``     ``-`` (default 43200 seconds)
+``DOWNLOAD_OBJECT_STORE_SERVER``         ``anonlink.objectstore.downloadServer``
+``DOWNLOAD_OBJECT_STORE_SECURE``         ``anonlink.objectstore.downloadSecure``
+``DOWNLOAD_OBJECT_STORE_ACCESS_KEY``     ``anonlink.objectstore.downloadAccessKey``
+``DOWNLOAD_OBJECT_STORE_SECRET_KEY``     ``anonlink.objectstore.downloadSecretKey``
+``DOWNLOAD_OBJECT_STORE_STS_DURATION``   ``-`` (default 43200 seconds)
+=======================================  ==========================================
 
 
 .. note::
 
-   If the ``uploadServer`` config isn't provided, the deployment will assume that MinIO has been
-   deployed along with the service and fallback to using the MinIO ingress host (if present),
-   otherwise the cluster internal address of the deployed MinIO service. This last fallback is
+   If the ``uploadServer`` and ``downloadServer`` configuration values are not provided, the deployment
+   will assume that MinIO has been deployed along with the service and fallback to using the MinIO ingress
+   host (if present), otherwise the cluster internal address of the deployed MinIO service. This last fallback is
    in place simply to make e2e testing easier.
 
 
