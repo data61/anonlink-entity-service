@@ -26,21 +26,6 @@ services:
       - nginx
       - objectstore_init
 
-  currenttest:
-    image: data61/anonlink-test:${TAG:-latest}
-    env_file:
-      - .env
-    environment:
-      - INITIAL_DELAY=5
-    command: dockerize -wait tcp://db:5432 -wait tcp://nginx:8851/api/v1/status -timeout 5m
-             /bin/sh -c "sleep 1 && python -m pytest -n 1 e2etests --junitxml=testResults.xml -x -k test_run_similarity_score_results_object_store_link"
-    depends_on:
-      - db
-      - backend
-      - worker
-      - nginx
-      - objectstore_init
-
   benchmark:
     image: data61/anonlink-benchmark:${TAG:-latest}
     environment:
