@@ -48,11 +48,10 @@ class TestProgress:
         assert get_candidate_count_for_run(runid) is None
 
     def test_progress_increments(self):
-        config.CACHE_EXPIRY = datetime.timedelta(seconds=1)
+        config.CACHE_EXPIRY = datetime.timedelta(seconds=5)
         runid = 'test_progress_increments'
         save_current_progress(2, 1, runid, config)
-        cached_progress = get_comparison_count_for_run(runid)
-        assert cached_progress == 1
+        assert get_comparison_count_for_run(runid) == 2
         for i in range(99):
             save_current_progress(2, 1, runid, config)
 
