@@ -341,9 +341,11 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         scope.span.log_kv({'comparisons': num_comparisons, 'num_similar': num_results})
         log.debug("Comparisons: {}, Links above threshold: {}".format(num_comparisons, num_results))
 
-    with new_child_span('check-within-candidate-limits'):
+    with new_child_span('check-within-candidate-limits') as scope:
         global_candidates_for_run = get_candidate_count_for_run(run_id)
-        if global_candidates_for_run > Config.SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS:
+        scope.span.log_kv({'global candidate count for run': global_candidates_for_run})
+
+        if global_candidates_for_run is not None and global_candidates_for_run > Config.SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS:
             log.warning(f"This run has created more than the global limit of candidate pairs. Setting state to 'error'")
             with DBConn() as conn:
                 update_run_mark_failure(conn, run_id)
