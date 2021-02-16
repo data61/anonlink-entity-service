@@ -11,7 +11,7 @@ from celery import chord
 
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
-from entityservice.cache.progress import save_current_progress
+from entityservice.cache.progress import get_candidate_count_for_run, save_current_progress
 from entityservice.encoding_storage import get_encoding_chunk, get_encoding_chunks
 from entityservice.errors import InactiveRun
 from entityservice.database import (
@@ -340,6 +340,14 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         save_current_progress(num_comparisons, num_results, run_id)
         scope.span.log_kv({'comparisons': num_comparisons, 'num_similar': num_results})
         log.debug("Comparisons: {}, Links above threshold: {}".format(num_comparisons, num_results))
+
+    with new_child_span('check-within-candidate-limits'):
+        global_candidates_for_run = get_candidate_count_for_run(run_id)
+        if global_candidates_for_run > Config.SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS:
+            log.warning(f"This run has created more than the global limit of candidate pairs. Setting state to 'error'")
+            with DBConn() as conn:
+                update_run_mark_failure(conn, run_id)
+            return
 
     # Save results file into minio
     with new_child_span('save-comparison-results-to-minio'):
