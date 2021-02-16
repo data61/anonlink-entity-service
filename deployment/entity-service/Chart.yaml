@@ -1,7 +1,9 @@
+apiVersion: v2
 name: entity-service
 appVersion: 1.13.0
 version: 1.13.4
 description: Privacy preserving record linkage service
+type: application
 sources:
   - https://github.com/data61/anonlink-entity-service
   - https://github.com/data61/anonlink
@@ -10,4 +12,16 @@ maintainers:
   - name: Confidential Computing
     url: https://data61.csiro.au
 icon: https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2016-04-11/33560836053_df0d62a81bf32f53df00_72.png
-apiVersion: v1
+dependencies:
+  - name: redis-ha
+    version: 4.10.5
+    repository: https://dandydeveloper.github.io/charts
+    condition: provision.redis
+  - name: minio
+    version: 8.0.6
+    repository: https://helm.min.io/
+    condition: provision.minio
+  - name: postgresql
+    version: 8.9.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: provision.postgresql
