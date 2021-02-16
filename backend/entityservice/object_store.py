@@ -41,6 +41,24 @@ def connect_to_upload_object_store():
     return mc
 
 
+def object_store_download_only_client():
+    """
+    Instantiate a minio client with a get only policy applied.
+
+    :return:
+    """
+    mc = minio.Minio(
+        config.MINIO_SERVER,
+        config.DOWNLOAD_OBJECT_STORE_ACCESS_KEY,
+        config.DOWNLOAD_OBJECT_STORE_SECRET_KEY,
+        region="us-east-1",
+        secure=False
+    )
+    mc.set_app_info("anonlink-upload", "minio client for downloads")
+    logger.debug("Connected to minio download account")
+    return mc
+
+
 def create_bucket(minio_client, bucket):
     if not minio_client.bucket_exists(bucket):
         logger.info("Creating bucket {}".format(bucket))

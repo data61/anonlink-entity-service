@@ -32,7 +32,7 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: {{ template "es.fullname" . }}
-                key: postgresPassword
+                key: DATABASE_PASSWORD
           - name: FLASK_APP
             value: entityservice
         command:

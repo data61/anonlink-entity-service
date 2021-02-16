@@ -7,7 +7,9 @@ Changelog
 Next Version
 ------------
 
-Updates Redis and MinIO dependencies.
+- Candidate pair's similarity scores can be exposed directly from the object store
+  using temporary download credentials.
+- Updates Alpine, Redis and MinIO dependencies.
 
 Version 1.13.0
 --------------

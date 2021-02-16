@@ -25,28 +25,11 @@ spec:
               configMapKeyRef:
                 key: MINIO_SERVER
                 name: {{ template "es.fullname" . }}
-          - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioAccessKey
-          - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioSecretKey
-          - name: UPLOAD_ONLY_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioUploadAccessKey
-          - name: UPLOAD_ONLY_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioUploadSecretKey
           - name: UPLOAD_BUCKET
             value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
+        envFrom:
+        - secretRef:
+            name: {{ template "es.fullname" . }}
         command:
           - "/bin/sh"
           - "/opt/init-objectstore.sh"

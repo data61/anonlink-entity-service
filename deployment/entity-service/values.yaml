@@ -9,6 +9,8 @@ anonlink:
   config: {}
 
   objectstore:
+    ## Settings for uploads via Object Store
+
     ## Toggle the feature providing client's with restricted upload access to the object store.
     ## By default we don't expose the Minio object store, which is required for clients to upload
     ## via the object store. See section `minio.ingress` to create an ingress for minio.
@@ -30,6 +32,25 @@ anonlink:
     ## The bucket for client uploads.
     uploadBucket:
       name: "uploads"
+
+    ## Settings for downloads via Object Store
+
+    ## Toggle the feature providing client's with restricted download access to the object store.
+    ## By default we don't expose the Minio object store, which is required for clients to download
+    ## via the object store.
+    downloadEnabled: true
+
+    ## Tell clients to make secure connections to the download object store.
+    downloadSecure: true
+
+    ## Server used as the external object store URL for downloads - provided to clients so
+    ## should be externally accessible. If not provided, the minio.ingress is used (if enabled).
+    #downloadServer: "s3.amazonaws.com"
+
+    ## Object store credentials used to grant temporary download access to clients
+    ## Will be created with an "get only" policy if using the default MINIO provisioning.
+    downloadAccessKey: "EXAMPLE_DOWNLOAD_KEY"
+    downloadSecretKey: "EXAMPLE_DOWNLOAD_SECRET"
 
 
 api:

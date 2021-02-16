@@ -1,9 +1,17 @@
+from minio import Minio
+
+import anonlink
+from e2etests.config import minio_host
 from e2etests.util import create_project_no_data, post_run, get_run_result
 
 
 def test_run_similarity_score_results(requests, similarity_scores_project, threshold):
     run_id = post_run(requests, similarity_scores_project, threshold)
-    result = get_run_result(requests, similarity_scores_project, run_id, timeout=240)
+    result = get_run_result(
+        requests,
+        similarity_scores_project,
+        run_id,
+        timeout=240)
     assert 'similarity_scores' in result
     for (party_id_1, rec_id_1), (party_id_2, rec_id_2), score in result['similarity_scores']:
         assert 0.0 <= score >= 1.0
@@ -12,6 +20,29 @@ def test_run_similarity_score_results(requests, similarity_scores_project, thres
         assert party_id_1 != party_id_2
         assert 0 <= rec_id_1
         assert 0 <= rec_id_2
+
+
+def test_run_similarity_score_results_object_store_link(requests, similarity_scores_project, threshold):
+    run_id = post_run(requests, similarity_scores_project, threshold)
+    original_result = get_run_result(requests, similarity_scores_project, run_id, timeout=240)
+    result = get_run_result(requests, similarity_scores_project, run_id, timeout=240, extra_headers={'RETURN-OBJECT-STORE-ADDRESS': '1'})
+    assert 'credentials' in result
+
+    # Ensure we can download the result too
+    credentials = result['credentials']
+    file_info = result['object']
+    mc = Minio(
+        minio_host or file_info['endpoint'],
+        access_key=credentials['AccessKeyId'],
+        secret_key=credentials['SecretAccessKey'],
+        session_token=credentials['SessionToken'],
+        region='us-east-1',
+        secure=file_info['secure']
+    )
+
+    candidate_pair_stream = mc.get_object(file_info['bucket'], file_info['path'])
+    sims, (dset_is0, dset_is1), (rec_is0, rec_is1) = anonlink.serialization.load_candidate_pairs(candidate_pair_stream)
+    assert len(sims) == len(original_result['similarity_scores'])
 
 
 def test_run_permutations_results(requests, permutations_project, threshold):

@@ -647,6 +647,11 @@ paths:
 
         ### result_type = "similarity_scores"
 
+        Similarity scores can be retrieved as `JSON` (the default), or a direct link
+        to the binary file stored in an object store.
+
+        #### JSON
+
         The list of the pairwise similarity scores where the score
         is greater than the similarity threshold.
         Data is returned as `json` object e.g.,
@@ -671,6 +676,38 @@ paths:
 
         The value of `score` is between 0.0 and 1.0. The higher the score, the higher the similarity between
         the compared CLKs.
+
+        #### Object Store Binary
+
+        If the request includes the header `RETURN-OBJECT-STORE-ADDRESS`, the response will be a small json
+        payload with temporary download credentials to pull the _binary_ similarity scores directly from the object
+        store. The json object has `credentials` and `object` keys:
+
+        ```json
+        {
+          "credentials": {
+            "AccessKeyId": "",
+            "SecretAccessKey": "",
+            "SessionToken": "",
+            "Expiration": "<ISO 8601 datetime string>"
+          }
+          "object": {
+              "endpoint": "<config.DOWNLOAD_OBJECT_STORE_SERVER>",
+              "secure": "<config.DOWNLOAD_OBJECT_STORE_SECURE>",
+              "bucket": "bucket_name",
+              "path": "path"
+          }
+        }
+        ```
+
+        The file itself is serialized using `anonlink.serialization`, you can convert the stream into Python types
+        with:
+
+        ```python
+        mc = Minio(file_info['endpoint'], ...)
+        candidate_pair_stream = mc.get_object(file_info['bucket'], file_info['path'])
+        sims, (dset_is0, dset_is1), (rec_is0, rec_is1) = anonlink.serialization.load_candidate_pairs(candidate_pair_stream)
+        ```
 
         ### result_type = "permutations"
 

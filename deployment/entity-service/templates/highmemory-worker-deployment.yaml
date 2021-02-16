@@ -43,27 +43,8 @@ spec:
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}
-          env:
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: redisPassword
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: postgresPassword
-            - name: MINIO_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: minioAccessKey
-            - name: MINIO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: minioSecretKey
+          - secretRef:
+              name: {{ template "es.fullname" . }}
           command:
             - "celery"
             - "-A"
