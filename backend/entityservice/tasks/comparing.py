@@ -283,7 +283,6 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
     assert_valid_run(project_id, run_id, log)
 
-    #chunk_info_dp1, chunk_info_dp2 = chunk_info
     def reindex_using_encoding_ids(recordarray, encoding_id_list):
         # Map results from "index in chunk" to encoding id.
         return array.array('I', [encoding_id_list[i] for i in recordarray])
@@ -291,7 +290,6 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     num_results = 0
     num_comparisons = 0
     sim_results = []
-
 
     with DBConn() as conn:
         if len(package) > 1:  # multiple full blocks in one package
@@ -334,16 +332,16 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
         log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
 
-##### progess reporting
+    # progress reporting
     log.debug('Encoding similarities calculated')
 
     with new_child_span('update-comparison-progress') as scope:
         # Update the number of comparisons completed
-        save_current_progress(num_comparisons, run_id)
+        save_current_progress(num_comparisons, num_results, run_id)
         scope.span.log_kv({'comparisons': num_comparisons, 'num_similar': num_results})
         log.debug("Comparisons: {}, Links above threshold: {}".format(num_comparisons, num_results))
 
-###### results into file into minio
+    # Save results file into minio
     with new_child_span('save-comparison-results-to-minio'):
 
         file_iters = []
