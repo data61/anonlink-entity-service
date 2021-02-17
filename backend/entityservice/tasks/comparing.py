@@ -2,6 +2,8 @@ import array
 import heapq
 import itertools
 import operator
+
+from minio.deleteobjects import DeleteObject
 from minio.error import MinioException
 
 import anonlink
@@ -424,11 +426,11 @@ def _merge_files(mc, log, file0, file1):
     try:
         mc.put_object(Config.MINIO_BUCKET, merged_file_name,
                       merged_file_stream, merged_file_size)
-    except minio.S3Error:
+    except MinioException:
         log.warning("Failed to store merged result in minio.")
         raise
-    for del_err in mc.remove_objects(
-            Config.MINIO_BUCKET, (filename0, filename1)):
+    delete_objects = [DeleteObject(f) for f in (filename0, filename1)]
+    for del_err in mc.remove_objects(Config.MINIO_BUCKET, delete_objects):
         log.warning(f"Failed to delete result file "
                     f"{del_err.object_name}. {del_err}")
     return total_num, merged_file_size, merged_file_name
