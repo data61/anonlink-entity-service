@@ -26,13 +26,15 @@ def get_total_number_of_comparisons(project_id):
         return total_comparisons
 
 
-def save_current_progress(comparisons, candidates, run_id, config=None):
+def save_current_progress(comparisons, candidate_pairs, run_id, config=None):
     """
-    Record progress for a run in the redis cache, storing the number of candidates identified
-    from a number of comparisons carried out.
+    Record progress for a run in the redis cache, adding the number of candidates identified
+    from the number of comparisons carried out.
 
-    :param int comparisons: The number of pairwise comparisons.
-    :param int candidates: Number of candidates, edge count where the similarity was above
+    This is safe to call from concurrent processes.
+
+    :param int comparisons: The number of pairwise comparisons that have been computed for this update.
+    :param int candidate_pairs: Number of candidates, edge count where the similarity was above
         the configured threshold.
     """
     if config is None:
@@ -42,7 +44,7 @@ def save_current_progress(comparisons, candidates, run_id, config=None):
         r = connect_to_redis()
         key = _get_run_hash_key(run_id)
         r.hincrby(key, 'comparisons', comparisons)
-        r.hincrby(key, 'candidates', candidates)
+        r.hincrby(key, 'candidates', candidate_pairs)
         r.expire(key, config.CACHE_EXPIRY)
 
 
