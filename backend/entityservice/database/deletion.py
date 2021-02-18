@@ -41,7 +41,7 @@ def delete_project_data(conn, project_id):
                 FROM run_results
                   USING runs
                 WHERE
-                    runs.run_id = run_results.run AND
+                    runs.run_id = run_results.run_id AND
                     runs.project = %s
                 """, [project_id])
 

@@ -179,7 +179,7 @@ def get_run_result(db, resource_id):
     """
     sql_query = """
         SELECT result from run_results
-        WHERE run = %s
+        WHERE run_id = %s
         """
     query_result = query_db(db, sql_query, [resource_id], one=True)
     if query_result is None:
