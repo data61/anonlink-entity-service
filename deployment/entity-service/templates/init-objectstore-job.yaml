@@ -7,8 +7,8 @@ metadata:
     {{- include "es.release_labels" . | indent 4 }}
     tier: aux
   annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-delete-policy": hook-succeeded, hook-failed
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation, hook-succeeded, hook-failed
 spec:
   template:
     metadata:

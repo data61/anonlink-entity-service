@@ -10,8 +10,8 @@ metadata:
     # This job only gets executed on install, not after an upgrade.
     # Manual intervention (or a job with a post-upgrade hook) is required to migrate a
     # production database.
-    "helm.sh/hook": post-install
-    "helm.sh/hook-delete-policy": hook-succeeded, hook-failed
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation, hook-succeeded, hook-failed
 spec:
   template:
     metadata:
