@@ -18,7 +18,7 @@ dependencies:
     repository: https://dandydeveloper.github.io/charts
     condition: provision.redis
   - name: minio
-    version: 8.0.6
+    version: 8.0.10
     repository: https://helm.min.io/
     condition: provision.minio
   - name: postgresql
