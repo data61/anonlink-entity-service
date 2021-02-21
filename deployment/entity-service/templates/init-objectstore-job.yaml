@@ -25,7 +25,7 @@ spec:
               configMapKeyRef:
                 key: MINIO_SERVER
                 name: {{ template "es.fullname" . }}
-          - name: UPLOAD_BUCKET
+          - name: UPLOAD_OBJECT_STORE_BUCKET
             value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
         envFrom:
         - secretRef:
