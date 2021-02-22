@@ -82,9 +82,9 @@ def authorize_external_upload(project_id):
         bucket_name = config.UPLOAD_OBJECT_STORE_BUCKET
         path = object_store_upload_path(project_id, dp_id)
         log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
-
+        scheme = "https" if config.UPLOAD_OBJECT_STORE_SECURE else "http"
         credentials_provider = AssumeRoleProvider(
-            f'http://{config.UPLOAD_OBJECT_STORE_SERVER}/',
+            f'{scheme}://{config.UPLOAD_OBJECT_STORE_SERVER}/',
             access_key=config.UPLOAD_OBJECT_STORE_ACCESS_KEY,
             secret_key=config.UPLOAD_OBJECT_STORE_SECRET_KEY,
             policy=_get_upload_policy(bucket_name, path=path),
@@ -122,15 +122,17 @@ def prepare_restricted_download_response(bucket_name, path):
     """
     Creates temporary object store credentials that allow pulling objects
     from the given path for a set amount of time.
+
+    Note this doesn't copy data from one object store to another.
     """
     log = get_logger()
     client = object_store_download_only_client()
     client.set_app_info("anonlink", "development version")
 
     log.info(f"Retrieving temporary object store credentials for path: '{bucket_name}/{path}'")
-
+    scheme = "https" if config.DOWNLOAD_OBJECT_STORE_SECURE else "http"
     credentials_provider = AssumeRoleProvider(
-        f"http://{config.MINIO_SERVER}/",
+        f"{scheme}://{config.DOWNLOAD_OBJECT_STORE_SERVER}/",
         access_key=config.DOWNLOAD_OBJECT_STORE_ACCESS_KEY,
         secret_key=config.DOWNLOAD_OBJECT_STORE_SECRET_KEY,
         policy=_get_download_policy(bucket_name, path=path),
