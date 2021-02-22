@@ -43,10 +43,10 @@ Ref: https://helm.sh/docs/chart_best_practices/labels/#standard-labels
 */}}
 {{- define "es.release_labels" -}}
 app.kubernetes.io/name: {{ template "es.appname" . }}
-helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/version: {{ .Chart.AppVersion }}
+helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote}}
 {{- end }}
 
 {{/* Predefined matchLabels to ensure match resources belonging to the same release. */}}

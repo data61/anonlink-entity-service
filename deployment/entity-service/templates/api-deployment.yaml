@@ -2,9 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-{{ .Values.api.name }}
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    app.kubernetes.io/component: "{{ .Values.api.name }}"
+  labels: {{- include "es.release_labels" . | nindent 4 }}
   {{- if .Values.api.deploymentAnnotations }}
   annotations:
 {{ toYaml .Values.api.deploymentAnnotations | indent 4 }}
@@ -24,8 +22,7 @@ spec:
       annotations:
 {{ toYaml .Values.api.podAnnotations | indent 8 }}
     {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
+      labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: "{{ .Values.api.name }}"
     spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}

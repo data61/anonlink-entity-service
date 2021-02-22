@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "es.release_labels" . | indent 4 }}
+    {{- include "es.release_labels" . | nindent 4 }}
     app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
     tier: {{ .Values.workers.name }}
   name: {{ .Release.Name }}-worker
@@ -14,7 +14,7 @@ spec:
   replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:
     matchLabels:
-      {{- include "es.match_labels" . | indent 4 }}
+      {{- include "es.match_labels" . | nindent 6 }}
       app.kubernetes.io/component: "{{ .Values.workers.name }}"
   {{- if .Values.workers.strategy }}
   strategy:
@@ -27,8 +27,7 @@ spec:
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
 {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
+      labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
         tier: {{ .Values.workers.name }}
     spec:
@@ -36,8 +35,7 @@ spec:
         - name: celery-worker
           image: {{ required "workers.image.repository must be provided." .Values.workers.image.repository }}:{{ required "workers.image.tag must be provided." .Values.workers.image.tag }}
           imagePullPolicy: {{ .Values.workers.image.pullPolicy | default "" | quote }}
-          resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+          resources: {{ toYaml .Values.workers.resources | nindent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}

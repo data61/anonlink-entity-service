@@ -3,8 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ template "es.fullname" . }}-init-db
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
+  labels: {{ include "es.release_labels" . | nindent 4 }}
     app.kubernetes.io/component: init-db
   annotations:
     "helm.sh/hook": post-install, post-upgrade
@@ -13,8 +12,7 @@ spec:
   template:
     metadata:
       name: {{ template "name" . }}-init-db
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
+      labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: init-db
     spec:
       containers:

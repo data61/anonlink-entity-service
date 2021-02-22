@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "es.release_labels" . | indent 4 }}
+    {{- include "es.release_labels" . | nindent 4 }}
     app.kubernetes.io/component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
     tier: {{ .Values.workers.name }}
   name: {{ .Release.Name }}-highmemory-worker
@@ -14,7 +14,7 @@ spec:
   replicas: {{ required "workers.highmemory.replicaCount must be provided." .Values.workers.highmemory.replicaCount }}
   selector:
     matchLabels:
-      {{- include "es.match_labels" . | indent 4 }}
+      {{- include "es.match_labels" . | nindent 6 }}
       app.kubernetes.io/component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
   {{- if .Values.workers.strategy }}
   strategy:
@@ -27,8 +27,7 @@ spec:
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
 {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
+      labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: "{{ .Values.workers.name }}-highmemory"
         tier: {{ .Values.workers.name }}
     spec:
