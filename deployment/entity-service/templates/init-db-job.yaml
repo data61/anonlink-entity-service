@@ -5,7 +5,7 @@ metadata:
   name: {{ template "es.fullname" . }}-init-db
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    tier: aux
+    app.kubernetes.io/component: init-db
   annotations:
     "helm.sh/hook": post-install, post-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation, hook-succeeded, hook-failed
@@ -15,6 +15,7 @@ spec:
       name: {{ template "name" . }}-init-db
       labels:
         {{- include "es.release_labels" . | indent 8 }}
+        app.kubernetes.io/component: init-db
     spec:
       containers:
       - name: db-init

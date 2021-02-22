@@ -5,7 +5,7 @@ metadata:
   name: {{ template "es.fullname" . }}-init-objectstore
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    tier: aux
+    app.kubernetes.io/component: init-objectstore
   annotations:
     "helm.sh/hook": post-install, post-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation, hook-succeeded, hook-failed
@@ -15,6 +15,7 @@ spec:
       name: {{ template "name" . }}-init-objectstore
       labels:
         {{- include "es.release_labels" . | indent 8 }}
+        app.kubernetes.io/component: init-objectstore
     spec:
       containers:
       - name: objectstore-init

@@ -3,8 +3,8 @@ kind: Deployment
 metadata:
   labels:
     {{- include "es.release_labels" . | indent 4 }}
-    component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
-    tier: backend
+    app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
+    tier: {{ .Values.workers.name }}
   name: {{ .Release.Name }}-worker
   {{- if .Values.workers.deploymentAnnotations }}
   annotations:
@@ -14,10 +14,8 @@ spec:
   replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.appname" . }}
-      component: "{{ .Values.workers.name }}"
-      release: {{ .Release.Name }}
-      tier: backend
+      {{- include "es.match_labels" . | indent 4 }}
+      app.kubernetes.io/component: "{{ .Values.workers.name }}"
   {{- if .Values.workers.strategy }}
   strategy:
 {{ toYaml .Values.workers.strategy | indent 4 }}
@@ -31,8 +29,8 @@ spec:
 {{- end }}
       labels:
         {{- include "es.release_labels" . | indent 8 }}
-        component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
-        tier: backend
+        app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
+        tier: {{ .Values.workers.name }}
     spec:
       containers:
         - name: celery-worker
