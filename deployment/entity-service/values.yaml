@@ -115,8 +115,7 @@ api:
   dbinit:
     enabled: "true"
 
-    ## Database init can only run during chart install
-    ## It cannot be updated! So we have a separate image + tag
+    ## Database init runs migrations after install and upgrade
     image:
       repository: data61/anonlink-app
       tag: "v1.13.0"
