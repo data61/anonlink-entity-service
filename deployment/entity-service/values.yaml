@@ -129,6 +129,10 @@ api:
         cpu: 250m
         memory: 256Mi
 
+    ## Annotations added to the database init job's pod.
+    # podAnnotations: {}
+    #   sidecar.istio.io/inject: "false"
+
   ## A job that creates an upload only object store user.
   objectstoreinit:
     enabled: true
@@ -136,6 +140,11 @@ api:
     image:
       repository: minio/mc
       tag: RELEASE.2020-01-13T22-49-03Z
+
+    ## Annotations added to the object store init job's pod.
+    # podAnnotations: {}
+    #   sidecar.istio.io/inject: "false"
+
 
   ingress:
     ## By default, we do not want the service to be accessible outside of the cluster.

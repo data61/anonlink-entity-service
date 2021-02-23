@@ -14,6 +14,9 @@ spec:
       name: {{ template "name" . }}-init-objectstore
       labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: init-objectstore
+{{- if .Values.api.objectstoreinit.podAnnotations }}
+      annotations: {{ toYaml .Values.api.objectstoreinit.podAnnotations | nindent 8 }}
+{{- end }}
     spec:
       containers:
       - name: objectstore-init
