@@ -14,6 +14,9 @@ spec:
       name: {{ template "name" . }}-init-db
       labels: {{ include "es.release_labels" . | nindent 8 }}
         app.kubernetes.io/component: init-db
+{{- if .Values.api.dbinit.podAnnotations }}
+      annotations: {{ toYaml .Values.api.dbinit.podAnnotations | nindent 8 }}
+{{- end }}
     spec:
       containers:
       - name: db-init
