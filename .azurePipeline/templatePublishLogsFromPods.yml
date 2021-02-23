@@ -18,34 +18,34 @@ parameters:
 steps:
 
 - task: Kubernetes@1
-  displayName: 'Anonlink Entity Service Backend Worker Logs'
+  displayName: 'Backend Worker Logs'
   condition: always()
   inputs:
     failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=backend --tail=-1 -c celery-worker --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=matcher --tail=-1 -c celery-worker --prefix=true'
 
 - task: Kubernetes@1
-  displayName: 'Anonlink Entity Service NGINX Logs'
+  displayName: 'NGINX Logs'
   condition: always()
   inputs:
     failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=frontend --tail=-1 --container=entityservice-nginx --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp.kubernetes.io/component=api --tail=-1 --container=nginx --prefix=true'
 
 - task: Kubernetes@1
-  displayName: 'Anonlink Entity Service API Logs'
+  displayName: 'Flask API Logs'
   condition: always()
   inputs:
     failOnStderr: false
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -ltier=frontend --tail=-1 --container=entityservice-flask --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp.kubernetes.io/component=api --tail=-1 --container=flask --prefix=true'
 
 - task: Kubernetes@1
   displayName: 'DB Logs'
@@ -55,7 +55,7 @@ steps:
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=db --tail=-1 --all-containers=true --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=db --tail=-1 --prefix=true'
 
 - task: Kubernetes@1
   displayName: 'Redis Logs'
