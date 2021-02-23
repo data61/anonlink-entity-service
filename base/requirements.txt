@@ -19,7 +19,7 @@ opentracing==2.3.0
 opentracing_instrumentation==3.2.1
 psycopg2==2.8.6
 pytest==6.2.2
-pytest-xdist==1.29.0
+pytest-xdist==2.2.1
 PyYAML==5.3
 redis==3.5.3
 requests==2.25.1
