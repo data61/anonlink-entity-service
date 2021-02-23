@@ -238,7 +238,7 @@ stages:
       - template: .azurePipeline/templateSetVariableReleaseName.yml
       - script: |
           echo "##vso[task.setvariable variable=PVC]$(DEPLOYMENT)-test-results"
-          echo "##vso[task.setvariable variable=SERVICE]$(DEPLOYMENT)-entity-service-server"
+          echo "##vso[task.setvariable variable=SERVICE]$(DEPLOYMENT)-entity-service-app"
           echo $(backendImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=IMAGE_NAME_WITH_TAG]@"
           echo $(testE2EImageName):$(DOCKER_TAG) | xargs -I@ echo "##vso[task.setvariable variable=TEST_E2E_IMAGE_NAME_WITH_TAG]@"
           echo $(DEPLOYMENT)-tmppod | xargs -I@ echo "##vso[task.setvariable variable=POD_NAME]@"
