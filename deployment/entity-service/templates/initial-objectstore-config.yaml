@@ -2,8 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ template "es.fullname" . }}-init-objectstore-config
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
+  labels: {{ include "es.release_labels" . | nindent 4 }}
 data:
   init-objectstore.sh: |
     #!/bin/sh

@@ -152,7 +152,7 @@ def insert_mapping_result(db, run_id, mapping):
         with db.cursor() as cur:
             insertion_query = """
                 INSERT into run_results
-                  (run, result)
+                  (run_id, result)
                 VALUES
                   (%s, %s)
                 RETURNING id;

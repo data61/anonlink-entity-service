@@ -2,8 +2,7 @@
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
+  labels: {{ include "es.release_labels" . | nindent 4 }}
   name: worker-auto-scale
 spec:
   scaleTargetRef:

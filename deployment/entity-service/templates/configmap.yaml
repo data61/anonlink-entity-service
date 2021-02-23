@@ -2,8 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ template "es.fullname" . }}
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
+  labels: {{ include "es.release_labels" . | nindent 4 }}
 data:
   CONNEXION_STRICT_VALIDATION: "true"
   CONNEXION_RESPONSE_VALIDATION: "true"
