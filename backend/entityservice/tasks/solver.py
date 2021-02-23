@@ -1,6 +1,7 @@
 import anonlink
 from anonlink.candidate_generation import _merge_similarities
 
+from entityservice.database import DBConn, update_run_mark_failure
 from entityservice.object_store import connect_to_object_store
 from entityservice.async_worker import celery, logger
 from entityservice.settings import Config as config
@@ -25,6 +26,11 @@ def solver_task(similarity_scores_filename, project_id, run_id, dataset_sizes, p
         # https://github.com/data61/anonlink/issues/271
         candidate_pairs = _merge_similarities([zip(similarity_scores, dset_is0, dset_is1, rec_is0, rec_is1)], k=None)
         log.info(f"Number of candidate pairs after deduplication: {len(candidate_pairs[0])}")
+        if len(candidate_pairs[0]) > config.SOLVER_MAX_CANDIDATE_PAIRS:
+            log.warning(f"Attempting to solve with more than the global limit of candidate pairs.")
+            with DBConn() as conn:
+                update_run_mark_failure(conn, run_id)
+            return
 
         log.info("Calculating the optimal mapping from similarity matrix")
         groups = anonlink.solving.greedy_solve(candidate_pairs)

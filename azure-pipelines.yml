@@ -382,6 +382,15 @@ stages:
           command: 'cp'
           arguments: '$(NAMESPACE)/$(POD_NAME):/mnt/results.xml k8s-results.xml'
 
+      - script: |
+          if [ -f "k8s-results.xml" ]; then
+            echo "Result file 'k8s-results.xml' exists"
+          else
+            echo "Result file 'k8s-results.xml' does not exist"
+            exit 1
+          fi
+        displayName: 'Check test result file existence'
+
       # Publish the test results.
       - task: PublishTestResults@2
         condition: succeeded()
