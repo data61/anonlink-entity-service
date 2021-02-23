@@ -49,7 +49,7 @@ def get(project_id, run_id):
             max_val = db.get_project_column(conn, project_id, 'parties')
     elif stage == 2:
         # Computing similarity
-        abs_val = progress_cache.get_progress(run_id)
+        abs_val = progress_cache.get_comparison_count_for_run(run_id)
         if abs_val is not None:
             max_val = progress_cache.get_total_number_of_comparisons(project_id)
             logger.debug(f"total comparisons: {max_val}")
