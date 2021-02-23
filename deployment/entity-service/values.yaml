@@ -56,7 +56,7 @@ anonlink:
 api:
 
   ## Deployment component name
-  name: server
+  name: api
   ## Defines the serviceAccountName to use when `rbac.create=false`
   serviceAccountName: default
 
