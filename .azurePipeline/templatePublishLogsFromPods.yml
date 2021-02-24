@@ -55,7 +55,7 @@ steps:
     connectionType: 'Kubernetes Service Connection'
     kubernetesServiceEndpoint: ${{ parameters.kubernetesServiceEndpoint }}
     command: 'logs'
-    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=db --tail=-1 --prefix=true'
+    arguments: '--namespace ${{ parameters.namespace }} -lrelease=${{ parameters.releaseName }} -lapp=db --tail=-1 --prefix=true --container=${{ parameters.releaseName }}-db'
 
 - task: Kubernetes@1
   displayName: 'Redis Logs'
