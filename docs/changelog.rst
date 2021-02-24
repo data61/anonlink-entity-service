@@ -7,9 +7,97 @@ Changelog
 Next Version
 ------------
 
-- Candidate pair's similarity scores can be exposed directly from the object store
-  using temporary download credentials.
-- Updates Alpine, Redis and MinIO dependencies.
+
+Version 1.14.0
+---------------
+
+
+Highlights
+~~~~~~~~~~
+
+**API now supports directly downloading similarity scores from the internal object store**
+
+If the request includes the header `RETURN-OBJECT-STORE-ADDRESS`, the response will be a small json payload with
+temporary download credentials to pull the _binary_ similarity scores directly from the object store. The json object
+has `credentials` and `object` keys::
+
+    {
+      "credentials": {
+        "AccessKeyId": "",
+        "SecretAccessKey": "",
+        "SessionToken": "",
+        "Expiration": "<ISO 8601 datetime string>"
+      },
+      "object": {
+          "endpoint": "<config.DOWNLOAD_OBJECT_STORE_SERVER>",
+          "secure": "<config.DOWNLOAD_OBJECT_STORE_SECURE>",
+          "bucket": "bucket_name",
+          "path": "path"
+      }
+    }
+
+
+
+The binary file is serialized using ``anonlink.serialization``, you can convert the stream into Python types with::
+
+        mc = Minio(file_info['endpoint'], ...)
+        candidate_pair_stream = mc.get_object(file_info['bucket'], file_info['path'])
+        sims, (dset_is0, dset_is1), (rec_is0, rec_is1) = anonlink.serialization.load_candidate_pairs(candidate_pair_stream)
+
+
+The following settings control the optional feature of using an external object store:
+
+=======================================  ==========================================
+     Environment Variable                 Helm Config
+=======================================  ==========================================
+``DOWNLOAD_OBJECT_STORE_SERVER``         ``anonlink.objectstore.downloadServer``
+``DOWNLOAD_OBJECT_STORE_SECURE``         ``anonlink.objectstore.downloadSecure``
+``DOWNLOAD_OBJECT_STORE_ACCESS_KEY``     ``anonlink.objectstore.downloadAccessKey``
+``DOWNLOAD_OBJECT_STORE_SECRET_KEY``     ``anonlink.objectstore.downloadSecretKey``
+``DOWNLOAD_OBJECT_STORE_STS_DURATION``   ``-`` (default 43200 seconds)
+=======================================  ==========================================
+
+Implemented in: #594, #612, #613, #614
+
+**Service now uses sqlalchemy for database migrations**
+
+Sqlalchemy models have been added for all database tables, initial database setup
+now uses alembic for migrations. The database and object store init scripts can now
+be run multiple times without causing issues.
+
+Implemented in #603, #611
+
+**New configurable limits on maximum number of candidate pairs**
+
+Protects the service from running out of memory due to excessive numbers of
+candidate pairs being processed. An added side effect is the service now keeps
+track of the number of candidate pairs in a run (as well as the number of comparisons).
+
+The configurable is controlled by the following two environment variables, and their initial
+default values::
+
+    SOLVER_MAX_CANDIDATE_PAIRS="100_000_000"
+    SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS="500_000_000"
+
+
+If a run exceeds these limits, the run is put into an error state and further processing is
+abandoned to protect the service from running out of memory.
+
+Implemented in #595, #605
+
+Other changes
+~~~~~~~~~~~~~
+
+- Ingress now supports a user supplied path. We no longer assume an nginx ingress controller. #587
+- Migrate off deprecated k8s chart repos #596, #588
+- Helm chart now uses standard recommended Kubernetes labels. #616
+- Fix an issue with case sensitivity in object store metadata #590
+- If the object store bucket doesn't exist it is now automatically created. #577
+- Ignore but log failures to delete from object store #576
+- Many dependency updates #578, #579, #580, #582, #581, #583, #596, #604, #609, #615
+- Update the base image, all base dependencies and migrated from minio-py v5 to v7 #601, #608, #610
+- CI e2e tests on Kubernetes will now correctly fail if the tests don't run. #618
+- Add optional pod annotations to init jobs. #619
 
 Version 1.13.0
 --------------
