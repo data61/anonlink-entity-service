@@ -11,7 +11,6 @@ spec:
       name: http
       targetPort: "celery-monitor"
   selector:
-    app: {{ template "es.appname" . }}
-    tier: aux
-    run: celery-monitor
+    {{- include "es.match_labels" . | indent 4 }}
+    app.kubernetes.io/component: celery-monitor
 {{- end }}

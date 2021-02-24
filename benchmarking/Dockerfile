@@ -4,7 +4,7 @@ EXPOSE 8000
 ADD requirements.txt /app/requirements.txt
 WORKDIR /app
 
-RUN pip3 install --upgrade pip setuptools && \
+RUN python3 -m pip install -U pip && pip3 install --upgrade setuptools && \
     pip3 install --upgrade -r requirements.txt && \
     rm -fr /tmp/* /root/.cache/pip
 

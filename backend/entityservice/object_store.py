@@ -1,8 +1,8 @@
 import minio
-from minio.credentials import Credentials, Static
+from minio.credentials import Credentials
+from minio.deleteobjects import DeleteObject
 from structlog import get_logger
 
-from entityservice.async_worker import logger
 from entityservice.settings import Config as config
 
 logger = get_logger('objectstore')
@@ -41,13 +41,31 @@ def connect_to_upload_object_store():
     return mc
 
 
+def object_store_download_only_client():
+    """
+    Instantiate a minio client with a get only policy applied.
+
+    :return:
+    """
+    mc = minio.Minio(
+        config.MINIO_SERVER,
+        config.DOWNLOAD_OBJECT_STORE_ACCESS_KEY,
+        config.DOWNLOAD_OBJECT_STORE_SECRET_KEY,
+        region="us-east-1",
+        secure=False
+    )
+    mc.set_app_info("anonlink-upload", "minio client for downloads")
+    logger.debug("Connected to minio download account")
+    return mc
+
+
 def create_bucket(minio_client, bucket):
     if not minio_client.bucket_exists(bucket):
         logger.info("Creating bucket {}".format(bucket))
         try:
             minio_client.make_bucket(bucket)
-        except minio.error.BucketAlreadyOwnedByYou:
-            logger.info("The bucket {} was already created.".format(bucket))
+        except minio.S3Error:
+            logger.info("The bucket {} was not created.".format(bucket))
 
 
 def stat_and_stream_object(bucket_name, object_name, credentials=None):
@@ -64,7 +82,7 @@ def parse_minio_credentials(credentials):
         access_key = credentials['AccessKeyId']
         secret_key = credentials['SecretAccessKey']
         session_token = credentials.get('SessionToken', None)
-        mc_credentials = Credentials(provider=Static(access_key, secret_key, session_token))
+        mc_credentials = Credentials(access_key=access_key, secret_key=secret_key, session_token=session_token)
     else:
         mc_credentials = None
     return mc_credentials
@@ -72,6 +90,6 @@ def parse_minio_credentials(credentials):
 
 def delete_object_store_folder(mc, bucket_name, path):
     objects_to_delete = mc.list_objects(bucket_name, prefix=path, recursive=True)
-    objects_to_delete = [x.object_name for x in objects_to_delete]
+    objects_to_delete = [DeleteObject(x.object_name) for x in objects_to_delete]
     for del_err in mc.remove_objects(bucket_name, objects_to_delete):
         logger.warning("Deletion Error: {}".format(del_err))

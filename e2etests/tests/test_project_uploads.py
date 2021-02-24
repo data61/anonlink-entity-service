@@ -84,26 +84,7 @@ def test_project_single_party_data_uploaded_encodings_and_blocks_format(requests
 
 def test_project_upload_external_encodings(requests, a_project, binary_test_file_path):
 
-    r = requests.get(
-        url + 'projects/{}/authorize-external-upload'.format(a_project['project_id']),
-        headers={'Authorization': a_project['update_tokens'][0]},
-    )
-    assert r.status_code == 201
-    upload_response = r.json()
-
-    credentials = upload_response['credentials']
-    upload_info = upload_response['upload']
-
-    # Use Minio python client to upload data
-
-    mc = Minio(
-        minio_host or upload_info['endpoint'],
-        access_key=credentials['AccessKeyId'],
-        secret_key=credentials['SecretAccessKey'],
-        session_token=credentials['SessionToken'],
-        region='us-east-1',
-        secure=upload_info['secure']
-    )
+    mc, upload_info = get_temp_upload_client(a_project, requests, a_project['update_tokens'][0])
 
     etag = mc.fput_object(
         upload_info['bucket'],

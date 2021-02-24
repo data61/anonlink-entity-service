@@ -37,16 +37,20 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 
 {{/*
 We define the release labels that will be applied to all deployments.
+
+Ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/#labels
+Ref: https://helm.sh/docs/chart_best_practices/labels/#standard-labels
 */}}
-{{- define "es.release_labels" }}
-app: {{ template "es.appname" . }}
-chart: {{ .Chart.Name }}-{{ .Chart.Version }}
-# The "heritage" label is used to track which tool deployed a given chart.
-# It is useful for admins who want to see what releases a particular tool
-# is responsible for.
-heritage: {{ .Release.Service }}
-version: {{ .Chart.Version | quote }}
-# The "release" convention makes it easy to tie a release to all of the
-# Kubernetes resources that were created as part of that release.
-release: {{ .Release.Name }}
+{{- define "es.release_labels" -}}
+app.kubernetes.io/name: {{ template "es.appname" . }}
+helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote}}
 {{- end }}
+
+{{/* Predefined matchLabels to ensure match resources belonging to the same release. */}}
+{{- define "es.match_labels" -}}
+app.kubernetes.io/name: {{ template "es.appname" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}

@@ -2,7 +2,9 @@ import array
 import heapq
 import itertools
 import operator
-import time
+
+from minio.deleteobjects import DeleteObject
+from minio.error import MinioException
 
 import anonlink
 import minio
@@ -11,7 +13,7 @@ from celery import chord
 
 from entityservice.async_worker import celery, logger
 from entityservice.cache.encodings import remove_from_cache
-from entityservice.cache.progress import save_current_progress
+from entityservice.cache.progress import get_candidate_count_for_run, save_current_progress
 from entityservice.encoding_storage import get_encoding_chunk, get_encoding_chunks
 from entityservice.errors import InactiveRun
 from entityservice.database import (
@@ -283,7 +285,6 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     log.debug("Checking that the resource exists (in case of run being canceled/deleted)")
     assert_valid_run(project_id, run_id, log)
 
-    #chunk_info_dp1, chunk_info_dp2 = chunk_info
     def reindex_using_encoding_ids(recordarray, encoding_id_list):
         # Map results from "index in chunk" to encoding id.
         return array.array('I', [encoding_id_list[i] for i in recordarray])
@@ -291,7 +292,6 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     num_results = 0
     num_comparisons = 0
     sim_results = []
-
 
     with DBConn() as conn:
         if len(package) > 1:  # multiple full blocks in one package
@@ -334,16 +334,26 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
         log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
 
-##### progess reporting
+    # progress reporting
     log.debug('Encoding similarities calculated')
 
     with new_child_span('update-comparison-progress') as scope:
         # Update the number of comparisons completed
-        save_current_progress(num_comparisons, run_id)
+        save_current_progress(num_comparisons, num_results, run_id)
         scope.span.log_kv({'comparisons': num_comparisons, 'num_similar': num_results})
         log.debug("Comparisons: {}, Links above threshold: {}".format(num_comparisons, num_results))
 
-###### results into file into minio
+    with new_child_span('check-within-candidate-limits') as scope:
+        global_candidates_for_run = get_candidate_count_for_run(run_id)
+        scope.span.log_kv({'global candidate count for run': global_candidates_for_run})
+
+        if global_candidates_for_run is not None and global_candidates_for_run > Config.SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS:
+            log.warning(f"This run has created more than the global limit of candidate pairs. Setting state to 'error'")
+            with DBConn() as conn:
+                update_run_mark_failure(conn, run_id)
+            return
+
+    # Save results file into minio
     with new_child_span('save-comparison-results-to-minio'):
 
         file_iters = []
@@ -381,7 +391,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         try:
             mc.put_object(
                 Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
-        except minio.ResponseError as err:
+        except minio.S3Error as err:
             log.warning("Failed to store result in minio: {}".format(err))
             raise
 
@@ -403,7 +413,7 @@ def _put_placeholder_empty_file(mc, log):
     try:
         mc.put_object(Config.MINIO_BUCKET, empty_file_name,
                       empty_file_stream, empty_file_size)
-    except minio.ResponseError:
+    except minio.S3Error:
         log.warning("Failed to store empty result in minio.")
         raise
     return 0, empty_file_size, empty_file_name
@@ -424,11 +434,11 @@ def _merge_files(mc, log, file0, file1):
     try:
         mc.put_object(Config.MINIO_BUCKET, merged_file_name,
                       merged_file_stream, merged_file_size)
-    except minio.ResponseError:
+    except MinioException:
         log.warning("Failed to store merged result in minio.")
         raise
-    for del_err in mc.remove_objects(
-            Config.MINIO_BUCKET, (filename0, filename1)):
+    delete_objects = [DeleteObject(f) for f in (filename0, filename1)]
+    for del_err in mc.remove_objects(Config.MINIO_BUCKET, delete_objects):
         log.warning(f"Failed to delete result file "
                     f"{del_err.object_name}. {del_err}")
     return total_num, merged_file_size, merged_file_name
@@ -437,7 +447,7 @@ def _merge_files(mc, log, file0, file1):
 @celery.task(
     base=TracedTask,
     ignore_result=True,
-    autoretry_for=(minio.ResponseError,),
+    autoretry_for=(MinioException,),
     retry_backoff=True,
     args_as_tags=('project_id', 'run_id'))
 def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_span=None):

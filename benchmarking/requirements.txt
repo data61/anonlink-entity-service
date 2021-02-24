@@ -1,4 +1,4 @@
-anonlink-client==0.1.2
+anonlink-client
 arrow
 boto3
 jsonschema

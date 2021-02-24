@@ -38,6 +38,12 @@ class Config(object):
     UPLOAD_OBJECT_STORE_SECRET_KEY = os.getenv('UPLOAD_OBJECT_STORE_SECRET_KEY', '')
     UPLOAD_OBJECT_STORE_BUCKET = os.getenv('UPLOAD_OBJECT_STORE_BUCKET', 'anonlink-uploads')
 
+    DOWNLOAD_OBJECT_STORE_SERVER = os.getenv('DOWNLOAD_OBJECT_STORE_SERVER', MINIO_SERVER)
+    DOWNLOAD_OBJECT_STORE_SECURE = os.getenv('DOWNLOAD_OBJECT_STORE_SECURE', 'true') == 'true'
+    DOWNLOAD_OBJECT_STORE_ACCESS_KEY = os.getenv('DOWNLOAD_OBJECT_STORE_ACCESS_KEY', '')
+    DOWNLOAD_OBJECT_STORE_SECRET_KEY = os.getenv('DOWNLOAD_OBJECT_STORE_SECRET_KEY', '')
+    DOWNLOAD_OBJECT_STORE_STS_DURATION = int(os.getenv('DOWNLOAD_OBJECT_STORE_STS_DURATION', '43200'))
+
     DATABASE_SERVER = os.getenv('DATABASE_SERVER', 'db')
     DATABASE = os.getenv('DATABASE', 'postgres')
     DATABASE_USER = os.getenv('DATABASE_USER', 'postgres')
@@ -86,6 +92,12 @@ class Config(object):
 
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.getenv('MAX_CACHE_SIZE', '1000000'))
+
+    # Global limits on maximum number of candidate pairs considered.
+    # If a run exceeds these limits, the run is put into an error state and further processing
+    # is abandoned to protect the service from running out of memory.
+    SOLVER_MAX_CANDIDATE_PAIRS = int(os.getenv('SOLVER_MAX_CANDIDATE_PAIRS', '100_000_000'))
+    SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS = int(os.getenv('SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS', '500_000_000'))
 
     _CACHE_EXPIRY_SECONDS = int(os.getenv('CACHE_EXPIRY_SECONDS', datetime.timedelta(days=10).total_seconds()))
     CACHE_EXPIRY = datetime.timedelta(seconds=_CACHE_EXPIRY_SECONDS)

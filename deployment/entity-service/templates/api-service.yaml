@@ -6,15 +6,15 @@ metadata:
 {{ toYaml .Values.api.service.annotations | indent 4 }}
 {{- end }}
   labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    component: "{{ .Values.api.name }}"
+    {{- include "es.release_labels" . | nindent 4 }}
+    app.kubernetes.io/component: "{{ .Values.api.name }}"
 {{- if .Values.api.service.labels }}
 {{ toYaml .Values.api.service.labels | indent 4 }}
 {{- end }}
   name: {{ template "api.fullname" . }}
 spec:
-{{- if .Values.api.service.clusterIP }}
-  clusterIP: {{ .Values.api.service.clusterIP }}
+{{- if .Values.api.service.clusterIp }}
+  clusterIP: {{ .Values.api.service.clusterIp }}
 {{- end }}
 {{- if .Values.api.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
@@ -28,7 +28,6 @@ spec:
       protocol: TCP
       targetPort: "entity-nginx"
   selector:
-    app: {{ template "es.appname" . }}
-    component: {{ required "api.name must be provided." .Values.api.name | quote }}
-    release: {{ .Release.Name }}
+    {{- include "es.match_labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ required "api.name must be provided." .Values.api.name | quote }}
   type: {{ required "api.service.type must be provided." .Values.api.service.type }}

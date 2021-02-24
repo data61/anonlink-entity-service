@@ -320,7 +320,7 @@ def get_run(requests, project, run_id, expected_status=200, expected_threshold=N
     return run
 
 
-def get_run_result(requests, project, run_id, result_token=None, expected_status=200, wait=True, timeout=60):
+def get_run_result(requests, project, run_id, result_token=None, expected_status=200, wait=True, timeout=60, extra_headers=None):
     result_token = project['result_token'] if result_token is None else result_token
     if wait:
         # wait_for_run_completion also checks that the progress is in order.
@@ -329,9 +329,12 @@ def get_run_result(requests, project, run_id, result_token=None, expected_status
         assert state == 'completed', "Expected: 'completed', got: '{}'".format(state)
 
     project_id = project['project_id']
+    headers = {'Authorization': result_token}
+    if extra_headers is not None:
+        headers.update(extra_headers)
     r = requests.get(url + '/projects/{}/runs/{}/result'.format(project_id, run_id),
-                     headers={'Authorization': result_token})
-    assert r.status_code == expected_status
+                     headers=headers)
+    assert r.status_code == expected_status, f"Status received was {r.status_code}, expected {expected_status}"
     return r.json()
 
 

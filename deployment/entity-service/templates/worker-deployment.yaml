@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
-    tier: backend
+    {{- include "es.release_labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
+    tier: {{ .Values.workers.name }}
   name: {{ .Release.Name }}-worker
   {{- if .Values.workers.deploymentAnnotations }}
   annotations:
@@ -14,10 +14,8 @@ spec:
   replicas: {{ required "workers.replicaCount must be provided."  .Values.workers.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.appname" . }}
-      component: "{{ .Values.workers.name }}"
-      release: {{ .Release.Name }}
-      tier: backend
+      {{- include "es.match_labels" . | nindent 6 }}
+      app.kubernetes.io/component: "{{ .Values.workers.name }}"
   {{- if .Values.workers.strategy }}
   strategy:
 {{ toYaml .Values.workers.strategy | indent 4 }}
@@ -29,41 +27,20 @@ spec:
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
 {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
-        component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
-        tier: backend
+      labels: {{ include "es.release_labels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ required "workers.name must be provided." .Values.workers.name | quote }}
+        tier: {{ .Values.workers.name }}
     spec:
       containers:
         - name: celery-worker
           image: {{ required "workers.image.repository must be provided." .Values.workers.image.repository }}:{{ required "workers.image.tag must be provided." .Values.workers.image.tag }}
           imagePullPolicy: {{ .Values.workers.image.pullPolicy | default "" | quote }}
-          resources:
-{{ toYaml .Values.workers.resources | indent 12 }}
+          resources: {{ toYaml .Values.workers.resources | nindent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}
-          env:
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: redisPassword
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: postgresPassword
-            - name: MINIO_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: minioAccessKey
-            - name: MINIO_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "es.fullname" . }}
-                  key: minioSecretKey
+          - secretRef:
+              name: {{ template "es.fullname" . }}
           command:
             - "celery"
             - "-A"

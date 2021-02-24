@@ -13,7 +13,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: entitytester
-        image: quay.io/n1analytics/entity-app
+        image: data61/anonlink-app:latest
         imagePullPolicy: Always
         env:
           - name: REDIS_SERVER
@@ -22,7 +22,7 @@ spec:
             valueFrom:
               secretKeyRef:
                 name: es-credentials
-                key: redisPassword
+                key: REDIS_PASSWORD
         command:
           - "/usr/local/bin/celery"
           - "-A"

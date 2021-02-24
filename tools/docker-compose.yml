@@ -16,11 +16,10 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:RELEASE.2020-04-15T19-42-18Z
+    image: minio/minio:RELEASE.2021-02-14T04-01-33Z
     command: server /export
-    environment:
-      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
-      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    env_file:
+      - .env
     volumes:
       - minio:/export
     ports:
@@ -34,22 +33,14 @@ services:
   redis:
     image: redis:5.0
 
-
   # The flask application server
   backend:
     image: data61/anonlink-app:${TAG:-latest}
+    env_file:
+      - .env
     environment:
-      #- LOG_CFG=entityservice/verbose_logging.yaml
-      - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
-      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-      - UPLOAD_OBJECT_STORE_BUCKET=uploads
-      - UPLOAD_OBJECT_STORE_SECURE=false
-      - UPLOAD_OBJECT_STORE_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
-      - UPLOAD_OBJECT_STORE_SECRET_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
       - FLASK_DB_MIN_CONNECTIONS=1
       - FLASK_DB_MAX_CONNECTIONS=10
-      - JAEGER_AGENT_HOST=jaeger
     depends_on:
       - db
       - db_init
@@ -64,25 +55,15 @@ services:
       - DEBUG=true
       - DATABASE_PASSWORD=rX%QpV7Xgyrz
       - FLASK_APP=entityservice
-    entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 python -m flask initdb"
+    entrypoint: /bin/sh -c "dockerize -wait tcp://db:5432 alembic upgrade head"
     depends_on:
       - db
 
   # Setup the object store to have another more restricted user
   objectstore_init:
-    image: minio/mc:RELEASE.2020-04-19T19-17-53Z
-    environment:
-      # Provide root credentials to MINIO to set up more restricted service accounts
-      # MC_HOST_alias is equivalent to manually configuring a minio host
-      # mc config host add minio http://minio:9000 <MINIO_ACCESS_KEY> <MINIO_SECRET_KEY>
-      #- MC_HOST_minio=http://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY@minio:9000
-      - MINIO_SERVER=minio:9000
-      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
-      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-      # Account which will have upload only object store access.
-      - UPLOAD_ONLY_ACCESS_KEY=EXAMPLE_UPLOAD_ACCESS_KEY
-      - UPLOAD_ONLY_SECRET_ACCESS_KEY=EXAMPLE_UPLOAD_SECRET_ACCESS_KEY
-      - UPLOAD_BUCKET=uploads
+    image: minio/mc:RELEASE.2021-02-14T04-28-06Z
+    env_file:
+      - .env
     entrypoint: |
       /bin/sh /opt/init-object-store.sh
     volumes:
@@ -97,20 +78,15 @@ services:
       - redis
       - db
     command: celery -A entityservice.async_worker worker --loglevel=info -O fair -Q celery,compute,highmemory
+    env_file:
+      - .env
     environment:
-      - DATABASE_PASSWORD=rX%QpV7Xgyrz
-      - LOG_CFG=entityservice/verbose_logging.yaml
-      - MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
-      - MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-      - UPLOAD_OBJECT_STORE_BUCKET=uploads
-      - UPLOAD_OBJECT_STORE_SECURE=false
       - CELERY_ACKS_LATE=true
       - REDIS_USE_SENTINEL=false
       - CELERYD_MAX_TASKS_PER_CHILD=2048
       #- CHUNK_SIZE_AIM=300_000_000
       - CELERY_DB_MIN_CONNECTIONS=1
       - CELERY_DB_MAX_CONNECTIONS=3
-      - JAEGER_AGENT_HOST=jaeger
 
 
   nginx:
@@ -134,6 +110,8 @@ services:
 #    ports:
 #      - 8888:8888
 
+
+# Jaeger UI is available at http://localhost:16686
   jaeger:
     image: jaegertracing/all-in-one:latest
     environment:

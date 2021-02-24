@@ -9,10 +9,19 @@ anonlink:
   config: {}
 
   objectstore:
+    ## Settings for uploads via Object Store
+
     ## Toggle the feature providing client's with restricted upload access to the object store.
     ## By default we don't expose the Minio object store, which is required for clients to upload
     ## via the object store. See section `minio.ingress` to create an ingress for minio.
     uploadEnabled: true
+
+    ## Server used as the external object store URL - provided to clients so should be externally
+    ## accessible. If not provided, the minio.ingress is used (if enabled).
+    #uploadServer: "s3.amazonaws.com"
+
+    ## Tell clients to make secure connections to the upload object store.
+    uploadSecure: true
 
     ## Object store credentials used to grant temporary upload access to clients
     ## Will be created with an "upload only" policy for a upload bucket if using the default
@@ -24,14 +33,30 @@ anonlink:
     uploadBucket:
       name: "uploads"
 
-    ## Allow only secure connections to the object store.
-    secure: true
+    ## Settings for downloads via Object Store
+
+    ## Toggle the feature providing client's with restricted download access to the object store.
+    ## By default we don't expose the Minio object store, which is required for clients to download
+    ## via the object store.
+    downloadEnabled: true
+
+    ## Tell clients to make secure connections to the download object store.
+    downloadSecure: true
+
+    ## Server used as the external object store URL for downloads - provided to clients so
+    ## should be externally accessible. If not provided, the minio.ingress is used (if enabled).
+    #downloadServer: "s3.amazonaws.com"
+
+    ## Object store credentials used to grant temporary download access to clients
+    ## Will be created with an "get only" policy if using the default MINIO provisioning.
+    downloadAccessKey: "EXAMPLE_DOWNLOAD_KEY"
+    downloadSecretKey: "EXAMPLE_DOWNLOAD_SECRET"
 
 
 api:
 
   ## Deployment component name
-  name: server
+  name: api
   ## Defines the serviceAccountName to use when `rbac.create=false`
   serviceAccountName: default
 
@@ -57,7 +82,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.6"
+      tag: "v1.4.7"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -74,7 +99,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0"
+      tag: "v1.14.0"
       pullPolicy: IfNotPresent
 
 
@@ -90,11 +115,10 @@ api:
   dbinit:
     enabled: "true"
 
-    ## Database init can only run during chart install
-    ## It cannot be updated! So we have a separate image + tag
+    ## Database init runs migrations after install and upgrade
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0"
+      tag: "v1.14.0"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -105,6 +129,10 @@ api:
         cpu: 250m
         memory: 256Mi
 
+    ## Annotations added to the database init job's pod.
+    # podAnnotations: {}
+    #   sidecar.istio.io/inject: "false"
+
   ## A job that creates an upload only object store user.
   objectstoreinit:
     enabled: true
@@ -113,41 +141,48 @@ api:
       repository: minio/mc
       tag: RELEASE.2020-01-13T22-49-03Z
 
+    ## Annotations added to the object store init job's pod.
+    # podAnnotations: {}
+    #   sidecar.istio.io/inject: "false"
+
+
   ingress:
     ## By default, we do not want the service to be accessible outside of the cluster.
     enabled: false
 
     ## Ingress annotations
-    annotations: # {}
-     kubernetes.io/ingress.class: nginx
+    annotations: {}
+      ## Suggested annotations
+      ## To handle large uploads we increase the proxy buffer size
+      #ingress.kubernetes.io/proxy-body-size: 4096m
 
-     ## To handle large uploads we increase the proxy buffer size
-     ingress.kubernetes.io/proxy-body-size: 4096m
-     nginx.ingress.kubernetes.io/proxy-body-size: 4096m
+      ## Redirect to ssl
+      #ingress.kubernetes.io/force-ssl-redirect: "true"
 
-     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
-     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-     ## Example ingress annotations for certmanager
-     certmanager.k8s.io/cluster-issuer: letsencrypt-cluster-issuer
-     ## Redirect to ssl
-     ingress.kubernetes.io/force-ssl-redirect: "true"
+      ## Deprecated but common
+      ## https://kubernetes.io/docs/concepts/services-networking/ingress/#deprecated-annotation
+      # kubernetes.io/ingress.class: ""
+
+    path: /
+    pathType: Prefix
 
     ## Entity Service API Ingress hostnames
     ## Must be provided if Ingress is enabled
-    hosts:
-     - beta.anonlink.data61.xyz
+    hosts: []
+     ## E.g:
+     #- beta.anonlink.data61.xyz
 
-    ## Entity Service API Ingress TLS configuration
+    ## Ingress TLS configuration
     ## This example setup is for nginx-ingress. We use certificate manager.
     ## to create the TLS secret in the namespace with the name
     ## below.
-    tls: # []
+    tls:  []
+
     ## secretName is the kubernetes secret which will contain the TLS secret and certificates
-    ## for the provided host url. It is automatically generated from the deployed certmanager.
-    - secretName: beta-anonlink-data61-tls
-      hosts:
-      - beta.anonlink.data61.xyz
+    ## for the provided host url. It is automatically generated from the deployed cert-manager.
+    #- secretName: beta-anonlink-data61-tls
+    #  hosts:
+    #  - beta.anonlink.data61.xyz
 
   service:
     annotations: []
@@ -174,7 +209,7 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.13.0"
+    tag: "v1.14.0"
     pullPolicy: Always
 
   ## The initial number of workers for this deployment
@@ -309,11 +344,11 @@ redis:
 
 redis-ha:
   ## Settings for configuration of a provisioned redis ha cluster.
-  ## https://github.com/helm/charts/tree/master/stable/redis-ha
+  ## https://github.com/DandyDeveloper/charts/tree/master/charts/redis-ha#configuration
   ## Provisioning is controlled in the `provision` section
   auth: true
   redisPassword: "exampleRedisPassword"
-  replicas: 3
+  #replicas: 3
   redis:
     resources:
       requests:
@@ -345,6 +380,7 @@ redis-ha:
       - |-
         sysctl -w net.core.somaxconn=10000
         echo never > /host-sys/kernel/mm/transparent_hugepage/enabled
+  # Enable prometheus exporter sidecar
   exporter:
     enabled: true
 
@@ -357,10 +393,6 @@ minio:
   ## the object store is exposed to the internet
   #accessKey: "exampleMinioAccessKey"
   #secretKey: "exampleMinioSecretKet"
-
-  ## Settings required for connecting to another object store, the server is ignored
-  ## if provisioning minio during deployment.
-  server: "s3.amazonaws.com"
 
   defaultBucket:
     enabled: true

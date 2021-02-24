@@ -8,7 +8,8 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
     && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
     && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
-RUN pip install --upgrade pip pytest nbval
+RUN python -m pip install --upgrade pip
+RUN pip install --upgrade pytest nbval
 ADD tutorial-requirements.txt /src/requirements.txt
 WORKDIR /src
 RUN pip install -U -r requirements.txt

@@ -3,18 +3,20 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ template "es.fullname" . }}-init-objectstore
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    tier: aux
+  labels: {{ include "es.release_labels" . | nindent 4 }}
+    app.kubernetes.io/component: init-objectstore
   annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-delete-policy": hook-succeeded, hook-failed
+    "helm.sh/hook": post-install, post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation, hook-succeeded, hook-failed
 spec:
   template:
     metadata:
       name: {{ template "name" . }}-init-objectstore
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
+      labels: {{ include "es.release_labels" . | nindent 8 }}
+        app.kubernetes.io/component: init-objectstore
+{{- if .Values.api.objectstoreinit.podAnnotations }}
+      annotations: {{ toYaml .Values.api.objectstoreinit.podAnnotations | nindent 8 }}
+{{- end }}
     spec:
       containers:
       - name: objectstore-init
@@ -25,28 +27,11 @@ spec:
               configMapKeyRef:
                 key: MINIO_SERVER
                 name: {{ template "es.fullname" . }}
-          - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioAccessKey
-          - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioSecretKey
-          - name: UPLOAD_ONLY_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioUploadAccessKey
-          - name: UPLOAD_ONLY_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "es.fullname" . }}
-                key: minioUploadSecretKey
-          - name: UPLOAD_BUCKET
+          - name: UPLOAD_OBJECT_STORE_BUCKET
             value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
+        envFrom:
+        - secretRef:
+            name: {{ template "es.fullname" . }}
         command:
           - "/bin/sh"
           - "/opt/init-objectstore.sh"
