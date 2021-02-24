@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
-    tier: backend
+    {{- include "es.release_labels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
+    tier: {{ .Values.workers.name }}
   name: {{ .Release.Name }}-highmemory-worker
   {{- if .Values.workers.deploymentAnnotations }}
   annotations:
@@ -14,10 +14,8 @@ spec:
   replicas: {{ required "workers.highmemory.replicaCount must be provided." .Values.workers.highmemory.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "es.appname" . }}
-      component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
-      release: {{ .Release.Name }}
-      tier: backend
+      {{- include "es.match_labels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ list (required "workers.name must be provided." .Values.workers.name) "highmemory" | join "-" | quote }}
   {{- if .Values.workers.strategy }}
   strategy:
 {{ toYaml .Values.workers.strategy | indent 4 }}
@@ -29,17 +27,15 @@ spec:
 {{- if .Values.workers.podAnnotations }}
 {{ toYaml .Values.workers.podAnnotations | indent 8 }}
 {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
-        component: "{{ .Values.workers.name }}-highmemory"
-        tier: backend
+      labels: {{ include "es.release_labels" . | nindent 8 }}
+        app.kubernetes.io/component: "{{ .Values.workers.name }}-highmemory"
+        tier: {{ .Values.workers.name }}
     spec:
       containers:
         - name: celery-worker
           image: {{ required "workers.image.repository must be provided." .Values.workers.image.repository }}:{{ required "workers.image.tag must be provided." .Values.workers.image.tag }}
           imagePullPolicy: {{ .Values.workers.image.pullPolicy | default "" | quote }}
-          resources:
-{{ toYaml .Values.workers.highmemory.resources | indent 12 }}
+          resources: {{ toYaml .Values.workers.highmemory.resources | nindent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}

@@ -1,11 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-api
-  labels:
-    {{- include "es.release_labels" . | indent 4 }}
-    component: "{{ .Values.api.name }}"
-    tier: frontend
+  name: {{ .Release.Name }}-{{ .Values.api.name }}
+  labels: {{- include "es.release_labels" . | nindent 4 }}
   {{- if .Values.api.deploymentAnnotations }}
   annotations:
 {{ toYaml .Values.api.deploymentAnnotations | indent 4 }}
@@ -13,11 +10,8 @@ metadata:
 spec:
   replicas: {{ required "api.replicaCount must be provided." .Values.api.replicaCount }}
   selector:
-    matchLabels:
-      app: {{ template "es.appname" . }}
-      release: {{ .Release.Name }}
-      component: "{{ .Values.api.name }}"
-      tier: frontend
+    matchLabels: {{ include "es.match_labels" . | nindent 6 }}
+      app.kubernetes.io/component: "{{ .Values.api.name }}"
   {{- if .Values.api.strategy }}
   strategy:
 {{ toYaml .Values.api.strategy | indent 4 }}
@@ -28,20 +22,15 @@ spec:
       annotations:
 {{ toYaml .Values.api.podAnnotations | indent 8 }}
     {{- end }}
-      labels:
-        {{- include "es.release_labels" . | indent 8 }}
-        component: "{{ .Values.api.name }}"
-        tier: frontend
+      labels: {{ include "es.release_labels" . | nindent 8 }}
+        app.kubernetes.io/component: "{{ .Values.api.name }}"
     spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}
-
       containers:
-        # TODO add hash of config e.g. .Values.configmapReload.name
         - name: entityservice-nginx
           image: {{ required "api.www.image.repository must be provided." .Values.api.www.image.repository }}:{{ required "api.www.image.tag must be provided." .Values.api.www.image.tag }}
           imagePullPolicy: {{ .Values.api.www.image.pullPolicy | default "" }}
-          resources:
-{{ required "api.www.resources must be provided." .Values.api.www.resources | toYaml | indent 12 }}
+          resources: {{ required "api.www.resources must be provided." .Values.api.www.resources | toYaml | nindent 12 }}
           ports:
             - containerPort: 8851
               name: entity-nginx
@@ -56,8 +45,7 @@ spec:
         - name: entityservice-flask
           image: {{ required "api.app.image.repository must be provided." .Values.api.app.image.repository }}:{{ required "api.app.image.tag must be provided." .Values.api.app.image.tag }}
           imagePullPolicy: {{ .Values.api.app.image.pullPolicy | default ""}}
-          resources:
-{{ required "api.app.resources must be provided." .Values.api.app.resources | toYaml | indent 12 }}
+          resources: {{ required "api.app.resources must be provided." .Values.api.app.resources | toYaml | nindent 12 }}
           envFrom:
           - configMapRef:
               name: {{ template "es.fullname" . }}

@@ -93,6 +93,12 @@ class Config(object):
     # If there are more than 1M CLKS, don't cache them in redis
     MAX_CACHE_SIZE = int(os.getenv('MAX_CACHE_SIZE', '1000000'))
 
+    # Global limits on maximum number of candidate pairs considered.
+    # If a run exceeds these limits, the run is put into an error state and further processing
+    # is abandoned to protect the service from running out of memory.
+    SOLVER_MAX_CANDIDATE_PAIRS = int(os.getenv('SOLVER_MAX_CANDIDATE_PAIRS', '100_000_000'))
+    SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS = int(os.getenv('SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS', '500_000_000'))
+
     _CACHE_EXPIRY_SECONDS = int(os.getenv('CACHE_EXPIRY_SECONDS', datetime.timedelta(days=10).total_seconds()))
     CACHE_EXPIRY = datetime.timedelta(seconds=_CACHE_EXPIRY_SECONDS)
 
