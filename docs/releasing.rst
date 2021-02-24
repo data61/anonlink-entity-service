@@ -17,6 +17,7 @@ frontend.
 - Create a branch off the latest ``develop`` called ``release-x.y.z``.
 - Update the versions in the code base (e.g., ``backend/entityservice/VERSION``) of any components that have been
   changed. As above note if the backend version has changed you must release a new frontend too.
+- Update the versions in the Chart.yaml file.
 - Update the changelog to include user friendly information on all features, taking special care
   to mention any breaking changes.
 - Open a PR to merge these changes into ``develop``, and get a code review. Make any requested changes, and merge the
