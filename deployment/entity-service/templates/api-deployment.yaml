@@ -27,7 +27,7 @@ spec:
     spec:
       serviceAccountName: {{ if .Values.rbac.create }}{{ template "name" . }}{{ else }}"{{ .Values.api.serviceAccountName }}"{{ end }}
       containers:
-        - name: entityservice-nginx
+        - name: nginx
           image: {{ required "api.www.image.repository must be provided." .Values.api.www.image.repository }}:{{ required "api.www.image.tag must be provided." .Values.api.www.image.tag }}
           imagePullPolicy: {{ .Values.api.www.image.pullPolicy | default "" }}
           resources: {{ required "api.www.resources must be provided." .Values.api.www.resources | toYaml | nindent 12 }}
@@ -42,7 +42,7 @@ spec:
               exec:
                 # SIGTERM triggers a quick exit; gracefully terminate instead
                 command: ["/usr/sbin/nginx","-s","quit"]
-        - name: entityservice-flask
+        - name: flask
           image: {{ required "api.app.image.repository must be provided." .Values.api.app.image.repository }}:{{ required "api.app.image.tag must be provided." .Values.api.app.image.tag }}
           imagePullPolicy: {{ .Values.api.app.image.pullPolicy | default ""}}
           resources: {{ required "api.app.resources must be provided." .Values.api.app.resources | toYaml | nindent 12 }}
