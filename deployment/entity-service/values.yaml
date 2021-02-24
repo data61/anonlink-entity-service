@@ -82,7 +82,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.6"
+      tag: "v1.4.7"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -99,7 +99,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0"
+      tag: "v1.14.0"
       pullPolicy: IfNotPresent
 
 
@@ -118,7 +118,7 @@ api:
     ## Database init runs migrations after install and upgrade
     image:
       repository: data61/anonlink-app
-      tag: "v1.13.0"
+      tag: "v1.14.0"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -209,7 +209,7 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.13.0"
+    tag: "v1.14.0"
     pullPolicy: Always
 
   ## The initial number of workers for this deployment
