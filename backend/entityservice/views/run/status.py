@@ -74,5 +74,5 @@ def get(project_id, run_id):
         status["time_started"] = run_status['time_started']
         return running().dump(status)
     elif state == 'error':
-        log.warning('handling the run status for state "error" is not implemented')
+        status['message'] = run_status['error_msg']
         return error().dump(status)
