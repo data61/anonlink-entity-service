@@ -350,7 +350,8 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         if global_candidates_for_run is not None and global_candidates_for_run > Config.SIMILARITY_SCORES_MAX_CANDIDATE_PAIRS:
             log.warning(f"This run has created more than the global limit of candidate pairs. Setting state to 'error'")
             with DBConn() as conn:
-                update_run_mark_failure(conn, run_id)
+                update_run_mark_failure(conn, run_id,
+                                        'This run has created more than the global limit of candidate pairs.')
             return
 
     # Save results file into minio
