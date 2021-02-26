@@ -283,28 +283,30 @@ def update_run_mark_complete(db, run_id):
         cur.execute(sql_query, [run_id])
 
 
-def update_run_mark_failure(conn, run_id):
+def update_run_mark_failure(conn, run_id, err_msg):
     with conn.cursor() as cur:
         sql_query = """
             UPDATE runs SET
               state = 'error',
-              time_completed = now()
+              time_completed = now(),
+              error_msg = %s
             WHERE
               run_id = %s
             """
-        cur.execute(sql_query, [run_id])
+        cur.execute(sql_query, [err_msg, run_id])
 
 
-def update_project_mark_all_runs_failed(conn, project_id):
+def update_project_mark_all_runs_failed(conn, project_id, err_msg):
     with conn.cursor() as cur:
         sql_query = """
             UPDATE runs SET
               state = 'error',
-              time_completed = now()
+              time_completed = now(),
+              error_msg = %s
             WHERE
               project = %s
             """
-        cur.execute(sql_query, [project_id])
+        cur.execute(sql_query, [err_msg, project_id])
 
 
 def update_dataprovider_uploaded_state(conn, project_id, dp_id, state):

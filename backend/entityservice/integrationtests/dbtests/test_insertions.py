@@ -5,7 +5,7 @@ from pytest import raises
 
 from entityservice.database import insert_dataprovider, insert_encodings_into_blocks, insert_blocking_metadata, \
     get_project, get_encodingblock_ids, get_block_metadata, get_chunk_of_encodings, execute_select_query_in_binary,\
-    get_encodings_of_multiple_blocks
+    get_encodings_of_multiple_blocks, update_run_mark_failure, get_run_status, insert_new_run
 
 from entityservice.integrationtests.dbtests import _get_conn_and_cursor
 from entityservice.models import Project
@@ -165,3 +165,15 @@ class TestInsertions:
         for enc1, enc2 in zip(encodings, ret_encodings):
             assert enc1 == enc2[2]
 
+    def test_error_message(self):
+        project, dp_ids = self._create_project()
+        conn, cur = _get_conn_and_cursor()
+
+        run_id = insert_new_run(db=conn, run_id=generate_code(), project_id=project.project_id, threshold=0.7,
+                                name='integrationTest_run', notes='', type='testType')
+        conn.commit()
+        update_run_mark_failure(conn, run_id, 'integrational fail')
+        conn.commit()
+        status = get_run_status(conn, run_id)
+        assert status['state'] == 'error'
+        assert status['error_msg'] == 'integrational fail'

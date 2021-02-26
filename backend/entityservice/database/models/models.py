@@ -87,6 +87,7 @@ class Run(Base):
     time_added = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
     time_started = Column(DateTime)
     time_completed = Column(DateTime)
+    error_msg = Column(Text, nullable=True)
 
     project1 = relationship('Project')
 

@@ -27,7 +27,7 @@ def check_for_executable_runs(project_id, parent_span=None):
         except ValueError as e:
             log.warning(e.args[0])
             # make sure this error can be exposed to user by marking the run/s as failed
-            update_project_mark_all_runs_failed(conn, project_id)
+            update_project_mark_all_runs_failed(conn, project_id, str(e))
             return
         new_runs = get_created_runs_and_queue(conn, project_id)
 

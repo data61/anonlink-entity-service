@@ -117,5 +117,5 @@ def run_failed_handler(*args, **kwargs):
     logger.info("An error occurred while processing task", task_id=task_id)
 
     with DBConn() as db:
-        update_run_mark_failure(db, kwargs['run_id'])
+        update_run_mark_failure(db, kwargs['run_id'], 'Run failed with an internal server error.')
     logger.warning("Marked run as failure")
