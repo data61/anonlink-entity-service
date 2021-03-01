@@ -22,7 +22,7 @@ RUN apk add --no-cache \
     libstdc++=10.2.1_pre1-r3 \
     mpc1-dev=1.2.0-r0 \
     yajl=2.1.0-r1 \
-    libpq=13.1-r2 \
+    libpq=13.2-r0 \
     openssl-dev=1.1.1j-r0 \
     cargo=1.47.0-r2 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
