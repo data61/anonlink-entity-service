@@ -1147,7 +1147,7 @@ components:
       description: Array of encodings, base64 encoded.
       type: array
       items:
-        - type: string
+          type: string
           format: byte
           description: Base64 encoded CLK data
 
@@ -1158,7 +1158,7 @@ components:
       additionalProperties:
         type: array
         items:
-          - type: string
+            type: string
             description: Block ID
       example:
         "1": ["block1", "block2"]

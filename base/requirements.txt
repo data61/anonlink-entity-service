@@ -20,7 +20,7 @@ opentracing_instrumentation==3.2.1
 psycopg2==2.8.6
 pytest==6.2.2
 pytest-xdist==2.2.1
-PyYAML==5.3
+PyYAML==5.4.1
 redis==3.5.3
 requests==2.25.1
 setproctitle==1.1.10 # used by celery to change process name
