@@ -277,6 +277,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     task_span = compute_filter_similarity.span
 
     def new_child_span(name, parent_scope=None):
+        log.debug(name)
         if parent_scope is None:
             parent_scope = compute_filter_similarity
         return compute_filter_similarity.tracer.start_active_span(name, child_of=parent_scope.span)
@@ -319,6 +320,8 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             enc_dp2_size = len(enc_dp2)
             assert enc_dp1_size > 0, "Zero sized chunk in dp1"
             assert enc_dp2_size > 0, "Zero sized chunk in dp2"
+
+            log.debug("Calling anonlink with encodings", num_encodings_1=enc_dp1_size, num_encodings_2=enc_dp2_size)
             try:
                 sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
                     datasets=(enc_dp1, enc_dp2),

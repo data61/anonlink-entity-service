@@ -9,7 +9,7 @@ from structlog import get_logger
 import opentracing
 
 import entityservice.database as db
-from entityservice.encoding_storage import upload_clk_data_binary, include_encoding_id_in_binary_stream
+from entityservice.encoding_storage import hash_block_name, upload_clk_data_binary, include_encoding_id_in_binary_stream
 from entityservice.tasks import handle_raw_upload, remove_project, pull_external_data_encodings_only, pull_external_data, check_for_executable_runs
 from entityservice.tracing import serialize_span
 from entityservice.utils import safe_fail_request, get_json, generate_code, object_store_upload_path, clks_uploaded_to_project
@@ -401,7 +401,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     #
     # We rewrite all into the "clknblocks" format.
     if "encodings" in clk_json:
-        logger.debug("converting from 'encodings' & 'blocks' format to 'clknblocks'")
+        log.debug("converting from 'encodings' & 'blocks' format to 'clknblocks'")
         clk_json = convert_encoding_upload_to_clknblock(clk_json)
 
     is_valid_clks = not uses_blocking and 'clks' in clk_json
@@ -411,30 +411,31 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
         safe_fail_request(400, message="Missing CLKs information")
 
     filename = Config.RAW_FILENAME_FMT.format(receipt_token)
-    logger.info("Storing user {} supplied {} from json".format(dp_id, element))
+    log.info("Storing user {} supplied {} from json".format(dp_id, element))
 
     with opentracing.tracer.start_span('splitting-json-clks', child_of=parent_span) as span:
         encoding_count = len(clk_json[element])
         span.set_tag(element, encoding_count)
-        logger.debug(f"Received {encoding_count} {element}")
+        log.debug(f"Received {encoding_count} {element}")
 
     if element == 'clks':
-        logger.info("Rewriting provided json into clknsblocks format")
+        log.info("Rewriting provided json into clknsblocks format")
         clk_json = convert_clks_to_clknblocks(clk_json)
         element = 'clknblocks'
 
-    logger.info("Counting block sizes and number of blocks")
+    log.info("Counting block sizes and hashing provided block names")
     # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
     block_sizes = {}
     for _, *elements_blocks in clk_json[element]:
         for el_block in elements_blocks:
-            block_sizes[el_block] = block_sizes.setdefault(el_block, 0) + 1
+            block_id_hash = hash_block_name(el_block)
+            block_sizes[block_id_hash] = block_sizes.setdefault(block_id_hash, 0) + 1
     block_count = len(block_sizes)
 
-    logger.info(f"Received {encoding_count} encodings in {block_count} blocks")
+    log.info(f"Received {encoding_count} encodings in {block_count} blocks")
     if block_count > 20:
         #only log summary of block sizes
-        logger.info(f'info on block sizes. min: {min(block_sizes.values())}, max: {max(block_sizes.values())} mean: {statistics.mean(block_sizes.values())}, median: {statistics.median(block_sizes.values())}')
+        log.info(f'info on block sizes. min: {min(block_sizes.values())}, max: {max(block_sizes.values())} mean: {statistics.mean(block_sizes.values())}, median: {statistics.median(block_sizes.values())}')
     else:
         for block in block_sizes:
             logger.info(f"Block {block} has {block_sizes[block]} elements")
@@ -452,7 +453,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
             tmp.name,
             content_type='application/json'
         )
-    logger.info('Saved uploaded {} JSON to file {} in object store.'.format(element.upper(), filename))
+    log.info('Saved uploaded {} JSON to file {} in object store.'.format(element.upper(), filename))
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
