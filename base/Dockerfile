@@ -28,7 +28,7 @@ RUN apk add --no-cache \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
     g++=10.2.1_pre1-r3 \
-    python3-dev=3.8.7-r1 \
+    python3-3.8.8-r0 \
     yajl-dev=2.1.0-r1 \
     postgresql-dev=13.2-r0 \
     libffi-dev=3.3-r2 \
