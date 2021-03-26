@@ -23,7 +23,7 @@ RUN apk add --no-cache \
     mpc1-dev=1.2.0-r0 \
     yajl=2.1.0-r1 \
     libpq=13.2-r0 \
-    openssl-dev=1.1.1j-r0 \
+    openssl-dev-1.1.1k-r0 \
     cargo=1.47.0-r2 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
