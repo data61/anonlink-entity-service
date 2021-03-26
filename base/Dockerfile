@@ -17,18 +17,18 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 WORKDIR /var/www
 ADD requirements.txt /var/www/requirements.txt
 RUN apk add --no-cache \
-    python3=3.8.7-r1 \
+    python3=3.8.8-r0 \
     py3-pip=20.3.4-r0 \
     libstdc++=10.2.1_pre1-r3 \
     mpc1-dev=1.2.0-r0 \
     yajl=2.1.0-r1 \
     libpq=13.2-r0 \
-    openssl-dev-1.1.1k-r0 \
+    openssl-dev=1.1.1k-r0 \
     cargo=1.47.0-r2 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
     g++=10.2.1_pre1-r3 \
-    python3-3.8.8-r0 \
+    python3-dev=3.8.8-r0 \
     yajl-dev=2.1.0-r1 \
     postgresql-dev=13.2-r0 \
     libffi-dev=3.3-r2 \
