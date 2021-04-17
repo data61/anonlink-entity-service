@@ -140,6 +140,7 @@ def get_encoding_chunks(conn, package, encoding_size=128):
         i = 0
 
         bit_packing_struct = binary_format(encoding_size)
+
         def block_values_iter(values):
             block_id, entity_id, encoding = next(values)
             entity_ids = [entity_id]

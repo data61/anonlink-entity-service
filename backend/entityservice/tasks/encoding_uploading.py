@@ -53,14 +53,17 @@ def pull_external_data(project_id, dp_id,
 
     log.debug("Pulling blocking information from object store")
     response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
-    encoding_to_block_map = json.load(response)['blocks']
+    encoding_to_block_map = {}
+    for k, v in ijson.kvitems(response.data, 'blocks'):
+        log.warning(f"Encoding index: {k}, Blocks: {v}")
+        # k is 0, v is ['3', '0']
+        encoding_to_block_map[str(k)] = list(map(hash_block_name, v))
 
     log.debug("Counting the blocks")
     block_sizes = {}
     for encoding_id in encoding_to_block_map:
         _blocks = encoding_to_block_map[encoding_id]
-        for block_id in _blocks:
-            block_hash = hash_block_name(block_id)
+        for block_hash in _blocks:
             block_sizes[block_hash] = block_sizes.setdefault(block_hash, 0) + 1
 
     block_count = len(block_sizes)
@@ -100,7 +103,7 @@ def pull_external_data(project_id, dp_id,
                 yield (
                     str(encoding_id),
                     binary_formatter.pack(encoding_id, encoding_stream.read(size)),
-                    map(hash_block_name, encoding_to_block_map[str(encoding_id)])
+                    encoding_to_block_map[str(encoding_id)]
                     )
 
         if object_name.endswith('.json'):
@@ -119,7 +122,7 @@ def pull_external_data(project_id, dp_id,
                 log.warning("Failed while adding encodings and associated blocks to db", exc_info=e)
 
                 update_dataprovider_uploaded_state(conn, project_id, dp_id, 'error')
-                log.warning(e)
+                raise e
 
         with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
             update_encoding_metadata(conn, None, dp_id, 'ready')
@@ -146,7 +149,7 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         bucket_name = object_info['bucket']
         object_name = object_info['path']
 
-    log.info("Pulling encoding data from an object store")
+    log.info("Pulling encoding data (with no provided blocks) from an object store")
     env_credentials = parse_minio_credentials({
         'AccessKeyId': config.MINIO_ACCESS_KEY,
         'SecretAccessKey': config.MINIO_SECRET_KEY
@@ -168,7 +171,7 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
 
     # # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
-        logger.info("All parties data present. Scheduling any queued runs")
+        log.info("All parties data present. Scheduling any queued runs")
         check_for_executable_runs.delay(project_id, serialize_span(parent_span))
 
 
