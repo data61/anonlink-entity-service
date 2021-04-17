@@ -377,7 +377,7 @@ def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
 
     cur = db.cursor()
     sql_query = """
-    SELECT  encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
+    SELECT encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
     FROM encodingblocks, encodings
     WHERE
       encodingblocks.dp = {} AND

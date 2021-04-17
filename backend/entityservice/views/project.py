@@ -1,3 +1,5 @@
+import os
+
 from io import BytesIO
 import json
 import tempfile
@@ -10,9 +12,11 @@ import opentracing
 
 import entityservice.database as db
 from entityservice.encoding_storage import hash_block_name, upload_clk_data_binary, include_encoding_id_in_binary_stream
-from entityservice.tasks import handle_raw_upload, remove_project, pull_external_data_encodings_only, pull_external_data, check_for_executable_runs
+from entityservice.tasks import handle_raw_upload, remove_project, pull_external_data_encodings_only, \
+    pull_external_data, check_for_executable_runs
 from entityservice.tracing import serialize_span
-from entityservice.utils import safe_fail_request, get_json, generate_code, object_store_upload_path, clks_uploaded_to_project
+from entityservice.utils import fmt_bytes, safe_fail_request, get_json, generate_code, object_store_upload_path, \
+    clks_uploaded_to_project
 from entityservice.database import DBConn, get_project_column
 from entityservice.views.auth_checks import abort_if_project_doesnt_exist, abort_if_invalid_dataprovider_token, \
     abort_if_invalid_results_token, get_authorization_token_type_or_abort, abort_if_inconsistent_upload
@@ -25,7 +29,6 @@ from entityservice.views.util import bind_log_and_span, convert_clks_to_clknbloc
     convert_encoding_upload_to_clknblock
 
 logger = get_logger()
-
 
 
 def projects_get():
@@ -390,7 +393,6 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
             else:
                 raise NotImplementedError("Don't currently handle combination of external encodings and blocks")
 
-
         return
 
     # Convert uploaded JSON to common schema.
@@ -423,14 +425,16 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
         clk_json = convert_clks_to_clknblocks(clk_json)
         element = 'clknblocks'
 
-    log.info("Counting block sizes and hashing provided block names")
-    # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
-    block_sizes = {}
-    for _, *elements_blocks in clk_json[element]:
-        for el_block in elements_blocks:
-            block_id_hash = hash_block_name(el_block)
-            block_sizes[block_id_hash] = block_sizes.setdefault(block_id_hash, 0) + 1
-    block_count = len(block_sizes)
+    with opentracing.tracer.start_span('Counting block sizes and hashing provided block names', child_of=parent_span) as span:
+        log.info("Counting block sizes and hashing provided block names")
+        # {'clknblocks': [['UG9vcA==', '001', '211'], [...]]}
+        block_sizes = {}
+        for _, *elements_blocks in clk_json[element]:
+            for el_block in elements_blocks:
+                block_id_hash = hash_block_name(el_block)
+                block_sizes[block_id_hash] = block_sizes.setdefault(block_id_hash, 0) + 1
+        block_count = len(block_sizes)
+        span.set_tag('block-count', block_count)
 
     log.info(f"Received {encoding_count} encodings in {block_count} blocks")
     if block_count > 20:
@@ -444,8 +448,10 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
     tmp = tempfile.NamedTemporaryFile(mode='w')
     json.dump(clk_json, tmp)
     tmp.flush()
+    clk_filesize = os.stat(tmp.name).st_size
     with opentracing.tracer.start_span('save-clk-file-to-quarantine', child_of=parent_span) as span:
         span.set_tag('filename', filename)
+        span.set_tag('filesize', fmt_bytes(clk_filesize))
         mc = connect_to_object_store()
         mc.fput_object(
             Config.MINIO_BUCKET,
@@ -453,7 +459,8 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
             tmp.name,
             content_type='application/json'
         )
-    log.info('Saved uploaded {} JSON to file {} in object store.'.format(element.upper(), filename))
+
+    log.info('Saved uploaded {} JSON of {} to file {} in object store.'.format(element.upper(), fmt_bytes(clk_filesize), filename))
 
     with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
         with DBConn() as conn:
