@@ -52,17 +52,16 @@ def pull_external_data(project_id, dp_id,
         mc = connect_to_object_store(env_credentials)
 
     log.debug("Pulling blocking information from object store")
+
     response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
+    log.debug("Counting the blocks and hashing block names")
+    block_sizes = {}
     encoding_to_block_map = {}
     for k, v in ijson.kvitems(response.data, 'blocks'):
         log.warning(f"Encoding index: {k}, Blocks: {v}")
         # k is 0, v is ['3', '0']
-        encoding_to_block_map[str(k)] = list(map(hash_block_name, v))
-
-    log.debug("Counting the blocks")
-    block_sizes = {}
-    for encoding_id in encoding_to_block_map:
-        _blocks = encoding_to_block_map[encoding_id]
+        _blocks = list(map(hash_block_name, v))
+        encoding_to_block_map[str(k)] = _blocks
         for block_hash in _blocks:
             block_sizes[block_hash] = block_sizes.setdefault(block_hash, 0) + 1
 

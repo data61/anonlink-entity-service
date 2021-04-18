@@ -1,3 +1,5 @@
+import time
+
 from pathlib import Path
 import io
 
@@ -46,3 +48,12 @@ class TestEncodingStorage:
         assert len(encodings[0]) == 8
         assert hash_block_name(large_block_name) in blocks[0]
 
+    def test_hash_block_names_speed(self):
+        timeout = 10
+        input_strings = [str(i) for i in range(1_000_000)]
+        start_time = time.time()
+
+        for i, input_str in enumerate(input_strings):
+            hash_block_name(input_str)
+            if i % 10_000 == 0:
+                assert time.time() <= (start_time + timeout)
