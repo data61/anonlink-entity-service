@@ -166,7 +166,7 @@ def create_project_upload_fake_data(
     data = generate_overlapping_clk_data(
         sizes, overlap=overlap, encoding_size=encoding_size)
     new_project_data, json_responses = create_project_upload_data(
-        requests, data, result_type=result_type)
+        requests, data, result_type=result_type, uses_blocking=uses_blocking)
     assert len(json_responses) == len(sizes)
     return new_project_data, json_responses
 
@@ -178,7 +178,7 @@ def create_project_upload_data(
 
     number_parties = len(data)
     new_project_data = create_project_no_data(
-        requests, result_type=result_type, number_parties=number_parties, uses_blocking=False)
+        requests, result_type=result_type, number_parties=number_parties, uses_blocking=uses_blocking)
 
     upload_url = url + f'/projects/{new_project_data["project_id"]}/{"binary" if binary else ""}clks'
     json_responses = []

@@ -16,7 +16,7 @@ jaeger-client==4.4.0
 marshmallow==3.6.1
 minio==7.0.2
 opentracing==2.3.0
-opentracing_instrumentation==3.2.1
+opentracing_instrumentation==3.3.1
 psycopg2==2.8.6
 pytest==6.2.2
 pytest-xdist==2.2.1

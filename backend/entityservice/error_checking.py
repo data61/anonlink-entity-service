@@ -1,9 +1,12 @@
+from structlog import get_logger
 from textwrap import dedent
 
 from entityservice.database import DBConn, get_project_schema_encoding_size, get_filter_metadata, \
     update_encoding_metadata
 from entityservice.settings import Config as config
 from entityservice.tasks import delete_minio_objects
+
+logger = get_logger()
 
 
 class InvalidEncodingError(ValueError):
@@ -22,6 +25,7 @@ def check_dataproviders_encoding(project_id, encoding_size):
         """))
     with DBConn() as db:
         project_encoding_size = get_project_schema_encoding_size(db, project_id)
+        logger.debug(f"Project encoding size is {project_encoding_size}")
     if project_encoding_size is not None and encoding_size != project_encoding_size:
         raise InvalidEncodingError(dedent(f"""User provided encodings were an invalid size
         Expected {project_encoding_size} but got {encoding_size}.
