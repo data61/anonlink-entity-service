@@ -65,6 +65,7 @@ class RunStatus(Schema):
 class completed(RunStatus):
     time_started = fields.DateTime(format='iso8601', required=True)
     time_completed = fields.DateTime(format='iso8601', required=True)
+    total_number_comparisons = fields.Integer(required=True)
 
 
 class queued(RunStatus):
