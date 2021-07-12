@@ -58,7 +58,6 @@ def pull_external_data(project_id, dp_id,
     block_sizes = {}
     encoding_to_block_map = {}
     for k, v in ijson.kvitems(response.data, 'blocks'):
-        log.warning(f"Encoding index: {k}, Blocks: {v}")
         # k is 0, v is ['3', '0']
         _blocks = list(map(hash_block_name, v))
         encoding_to_block_map[str(k)] = _blocks
