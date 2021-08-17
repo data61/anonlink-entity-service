@@ -1,7 +1,7 @@
 apiVersion: v2
 name: entity-service
 appVersion: 1.14.0
-version: 1.14.0
+version: 1.14.1
 description: Privacy preserving record linkage service
 type: application
 sources:
@@ -22,6 +22,6 @@ dependencies:
     repository: https://helm.min.io/
     condition: provision.minio
   - name: postgresql
-    version: 8.9.1
+    version: 10.9.2
     repository: https://charts.bitnami.com/bitnami
     condition: provision.postgresql
