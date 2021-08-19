@@ -437,10 +437,11 @@ def _merge_files(mc, log, file0, file1):
             (file0_stream, file1_stream), sizes=(filesize0, filesize1))
     merged_file_name = Config.SIMILARITY_SCORES_FILENAME_FMT.format(
             generate_code(12))
-    merged_file_stream = iterable_to_stream(merged_file_iter)
+    merged_file_stream = iterable_to_stream(_unique_values_iter(merged_file_iter))
     try:
+        # as we don't know the file size because we removed duplicates, we just do a multipart upload of 100MB junks.
         mc.put_object(Config.MINIO_BUCKET, merged_file_name,
-                      merged_file_stream, merged_file_size)
+                      merged_file_stream, length=-1, part_size=100*1024*1024)
     except MinioException:
         log.warning("Failed to store merged result in minio.")
         raise
@@ -449,6 +450,17 @@ def _merge_files(mc, log, file0, file1):
         log.warning(f"Failed to delete result file "
                     f"{del_err.object_name}. {del_err}")
     return total_num, merged_file_size, merged_file_name
+
+
+def _unique_values_iter(iterable):
+    """ yields only the unique values of a **sorted** iterable """
+    it = iter(iterable)
+    previous = next(it)
+    yield previous
+    for item in it:
+        if item != previous:
+            previous = item
+            yield item
 
 
 @celery.task(
@@ -494,7 +506,7 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
 
     (merged_num, merged_filesize, merged_filename), = files
     log.info(f"Similarity score results in {merged_filename} in bucket "
-             f"{Config.MINIO_BUCKET} take up {merged_filesize} bytes.")
+             f"{Config.MINIO_BUCKET} may take up up to {merged_filesize} bytes.")
 
     with DBConn() as db:
         result_type = get_project_column(db, project_id, 'result_type')
