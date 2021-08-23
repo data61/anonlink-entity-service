@@ -1,3 +1,5 @@
+from hashlib import blake2b
+
 import math
 from collections import defaultdict
 from itertools import zip_longest
@@ -33,12 +35,12 @@ def stream_json_clksnblocks(f):
     }
 
     :param f: JSON file containing clksnblocks data.
-    :return: Generator of (entity_id, base64 encoding, list of blocks)
+    :return: Generator of (entity_id, base64 encoding, iterable of hashed block names)
     """
     # At some point the user may supply the entity id. For now we use the order of uploaded encodings.
     for i, obj in enumerate(ijson.items(f, 'clknblocks.item')):
         b64_encoding, *blocks = obj
-        yield i, deserialize_bytes(b64_encoding), blocks
+        yield i, deserialize_bytes(b64_encoding), map(hash_block_name, blocks)
 
 
 def convert_encodings_from_base64_to_binary(encodings: Iterator[Tuple[str, str, List[str]]]):
@@ -94,8 +96,9 @@ def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, Lis
 
     for group in _grouper(encodings, n=_estimate_group_size(encoding_size)):
         encoding_ids, encodings, blocks = _transpose(group)
-        assert len(blocks) == len(encodings)
-        assert len(encoding_ids) == len(encodings)
+        assert len(blocks) == len(encodings), "Block length and encoding length don't match"
+        assert len(encoding_ids) == len(encodings), "Length of encoding ids and encodings don't match"
+        logger.debug("Processing group", num_encoding_ids=len(encoding_ids), num_blocks=len(blocks))
         insert_encodings_into_blocks(conn, dp_id, block_names=blocks, entity_ids=encoding_ids, encodings=encodings)
 
 
@@ -137,6 +140,7 @@ def get_encoding_chunks(conn, package, encoding_size=128):
         i = 0
 
         bit_packing_struct = binary_format(encoding_size)
+
         def block_values_iter(values):
             block_id, entity_id, encoding = next(values)
             entity_ids = [entity_id]
@@ -224,13 +228,16 @@ def include_encoding_id_in_json_stream(stream, size, count):
     """
     binary_formatter = binary_format(size)
 
-
     def encoding_iterator(filter_stream):
         # Assumes encoding id and block info not provided (yet)
         for entity_id, encoding in zip(range(count), filter_stream):
             yield str(entity_id), binary_formatter.pack(entity_id, deserialize_bytes(encoding)), [DEFAULT_BLOCK_ID]
 
-
     return encoding_iterator(stream)
 
 
+def hash_block_name(provided_block_name):
+    block_hmac_instance = blake2b(digest_size=32)
+    block_hmac_instance.update(str(provided_block_name).encode())
+    provided_block_name = block_hmac_instance.hexdigest()
+    return provided_block_name

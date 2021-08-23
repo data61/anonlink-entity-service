@@ -4,6 +4,7 @@ import os
 import anonlink
 import pytest
 
+from bitarray import bitarray
 from e2etests.util import create_project_upload_data, post_run, get_run_result, delete_project
 
 
@@ -14,13 +15,15 @@ from e2etests.util import create_project_upload_data, post_run, get_run_result, 
 @pytest.fixture
 def the_truth(scope='module'):
     threshold = 0.8
-    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testdata/febrl4_clks_and_truth.pkl'), 'rb') as f:
+    with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'testdata/febrl4_clks_and_truth.pkl'), 'rb') as f:
         # load prepared clks and ground truth from file
         filters_a, filters_b, entity_ids_a, entity_ids_b, clks_a, clks_b = pickle.load(f)
+        filters_a = [bitarray(bits) for bits in filters_a]
+        filters_b = [bitarray(bits) for bits in filters_b]
         # compute similarity scores with anonlink
         candidate_pairs = anonlink.candidate_generation.find_candidate_pairs(
             (filters_a, filters_b),
-            anonlink.similarities.dice_coefficient_accelerated,
+            anonlink.similarities.dice_coefficient,
             threshold,
             k=len(filters_a))
         sims, _, (rec_is_a, rec_is_b) = candidate_pairs

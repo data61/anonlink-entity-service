@@ -272,7 +272,7 @@ def download_file_if_not_present(url_base, local_base, filename):
     if os.path.exists(local_path):
         logger.debug(f'Skipping already downloaded file: {filename}')
     else:
-        logger.info(f'Downloading {filename} to {local_base}')
+        logger.info(f'Downloading {filename} from {url_base} to {local_base}')
         response = requests.get(url_base + filename, stream=True)
         assert response.status_code == 200, f"{response.status_code} was not 200"
 

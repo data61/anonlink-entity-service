@@ -3,7 +3,8 @@ import ijson
 from requests.structures import CaseInsensitiveDict
 
 from entityservice.database import *
-from entityservice.encoding_storage import stream_json_clksnblocks, convert_encodings_from_base64_to_binary, \
+from entityservice.encoding_storage import hash_block_name, stream_json_clksnblocks, \
+    convert_encodings_from_base64_to_binary, \
     store_encodings_in_db, upload_clk_data_binary, include_encoding_id_in_binary_stream, \
     include_encoding_id_in_json_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
@@ -51,16 +52,17 @@ def pull_external_data(project_id, dp_id,
         mc = connect_to_object_store(env_credentials)
 
     log.debug("Pulling blocking information from object store")
-    response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
-    encoding_to_block_map = json.load(response)['blocks']
 
-    log.debug("Counting the blocks")
+    response = mc.get_object(bucket_name=blocks_object_info['bucket'], object_name=blocks_object_info['path'])
+    log.debug("Counting the blocks and hashing block names")
     block_sizes = {}
-    for encoding_id in encoding_to_block_map:
-        _blocks = encoding_to_block_map[encoding_id]
-        for block_id in _blocks:
-            block_id = str(block_id)
-            block_sizes[block_id] = block_sizes.setdefault(block_id, 0) + 1
+    encoding_to_block_map = {}
+    for k, v in ijson.kvitems(response.data, 'blocks'):
+        # k is 0, v is ['3', '0']
+        _blocks = list(map(hash_block_name, v))
+        encoding_to_block_map[str(k)] = _blocks
+        for block_hash in _blocks:
+            block_sizes[block_hash] = block_sizes.setdefault(block_hash, 0) + 1
 
     block_count = len(block_sizes)
     log.debug(f"Processing {block_count} blocks")
@@ -103,9 +105,11 @@ def pull_external_data(project_id, dp_id,
                     )
 
         if object_name.endswith('.json'):
+            log.info("Have json file of encodings")
             encodings_stream = ijson.items(io.BytesIO(encodings_stream.data), 'clks.item')
             encoding_generator = ijson_encoding_iterator(encodings_stream)
         else:
+            log.info("Have binary file of encodings")
             encoding_generator = encoding_iterator(encodings_stream)
 
         with opentracing.tracer.start_span('upload-encodings-to-db', child_of=parent_span):
@@ -113,8 +117,10 @@ def pull_external_data(project_id, dp_id,
             try:
                 store_encodings_in_db(conn, dp_id, encoding_generator, size)
             except Exception as e:
+                log.warning("Failed while adding encodings and associated blocks to db", exc_info=e)
+
                 update_dataprovider_uploaded_state(conn, project_id, dp_id, 'error')
-                log.warning(e)
+                raise e
 
         with opentracing.tracer.start_span('update-encoding-metadata', child_of=parent_span):
             update_encoding_metadata(conn, None, dp_id, 'ready')
@@ -141,7 +147,7 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         bucket_name = object_info['bucket']
         object_name = object_info['path']
 
-    log.info("Pulling encoding data from an object store")
+    log.info("Pulling encoding data (with no provided blocks) from an object store")
     env_credentials = parse_minio_credentials({
         'AccessKeyId': config.MINIO_ACCESS_KEY,
         'SecretAccessKey': config.MINIO_SECRET_KEY
@@ -153,15 +159,17 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
     size = int(stat_metadata['X-Amz-Meta-Hash-Size'])
 
     if object_name.endswith('.json'):
+        log.info("treating file as json")
         encodings_stream = ijson.items(io.BytesIO(stream.data), 'clks.item')
         converted_stream = include_encoding_id_in_json_stream(encodings_stream, size, count)
     else:
+        log.info("treating file as binary")
         converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=parent_span)
 
     # # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
-        logger.info("All parties data present. Scheduling any queued runs")
+        log.info("All parties data present. Scheduling any queued runs")
         check_for_executable_runs.delay(project_id, serialize_span(parent_span))
 
 
@@ -200,9 +208,10 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     # As this is the first time we've seen the encoding size actually uploaded from this data provider
     # We check it complies with the project encoding size.
     try:
+        log.info(f"checking that {encoding_size} is okay for this project")
         check_dataproviders_encoding(project_id, encoding_size)
     except InvalidEncodingError as e:
-        log.warning(e.args[0])
+        log.warning("Encoding size doesn't seem right")
         handle_invalid_encoding_data(project_id, dp_id)
 
     with DBConn() as conn:

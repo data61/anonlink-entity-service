@@ -377,7 +377,7 @@ def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
 
     cur = db.cursor()
     sql_query = """
-    SELECT  encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
+    SELECT encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
     FROM encodingblocks, encodings
     WHERE
       encodingblocks.dp = {} AND
@@ -473,7 +473,7 @@ def get_similarity_scores_filename(db, run_id):
 
 def get_run_status(db, run_id):
     sql_query = """
-            SELECT state, stage, type, time_added, time_started, time_completed
+            SELECT state, stage, type, time_added, time_started, time_completed, error_msg
             FROM runs
             WHERE
               run_id = %s

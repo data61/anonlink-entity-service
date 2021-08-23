@@ -69,10 +69,11 @@ def get(project_id, run_id):
     if state == 'completed':
         status["time_started"] = run_status['time_started']
         status["time_completed"] = run_status['time_completed']
+        status["total_number_comparisons"] = progress_cache.get_total_number_of_comparisons(project_id)
         return completed().dump(status)
     elif state == 'running' or state == 'queued' or state == 'created':
         status["time_started"] = run_status['time_started']
         return running().dump(status)
     elif state == 'error':
-        log.warning('handling the run status for state "error" is not implemented')
+        status['message'] = run_status['error_msg']
         return error().dump(status)

@@ -1,6 +1,6 @@
 # This Dockerfile does not anything. It only pulls the required dependencies to be able to build the documentation when creating the frontend image.
 # If updated, it needs to be pushed manually to dockerhub.
-FROM python:3.7
+FROM python:3.8
 
 MAINTAINER "Brian Thorne <brian.thorne@data61.csiro.au>"
 USER root
