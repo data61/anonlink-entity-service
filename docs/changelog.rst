@@ -7,6 +7,7 @@ Changelog
 Next Version
 ------------
 
+
 Version 1.15.0
 ---------------
 
@@ -39,6 +40,7 @@ The run status endpoint now includes `total_number_of_comparisons` for completed
 Implemented in: #651
 
 As usual lots of version upgrades - now using the latest stable redis and postgresql.
+
 
 Version 1.14.0
 ---------------

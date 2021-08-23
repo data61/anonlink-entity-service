@@ -442,6 +442,7 @@ def _merge_files(mc, log, file0, file1):
         # as we don't know the file size because we removed duplicates, we just do a multipart upload of 100MB junks.
         mc.put_object(Config.MINIO_BUCKET, merged_file_name,
                       merged_file_stream, length=-1, part_size=100*1024*1024)
+
     except MinioException:
         log.warning("Failed to store merged result in minio.")
         raise
