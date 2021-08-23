@@ -23,7 +23,7 @@ def the_truth(scope='module'):
         # compute similarity scores with anonlink
         candidate_pairs = anonlink.candidate_generation.find_candidate_pairs(
             (filters_a, filters_b),
-            anonlink.similarities.dice_coefficient_accelerated,
+            anonlink.similarities.dice_coefficient,
             threshold,
             k=len(filters_a))
         sims, _, (rec_is_a, rec_is_b) = candidate_pairs

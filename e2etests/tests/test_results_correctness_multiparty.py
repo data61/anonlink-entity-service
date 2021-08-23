@@ -21,7 +21,7 @@ def test_groups_correctness(requests):
 
     candidate_pairs = anonlink.candidate_generation.find_candidate_pairs(
         filters,
-        anonlink.similarities.dice_coefficient_accelerated,
+        anonlink.similarities.dice_coefficient,
         THRESHOLD)
     true_groups = anonlink.solving.greedy_solve(candidate_pairs)
 

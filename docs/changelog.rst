@@ -7,6 +7,38 @@ Changelog
 Next Version
 ------------
 
+Version 1.15.0
+---------------
+
+Highlights
+~~~~~~~~~~
+
+**Similarity scores are deduplicated**
+
+Previously candidate pairs that appear in more than one block would produce more than one similarity score.
+The iterator that processing similarity scores now de-duplicates before storing them.
+
+Implemented in: #660
+
+**Provided Block Identifiers are now hashed**
+
+We now hash the user provided block identifier before storing in DB.
+
+Implemented in: #633
+
+**Failed runs return message indicating the failure reason**
+
+The run status for a failed run now includes a `message` attribute with information on what went wrong.
+
+Implemented in: #624
+
+Other changes
+~~~~~~~~~~~~~
+
+The run status endpoint now includes `total_number_of_comparisons` for completed runs.
+Implemented in: #651
+
+As usual lots of version upgrades - now using the latest stable redis and postgresql.
 
 Version 1.14.0
 ---------------

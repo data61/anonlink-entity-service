@@ -1,7 +1,7 @@
 apiVersion: v2
 name: entity-service
-appVersion: 1.14.0
-version: 1.14.1
+appVersion: 1.15.0
+version: 1.15.0
 description: Privacy preserving record linkage service
 type: application
 sources:
