@@ -22,7 +22,7 @@ pytest==6.2.2
 pytest-xdist==2.2.1
 PyYAML==5.4.1
 redis==3.5.3
-requests==2.25.1
+requests==2.26.0
 setproctitle==1.2.2 # used by celery to change process name
 structlog==20.1.0
 SQLAlchemy==1.4.23
