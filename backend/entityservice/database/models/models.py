@@ -13,6 +13,7 @@ class Encoding(Base):
 
     encoding_id = Column(BigInteger, primary_key=True)
     encoding = Column(LargeBinary, nullable=False)
+    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'))
 
 
 class Metric(Base):
