@@ -34,6 +34,7 @@ def delete_project_data(conn, project_id):
     This is very manual, looking forward to https://github.com/n1analytics/entity-service/issues/133
     """
     log = logger.bind(pid=project_id)
+    dp_ids = get_dataprovider_ids(conn, project_id)
     # Note the first context manager begins a database transaction
     with conn:
         with conn.cursor() as cur:
@@ -63,11 +64,9 @@ def delete_project_data(conn, project_id):
                     permutation_masks.project =  %s
                 """, [project_id])
             log.debug("delete dataproviders with all associated encodings, blocks and upload data.")
-            dp_ids = get_dataprovider_ids(cur, project_id)
             cur.execute("""
                 DELETE
                 FROM dataproviders
                 WHERE
                     id in ({})""".format(','.join(map(str, dp_ids))))
         log.debug("Committing removal of project resource")
-
