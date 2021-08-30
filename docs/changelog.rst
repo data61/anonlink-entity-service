@@ -7,6 +7,10 @@ Changelog
 Next Version
 ------------
 
+**Delete encodings from database at project deletion**
+
+Encodings will be deleted at project deletion, but only for projects created with this version or higher.
+
 Version 1.15.0
 ---------------
 
