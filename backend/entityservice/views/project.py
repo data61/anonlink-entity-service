@@ -339,7 +339,7 @@ def authorise_get_request(project_id):
 def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses_blocking, parent_span):
     """
     Take user provided upload information - accepting multiple formats - and eventually
-    injest into the database.
+    ingest into the database.
 
     Encodings uploaded directly in the JSON are first quarantined in the object store,
     and a background task deserializes them.
