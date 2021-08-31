@@ -6,6 +6,11 @@ Changelog
 
 Next Version
 ------------
+**fixed Record Linkage API tutorial**
+
+Adjusted to changes in the clkhash library.
+
+Implemented in #684
 
 **Delete encodings from database at project deletion**
 
