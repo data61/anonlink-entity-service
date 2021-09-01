@@ -1,4 +1,4 @@
-FROM alpine:3.14.1
+FROM alpine:3.14.2
 
 ENV DOCKERIZE_VERSION v0.6.1
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
@@ -23,7 +23,7 @@ RUN apk add --no-cache \
     mpc1-dev=1.2.1-r0 \
     yajl=2.1.0-r1 \
     libpq=13.4-r0 \
-    openssl-dev=1.1.1k-r0 \
+    openssl-dev=1.1.1l-r0 \
     cargo=1.52.1-r1 && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apk add --no-cache --virtual .build-deps \
