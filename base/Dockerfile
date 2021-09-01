@@ -35,6 +35,7 @@ RUN apk add --no-cache \
     gmp-dev=6.2.1-r0 \
     mpfr-dev=4.1.0-r0 \
     wait4ports=0.3.3-r0 \
+
     git && \
     pip install setuptools wheel && \
     python -m pip install --upgrade pip && \

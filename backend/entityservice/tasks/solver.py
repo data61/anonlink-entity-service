@@ -31,6 +31,7 @@ def solver_task(similarity_scores_filename, project_id, run_id, dataset_sizes, p
             with DBConn() as conn:
                 update_run_mark_failure(conn, run_id,
                                         "Attempting to solve with more than the global limit of candidate pairs.")
+
             return
 
         log.info("Calculating the optimal mapping from similarity matrix")
