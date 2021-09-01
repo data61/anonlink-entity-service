@@ -356,7 +356,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
 
     if "encodings" in clk_json and 'file' in clk_json['encodings']:
         # external encodings
-        log.info("External encodings uploaded")
+        log.info("Encodings uploaded via the object store")
         encoding_object_info = clk_json['encodings']['file']
         object_name = encoding_object_info['path']
         _check_object_path_allowed(project_id, dp_id, object_name, log)

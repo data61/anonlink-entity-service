@@ -9,7 +9,7 @@ from entityservice.encoding_storage import hash_block_name, stream_json_clksnblo
     include_encoding_id_in_json_stream
 from entityservice.error_checking import check_dataproviders_encoding, handle_invalid_encoding_data, \
     InvalidEncodingError
-from entityservice.object_store import connect_to_object_store, stat_and_stream_object, parse_minio_credentials
+from entityservice.object_store import connect_to_object_store, stat_and_stream_object, delete_object_store_files
 from entityservice.serialization import binary_format, deserialize_bytes
 from entityservice.settings import Config
 from entityservice.async_worker import celery
@@ -31,6 +31,7 @@ def pull_external_data(project_id, dp_id,
 
     - pull blocking map into memory, create blocks in db
     - stream encodings into DB and add encoding + blocks from in memory dict.
+    - delete files on object store
 
     :param project_id: identifier for the project
     :param dp_id:
@@ -39,17 +40,14 @@ def pull_external_data(project_id, dp_id,
     :param receipt_token: token used to insert into database
 
     """
-    env_credentials = parse_minio_credentials({
-        'AccessKeyId': config.MINIO_ACCESS_KEY,
-        'SecretAccessKey': config.MINIO_SECRET_KEY
-    })
     log = logger.bind(pid=project_id, dp_id=dp_id)
+    mc = connect_to_object_store()
+
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.info("Project deleted, stopping immediately")
+            delete_object_store_files(mc, [encoding_object_info, blocks_object_info])
             return
-
-        mc = connect_to_object_store(env_credentials)
 
     log.debug("Pulling blocking information from object store")
 
@@ -71,7 +69,7 @@ def pull_external_data(project_id, dp_id,
     bucket_name = encoding_object_info['bucket']
     object_name = encoding_object_info['path']
 
-    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
+    stat, encodings_stream = stat_and_stream_object(bucket_name, object_name)
     stat_metadata = CaseInsensitiveDict(stat.metadata)
     count = int(stat_metadata['X-Amz-Meta-Hash-Count'])
     size = int(stat_metadata['X-Amz-Meta-Hash-Size'])
@@ -126,6 +124,7 @@ def pull_external_data(project_id, dp_id,
             update_encoding_metadata(conn, None, dp_id, 'ready')
             update_blocks_state(conn, dp_id, block_sizes.keys(), 'ready')
 
+    delete_object_store_files(mc, [encoding_object_info, blocks_object_info])
     # # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
         logger.info("All parties data present. Scheduling any queued runs")
@@ -135,24 +134,20 @@ def pull_external_data(project_id, dp_id,
 @celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
 def pull_external_data_encodings_only(project_id, dp_id, object_info, credentials, receipt_token, parent_span=None):
     """
-
+    for now, we only pull from the entity service's object store.
     """
     log = logger.bind(pid=project_id, dp_id=dp_id)
 
     with DBConn() as conn:
         if not check_project_exists(conn, project_id):
             log.info("Project deleted, stopping immediately")
+            delete_object_store_files(connect_to_object_store(), [object_info])
             return
 
-        bucket_name = object_info['bucket']
-        object_name = object_info['path']
+    bucket_name = object_info['bucket']
+    object_name = object_info['path']
 
-    log.info("Pulling encoding data (with no provided blocks) from an object store")
-    env_credentials = parse_minio_credentials({
-        'AccessKeyId': config.MINIO_ACCESS_KEY,
-        'SecretAccessKey': config.MINIO_SECRET_KEY
-    })
-    stat, stream = stat_and_stream_object(bucket_name, object_name, env_credentials)
+    stat, stream = stat_and_stream_object(bucket_name, object_name)
     stat_metadata = CaseInsensitiveDict(stat.metadata)
 
     count = int(stat_metadata['X-Amz-Meta-Hash-Count'])
@@ -167,6 +162,7 @@ def pull_external_data_encodings_only(project_id, dp_id, object_info, credential
         converted_stream = include_encoding_id_in_binary_stream(stream, size, count)
     upload_clk_data_binary(project_id, dp_id, converted_stream, receipt_token, count, size, parent_span=parent_span)
 
+    delete_object_store_files(connect_to_object_store(), [object_info])
     # # Now work out if all parties have added their data
     if clks_uploaded_to_project(project_id):
         log.info("All parties data present. Scheduling any queued runs")
