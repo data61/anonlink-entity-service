@@ -8,6 +8,32 @@ Next Version
 ------------
 
 
+Version 1.15.1
+--------------
+
+**Dependency updates**
+
+Implemented in #687
+
+**Delete upload files on object store after ingestion**
+
+If a data provider uploads its data via the object store, we now clean up afterwards.
+
+Implemented in #686
+
+**Fixed Record Linkage API tutorial**
+
+Adjusted to changes in the clkhash library.
+
+Implemented in #684
+
+**Delete encodings from database at project deletion**
+
+Encodings will be deleted at project deletion, but only for projects created with this version or higher.
+
+Implemented in #683
+
+
 Version 1.15.0
 ---------------
 

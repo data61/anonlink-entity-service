@@ -1,3 +1,5 @@
+from typing import List
+
 import minio
 from minio.credentials import Credentials
 from minio.deleteobjects import DeleteObject
@@ -68,8 +70,8 @@ def create_bucket(minio_client, bucket):
             logger.info("The bucket {} was not created.".format(bucket))
 
 
-def stat_and_stream_object(bucket_name, object_name, credentials=None):
-    mc = connect_to_object_store(credentials)
+def stat_and_stream_object(bucket_name, object_name):
+    mc = connect_to_object_store()
     logger.debug("Checking object exists in object store")
     stat = mc.stat_object(bucket_name=bucket_name, object_name=object_name)
     logger.debug("Retrieving file from object store")
@@ -93,3 +95,15 @@ def delete_object_store_folder(mc, bucket_name, path):
     objects_to_delete = [DeleteObject(x.object_name) for x in objects_to_delete]
     for del_err in mc.remove_objects(bucket_name, objects_to_delete):
         logger.warning("Deletion Error: {}".format(del_err))
+
+
+def delete_object_store_files(mc, object_infos: List):
+    """ An object info is a dict which contains entries for 'path' and 'bucket'"""
+    for object_info in object_infos:
+        path = object_info.get('path')
+        bucket = object_info.get('bucket')
+        try:
+            mc.remove_object(bucket, path)
+            logger.info(f"Deleted file {bucket}/{path} after db ingestion.")
+        except Exception as e:
+            logger.warning(f"Could not delete file {path} in bucket {bucket} on object store: {e}")

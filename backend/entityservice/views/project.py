@@ -339,7 +339,7 @@ def authorise_get_request(project_id):
 def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses_blocking, parent_span):
     """
     Take user provided upload information - accepting multiple formats - and eventually
-    injest into the database.
+    ingest into the database.
 
     Encodings uploaded directly in the JSON are first quarantined in the object store,
     and a background task deserializes them.
@@ -356,7 +356,7 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
 
     if "encodings" in clk_json and 'file' in clk_json['encodings']:
         # external encodings
-        log.info("External encodings uploaded")
+        log.info("Encodings uploaded via the object store")
         encoding_object_info = clk_json['encodings']['file']
         object_name = encoding_object_info['path']
         _check_object_path_allowed(project_id, dp_id, object_name, log)
