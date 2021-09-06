@@ -1,4 +1,4 @@
-alembic==1.6.5
+alembic==1.7.1
 anonlink==0.14.2
 anonlink-client==0.1.5
 bitarray-hardbyte==1.6.2
