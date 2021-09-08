@@ -78,5 +78,8 @@ def delete_project_data_tables(conn, dp_ids):
 
     with conn.cursor() as cur:
         for dp_id in dp_ids:
-            cur.execute(f"DROP TABLE encodingblocks_{dp_id};")
-            cur.execute(f"DROP TABLE encodings_{dp_id};")
+            try:
+                cur.execute(f"DROP TABLE encodingblocks_{dp_id};")
+                cur.execute(f"DROP TABLE encodings_{dp_id};")
+            except Exception as e:
+                log.warn(f"error deleting project data tables: {e}")

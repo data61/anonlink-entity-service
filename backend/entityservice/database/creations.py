@@ -22,7 +22,6 @@ def create_data_tables(conn, dp_ids):
                     entity_id INTEGER, 
                     encoding_id BIGINT, 
                     block_id INTEGER, 
-                    FOREIGN KEY(block_id) REFERENCES blocks (block_id), 
                     FOREIGN KEY(encoding_id) REFERENCES encodings_{dp_id} (encoding_id)
                 );
             """)
