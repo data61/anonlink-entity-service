@@ -95,20 +95,20 @@ def insert_encodings_into_blocks(db, dp_id: int, block_names: List[List[str]], e
     block_info_iter = get_block_metadata(db, dp_id)
     block_lookup = {bl_name: bl_id for bl_name, bl_id, _ in block_info_iter}
 
-    encodings_insertion_query = "INSERT INTO encodings (encoding_id, encoding, dp) VALUES %s"
-    blocks_insertion_query = "INSERT INTO encodingblocks (dp, entity_id, encoding_id, block_id) VALUES %s"
+    encodings_insertion_query = f"INSERT INTO encodings_{dp_id} (encoding_id, encoding) VALUES %s"
+    blocks_insertion_query = f"INSERT INTO encodingblocks_{dp_id} (entity_id, encoding_id, block_id) VALUES %s"
     # we differentiate between entity_id and encoding_id.
     # The entity_id is the id that the dataprovider assigns to an entity. Usually the row number of that entity in the
     # dataset.
     # The encoding_id is used internally to address encodings uniquely.
 
     encoding_ids = compute_encoding_ids(map(int, entity_ids), dp_id)
-    encoding_data = ((eid, encoding, dp_id) for eid, encoding in zip(encoding_ids, encodings))
+    encoding_data = ((eid, encoding) for eid, encoding in zip(encoding_ids, encodings))
 
     def block_data_generator(entity_ids, encoding_ids, block_ids):
         for en_id, eid, block_ids in zip(entity_ids, encoding_ids, block_ids):
             for block_id in block_ids:
-                yield dp_id, en_id, eid, block_lookup[block_id]
+                yield en_id, eid, block_lookup[block_id]
 
     with db.cursor() as cur:
         with opentracing.tracer.start_span('insert-encodings-to-db'):

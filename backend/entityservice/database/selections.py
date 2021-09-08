@@ -288,21 +288,20 @@ def get_encodingblock_ids(db, dp_id, block_id=None, offset=0, limit=None):
     """Yield all entity ids in either a single block, or all blocks for a given data provider."""
     sql_query = """
         SELECT entity_id 
-        FROM encodingblocks
-        WHERE dp = %(dp_id)s
+        FROM encodingblocks_{}
         {}
         ORDER BY
           entity_ID ASC
         OFFSET %(offset)s
         LIMIT %(limit)s
-        """.format("AND block_id = %(block_id)s" if block_id else "")
+        """.format(dp_id, "WHERE block_id = %(block_id)s" if block_id else "")
     # Specifying a name for the cursor creates a server-side cursor, which prevents all of the
     # records from being downloaded at once.
     cur_name = f'encodingblockfetcher-{dp_id}'
     if block_id:
         cur_name = f'encodingblockfetcher-{dp_id}-{block_id}'
     cur = db.cursor(cur_name)
-    args = {'dp_id': dp_id, 'block_id': block_id, 'offset': offset, 'limit': limit}
+    args = {'block_id': block_id, 'offset': offset, 'limit': limit}
     cur.execute(sql_query, args)
     yield from iterate_cursor_results(cur)
 
@@ -364,12 +363,10 @@ def get_chunk_of_encodings(db, dp_id, entity_ids, stored_binary_size=132):
 
     sql_query = """
     SELECT encoding
-    FROM encodings
-    WHERE encodings.encoding_id in ({})
+    FROM encodings_{}
+    WHERE encodings_{}.encoding_id in ({})
     ORDER BY encoding_id ASC
-    """.format(
-        ','.join(map(str, compute_encoding_ids(entity_ids, dp_id)))
-    )
+    """.format(dp_id, dp_id, ','.join(map(str, compute_encoding_ids(entity_ids, dp_id))))
     yield from execute_select_query_in_binary(cur, sql_query)
 
 
@@ -377,15 +374,14 @@ def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
 
     cur = db.cursor()
     sql_query = """
-    SELECT encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
-    FROM encodingblocks, encodings
+    SELECT encodingblocks_{}.block_id, encodingblocks_{}.entity_id, encodings_{}.encoding 
+    FROM encodingblocks_{}, encodings_{}
     WHERE
-      encodingblocks.dp = {} AND
-      encodingblocks.encoding_id = encodings.encoding_id AND 
-      encodingblocks.block_id IN ({})
+      encodingblocks_{}.encoding_id = encodings_{}.encoding_id AND 
+      encodingblocks_{}.block_id IN ({})
     ORDER BY
         block_id asc, entity_id asc
-    """.format(dp_id, ",".join(map(lambda s: f"'{s}'", block_ids)))
+    """.format(dp_id, dp_id, dp_id, dp_id, dp_id, dp_id, dp_id, dp_id,",".join(map(lambda s: f"'{s}'", block_ids)))
 
     for row in execute_select_query_in_binary(cur, sql_query):
         if len(row) != 3:

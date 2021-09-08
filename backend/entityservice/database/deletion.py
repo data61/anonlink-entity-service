@@ -70,3 +70,13 @@ def delete_project_data(conn, project_id):
                 WHERE
                     id in ({})""".format(','.join(map(str, dp_ids))))
         log.debug("Committing removal of project resource")
+
+
+def delete_project_data_tables(conn, dp_ids):
+    log = logger.bind(dp_ids=dp_ids)
+    log.info(f'dropping encodings and encodingblocks tables for dps: {dp_ids}')
+
+    with conn.cursor() as cur:
+        for dp_id in dp_ids:
+            cur.execute(f"DROP TABLE encodingblocks_{dp_id};")
+            cur.execute(f"DROP TABLE encodings_{dp_id};")
