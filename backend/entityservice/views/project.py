@@ -56,7 +56,8 @@ def projects_post(project):
     log.info("Adding new project to database")
     try:
         with DBConn() as conn:
-            project_model.save(conn)
+            dp_ids = project_model.save(conn)
+            db.create_partitions(conn, dp_ids)
     except Exception as e:
         log.warn(e)
         safe_fail_request(500, 'Problem creating new project')
