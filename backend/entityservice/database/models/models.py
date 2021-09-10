@@ -10,10 +10,12 @@ from entityservice.database.base_class import Base
 
 class Encoding(Base):
     __tablename__ = 'encodings'
-
+    __table_args__ = {
+        'postgresql_partition_by': 'LIST (dp)'
+    }
     encoding_id = Column(BigInteger, primary_key=True)
     encoding = Column(LargeBinary, nullable=False)
-    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'))
+    dp = Column(Integer, nullable=False, primary_key=True)
 
 
 class Metric(Base):
@@ -181,11 +183,13 @@ class Upload(Base):
     dataprovider = relationship('Dataprovider')
 
 
-t_encodingblocks = Table(
-    'encodingblocks',
-    Base.metadata,
-    Column('dp', ForeignKey('dataproviders.id', ondelete='CASCADE')),
-    Column('entity_id', Integer),
-    Column('encoding_id', ForeignKey('encodings.encoding_id', ondelete='CASCADE'), index=True),
-    Column('block_id', ForeignKey('blocks.block_id'), index=True)
-)
+class EncodingBlocks(Base):
+    __tablename__ = 'encodingblocks'
+    __table_args__ = {
+        'postgresql_partition_by': 'LIST (dp)'
+    }
+    dp = Column(Integer, nullable=False, primary_key=True)
+    entity_id = Column(Integer)
+    encoding_id = Column(BigInteger, index=True, primary_key=True)
+    block_id = Column(ForeignKey('blocks.block_id'), index=True)
+
