@@ -166,4 +166,9 @@ def downgrade():
     op.drop_table('projects')
     op.drop_table('metrics')
     op.drop_table('encodings')
+
+    op.execute("DROP TYPE mappingresult")
+    op.execute("DROP TYPE uploadedstate")
+    op.execute("DROP TYPE runstate")
+    op.execute("DROP TYPE processedstate")
     # ### end Alembic commands ###
