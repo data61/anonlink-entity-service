@@ -63,7 +63,16 @@ def delete_project_data(conn, project_id):
                 WHERE
                     permutation_masks.project =  %s
                 """, [project_id])
-            log.debug("delete dataproviders with all associated encodings, blocks and upload data.")
+
+            for dp_id in dp_ids:
+                cur.execute(f"""
+                    DROP TABLE encodingblocks_{dp_id}
+                    """)
+                cur.execute(f"""
+                    DROP TABLE encodings_{dp_id}
+                    """)
+
+            log.debug("delete dataproviders with all associated blocks and upload data.")
             cur.execute("""
                 DELETE
                 FROM dataproviders
