@@ -17,6 +17,18 @@ depends_on = None
 
 
 def upgrade():
+
+    op.drop_constraint('fk_encoding_dp', 'encodings', type_='foreignkey')
+    op.drop_constraint('encodingblocks_encoding_id_fkey', 'encodingblocks', type_='foreignkey')
+    op.drop_table('encodings')
+    op.create_table('encodings',
+                    sa.Column('encoding_id', sa.BigInteger(), nullable=False),
+                    sa.Column('encoding', sa.LargeBinary(), nullable=False),
+                    sa.Column('dp', sa.Integer(), nullable=False),
+                    sa.PrimaryKeyConstraint('encoding_id', 'dp'),
+                    postgresql_partition_by='LIST (dp)'
+                    )
+
     op.drop_index(op.f('ix_encodingblocks_encoding_id'), table_name='encodingblocks')
     op.drop_index(op.f('ix_encodingblocks_block_id'), table_name='encodingblocks')
     op.drop_table('encodingblocks')
@@ -26,21 +38,12 @@ def upgrade():
                     sa.Column('encoding_id', sa.BigInteger(), nullable=False),
                     sa.Column('block_id', sa.Integer(), nullable=True),
                     sa.ForeignKeyConstraint(['block_id'], ['blocks.block_id'], ),
-                    sa.PrimaryKeyConstraint('dp', 'encoding_id'),
                     postgresql_partition_by='LIST (dp)'
                     )
     op.create_index(op.f('ix_encodingblocks_block_id'), 'encodingblocks', ['block_id'], unique=False)
     op.create_index(op.f('ix_encodingblocks_encoding_id'), 'encodingblocks', ['encoding_id'], unique=False)
 
-    op.drop_constraint('fk_encoding_dp', 'encodings', type_='foreignkey')
-    op.drop_table('encodings')
-    op.create_table('encodings',
-                    sa.Column('encoding_id', sa.BigInteger(), nullable=False),
-                    sa.Column('encoding', sa.LargeBinary(), nullable=False),
-                    sa.Column('dp', sa.Integer(), nullable=False),
-                    sa.PrimaryKeyConstraint('encoding_id', 'dp'),
-                    postgresql_partition_by='LIST (dp)'
-                    )
+
     # ### end Alembic commands ###
 
 def downgrade():

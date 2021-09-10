@@ -183,13 +183,12 @@ class Upload(Base):
     dataprovider = relationship('Dataprovider')
 
 
-class EncodingBlocks(Base):
-    __tablename__ = 'encodingblocks'
-    __table_args__ = {
-        'postgresql_partition_by': 'LIST (dp)'
-    }
-    dp = Column(Integer, nullable=False, primary_key=True)
-    entity_id = Column(Integer)
-    encoding_id = Column(BigInteger, index=True, primary_key=True)
-    block_id = Column(ForeignKey('blocks.block_id'), index=True)
-
+t_encodingblocks = Table(
+    'encodingblocks',
+    Base.metadata,
+    Column('dp', Integer, nullable=False),
+    Column('entity_id', Integer),
+    Column('encoding_id', ForeignKey('encodings.encoding_id'), index=True),
+    Column('block_id', ForeignKey('blocks.block_id'), index=True),
+    postgresql_partition_by="LIST (dp)"
+)
