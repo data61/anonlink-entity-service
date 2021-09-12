@@ -9,7 +9,7 @@ from entityservice.database import insert_comparison_rate
 @celery.task(ignore_result=True)
 def calculate_comparison_rate():
     with DBConn() as dbinstance:
-        logger.info("Calculating global comparison rate")
+        logger.debug("Calculating global comparison rate")
 
         total_comparisons = 0
         total_time = timedelta(0)
@@ -26,7 +26,7 @@ def calculate_comparison_rate():
         if total_time.total_seconds() > 0:
             rate = total_comparisons/total_time.total_seconds()
             logger.info("Total comparisons: {}".format(total_comparisons))
-            logger.info("Total time:        {}".format(total_time.total_seconds()))
+            logger.info("Total time:        {:.1f}".format(total_time.total_seconds()))
             logger.info("Comparison rate:   {:.0f}".format(rate))
 
             with dbinstance.cursor() as cur:

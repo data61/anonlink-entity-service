@@ -25,7 +25,7 @@ def remove_project(project_id, parent_span=None):
         log.debug("Setting run status as 'deleted'")
         for run in run_objects:
             set_run_state_deleted(run_id=run['run_id'])
-        log.debug("Deleting project resourced from database")
+        log.debug("Deleting project resources from database")
         db.delete_project_data(conn, project_id)
         log.debug("Getting object store files associated with project from database")
         object_store_files = db.get_all_objects_for_project(conn, project_id)

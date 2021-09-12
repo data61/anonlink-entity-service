@@ -65,6 +65,13 @@ def delete_project_data(conn, project_id):
                 """, [project_id])
 
             for dp_id in dp_ids:
+                cur.execute(f"""select 
+                pg_size_pretty(pg_table_size('encodings_{dp_id}')),
+                pg_size_pretty(pg_table_size('encodingblocks_{dp_id}'));
+                """)
+                encoding_size, encoding_block_size = cur.fetchone()
+                log.debug(f"Deleting {encoding_size} encodings and {encoding_block_size} blocks", dp_id=dp_id)
+
                 cur.execute(f"""
                     DROP TABLE encodingblocks_{dp_id}
                     """)
