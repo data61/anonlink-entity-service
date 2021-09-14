@@ -35,7 +35,23 @@ def delete_project_data(conn, project_id):
     """
     log = logger.bind(pid=project_id)
     dp_ids = get_dataprovider_ids(conn, project_id)
+
+    # We need to detach the partitions first, as detaching and then dropping does not need an ACCESS EXCLUSIVE LOCK on
+    # the partition parent table.
+    # We do this in its own transactions as we want to hog the advisory lock as little as possible.
     # Note the first context manager begins a database transaction
+    with conn:
+        with conn.cursor() as cur:
+            log.info("try to acquire lock from db")
+            sql = "SELECT pg_advisory_xact_lock(42)"
+            cur.execute(sql)
+            for dp_id in dp_ids:
+                cur.execute(f"""
+                    ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}
+                    """)
+                cur.execute(f"""
+                    ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}
+                    """)
     with conn:
         with conn.cursor() as cur:
             log.debug("Beginning db transaction to remove result data associated with project")
@@ -71,13 +87,8 @@ def delete_project_data(conn, project_id):
                 """)
                 encoding_size, encoding_block_size = cur.fetchone()
                 log.debug(f"Deleting {encoding_size} encodings and {encoding_block_size} blocks", dp_id=dp_id)
-
-                cur.execute(f"""
-                    DROP TABLE encodingblocks_{dp_id}
-                    """)
-                cur.execute(f"""
-                    DROP TABLE encodings_{dp_id}
-                    """)
+                cur.execute(f"DROP TABLE encodingblocks_{dp_id}")
+                cur.execute(f"DROP TABLE encodings_{dp_id}")
 
             log.debug("delete dataproviders with all associated blocks and upload data.")
             cur.execute("""
