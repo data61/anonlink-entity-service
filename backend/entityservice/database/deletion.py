@@ -40,18 +40,23 @@ def delete_project_data(conn, project_id):
     # the partition parent table.
     # We do this in its own transactions as we want to hog the advisory lock as little as possible.
     # Note the first context manager begins a database transaction
-    with conn:
-        with conn.cursor() as cur:
-            log.info("try to acquire lock for encodingblocks and encodings from db")
-            cur.execute("SELECT pg_advisory_xact_lock(42)")
-            for dp_id in dp_ids:
-                cur.execute(f"""
-                    ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}
-                    """)
-                cur.execute(f"""
-                    ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}
-                    """)
-            log.info("got it. Erase!")
+    def _execute_transaction_with_advisory_lock(sql_stmts, lock_id):
+        with conn:
+            with conn.cursor() as cur:
+                log.info(f"try to acquire advisory lock {lock_id}")
+                log.info(f"got it lock {lock_id}")
+                cur.execute("SELECT pg_advisory_xact_lock(42)")
+                for stmt in sql_stmts:
+                    cur.execute(stmt)
+
+    # detaching partitions of encodingblocks and encodings
+    _execute_transaction_with_advisory_lock(
+        [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids], 42)
+    _execute_transaction_with_advisory_lock(
+        [f"ALTER TABLE encodingblocks_{dp_id} DROP CONSTRAINT encodingblocks_block_id_fkey" for dp_id in dp_ids], 42)
+    _execute_transaction_with_advisory_lock(
+        [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
+
     with conn:
         with conn.cursor() as cur:
             log.debug("Beginning db transaction to remove result data associated with project")
