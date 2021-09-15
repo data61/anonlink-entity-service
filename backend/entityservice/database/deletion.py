@@ -53,8 +53,6 @@ def delete_project_data(conn, project_id):
     _execute_transaction_with_advisory_lock(
         [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids], 42)
     _execute_transaction_with_advisory_lock(
-        [f"ALTER TABLE encodingblocks_{dp_id} DROP CONSTRAINT encodingblocks_block_id_fkey" for dp_id in dp_ids], 42)
-    _execute_transaction_with_advisory_lock(
         [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
 
     with conn:
