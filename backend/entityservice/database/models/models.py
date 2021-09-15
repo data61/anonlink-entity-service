@@ -188,7 +188,7 @@ t_encodingblocks = Table(
     Base.metadata,
     Column('dp', Integer, nullable=False),
     Column('entity_id', Integer),
-    Column('encoding_id', ForeignKey('encodings.encoding_id'), index=True),
-    Column('block_id', ForeignKey('blocks.block_id'), index=True),
+    Column('encoding_id', BigInteger, index=True),
+    Column('block_id', Integer, index=True),
     postgresql_partition_by="LIST (dp)"
 )
