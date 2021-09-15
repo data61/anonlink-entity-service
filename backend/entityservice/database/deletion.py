@@ -42,9 +42,10 @@ def delete_project_data(conn, project_id):
     # Note the first context manager begins a database transaction
     with conn:
         with conn.cursor() as cur:
-            log.info("try to acquire lock from db")
-            sql = "SELECT pg_advisory_xact_lock(42)"
-            cur.execute(sql)
+            log.info("try to acquire lock for encodingblocks and encodings from db")
+            cur.execute("SELECT pg_advisory_xact_lock(42)")
+            cur.execute("LOCK TABLE encodingblocks IN ROW EXCLUSIVE MODE")
+            cur.execute("LOCK TABLE encodings IN ROW EXCLUSIVE MODE")
             for dp_id in dp_ids:
                 cur.execute(f"""
                     ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}
@@ -52,6 +53,7 @@ def delete_project_data(conn, project_id):
                 cur.execute(f"""
                     ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}
                     """)
+            log.info("got it. Erase!")
     with conn:
         with conn.cursor() as cur:
             log.debug("Beginning db transaction to remove result data associated with project")
