@@ -44,8 +44,8 @@ def delete_project_data(conn, project_id):
         with conn:
             with conn.cursor() as cur:
                 log.info(f"try to acquire advisory lock {lock_id}")
-                log.info(f"got it lock {lock_id}")
                 cur.execute("SELECT pg_advisory_xact_lock(42)")
+                log.info(f"got it lock {lock_id}")
                 for stmt in sql_stmts:
                     cur.execute(stmt)
 
