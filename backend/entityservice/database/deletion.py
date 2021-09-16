@@ -38,9 +38,9 @@ def delete_project_data(conn, project_id):
 
     # We need to detach the partitions first, as detaching and then dropping does not need an ACCESS EXCLUSIVE LOCK on
     # the partition parent table.
-    # We do this in its own transactions as we want to hog the advisory lock as little as possible.
-    # Note the first context manager begins a database transaction
+
     def _execute_transaction_with_advisory_lock(sql_stmts, lock_id):
+        # Note the first context manager begins a database transaction
         with conn:
             with conn.cursor() as cur:
                 log.info(f"try to acquire advisory lock {lock_id}")
@@ -49,11 +49,19 @@ def delete_project_data(conn, project_id):
                 for stmt in sql_stmts:
                     cur.execute(stmt)
 
-    # detaching partitions of encodingblocks and encodings
+    # detaching and dropping partitions of encodingblocks and encodings
     _execute_transaction_with_advisory_lock(
-        [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids], 42)
+        [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids] +
+        [f"DROP TABLE encodings_{dp_id}" for dp_id in dp_ids], 42)
+    # detaching the encodingblocks partition can create a deadlock. As encodingsblocks has a foreign key to the blocks
+    # table, it will first lock encodingblocks and then try to lock the blocks table. This competes with
+    # - inserting into encodingblocks will first lock blocks and then tries to lock encodingblocks...
+    # - delete from dataproviders also first locks the blocks table and then tries to lock the encodingblocks table.
+    # Therefore, we explicitly request the lock on the blocks tables first before altering encodingblocks.
     _execute_transaction_with_advisory_lock(
-        [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
+        ["LOCK TABLE blocks IN SHARE ROW EXCLUSIVE MODE"] +
+        [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids] +
+        [f"DROP TABLE encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
 
     with conn:
         with conn.cursor() as cur:
@@ -82,16 +90,6 @@ def delete_project_data(conn, project_id):
                 WHERE
                     permutation_masks.project =  %s
                 """, [project_id])
-
-            for dp_id in dp_ids:
-                cur.execute(f"""select 
-                pg_size_pretty(pg_table_size('encodings_{dp_id}')),
-                pg_size_pretty(pg_table_size('encodingblocks_{dp_id}'));
-                """)
-                encoding_size, encoding_block_size = cur.fetchone()
-                log.debug(f"Deleting {encoding_size} encodings and {encoding_block_size} blocks", dp_id=dp_id)
-                cur.execute(f"DROP TABLE encodingblocks_{dp_id}")
-                cur.execute(f"DROP TABLE encodings_{dp_id}")
 
             log.debug("delete dataproviders with all associated blocks and upload data.")
             cur.execute("""
