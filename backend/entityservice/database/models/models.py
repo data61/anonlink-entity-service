@@ -80,7 +80,7 @@ class Run(Base):
 
     id = Column(Integer, primary_key=True)
     run_id = Column(CHAR(48), nullable=False, unique=True)
-    project = Column(ForeignKey('projects.project_id', ondelete='CASCADE'))
+    project = Column(ForeignKey('projects.project_id', ondelete='CASCADE'), index=True)
     name = Column(Text)
     notes = Column(Text)
     threshold = Column(Float(53), nullable=False)
@@ -107,7 +107,7 @@ class Block(Base):
         Index('blocks_dp_block_name_idx', 'dp', 'block_name'),
     )
 
-    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'))
+    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'), index=True)
     block_name = Column(CHAR(64), nullable=False)
     block_id = Column(Integer, primary_key=True)
     count = Column(Integer, nullable=False)
@@ -172,7 +172,7 @@ class Upload(Base):
 
     id = Column(Integer, primary_key=True)
     ts = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
-    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'))
+    dp = Column(ForeignKey('dataproviders.id', ondelete='CASCADE'), index=True)
     token = Column(CHAR(48), nullable=False, unique=True)
     file = Column(CHAR(64))
     state = Column(Enum(UploadState, name='processedstate'), nullable=False)
@@ -188,7 +188,7 @@ t_encodingblocks = Table(
     Base.metadata,
     Column('dp', Integer, nullable=False),
     Column('entity_id', Integer),
-    Column('encoding_id', BigInteger, index=True),
-    Column('block_id', Integer, index=True),
+    Column('encoding_id', BigInteger, nullable=False, index=True),
+    Column('block_id', ForeignKey('blocks.block_id'), nullable=False, index=True),
     postgresql_partition_by="LIST (dp)"
 )
