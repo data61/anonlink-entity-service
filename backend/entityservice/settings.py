@@ -3,6 +3,14 @@ Config shared between the application backend and the celery workers.
 """
 import datetime
 import os
+import ast
+
+
+def _parse_if_string(obj_as_string):
+    if isinstance(obj_as_string, str):
+        return ast.literal_eval(obj_as_string)
+    else:
+        return obj_as_string
 
 
 class Config(object):
@@ -72,7 +80,7 @@ class Config(object):
         #'entityservice.tasks.comparing.create_comparison_jobs': {'rate_limit': '1/m'}
     }
 
-    CELERY_ROUTES = {
+    default_routes = {
         'entityservice.tasks.comparing.create_comparison_jobs': {'queue': 'celery'},
         'entityservice.tasks.comparing.compute_filter_similarity': {'queue': 'compute'},
         'entityservice.tasks.comparing.aggregate_comparisons': {'queue': 'highmemory'},
@@ -80,6 +88,7 @@ class Config(object):
         'entityservice.tasks.permutation.save_and_permute': {'queue': 'highmemory'},
         'entityservice.tasks.encoding_uploading.handle_raw_upload': {'queue': 'celery'}
     }
+    CELERY_ROUTES = _parse_if_string(os.getenv("CELERY_ROUTES", default_routes))
 
     CELERYD_PREFETCH_MULTIPLIER = int(os.getenv('CELERYD_PREFETCH_MULTIPLIER', '1'))
     CELERYD_MAX_TASKS_PER_CHILD = int(os.getenv('CELERYD_MAX_TASKS_PER_CHILD', '2048'))
@@ -111,3 +120,6 @@ class Config(object):
     # Encoding size (in bytes)
     MIN_ENCODING_SIZE = int(os.getenv('MIN_ENCODING_SIZE', '1'))
     MAX_ENCODING_SIZE = int(os.getenv('MAX_ENCODING_SIZE', '1024'))
+
+
+
