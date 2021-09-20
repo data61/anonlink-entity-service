@@ -49,19 +49,17 @@ def delete_project_data(conn, project_id):
                 for stmt in sql_stmts:
                     cur.execute(stmt)
 
-    # detaching and dropping partitions of encodingblocks and encodings
+    # detaching partitions of encodingblocks and encodings first such that we can drop tables without having to worry
+    # about locks
     _execute_transaction_with_advisory_lock(
-        [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids] +
-        [f"DROP TABLE encodings_{dp_id}" for dp_id in dp_ids], 42)
+        [f"ALTER TABLE encodings DETACH PARTITION encodings_{dp_id}" for dp_id in dp_ids], 42)
     # detaching the encodingblocks partition can create a deadlock. As encodingsblocks has a foreign key to the blocks
     # table, it will first lock encodingblocks and then try to lock the blocks table. This competes with
     # - inserting into encodingblocks will first lock blocks and then tries to lock encodingblocks...
     # - delete from dataproviders also first locks the blocks table and then tries to lock the encodingblocks table.
     # Therefore, we explicitly request the lock on the blocks tables first before altering encodingblocks.
     _execute_transaction_with_advisory_lock(
-        ["LOCK TABLE blocks IN SHARE ROW EXCLUSIVE MODE"] +
-        [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids] +
-        [f"DROP TABLE encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
+        [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
 
     with conn:
         with conn.cursor() as cur:
@@ -97,4 +95,7 @@ def delete_project_data(conn, project_id):
                 FROM dataproviders
                 WHERE
                     id in ({})""".format(','.join(map(str, dp_ids))))
+            for dp_id in dp_ids:
+                cur.execute(f"DROP TABLE encodings_{dp_id}")
+                cur.execute(f"DROP TABLE encodingblocks_{dp_id}")
         log.debug("Committing removal of project resource")
