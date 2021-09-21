@@ -43,11 +43,12 @@ def delete_project_data(conn, project_id):
         # Note the first context manager begins a database transaction
         with conn:
             with conn.cursor() as cur:
-                log.info(f"try to acquire advisory lock {lock_id}")
-                cur.execute("SELECT pg_advisory_xact_lock(42)")
-                log.info(f"got it lock {lock_id}")
+                #log.info(f"try to acquire advisory lock {lock_id}")
+                #cur.execute(f"SELECT pg_advisory_xact_lock({lock_id})")
+                #log.info(f"got it lock {lock_id}")
                 for stmt in sql_stmts:
                     cur.execute(stmt)
+                #log.info(f'releasing lock {lock_id}')
 
     # detaching partitions of encodingblocks and encodings first such that we can drop tables without having to worry
     # about locks
@@ -60,6 +61,7 @@ def delete_project_data(conn, project_id):
     # Therefore, we explicitly request the lock on the blocks tables first before altering encodingblocks.
     _execute_transaction_with_advisory_lock(
         [f"ALTER TABLE encodingblocks DETACH PARTITION encodingblocks_{dp_id}" for dp_id in dp_ids], 42)
+    log.info("detached partitions from encodings and encodingblocks table")
 
     with conn:
         with conn.cursor() as cur:
