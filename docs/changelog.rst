@@ -6,7 +6,9 @@ Changelog
 
 Next Version
 ------------
+**Custom Celery Routes**
 
+Added support to customise the celery routing with environment variable `CELERY_ROUTES`.
 
 Version 1.15.1
 --------------
