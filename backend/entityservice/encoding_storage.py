@@ -93,7 +93,7 @@ def store_encodings_in_db(conn, dp_id, encodings: Iterator[Tuple[str, bytes, Lis
     """
     Group encodings + blocks into database transactions and execute.
     """
-
+    db.create_partitions(conn, dp_id)
     for group in _grouper(encodings, n=_estimate_group_size(encoding_size)):
         encoding_ids, encodings, blocks = _transpose(group)
         assert len(blocks) == len(encodings), "Block length and encoding length don't match"
