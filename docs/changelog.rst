@@ -6,13 +6,24 @@ Changelog
 
 Next Version
 ------------
+**Custom Celery Routes**
+
+Added support to customise the celery routing with environment variable `CELERY_ROUTES`.
+
+Version 1.15.1
+--------------
+
+**Dependency updates**
+
+Implemented in #687
+
 **Delete upload files on object store after ingestion**
 
 If a data provider uploads its data via the object store, we now clean up afterwards.
 
 Implemented in #686
 
-**fixed Record Linkage API tutorial**
+**Fixed Record Linkage API tutorial**
 
 Adjusted to changes in the clkhash library.
 

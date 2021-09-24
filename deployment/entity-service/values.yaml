@@ -6,7 +6,12 @@ rbac:
 anonlink:
 
   ## Set arbitrary environment variables for the API and Workers.
-  config: {}
+  config: {
+            ## e.g.: to control which task is added to which celery worker queue.
+            ## CELERY_ROUTES: "{
+            ## 'entityservice.tasks.comparing.create_comparison_jobs': { 'queue': 'highmemory' }, ...
+            ## }"
+  }
 
   objectstore:
     ## Settings for uploads via Object Store
@@ -82,7 +87,7 @@ api:
 
     image:
       repository: data61/anonlink-nginx
-      tag: "v1.4.7"
+      tag: "v1.4.9"
       # pullPolicy: Always
       pullPolicy: IfNotPresent
 
@@ -99,7 +104,7 @@ api:
   app:
     image:
       repository: data61/anonlink-app
-      tag: "v1.14.0"
+      tag: "v1.15.1"
       pullPolicy: IfNotPresent
 
 
@@ -118,7 +123,7 @@ api:
     ## Database init runs migrations after install and upgrade
     image:
       repository: data61/anonlink-app
-      tag: "v1.14.0"
+      tag: "v1.15.1"
 
     ## Ref: http://kubernetes.io/docs/user-guide/compute-resources/
     resources:
@@ -209,7 +214,7 @@ workers:
 
   image:
     repository: "data61/anonlink-app"
-    tag: "v1.14.0"
+    tag: "v1.15.1"
     pullPolicy: Always
 
   ## The initial number of workers for this deployment
@@ -252,7 +257,7 @@ workers:
   CACHE_EXPIRY_SECONDS: "2592000"
 
   ## Specific configuration for celery
-  ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,
+  ## Note that these configurations are the same for a "normal" worker, and a "highmemory" one,
   ## except for the requested resources and replicaCount which can differ.
   celery:
     ## Number of fork worker celery node will have. It is recommended to use the same concurrency
