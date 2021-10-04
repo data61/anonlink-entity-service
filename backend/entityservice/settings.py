@@ -32,6 +32,7 @@ class Config(object):
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
     REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false').lower() == "true"
     REDIS_SENTINEL_NAME = os.getenv('REDIS_SENTINEL_NAME', 'mymaster')
+    REDIS_SOCKET_TIMEOUT = float(os.getenv('REDIS_SOCKET_TIMEOUT', '5.0'))
 
     MINIO_SERVER = os.getenv('MINIO_SERVER', 'minio:9000')
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')

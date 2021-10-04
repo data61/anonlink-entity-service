@@ -8,6 +8,7 @@ logger = structlog.get_logger()
 redis_host = config.REDIS_SERVER
 redis_pass = config.REDIS_PASSWORD
 redis_sentinel_port = 26379
+redis_socket_timeout = config.REDIS_SOCKET_TIMEOUT
 
 
 def connect_to_redis(read_only=False):
@@ -17,14 +18,15 @@ def connect_to_redis(read_only=False):
     """
     logger.debug("Connecting to redis", server=redis_host, port=redis_sentinel_port)
     if config.REDIS_USE_SENTINEL:
-        sentinel_service = Sentinel([(redis_host, redis_sentinel_port)], password=redis_pass, socket_timeout=5)
+        sentinel_service = Sentinel(
+            [(redis_host, redis_sentinel_port)], password=redis_pass, socket_timeout=redis_socket_timeout)
         sentinel_name = config.REDIS_SENTINEL_NAME
         if read_only:
             logger.debug("Looking up read only redis slave using sentinel protocol")
-            r = sentinel_service.slave_for(sentinel_name)
+            r = sentinel_service.slave_for(sentinel_name, socket_timeout=redis_socket_timeout)
         else:
             logger.debug("Looking up redis master using sentinel protocol")
-            r = sentinel_service.master_for(sentinel_name)
+            r = sentinel_service.master_for(sentinel_name, socket_timeout=redis_socket_timeout)
     else:
-        r = redis.StrictRedis(host=redis_host, password=redis_pass)
+        r = redis.StrictRedis(host=redis_host, password=redis_pass, socket_timeout=redis_socket_timeout)
     return r
