@@ -7,6 +7,7 @@ from copy import deepcopy
 
 from minio.deleteobjects import DeleteObject
 from minio.error import MinioException
+from tenacity import retry, wait_random_exponential, retry_if_exception_type, stop_after_delay
 
 import anonlink
 import minio
@@ -398,22 +399,30 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
             else:
                 return 0, None, None
 
-            result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(generate_code(12))
             task_span.log_kv({"edges": num_results})
+
+            result_filename = Config.SIMILARITY_SCORES_FILENAME_FMT.format(generate_code(12))
             log.info("Writing {} intermediate results to file: {}".format(num_results, result_filename))
 
-            mc = connect_to_object_store()
-            try:
-                mc.put_object(Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
-            except minio.S3Error as err:
-                log.warning("Failed to store result in minio: {}".format(err))
-                raise
+            _save_comparison_results_to_object_store(merged_file_iter, merged_file_size, result_filename, log)
 
         return num_results, merged_file_size, result_filename
     except Exception as e:
         if not isinstance(e, (InactiveRun,)):
             log.info("Caught exception, retrying in 5 seconds", exc_info=e)
             compute_filter_similarity.retry(countdown=5)
+
+
+@retry(wait=wait_random_exponential(multiplier=1, max=60),
+       retry=(retry_if_exception_type(minio.S3Error) | retry_if_exception_type(ConnectionError) | retry_if_exception_type(TimeoutError)),
+       stop=stop_after_delay(120))
+def _save_comparison_results_to_object_store(file_iter, file_size, file_name, log):
+    mc = connect_to_object_store()
+    try:
+        mc.put_object(Config.MINIO_BUCKET, file_name, file_iter, file_size)
+    except minio.S3Error as err:
+        log.warning("Failed to store result in minio", exc_info=err)
+        raise
 
 
 def _put_placeholder_empty_file(mc, log):
