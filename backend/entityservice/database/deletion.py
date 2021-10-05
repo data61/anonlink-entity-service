@@ -63,10 +63,12 @@ def delete_project_data(conn, project_id):
                 WHERE
                     permutation_masks.project =  %s
                 """, [project_id])
+
             log.debug("delete dataproviders with all associated encodings, blocks and upload data.")
             cur.execute("""
                 DELETE
                 FROM dataproviders
                 WHERE
-                    id in ({})""".format(','.join(map(str, dp_ids))))
+                    id = ANY(%s)""", (dp_ids,)
+            )
         log.debug("Committing removal of project resource")
