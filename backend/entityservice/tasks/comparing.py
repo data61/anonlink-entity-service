@@ -2,7 +2,7 @@ import array
 import heapq
 import itertools
 import operator
-import random
+
 from copy import deepcopy
 
 from minio.deleteobjects import DeleteObject
@@ -26,7 +26,7 @@ from entityservice.database import (
 from entityservice.models.run import progress_run_stage as progress_stage
 from entityservice.object_store import connect_to_object_store
 from entityservice.settings import Config
-from entityservice.tasks.base_task import TracedTask, celery_bug_fix, run_failed_handler, BaseTask
+from entityservice.tasks.base_task import TracedTask, celery_bug_fix, run_failed_handler
 from entityservice.tasks.solver import solver_task
 from entityservice.tasks import mark_run_complete
 from entityservice.tasks.assert_valid_run import assert_valid_run
