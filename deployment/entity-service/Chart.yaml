@@ -1,7 +1,7 @@
 apiVersion: v2
 name: entity-service
 appVersion: 1.15.1
-version: 1.15.1
+version: 1.15.2
 description: Privacy preserving record linkage service
 type: application
 sources:
@@ -14,7 +14,7 @@ maintainers:
 icon: https://s3-us-west-2.amazonaws.com/slack-files2/avatars/2016-04-11/33560836053_df0d62a81bf32f53df00_72.png
 dependencies:
   - name: redis-ha
-    version: 4.10.5
+    version: 4.14.6
     repository: https://dandydeveloper.github.io/charts
     condition: provision.redis
   - name: minio
@@ -22,6 +22,6 @@ dependencies:
     repository: https://helm.min.io/
     condition: provision.minio
   - name: postgresql
-    version: 10.9.2
+    version: 10.12.0
     repository: https://charts.bitnami.com/bitnami
     condition: provision.postgresql
