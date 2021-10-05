@@ -404,8 +404,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
 
             mc = connect_to_object_store()
             try:
-                mc.put_object(
-                    Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
+                mc.put_object(Config.MINIO_BUCKET, result_filename, merged_file_iter, merged_file_size)
             except minio.S3Error as err:
                 log.warning("Failed to store result in minio: {}".format(err))
                 raise
@@ -414,15 +413,7 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
     except Exception as e:
         if not isinstance(e, (InactiveRun,)):
             log.info("Caught exception, retrying in 5 seconds", exc_info=e)
-            compute_filter_similarity.retry(countdown=5,
-            #                                 args=(), kwargs={
-            #     "package": package,
-            #     "project_id": project_id,
-            #     "run_id": run_id,
-            #     "threshold": threshold,
-            #     "encoding_size": encoding_size
-            # }
-                                            )
+            compute_filter_similarity.retry(countdown=5)
 
 
 def _put_placeholder_empty_file(mc, log):
