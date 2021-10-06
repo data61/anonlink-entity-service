@@ -6,7 +6,12 @@ rbac:
 anonlink:
 
   ## Set arbitrary environment variables for the API and Workers.
-  config: {}
+  config: {
+            ## e.g.: to control which task is added to which celery worker queue.
+            ## CELERY_ROUTES: "{
+            ## 'entityservice.tasks.comparing.create_comparison_jobs': { 'queue': 'highmemory' }, ...
+            ## }"
+  }
 
   objectstore:
     ## Settings for uploads via Object Store
@@ -252,7 +257,7 @@ workers:
   CACHE_EXPIRY_SECONDS: "2592000"
 
   ## Specific configuration for celery
-  ## Note that these configurations are the same for a "normal" worker, and a "highmemeroy" one,
+  ## Note that these configurations are the same for a "normal" worker, and a "highmemory" one,
   ## except for the requested resources and replicaCount which can differ.
   celery:
     ## Number of fork worker celery node will have. It is recommended to use the same concurrency

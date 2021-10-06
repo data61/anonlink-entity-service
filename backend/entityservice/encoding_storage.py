@@ -137,7 +137,6 @@ def get_encoding_chunks(conn, package, encoding_size=128):
         chunks = sorted(chunks_per_dp[dp_id], key=lambda chunk: chunk['block_id'])
         block_ids = [chunk['block_id'] for chunk in chunks]
         values = get_encodings_of_multiple_blocks(conn, dp_id, block_ids)
-        i = 0
 
         bit_packing_struct = binary_format(encoding_size)
 

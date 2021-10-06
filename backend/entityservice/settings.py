@@ -32,6 +32,7 @@ class Config(object):
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', '')
     REDIS_USE_SENTINEL = os.getenv('REDIS_USE_SENTINEL', 'false').lower() == "true"
     REDIS_SENTINEL_NAME = os.getenv('REDIS_SENTINEL_NAME', 'mymaster')
+    REDIS_SOCKET_TIMEOUT = float(os.getenv('REDIS_SOCKET_TIMEOUT', '5.0'))
 
     MINIO_SERVER = os.getenv('MINIO_SERVER', 'minio:9000')
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
@@ -86,6 +87,7 @@ class Config(object):
         'entityservice.tasks.comparing.aggregate_comparisons': {'queue': 'highmemory'},
         'entityservice.tasks.solver.solver_task': {'queue': 'highmemory'},
         'entityservice.tasks.permutation.save_and_permute': {'queue': 'highmemory'},
+        'entityservice.tasks.encoding_uploading.pull_external_data': {'queue': 'highmemory'},
         'entityservice.tasks.encoding_uploading.handle_raw_upload': {'queue': 'celery'}
     }
     CELERY_ROUTES = _parse_if_string(os.getenv("CELERY_ROUTES", default_routes))

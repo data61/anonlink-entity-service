@@ -1,4 +1,6 @@
 import structlog
+from redis.sentinel import MasterNotFoundError
+from tenacity import retry, wait_random_exponential, retry_if_exception_type, stop_after_delay
 
 from entityservice.settings import Config as globalconfig
 from entityservice.cache.connection import connect_to_redis
@@ -26,6 +28,9 @@ def get_total_number_of_comparisons(project_id):
         return total_comparisons
 
 
+@retry(wait=wait_random_exponential(multiplier=1, max=60),
+       retry=(retry_if_exception_type(MasterNotFoundError) | retry_if_exception_type(ConnectionError) | retry_if_exception_type(TimeoutError)),
+       stop=stop_after_delay(120))
 def save_current_progress(comparisons, candidate_pairs, run_id, config=None):
     """
     Record progress for a run in the redis cache, adding the number of candidates identified
@@ -43,9 +48,14 @@ def save_current_progress(comparisons, candidate_pairs, run_id, config=None):
     if comparisons > 0:
         r = connect_to_redis()
         key = _get_run_hash_key(run_id)
-        r.hincrby(key, 'comparisons', comparisons)
-        r.hincrby(key, 'candidates', candidate_pairs)
-        r.expire(key, config.CACHE_EXPIRY)
+        p = r.pipeline()
+        # starts transactional block of pipeline so all updates succeed or fail atomically
+        p.multi()
+        p.hincrby(key, 'comparisons', comparisons)
+        p.hincrby(key, 'candidates', candidate_pairs)
+        p.expire(key, config.CACHE_EXPIRY)
+        # end transactional block of pipeline
+        p.execute()
 
 
 def get_comparison_count_for_run(run_id):
