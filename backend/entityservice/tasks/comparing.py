@@ -322,34 +322,32 @@ def compute_filter_similarity(package, project_id, run_id, threshold, encoding_s
         log.debug('All encodings for package are fetched and deserialized')
         log.debug("Calculating filter similarities for work package")
 
-        with new_child_span('comparing-encodings') as parent_scope:
+        with new_child_span('comparing-encodings') as scope:
             for chunk_number, (chunk_dp1, chunk_dp2) in enumerate(package_with_encoding_data):
-                with new_child_span(f'comparing chunk {chunk_number}', parent_scope=parent_scope) as scope:
-                    enc_dp1 = chunk_dp1['encodings']
-                    enc_dp1_size = len(enc_dp1)
-                    enc_dp2 = chunk_dp2['encodings']
-                    enc_dp2_size = len(enc_dp2)
-                    assert enc_dp1_size > 0, "Zero sized chunk in dp1"
-                    assert enc_dp2_size > 0, "Zero sized chunk in dp2"
-                    scope.span.set_tag('num_encodings_1', enc_dp1_size)
-                    scope.span.set_tag('num_encodings_2', enc_dp2_size)
+                enc_dp1 = chunk_dp1['encodings']
+                enc_dp1_size = len(enc_dp1)
+                enc_dp2 = chunk_dp2['encodings']
+                enc_dp2_size = len(enc_dp2)
+                assert enc_dp1_size > 0, "Zero sized chunk in dp1"
+                assert enc_dp2_size > 0, "Zero sized chunk in dp2"
+                scope.span.log_kv({f'num_encodings_chunk_{chunk_number}': (enc_dp1_size, enc_dp2_size)})
 
-                    log.debug("Calling anonlink with encodings", num_encodings_1=enc_dp1_size, num_encodings_2=enc_dp2_size)
+                log.debug("Calling anonlink with encodings", num_encodings_1=enc_dp1_size, num_encodings_2=enc_dp2_size)
 
-                    try:
-                        sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
-                            datasets=(enc_dp1, enc_dp2),
-                            threshold=threshold,
-                            k=min(enc_dp1_size, enc_dp2_size))
-                    except NotImplementedError as e:
-                        log.warning(f"Encodings couldn't be compared using anonlink. {e}")
-                        return
-                    rec_is0 = reindex_using_encoding_ids(rec_is0, chunk_dp1['entity_ids'])
-                    rec_is1 = reindex_using_encoding_ids(rec_is1, chunk_dp2['entity_ids'])
-                    num_results += len(sims)
-                    num_comparisons += enc_dp1_size * enc_dp2_size
-                    sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
-                    log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
+                try:
+                    sims, (rec_is0, rec_is1) = anonlink.similarities.dice_coefficient_accelerated(
+                        datasets=(enc_dp1, enc_dp2),
+                        threshold=threshold,
+                        k=min(enc_dp1_size, enc_dp2_size))
+                except NotImplementedError as e:
+                    log.warning(f"Encodings couldn't be compared using anonlink. {e}")
+                    return
+                rec_is0 = reindex_using_encoding_ids(rec_is0, chunk_dp1['entity_ids'])
+                rec_is1 = reindex_using_encoding_ids(rec_is1, chunk_dp2['entity_ids'])
+                num_results += len(sims)
+                num_comparisons += enc_dp1_size * enc_dp2_size
+                sim_results.append((sims, (rec_is0, rec_is1), chunk_dp1['datasetIndex'], chunk_dp2['datasetIndex']))
+                log.debug(f'comparison is done. {num_comparisons} comparisons got {num_results} pairs above the threshold')
 
         # progress reporting
         log.debug('Encoding similarities calculated')
@@ -512,6 +510,8 @@ def aggregate_comparisons(similarity_result_files, project_id, run_id, parent_sp
 
     log.debug(f"Aggregating result chunks from {len(files)} files, "
               f"total size: {sum(map(operator.itemgetter(1), files))}")
+    task_span = aggregate_comparisons.span
+    task_span.log_kv({'num_files': len(files), 'total_size': sum(map(operator.itemgetter(1), files))})
 
     mc = connect_to_object_store()
     while len(files) > 1:
