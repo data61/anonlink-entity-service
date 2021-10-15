@@ -80,6 +80,18 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
         cur.execute(sql_insertion_query, [dp_id, receipt_token, clks_filename, encoding_count, block_count, 'pending'])
 
 
+def update_upload_state(db, dp_id, receipt_token, state='error'):
+    """ creates an upload if it does not exist """
+    sql_query = """
+        INSERT INTO uploads (dp, token, count, block_count, state)
+        VALUES (%(dp)s, %(token)s, 0, 0, %(state)s)
+        ON CONFLICT (token)
+        DO UPDATE SET state = %(state)s
+        """
+    with db.cursor() as cur:
+        cur.execute(sql_query, {'dp': dp_id, 'token': receipt_token, 'state': state})
+
+
 def insert_encodings_into_blocks(db, dp_id: int, block_names: List[List[str]], entity_ids: List[int],
                                  encodings: List[bytes], page_size: int = 4096):
     """
