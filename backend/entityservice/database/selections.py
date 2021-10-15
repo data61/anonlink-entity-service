@@ -72,17 +72,18 @@ def get_number_parties_uploaded(db, project_id):
     return query_result['count']
 
 
-def get_encoding_error_count(db, project_id):
+def get_errored_uploads_count(db, project_id):
     """
     Returns the count of uploads for the given project that are in the state "error".
+    Depending on when the upload process failed, we either have the dataprovider's uploaded state as 'error'
+    or the upload's state as 'error'. Thus we have to check both.
     """
     sql_query = """
         SELECT count(*)
-        FROM dataproviders, uploads
-        WHERE
-          dataproviders.project = %s AND
-          uploads.dp = dataproviders.id AND
-          uploads.state = 'error'
+        FROM dataproviders 
+        LEFT OUTER JOIN uploads 
+        ON dataproviders.id = uploads.dp 
+        WHERE dataproviders.project = %s AND (dataproviders.uploaded = 'error' OR uploads.state='error')
         """
     return query_db(db, sql_query, [project_id], one=True)['count']
 

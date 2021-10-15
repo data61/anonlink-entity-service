@@ -13,7 +13,7 @@ import opentracing
 import entityservice.database as db
 from entityservice.encoding_storage import hash_block_name, upload_clk_data_binary, include_encoding_id_in_binary_stream
 from entityservice.tasks import handle_raw_upload, remove_project, pull_external_data_encodings_only, \
-    pull_external_data, check_for_executable_runs
+    pull_external_data, check_for_executable_runs, handle_upload_error
 from entityservice.tracing import serialize_span
 from entityservice.utils import fmt_bytes, safe_fail_request, get_json, generate_code, object_store_upload_path, \
     clks_uploaded_to_project
@@ -96,7 +96,7 @@ def project_get(project_id):
         project_object = db.get_project(db_conn, project_id)
         # Expose the number of data providers who have uploaded clks
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-        num_parties_with_error = db.get_encoding_error_count(db_conn, project_id)
+        num_parties_with_error = db.get_errored_uploads_count(db_conn, project_id)
     log.info(f"{parties_contributed} parties have contributed hashes")
     project_object['parties_contributed'] = parties_contributed
 
@@ -368,13 +368,18 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
         # that there are no blocks.
         if 'blocks' not in clk_json:
             log.info("scheduling task to pull encodings from object store")
-            pull_external_data_encodings_only.delay(
+            pull_external_data_encodings_only.s(
                 project_id,
                 dp_id,
                 encoding_object_info,
                 encoding_credentials,
                 receipt_token,
-                parent_span=serialize_span(parent_span))
+                parent_span=serialize_span(parent_span)).on_error(
+                    handle_upload_error.s(
+                        project_id=project_id,
+                        dp_id=dp_id,
+                        receipt_token=receipt_token,
+                        parent_span=serialize_span(parent_span))).delay()
         else:
             # Need to deal with both encodings and blocks
             if 'file' in clk_json['blocks']:
@@ -384,13 +389,18 @@ def handle_encoding_upload_json(project_id, dp_id, clk_json, receipt_token, uses
                 blocks_object_info = clk_json['blocks']['file']
                 blocks_credentials = clk_json['blocks'].get('credentials')
                 log.info("scheduling task to pull both encodings and blocking data from object store")
-                pull_external_data.delay(
+                pull_external_data.s(
                     project_id,
                     dp_id,
                     encoding_object_info,
                     blocks_object_info,
                     receipt_token,
-                    parent_span=serialize_span(parent_span))
+                    parent_span=serialize_span(parent_span)).on_error(
+                    handle_upload_error.s(
+                        project_id=project_id,
+                        dp_id=dp_id,
+                        receipt_token=receipt_token,
+                        parent_span=serialize_span(parent_span))).delay()
             else:
                 raise NotImplementedError("Don't currently handle combination of external encodings and blocks")
 
