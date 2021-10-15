@@ -81,7 +81,7 @@ def insert_encoding_metadata(db, clks_filename, dp_id, receipt_token, encoding_c
 
 
 def update_upload_state(db, dp_id, receipt_token, state='error'):
-    """ creates an upload if it does not exist """
+    """ Insert a new upload with the given state, if the upload already exists update the state."""
     sql_query = """
         INSERT INTO uploads (dp, token, count, block_count, state)
         VALUES (%(dp)s, %(token)s, 0, 0, %(state)s)
