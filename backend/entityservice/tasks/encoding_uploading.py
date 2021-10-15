@@ -220,3 +220,14 @@ def handle_raw_upload(project_id, dp_id, receipt_token, parent_span=None):
     if clks_uploaded_to_project(project_id, check_data_ready=True):
         log.info("All parties' data present. Scheduling any queued runs")
         check_for_executable_runs.delay(project_id, handle_raw_upload.get_serialized_span())
+
+
+@celery.task(base=TracedTask, ignore_result=True, args_as_tags=('project_id', 'dp_id'))
+def handle_upload_error(*args, project_id, dp_id, receipt_token, parent_span=None):
+    log = logger.bind(pid=project_id, dp_id=dp_id)
+    if len(args) == 3:
+        request, exc, traceback = args
+        log.warning(f"Upload failed with: {exc}")
+    with DBConn() as conn:
+        update_upload_state(conn, dp_id, receipt_token, 'error')
+        log.warning("set upload state to 'error'")
