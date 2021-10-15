@@ -95,7 +95,7 @@ def project_get(project_id):
         project_object = db.get_project(db_conn, project_id)
         # Expose the number of data providers who have uploaded clks
         parties_contributed = db.get_number_parties_uploaded(db_conn, project_id)
-        num_parties_with_error = db.get_encoding_error_count(db_conn, project_id)
+        num_parties_with_error = db.get_errored_uploads_count(db_conn, project_id)
     log.info(f"{parties_contributed} parties have contributed hashes")
     project_object['parties_contributed'] = parties_contributed
 

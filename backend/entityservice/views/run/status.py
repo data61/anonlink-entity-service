@@ -26,7 +26,7 @@ def get(project_id, run_id):
     with opentracing.tracer.start_span('get-status-from-db', child_of=parent_span) as span:
         with db.DBConn() as conn:
             run_status = db.get_run_status(conn, run_id)
-            project_in_error = db.get_encoding_error_count(conn, project_id) > 0
+            project_in_error = db.get_errored_uploads_count(conn, project_id) > 0
         span.set_tag('stage', run_status['stage'])
 
     run_type = RUN_TYPES[run_status['type']]
