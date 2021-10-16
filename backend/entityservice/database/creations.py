@@ -15,7 +15,7 @@ def create_data_tables(conn, dp_ids):
                     encoding_id BIGSERIAL NOT NULL, 
                     encoding BYTEA NOT NULL, 
                     PRIMARY KEY (encoding_id)
-                );
+                ) WITH (autovacuum_enabled = false);
                 """)
             cur.execute(f"""
                 CREATE TABLE encodingblocks_{dp_id} (
@@ -23,5 +23,5 @@ def create_data_tables(conn, dp_ids):
                     encoding_id BIGINT, 
                     block_id INTEGER, 
                     FOREIGN KEY(encoding_id) REFERENCES encodings_{dp_id} (encoding_id)
-                );
+                ) WITH (autovacuum_enabled = false);
             """)
