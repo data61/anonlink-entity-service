@@ -59,9 +59,11 @@ services:
     depends_on:
       - db
 
-  # Setup the object store to have another more restricted user
+  # Set up the object store to have another more restricted user
   objectstore_init:
     image: minio/mc:RELEASE.2021-02-14T04-28-06Z
+    environment:
+      - OBJECT_STORE_SECURE=false
     env_file:
       - .env
     entrypoint: |
