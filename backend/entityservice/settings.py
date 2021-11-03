@@ -38,6 +38,7 @@ class Config(object):
     MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', '')
     MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', '')
     MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'entityservice')
+    MINIO_SECURE = os.getenv('MINIO_SECURE', 'false').lower() == 'true'
 
     UPLOAD_OBJECT_STORE_ENABLED = os.getenv('UPLOAD_OBJECT_STORE_ENABLED', 'true').lower() == "true"
     UPLOAD_OBJECT_STORE_STS_DURATION = int(os.getenv('UPLOAD_OBJECT_STORE_STS_DURATION', '43200'))
