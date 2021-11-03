@@ -14,6 +14,11 @@ anonlink:
   }
 
   objectstore:
+    ## Settings for the Object Store that Anonlink Entity Service uses internally
+
+    ## Connect to the object store using https
+    secure: false
+
     ## Settings for uploads via Object Store
 
     ## Toggle the feature providing client's with restricted upload access to the object store.

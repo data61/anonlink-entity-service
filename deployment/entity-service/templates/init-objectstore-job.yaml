@@ -29,6 +29,11 @@ spec:
                 name: {{ template "es.fullname" . }}
           - name: UPLOAD_OBJECT_STORE_BUCKET
             value: {{default "uploads" .Values.anonlink.objectstore.uploadBucket.name | quote }}
+          - name: OBJECT_STORE_SECURE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "es.fullname" . }}
+                key: MINIO_SECURE
         envFrom:
         - secretRef:
             name: {{ template "es.fullname" . }}
