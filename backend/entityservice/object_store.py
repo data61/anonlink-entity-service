@@ -16,7 +16,7 @@ def connect_to_object_store(credentials=None):
         config.MINIO_ACCESS_KEY,
         config.MINIO_SECRET_KEY,
         credentials=credentials,
-        secure=False
+        secure=config.MINIO_SECURE
     )
     logger.debug("Connected to minio")
     mc.set_app_info("anonlink-client", "minio general client")
@@ -54,7 +54,7 @@ def object_store_download_only_client():
         config.DOWNLOAD_OBJECT_STORE_ACCESS_KEY,
         config.DOWNLOAD_OBJECT_STORE_SECRET_KEY,
         region="us-east-1",
-        secure=False
+        secure=config.MINIO_SECURE
     )
     mc.set_app_info("anonlink-upload", "minio client for downloads")
     logger.debug("Connected to minio download account")
