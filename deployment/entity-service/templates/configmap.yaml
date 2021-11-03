@@ -28,6 +28,8 @@ data:
   # MINIO_SECRET_KEY provided as a secret
   MINIO_BUCKET: {{ required "minio.defaultBucket.name is required." .Values.minio.defaultBucket.name | quote }}
 
+  MINIO_SECURE: {{ required "anonlink.objectstore.secure is required" .Values.anonlink.objectstore.secure | quote }}
+
   UPLOAD_OBJECT_STORE_ENABLED: {{ .Values.anonlink.objectstore.uploadEnabled | quote }}
   {{ if .Values.anonlink.objectstore.uploadServer }}
   UPLOAD_OBJECT_STORE_SERVER: {{ .Values.anonlink.objectstore.uploadServer | quote }}
