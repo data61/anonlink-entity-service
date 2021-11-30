@@ -272,6 +272,43 @@ stages:
         inputs:
           helmVersionToInstall: 'latest'
 
+      # Show what is installed in the test namespace in-case a cleanup has failed
+      - task: Kubernetes@1
+        displayName: 'List Installed Deployments'
+        name: listdeployments
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'get'
+          arguments: '--namespace $(NAMESPACE) deployment'
+
+      - task: Kubernetes@1
+        displayName: 'List Installed Jobs'
+        name: listjobs
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'get'
+          arguments: '--namespace $(NAMESPACE) jobs'
+
+      - task: Kubernetes@1
+        displayName: 'List Installed Volumes'
+        name: listvols
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'get'
+          arguments: '--namespace $(NAMESPACE) pvc,pv'
+
+      - task: Kubernetes@1
+        displayName: 'List Installed statefulsets'
+        name: liststatefulsets
+        inputs:
+          connectionType: 'Kubernetes Service Connection'
+          kubernetesServiceEndpoint: $(CLUSTER)
+          command: 'get'
+          arguments: '--namespace $(NAMESPACE) statefulsets'
+
       - task: HelmDeploy@0
         displayName: Helm package
         inputs:
