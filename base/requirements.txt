@@ -26,5 +26,5 @@ redis==3.5.3
 requests==2.26.0
 setproctitle==1.2.2 # used by celery to change process name
 structlog==21.1.0
-SQLAlchemy==1.4.23
+SQLAlchemy==1.4.28
 tenacity==8.0.1
