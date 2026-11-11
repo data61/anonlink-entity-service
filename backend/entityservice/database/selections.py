@@ -377,16 +377,21 @@ def get_chunk_of_encodings(db, dp_id, entity_ids, stored_binary_size=132):
 def get_encodings_of_multiple_blocks(db, dp_id, block_ids):
 
     cur = db.cursor()
+    # dp_id and block_ids are internal integer ids, never raw user input, but this
+    # query is built with string formatting (COPY doesn't take bound params), so
+    # we cast to int ourselves rather than trust callers not to pass a string through.
+    safe_dp_id = int(dp_id)
+    safe_block_ids = [str(int(block_id)) for block_id in block_ids]
     sql_query = """
-    SELECT encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding 
+    SELECT encodingblocks.block_id, encodingblocks.entity_id, encodings.encoding
     FROM encodingblocks, encodings
     WHERE
       encodingblocks.dp = {} AND
-      encodingblocks.encoding_id = encodings.encoding_id AND 
+      encodingblocks.encoding_id = encodings.encoding_id AND
       encodingblocks.block_id IN ({})
     ORDER BY
         block_id asc, entity_id asc
-    """.format(dp_id, ",".join(map(lambda s: f"'{s}'", block_ids)))
+    """.format(safe_dp_id, ",".join(safe_block_ids))
 
     for row in execute_select_query_in_binary(cur, sql_query):
         if len(row) != 3:
